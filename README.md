@@ -1,3 +1,10 @@
+# netsec-scion
+
+This is the [ETHZ Netsec](http://www.netsec.ethz.ch/) fork of the
+[SCION codebase](https://github.com/scionproto/scion). It is used for
+research-related development, as well as SCION Lab.
+
+
 SCION
 =====
 
@@ -46,7 +53,7 @@ Necessary steps in order to run SCION:
    ```
    mkdir -p "$GOPATH/src/github.com/scionproto"
    cd "$GOPATH/src/github.com/scionproto"
-   git clone --recursive git@github.com:scionproto/scion
+   git clone --recursive git@github.com:netsec-ethz/netsec-scion
    cd scion
    ```
    If you don't have a github account, or haven't setup ssh access to it, this
