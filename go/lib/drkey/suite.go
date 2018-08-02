@@ -18,11 +18,10 @@ import (
 	"crypto/sha256"
 
 	"github.com/scionproto/scion/go/lib/addr"
-
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -30,55 +29,62 @@ const (
 	drkeyLength = 16
 )
 
-// DeriveDRKeySV derives a DRKey secret value based on a master secret.
-func DeriveDRKeySV(masterSecret, date common.RawBytes, expTime uint32) *DRKeySV {
-	msLen := len(masterSecret)
+func (sv *DRKeySV) SetKey(secret, date common.RawBytes) error {
+	msLen := len(secret)
 	all := make(common.RawBytes, msLen+len(date))
-	masterSecret.WritePld(all[:msLen])
-	date.WritePld(all[msLen:])
-	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
-	return &DRKeySV{Key: key[:drkeyLength], ExpTime: expTime}
-}
-
-// DeriveDRKeyLvl1 derives a first level DRKey based on a per-AS secret value.
-func DeriveDRKeyLvl1(sv *DRKeySV, srcIa, dstIa addr.IA, expTime uint32) (*DRKeyLvl1, error) {
-	h, err := util.InitMac(sv.Key)
-	if err != nil {
-		return nil, err
-	}
-	all := make(common.RawBytes, addr.IABytes)
-	dstIa.Write(all)
-	key, err := util.Mac(h, all)
-	if err != nil {
-		return nil, err
-	}
-	return &DRKeyLvl1{SrcIa: srcIa, DstIa: dstIa, ExpTime: expTime, Key: key[:drkeyLength]}, nil
-}
-
-// DeriveDRKeyLvl2 derives a second level DRKey based on a first level key.
-func DeriveDRKeyLvl2(in *DRKeyLvl1, out *DRKeyLvl2) error {
-	h, err := util.InitMac(in.Key)
+	_, err := secret.WritePld(all[:msLen])
 	if err != nil {
 		return err
 	}
-	p := []byte(out.Proto)
+	_, err = date.WritePld(all[msLen:])
+	if err != nil {
+		return err
+	}
+	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
+	sv.Key = key
+	return nil
+}
+
+func (k *DRKeyLvl1) SetKey(secret common.RawBytes) error {
+	h, err := scrypto.InitMac(secret)
+	if err != nil {
+		return err
+	}
+	all := make(common.RawBytes, addr.IABytes)
+	k.DstIa.Write(all)
+	key, err := scrypto.Mac(h, all)
+	if err != nil {
+		return err
+	}
+	k.Key = key
+	return nil
+}
+
+func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
+	h, err := scrypto.InitMac(secret)
+	if err != nil {
+		return err
+	}
+	p := []byte(k.Proto)
 	pLen := len(p)
 	inputLen := 1 + pLen
-	switch out.Type {
+	switch k.Type {
+	case AS2AS:
+		break
 	case AS2Host:
-		it, err := InputTypeFromHostTypes(out.DstHost.Type(), addr.HostTypeNone)
+		it, err := InputTypeFromHostTypes(k.DstHost.Type(), addr.HostTypeNone)
 		if err != nil {
 			return err
 		}
 		inputLen += it.RequiredLength()
 	case Host2Host:
-		it, err := InputTypeFromHostTypes(out.SrcHost.Type(), out.DstHost.Type())
+		it, err := InputTypeFromHostTypes(k.SrcHost.Type(), k.DstHost.Type())
 		if err != nil {
 			return err
 		}
 		inputLen += it.RequiredLength()
 	case AS2HostPair:
-		it, err := InputTypeFromHostTypes(out.DstHost.Type(), out.AddHost.Type())
+		it, err := InputTypeFromHostTypes(k.DstHost.Type(), k.AddHost.Type())
 		if err != nil {
 			return err
 		}
@@ -89,30 +95,47 @@ func DeriveDRKeyLvl2(in *DRKeyLvl1, out *DRKeyLvl2) error {
 	all := make(common.RawBytes, inputLen)
 	copy(all[:1], common.RawBytes{uint8(pLen)})
 	copy(all[1:], p)
-	switch out.Type {
+	switch k.Type {
+	case AS2AS:
+		break
 	case AS2Host:
-		copy(all[pLen+1:], out.DstHost.Pack())
+		copy(all[pLen+1:], k.DstHost.Pack())
 	case Host2Host:
-		copy(all[pLen+1:], out.SrcHost.Pack())
-		copy(all[pLen+1+out.SrcHost.Size():], out.DstHost.Pack())
+		copy(all[pLen+1:], k.SrcHost.Pack())
+		copy(all[pLen+1+k.SrcHost.Size():], k.DstHost.Pack())
 	case AS2HostPair:
-		copy(all[pLen+1:], out.DstHost.Pack())
-		copy(all[pLen+1+out.DstHost.Size():], out.AddHost.Pack())
+		copy(all[pLen+1:], k.DstHost.Pack())
+		copy(all[pLen+1+k.DstHost.Size():], k.AddHost.Pack())
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}
-	key, err := util.Mac(h, all)
+	key, err := scrypto.Mac(h, all)
 	if err != nil {
 		return err
 	}
-	out.Key = key
+	k.Key = key
 	return nil
 }
 
-// func EncryptDRKeyLvl1(drkey DRKeyLvl1) common.RawBytes {
-// 	return nil
-// }
+func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey,
+	privkey common.RawBytes) (common.RawBytes, error) {
+	keyLen := len(drkey.Key)
+	msg := make(common.RawBytes, addr.IABytes+keyLen)
+	drkey.SrcIa.Write(msg)
+	drkey.Key.WritePld(msg[addr.IABytes:])
+	cipher, err := scrypto.Encrypt(msg, nonce, pubkey, privkey, "Curve25519xSalsa20Poly1305")
+	if err != nil {
+		return nil, err
+	}
+	return cipher, nil
+}
 
-// func DecryptDRKeyLvl1(common.RawBytes) DRKeyLvl1 {
-
-// }
+func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (*DRKeyLvl1, error) {
+	msg, err := scrypto.Decrypt(cipher, nonce, pubkey, privkey, "Curve25519xSalsa20Poly1305")
+	if err != nil {
+		return nil, err
+	}
+	srcIa := addr.IAFromRaw(msg[:addr.IABytes])
+	key := msg[addr.IABytes:]
+	return &DRKeyLvl1{SrcIa: srcIa, Key: key}, nil
+}
