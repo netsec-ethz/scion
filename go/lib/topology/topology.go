@@ -117,6 +117,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		for ifid, rawIntf := range rawBr.Interfaces {
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
 			ifinfo := IFInfo{BRName: name}
+			ifinfo.InternalAddrIdx = rawIntf.InternalAddrIdx
 			intAddr := rawBr.InternalAddrs[rawIntf.InternalAddrIdx]
 			if ifinfo.InternalAddr, err = intAddr.ToTopoAddr(t.Overlay); err != nil {
 				return err

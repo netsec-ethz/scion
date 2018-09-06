@@ -55,7 +55,8 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	n.IFs = make(map[common.IFIDType]*Interface)
 	for _, ifid := range intfs {
 		ifinfo := infomap[ifid]
-		if v, ok := locIdxes[ifinfo.InternalAddrIdx]; ok && v != ifinfo.InternalAddr {
+		// XXX(matfrei) This check seems superfluous as the source for all entries is the same InternalAddrs slice.
+		if v, ok := locIdxes[ifinfo.InternalAddrIdx]; ok && !v.Equal(ifinfo.InternalAddr) {
 			return nil, common.NewBasicError("Duplicate local address index", nil,
 				"idx", ifinfo.InternalAddrIdx, "first", v, "second", ifinfo.InternalAddr)
 		}

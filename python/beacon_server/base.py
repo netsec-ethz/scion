@@ -764,8 +764,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             # send keep-alives on all known BR interfaces
             for ifid in self.ifid2br:
-                br = self.ifid2br[ifid]
-                br_addr, br_port = br.int_addrs[0].public[0]
+                br_addr, br_port = self.get_border_addr(ifid)
                 meta = self._build_meta(host=br_addr, port=br_port)
                 self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
                                meta, (meta.host, meta.port))
