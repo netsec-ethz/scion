@@ -83,12 +83,6 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 			return err
 		}
 		inputLen += it.RequiredLength()
-	case AS2HostPair:
-		it, err := InputTypeFromHostTypes(k.DstHost.Type(), k.AddHost.Type())
-		if err != nil {
-			return err
-		}
-		inputLen += it.RequiredLength()
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}
@@ -103,9 +97,6 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	case Host2Host:
 		copy(all[pLen+1:], k.SrcHost.Pack())
 		copy(all[pLen+1+k.SrcHost.Size():], k.DstHost.Pack())
-	case AS2HostPair:
-		copy(all[pLen+1:], k.DstHost.Pack())
-		copy(all[pLen+1+k.DstHost.Size():], k.AddHost.Pack())
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}

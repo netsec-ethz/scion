@@ -40,7 +40,6 @@ const (
 	AS2AS DRKeyLvl2Type = iota
 	AS2Host
 	Host2Host
-	AS2HostPair
 )
 
 func (t DRKeyLvl2Type) String() string {
@@ -51,8 +50,6 @@ func (t DRKeyLvl2Type) String() string {
 		return "AS-to-host"
 	case Host2Host:
 		return "host-to-host"
-	case AS2HostPair:
-		return "AS-to-host pair"
 	default:
 		return fmt.Sprintf("UNKNOWN (%d)", t)
 	}
@@ -64,10 +61,8 @@ type DRKeyLvl2 struct {
 	Type    DRKeyLvl2Type
 	SrcIa   addr.IA
 	DstIa   addr.IA
-	AddIa   addr.IA
 	SrcHost addr.HostAddr
 	DstHost addr.HostAddr
-	AddHost addr.HostAddr
 	ExpTime uint32
 	Key     common.RawBytes
 }

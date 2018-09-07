@@ -52,15 +52,12 @@ const (
 		SrcAsID 	INTEGER NOT NULL,
 		DstIsdID 	INTEGER NOT NULL,
 		DstAsID 	INTEGER NOT NULL,
-		AddIsdID	INTEGER,
-		AddAsID		INTEGER,
 		SrcHostIP 	TEXT,
 		DstHostIP	TEXT,
-		AddHostIP	TEXT,
 		ExpTime 	INTEGER NOT NULL,
 		Key 		TEXT NOT NULL,
-		PRIMARY KEY (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, AddIsdID, AddAsID,
-			SrcHostIP, DstHostIP, AddHostIP, ExpTime)
+		PRIMARY KEY (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, SrcHostIP, DstHostIP, 
+			ExpTime)
 	);`
 
 	DRKeyLvl1Table = "DRKeyLvl1"
@@ -81,13 +78,12 @@ const (
 	`
 	getDRKeyLvl2 = `
 		SELECT Key FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND 
-		DstIsdID=? AND DstAsID=? AND AddIsdID=? AND AddAsID=? AND SrcHostIP=? AND DstHostIP=? AND
-		AddHostIP=? AND ?<=ExpTime
+		DstIsdID=? AND DstAsID=? AND SrcHostIP=? AND DstHostIP=? AND ?<=ExpTime
 	`
 	insertDRKeyLvl2 = `
 		INSERT OR IGNORE INTO DRKeyLvl2 (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, 
-		AddIsdID, AddAsID, SrcHostIP, DstHostIP, AddHostIP, ExpTime, Key)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		SrcHostIP, DstHostIP, ExpTime, Key)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	removeOutdatedDRKeyLvl2 = `
 		DELETE FROM DRKeyLvl2 WHERE ?>ExpTime
@@ -210,8 +206,7 @@ func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2,
 	valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
 	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Proto, key.Type, key.SrcIa.I, key.SrcIa.A,
-		key.DstIa.I, key.DstIa.A, key.AddIa.I, key.AddIa.A, key.SrcHost, key.DstHost, key.AddHost,
-		valTime).Scan(&drkeyRaw)
+		key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
 	}
@@ -227,8 +222,7 @@ func (db *DB) InsertDRKeyLvl2(key *drkey.DRKeyLvl2, expTime uint32) (int64, erro
 func (db *DB) InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2,
 	expTime uint32) (int64, error) {
 	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Proto, key.Type, key.SrcIa.I,
-		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.AddIa.I, key.AddIa.A, key.SrcHost, key.DstHost,
-		key.AddHost, expTime, key.Key)
+		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, expTime, key.Key)
 	if err != nil {
 		return 0, err
 	}
