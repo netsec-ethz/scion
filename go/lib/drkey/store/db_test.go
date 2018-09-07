@@ -38,10 +38,8 @@ var (
 	rawSecret = []byte("0123456789012345")
 	rawSrcIA  = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x77}
 	rawDstIA  = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x88}
-	rawAddIA  = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x99}
 	SrcHostIP = net.IPv4(192, 168, 1, 37)
 	DstHostIP = net.IPv4(192, 168, 1, 38)
-	AddHostIP = net.IPv4(192, 168, 1, 39)
 )
 
 func TestDRKeyLvl1(t *testing.T) {
@@ -107,10 +105,8 @@ func TestDRKeyLvl2(t *testing.T) {
 			Type:    drkey.Host2Host,
 			SrcIa:   srcIa,
 			DstIa:   dstIa,
-			AddIa:   addr.IAFromRaw(rawAddIA),
 			SrcHost: addr.HostFromIP(SrcHostIP),
 			DstHost: addr.HostFromIP(DstHostIP),
-			AddHost: addr.HostFromIP(AddHostIP),
 			ExpTime: expTime,
 		}
 		SoMsg("drkey", drkeyLvl2, ShouldNotBeNil)
