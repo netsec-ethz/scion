@@ -20,41 +20,38 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*DRKeyLvl1Rep)(nil)
+var _ proto.Cerealizable = (*DRKeyLvl2Rep)(nil)
 
-type DRKeyLvl1Rep struct {
-	SrcIa      addr.IAInt `capnp:"isdas"`
+type DRKeyLvl2Rep struct {
+	Timestamp  uint32
+	Drkey      common.RawBytes
 	EpochBegin uint32
 	EpochEnd   uint32
 	Cipher     common.RawBytes
 	CertVerDst uint64
+	Misc       common.RawBytes
 }
 
-func (c *DRKeyLvl1Rep) IA() addr.IA {
-	return c.SrcIa.IA()
-}
-
-func (c *DRKeyLvl1Rep) ProtoId() proto.ProtoIdType {
-	return proto.DRKeyLvl1Rep_TypeID
+func (c *DRKeyLvl2Rep) ProtoId() proto.ProtoIdType {
+	return proto.DRKeyLvl2Rep_TypeID
 }
 
 // Begin returns the begin of validity period of DRKey
-func (c *DRKeyLvl1Rep) Begin() time.Time {
+func (c *DRKeyLvl2Rep) Begin() time.Time {
 	return util.SecsToTime(c.EpochBegin)
 }
 
 // End returns the end of validity period of DRKey
-func (c *DRKeyLvl1Rep) End() time.Time {
+func (c *DRKeyLvl2Rep) End() time.Time {
 	return util.SecsToTime(c.EpochEnd)
 }
 
-func (c *DRKeyLvl1Rep) String() string {
-	return fmt.Sprintf("SrcIA: %v EpochBegin: %v EpochEnd: %v CertVerEnc: %d",
-		c.IA(), util.TimeToString(c.Begin()), util.TimeToString(c.End()), c.CertVerDst)
+func (c *DRKeyLvl2Rep) String() string {
+	return fmt.Sprintf("EpochBegin: %v EpochEnd: %v CertVerEnc: %d",
+		util.TimeToString(c.Begin()), util.TimeToString(c.End()), c.CertVerDst)
 }

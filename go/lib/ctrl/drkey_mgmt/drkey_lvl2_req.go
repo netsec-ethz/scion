@@ -20,31 +20,39 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
+var _ proto.Cerealizable = (*DRKeyLvl2Req)(nil)
 
-type DRKeyLvl1Req struct {
-	SrcIa   addr.IAInt `capnp:"isdas"`
-	ValTime uint32
+type DRKeyLvl2Req struct {
+	Protocol string
+	ReqType  uint8
+	ValTime  uint32
+	SrcIa    addr.IAInt
+	DstIa    addr.IAInt
+	SrcHost  addr.HostAddr
+	DstHost  addr.HostAddr
+	Misc     common.RawBytes
 }
 
-func (c *DRKeyLvl1Req) IA() addr.IA {
+func (c *DRKeyLvl2Req) IA() addr.IA {
 	return c.SrcIa.IA()
 }
 
-func (c *DRKeyLvl1Req) ProtoId() proto.ProtoIdType {
-	return proto.DRKeyLvl1Req_TypeID
+func (c *DRKeyLvl2Req) ProtoId() proto.ProtoIdType {
+	return proto.DRKeyLvl2Req_TypeID
 }
 
 // Time returns the validity time
-func (c *DRKeyLvl1Req) Time() time.Time {
+func (c *DRKeyLvl2Req) Time() time.Time {
 	return util.SecsToTime(c.ValTime)
 }
 
-func (c *DRKeyLvl1Req) String() string {
+func (c *DRKeyLvl2Req) String() string {
 	return fmt.Sprintf("SrcIA: %s ValTime: %v", c.IA(), util.TimeToString(c.Time()))
 }

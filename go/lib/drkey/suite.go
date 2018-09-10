@@ -65,10 +65,10 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	if err != nil {
 		return err
 	}
-	p := []byte(k.Proto)
+	p := []byte(k.Protocol)
 	pLen := len(p)
 	inputLen := 1 + pLen
-	switch k.Type {
+	switch k.KeyType {
 	case AS2AS:
 		break
 	case AS2Host:
@@ -89,7 +89,7 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	all := make(common.RawBytes, inputLen)
 	copy(all[:1], common.RawBytes{uint8(pLen)})
 	copy(all[1:], p)
-	switch k.Type {
+	switch k.KeyType {
 	case AS2AS:
 		break
 	case AS2Host:

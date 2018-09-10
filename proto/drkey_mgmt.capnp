@@ -5,15 +5,15 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 struct DRKeyLvl1Req {
-    isdas @0 :UInt64;      # Src ISD-AS of the requested DRKey
-    valTime @1 :UInt32;    # Point in time where requested DRKey is valid
+    isdas @0 :UInt64;     # Src ISD-AS of the requested DRKey
+    valTime @1 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
 }
 
 struct DRKeyLvl1Rep {
     isdas @0 :UInt64;      # Src ISD-AS of the DRKey
-    expTime @1 :UInt32;    # Expiration time of the DRKey
-    cipher @2 :Data;       # Encrypted DRKey
-    certVerSrc @3 :UInt64; # Version of cert used to sign
+    epochBegin @1 :UInt32; # Begin of validity period of DRKey
+    epochEnd @2 :UInt32;   # End of validity period of DRKey
+    cipher @3 :Data;       # Encrypted DRKey
     certVerDst @4 :UInt64; # Version of cert of public key used to encrypt
 }
 
@@ -24,39 +24,32 @@ struct DRKeyHost {
 
 struct DRKeyLvl2Req {
     protocol @0 :Data;    # Protocol identifier
-    reqID @1 :UInt64;     # Request identifier
-    timestamp @2 :UInt64; # Timestamp
-    reqType @3 :UInt8;    # Requested DRKeyProtoKeyType
-    srcIA @4 :UInt64;     # Src ISD-AS of the requested DRKey
-    dstIA @5 :UInt64;     # Dst ISD-AS of the requested DRKey
-    addIA :union {        # Additional ISD-AS of the requested DRKey (optional)
-        unset @6 :Void;
-        ia @7 :UInt64;
-    }
+    reqType @1 :UInt8;    # Requested DRKeyProtoKeyType
+    valTime @2 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
+    srcIA @3 :UInt64;     # Src ISD-AS of the requested DRKey
+    dstIA @4 :UInt64;     # Dst ISD-AS of the requested DRKey
     srcHost :union {      # Src Host of the request DRKey (optional)
-        unset @8 :Void;
-        host @9 :DRKeyHost;
+        unset @5 :Void;
+        host @6 :DRKeyHost;
     }
     dstHost :union {      # Dst Host of the request DRKey (optional)
-        unset @10 :Void;
-        host @11 :DRKeyHost;
-    }
-    addHost :union {      # Additional Host of the request DRKey (optional)
-        unset @12 :Void;
-        host @13 :DRKeyHost;
+        unset @7 :Void;
+        host @8 :DRKeyHost;
     }
     misc :union {         # Additional information for DRKey derivation (optional)
-        unset @14 :Void;
+        unset @9 :Void;
+        data @10 :Data;
     }
 }
 
 struct DRKeyLvl2Rep {
-    reqID @0 :UInt64;     # Request identifier
-    timestamp @1 :UInt64; # Timestamp
-    drkey @2 :Data;       # Derived DRKey
-    expTime @3 :UInt32;   # Expiration time of DRKey
-    misc :union {         # Additional information (optional)
+    timestamp @0 :UInt32;  # Timestamp
+    drkey @1 :Data;        # Derived DRKey
+    epochBegin @2 :UInt32; # Begin of validity period of DRKey
+    epochEnd @3 :UInt32;   # End of validity period of DRKey
+    misc :union {          # Additional information (optional)
         unset @4 :Void;
+        data @5 :Data;
     }
 }
 

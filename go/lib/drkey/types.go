@@ -22,15 +22,17 @@ import (
 )
 
 type DRKeySV struct {
-	ExpTime uint32
-	Key     common.RawBytes
+	EpochBegin uint32
+	EpochEnd   uint32
+	Key        common.RawBytes
 }
 
 type DRKeyLvl1 struct {
-	SrcIa   addr.IA
-	DstIa   addr.IA
-	ExpTime uint32
-	Key     common.RawBytes
+	SrcIa      addr.IA
+	DstIa      addr.IA
+	EpochBegin uint32
+	EpochEnd   uint32
+	Key        common.RawBytes
 }
 
 // DRKeyLvl2Type represents the different types of second level DRKeys.
@@ -57,14 +59,15 @@ func (t DRKeyLvl2Type) String() string {
 
 // DRKeyLvl2 represents a second level DRKey
 type DRKeyLvl2 struct {
-	Proto   string
-	Type    DRKeyLvl2Type
-	SrcIa   addr.IA
-	DstIa   addr.IA
-	SrcHost addr.HostAddr
-	DstHost addr.HostAddr
-	ExpTime uint32
-	Key     common.RawBytes
+	Protocol   string
+	KeyType    DRKeyLvl2Type
+	SrcIa      addr.IA
+	DstIa      addr.IA
+	SrcHost    addr.HostAddr
+	DstHost    addr.HostAddr
+	EpochBegin uint32
+	EpochEnd   uint32
+	Key        common.RawBytes
 }
 
 // InputType is used to determine the input of the PRF for the second level derivation. It
