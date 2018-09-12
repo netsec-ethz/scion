@@ -48,7 +48,7 @@ func (c *DRKeyLvl2Req) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Req_TypeID
 }
 
-// Time returns the validity time
+// Time returns the validity time of the requested DRkey
 func (c *DRKeyLvl2Req) Time() time.Time {
 	return util.SecsToTime(c.ValTime)
 }

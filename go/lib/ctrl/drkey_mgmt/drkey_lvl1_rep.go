@@ -29,13 +29,14 @@ import (
 var _ proto.Cerealizable = (*DRKeyLvl1Rep)(nil)
 
 type DRKeyLvl1Rep struct {
-	SrcIa      addr.IAInt `capnp:"isdas"`
+	SrcIa      addr.IAInt
 	EpochBegin uint32
 	EpochEnd   uint32
 	Cipher     common.RawBytes
 	CertVerDst uint64
 }
 
+// IA returns the source ISD-AS of the DRKey
 func (c *DRKeyLvl1Rep) IA() addr.IA {
 	return c.SrcIa.IA()
 }
