@@ -34,6 +34,10 @@
 //  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
+//	infra.DRKeyLvl1Request	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Req
+//	infra.DRKeyLvl1Reply	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Rep
+//	infra.DRKeyLvl2Request	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Req
+//	infra.DRKeyLvl2Reply	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Rep
 //
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
@@ -88,6 +92,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -619,6 +624,60 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	return err
 }
 
+func (m *Messenger) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Req, a net.Addr,
+	id uint64) (*drkey_mgmt.DRKeyLvl1Rep, error) {
+
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
+	pld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("[Messenger] Sending request", "req_type", infra.DRKeyLvl1Request,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err :=
+		m.getRequester(infra.DRKeyLvl1Request, infra.DRKeyLvl1Reply).Request(ctx, pld, a)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
+	}
+	reply, ok := replyMsg.(*drkey_mgmt.DRKeyLvl1Rep)
+	if !ok {
+		err := newTypeAssertErr("*drkey_mgmt.DRKeyLvl1Rep", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
+	}
+	logger.Debug("[Messenger] Received reply")
+	return reply, nil
+}
+
+func (m *Messenger) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep, a net.Addr,
+	id uint64) error {
+
+	pld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify", "type", infra.DRKeyLvl1Request, "to", a, "id", id)
+	return m.getRequester(infra.DRKeyLvl1Request, infra.DRKeyLvl1Reply).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr,
+	id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error) {
+	//TODO(ben): complete
+	return nil, nil
+}
+
+func (m *Messenger) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr,
+	id uint64) error {
+	//TODO(ben): complete
+	return nil
+}
+
 // AddHandler registers a handler for msgType.
 func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler) {
 	m.handlersLock.Lock()
@@ -1004,7 +1063,22 @@ func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 					nil, "capnp_which", pld.PathMgmt.Which)
 		}
 	case proto.CtrlPld_Which_ack:
-		return infra.Ack, pld.Ack, nil
+        return infra.Ack, pld.Ack, nil
+    case proto.CtrlPld_Which_drkeyMgmt:
+		switch pld.DRKeyMgmt.Which {
+		case proto.DRKeyMgmt_Which_drkeyLvl1Req:
+			return infra.DRKeyLvl1Request, pld.DRKeyMgmt.DRKeyLvl1Req, nil
+		case proto.DRKeyMgmt_Which_drkeyLvl1Rep:
+			return infra.DRKeyLvl1Reply, pld.DRKeyMgmt.DRKeyLvl1Rep, nil
+		case proto.DRKeyMgmt_Which_drkeyLvl2Req:
+			return infra.DRKeyLvl2Request, pld.DRKeyMgmt.DRKeyLvl2Req, nil
+		case proto.DRKeyMgmt_Which_drkeyLvl2Rep:
+			return infra.DRKeyLvl2Reply, pld.DRKeyMgmt.DRKeyLvl2Rep, nil
+		default:
+			return infra.None, nil,
+				common.NewBasicError("Unsupported SignedPld.CtrlPld.DRKeyMgmt.Xxx message type",
+					nil, "capnp_which", pld.DRKeyMgmt.Which)
+		}
 	default:
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)

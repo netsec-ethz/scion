@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -146,6 +147,10 @@ const (
 	ChainIssueRequest
 	ChainIssueReply
 	Ack
+	DRKeyLvl1Request
+	DRKeyLvl1Reply
+	DRKeyLvl2Request
+	DRKeyLvl2Reply
 )
 
 func (mt MessageType) String() string {
@@ -192,6 +197,14 @@ func (mt MessageType) String() string {
 		return "ChainIssueReply"
 	case Ack:
 		return "Ack"
+	case DRKeyLvl1Request:
+		return "DRKeyLvl1Request"
+	case DRKeyLvl1Reply:
+		return "DRKeyLvl1Reply"
+	case DRKeyLvl2Request:
+		return "DRKeyLvl2Request"
+	case DRKeyLvl2Reply:
+		return "DRKeyLvl2Reply"
 	default:
 		return fmt.Sprintf("Unknown (%d)", mt)
 	}
@@ -330,6 +343,14 @@ type Messenger interface {
 	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
 	UpdateSigner(signer Signer, types []MessageType)
 	UpdateVerifier(verifier Verifier)
+	RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Req, a net.Addr,
+		id uint64) (*drkey_mgmt.DRKeyLvl1Rep, error)
+	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep, a net.Addr,
+		id uint64) error
+	RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr,
+		id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error)
+	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr,
+		id uint64) error
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
