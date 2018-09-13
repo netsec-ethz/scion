@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package store
+package keystore
 
 import (
 	"context"
@@ -205,8 +205,8 @@ func (db *DB) GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (common.RawByte
 func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2,
 	valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
-	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Proto, key.Type, key.SrcIa.I, key.SrcIa.A,
-		key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, valTime).Scan(&drkeyRaw)
+	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIa.I,
+		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
 	}
@@ -221,7 +221,7 @@ func (db *DB) InsertDRKeyLvl2(key *drkey.DRKeyLvl2, expTime uint32) (int64, erro
 // InsertDRKeyLvl2Ctx is the context-aware version of InsertDRKeyLvl2.
 func (db *DB) InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2,
 	expTime uint32) (int64, error) {
-	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Proto, key.Type, key.SrcIa.I,
+	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIa.I,
 		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, expTime, key.Key)
 	if err != nil {
 		return 0, err
