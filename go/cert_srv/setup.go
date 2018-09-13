@@ -192,7 +192,10 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.ChainRequest, state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
-	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
+    msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
+    msger.AddHandler(infra.DRKeyLvl1Request, &DRKeyHandler{})
+	msger.AddHandler(infra.DRKeyLvl1Reply, &DRKeyHandler{})
+	//msger.AddHandler(infra.DRKeyLvl2Request, &DRKeyHandler{})
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.
