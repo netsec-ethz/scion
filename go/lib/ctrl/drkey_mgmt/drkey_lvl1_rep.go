@@ -18,11 +18,10 @@ package drkey_mgmt
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -45,17 +44,12 @@ func (c *DRKeyLvl1Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl1Rep_TypeID
 }
 
-// Begin returns the begin of validity period of DRKey
-func (c *DRKeyLvl1Rep) Begin() time.Time {
-	return util.SecsToTime(c.EpochBegin)
-}
-
-// End returns the end of validity period of DRKey
-func (c *DRKeyLvl1Rep) End() time.Time {
-	return util.SecsToTime(c.EpochEnd)
+// Epoch returns the begin and end of the validity period of DRKey
+func (c *DRKeyLvl1Rep) Epoch() *drkey.Epoch {
+	return &drkey.Epoch{Begin: c.EpochBegin, End: c.EpochEnd}
 }
 
 func (c *DRKeyLvl1Rep) String() string {
-	return fmt.Sprintf("SrcIA: %v EpochBegin: %v EpochEnd: %v CertVerEnc: %d",
-		c.IA(), util.TimeToString(c.Begin()), util.TimeToString(c.End()), c.CertVerDst)
+	return fmt.Sprintf("SrcIA: %v EpochBegin: %d EpochEnd: %d CertVerEnc: %d",
+		c.IA(), c.EpochBegin, c.EpochEnd, c.CertVerDst)
 }

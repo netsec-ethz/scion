@@ -18,10 +18,9 @@ package drkey_mgmt
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -32,8 +31,6 @@ type DRKeyLvl2Rep struct {
 	Drkey      common.RawBytes
 	EpochBegin uint32
 	EpochEnd   uint32
-	Cipher     common.RawBytes
-	CertVerDst uint64
 	Misc       common.RawBytes
 }
 
@@ -41,17 +38,12 @@ func (c *DRKeyLvl2Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Rep_TypeID
 }
 
-// Begin returns the begin of validity period of DRKey
-func (c *DRKeyLvl2Rep) Begin() time.Time {
-	return util.SecsToTime(c.EpochBegin)
-}
-
-// End returns the end of validity period of DRKey
-func (c *DRKeyLvl2Rep) End() time.Time {
-	return util.SecsToTime(c.EpochEnd)
+// Epoch returns the begin and end of the validity period of DRKey
+func (c *DRKeyLvl2Rep) Epoch() *drkey.Epoch {
+	return &drkey.Epoch{Begin: c.EpochBegin, End: c.EpochEnd}
 }
 
 func (c *DRKeyLvl2Rep) String() string {
-	return fmt.Sprintf("EpochBegin: %v EpochEnd: %v CertVerEnc: %d",
-		util.TimeToString(c.Begin()), util.TimeToString(c.End()), c.CertVerDst)
+	return fmt.Sprintf("Timestamp: %d EpochBegin: %d EpochEnd: %d Misc: %v",
+		c.Timestamp, c.EpochBegin, c.EpochEnd, c.Misc)
 }
