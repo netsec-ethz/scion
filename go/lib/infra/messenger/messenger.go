@@ -668,14 +668,44 @@ func (m *Messenger) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1
 
 func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr,
 	id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error) {
-	//TODO(ben): complete
-	return nil, nil
+
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
+	pld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("[Messenger] Sending request", "req_type", infra.DRKeyLvl2Request,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err :=
+		m.getRequester(infra.DRKeyLvl2Request, infra.DRKeyLvl2Reply).Request(ctx, pld, a)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
+	}
+	reply, ok := replyMsg.(*drkey_mgmt.DRKeyLvl2Rep)
+	if !ok {
+		err := newTypeAssertErr("*drkey_mgmt.DRKeyLvl2Rep", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
+	}
+	logger.Debug("[Messenger] Received reply")
+	return reply, nil
 }
 
 func (m *Messenger) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr,
 	id uint64) error {
-	//TODO(ben): complete
-	return nil
+
+	pld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify", "type", infra.DRKeyLvl2Request, "to", a, "id", id)
+	return m.getRequester(infra.DRKeyLvl2Request, infra.DRKeyLvl2Reply).Notify(ctx, pld, a)
 }
 
 // AddHandler registers a handler for msgType.
