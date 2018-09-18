@@ -14,7 +14,8 @@ struct DRKeyLvl1Rep {
     epochBegin @1 :UInt32; # Begin of validity period of DRKey
     epochEnd @2 :UInt32;   # End of validity period of DRKey
     cipher @3 :Data;       # Encrypted DRKey
-    certVerDst @4 :UInt64; # Version of cert of public key used to encrypt
+    nonce @4 :Data;        # Nonce used for encryption
+    certVerDst @5 :UInt64; # Version of cert of public key used to encrypt
 }
 
 struct DRKeyHost {

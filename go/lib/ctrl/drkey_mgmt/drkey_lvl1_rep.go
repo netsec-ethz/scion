@@ -32,6 +32,7 @@ type DRKeyLvl1Rep struct {
 	EpochBegin uint32
 	EpochEnd   uint32
 	Cipher     common.RawBytes
+	Nonce      common.RawBytes
 	CertVerDst uint64
 }
 
