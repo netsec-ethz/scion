@@ -13,3 +13,17 @@
 // limitations under the License.
 
 package main
+
+import "time"
+
+const (
+	DefaultDRKeyTimeout = 5 * time.Second
+	// TODO(ben): move to config
+	DRKeyEpochLength = 24 * time.Hour
+)
+
+// TODO:
+// - derive and store secret value of current epoch
+// - before epoch expires or key for next epoch is requested, get new secret value
+// - fetch first order keys from other ASes if they are not available?
+// - keep track of frequently connected ASes?
