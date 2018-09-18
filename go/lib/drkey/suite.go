@@ -16,6 +16,7 @@ package drkey
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -29,17 +30,14 @@ const (
 	drkeyLength = 16
 )
 
-func (sv *DRKeySV) SetKey(secret, date common.RawBytes) error {
+func (sv *DRKeySV) SetKey(secret common.RawBytes, epochNr uint32) error {
 	msLen := len(secret)
-	all := make(common.RawBytes, msLen+len(date))
+	all := make(common.RawBytes, msLen+4)
 	_, err := secret.WritePld(all[:msLen])
 	if err != nil {
 		return err
 	}
-	_, err = date.WritePld(all[msLen:])
-	if err != nil {
-		return err
-	}
+	binary.LittleEndian.PutUint32(all[msLen:], epochNr)
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	sv.Key = key
 	return nil
