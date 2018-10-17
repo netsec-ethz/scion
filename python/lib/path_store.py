@@ -172,8 +172,9 @@ class PathPolicy(object):
         # allow a small tolerance in either direction of 1s for DelayTime.
         # Otherwise PCBs that claim to be from 30ms in the future will be
         # ignored.
+        # juagargi: using 10s for SCIONLab
         raw_delay_time = self.property_ranges['DelayTime']
-        self.property_ranges['DelayTime'] = raw_delay_time[0]-1, raw_delay_time[1]+1
+        self.property_ranges['DelayTime'] = raw_delay_time[0]-10, raw_delay_time[1]+10
         self.property_weights = path_policy['PropertyWeights']
 
     def __str__(self):
