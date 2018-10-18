@@ -51,7 +51,7 @@ Necessary steps in order to run SCION:
    ```
    mkdir -p "$GOPATH/src/github.com/scionproto"
    cd "$GOPATH/src/github.com/scionproto"
-   git clone --recursive git@github.com:scionproto/scion
+   git clone --recursive git@github.com:netsec-ethz/netsec-scion scion
    cd scion
    ```
    If you don't have a github account, or haven't setup ssh access to it, this
