@@ -129,7 +129,7 @@ CONNECTED_TO_DISPATCHER = Gauge(
     "Is the element successfully registered with the dispatcher.",
     ["server_id", "isd_as"])
 
-MAX_QUEUE = 50
+MAX_QUEUE = 5000
 # Timeout for API path requests
 API_TOUT = 1
 
