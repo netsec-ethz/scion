@@ -37,6 +37,10 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+const (
+	maxResSegs = 5 // Maximum number of segments returned per type (up, core, down) in a reply to a segment request
+)
+
 type segReqHandler struct {
 	*baseHandler
 	localIA     addr.IA
