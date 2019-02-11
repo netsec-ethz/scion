@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -35,6 +37,13 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
+)
+
+var (
+	// Maximum total of segments returned in a reply to a segment
+	// request. A value <= 0 is interpreted as unlimited, i.e. all segments will
+	// be returned.
+	MaxResSegs = 10
 )
 
 type segReqHandler struct {
@@ -236,14 +245,103 @@ func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA
 	return now.After(*nq), nil
 }
 
-// segsToMap converts the segs slice to a map of IAs to segments.
-// The IA (key) is selected using the key function.
-func segsToMap(segs []*seg.PathSegment,
-	key func(*seg.PathSegment) addr.IA) map[addr.IA]struct{} {
+// Filter upSegs, coreSegs and downSegs to include at most MaxResSegs segments. Ensures that the
+// remaining segments can be connected to allow forming paths between src and dst.
+func selectConnectedSegs(upSegs, coreSegs, downSegs *seg.Segments,
+	src, dst addr.IA) {
 
-	res := make(map[addr.IA]struct{})
-	for _, s := range segs {
-		res[key(s)] = struct{}{}
+	var tmpUp, tmpCore, tmpDown seg.Segments
+	if upSegs != nil {
+		tmpUp = *upSegs
 	}
-	return res
+	if coreSegs != nil {
+		tmpCore = *coreSegs
+	}
+	if downSegs != nil {
+		tmpDown = *downSegs
+	}
+
+	tmpUp, tmpCore, tmpDown = selectConnectedSegsImpl(tmpUp, tmpCore, tmpDown, src, dst)
+
+	if upSegs != nil {
+		*upSegs = tmpUp
+	}
+	if coreSegs != nil {
+		*coreSegs = tmpCore
+	}
+	if downSegs != nil {
+		*downSegs = tmpDown
+	}
+}
+
+func selectConnectedSegsImpl(upSegs, coreSegs, downSegs seg.Segments,
+	src, dst addr.IA) (seg.Segments, seg.Segments, seg.Segments) {
+
+	srcs := expandWildcard(upSegs, coreSegs, downSegs, src)
+	dsts := expandWildcard(upSegs, coreSegs, downSegs, dst)
+	graph := combinator.NewDMG(upSegs, coreSegs, downSegs)
+	var paths combinator.PathSolutionList
+	for _, s := range srcs {
+		for _, d := range dsts {
+			sdpaths := graph.GetPaths(combinator.VertexFromIA(s), combinator.VertexFromIA(d))
+			paths = append(paths, sdpaths...)
+		}
+	}
+	sort.Sort(paths)
+
+	selSegs := make(map[*seg.PathSegment]struct{})
+	for _, p := range paths {
+		if MaxResSegs > 0 && len(selSegs) >= MaxResSegs {
+			break
+		}
+		segs := p.Segments()
+
+		// check if the this path could fit.
+		numNew := 0
+		for _, seg := range segs {
+			if _, ok := selSegs[seg.PathSegment]; !ok {
+				numNew++
+			}
+		}
+		if MaxResSegs > 0 && len(selSegs)+numNew > MaxResSegs {
+			continue
+		}
+		// mark segs as used
+		for _, seg := range segs {
+			selSegs[seg.PathSegment] = struct{}{}
+		}
+	}
+
+	selSegFunc := func(s *seg.PathSegment) bool {
+		_, selected := selSegs[s]
+		return selected
+	}
+	upSegs.FilterSegs(selSegFunc)
+	coreSegs.FilterSegs(selSegFunc)
+	downSegs.FilterSegs(selSegFunc)
+	return upSegs, coreSegs, downSegs
+}
+
+// Return all core AS matching wildcard ia.
+func expandWildcard(upSegs, coreSegs, downSegs seg.Segments, ia addr.IA) []addr.IA {
+	if !ia.IsWildcard() {
+		return []addr.IA{ia}
+	}
+	// Gather core ASes, i.e. the candidates for the wildcard
+	ias := upSegs.FirstIAs()
+	ias = append(ias, coreSegs.FirstIAs()...)
+	ias = append(ias, coreSegs.LastIAs()...)
+	ias = append(ias, downSegs.FirstIAs()...)
+	return getMatchingIAs(ias, ia)
+}
+
+// Get the IAs in ias matching the wildcard IA pat
+func getMatchingIAs(ias []addr.IA, pat addr.IA) []addr.IA {
+	ret := []addr.IA{}
+	for _, ia := range ias {
+		if (pat.I == 0 || ia.I == pat.I) && (pat.A == 0 || ia.A == pat.A) {
+			ret = append(ret, ia)
+		}
+	}
+	return ret
 }

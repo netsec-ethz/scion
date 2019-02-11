@@ -354,6 +354,15 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	return path
 }
 
+// Get the segments constituting this path
+func (solution *PathSolution) Segments() []*InputSegment {
+	segs := make([]*InputSegment, 0, len(solution.edges))
+	for _, e := range solution.edges {
+		segs = append(segs, e.segment)
+	}
+	return segs
+}
+
 // PathSolutionList is a sort.Interface implementation for a slice of solutions.
 type PathSolutionList []*PathSolution
 
