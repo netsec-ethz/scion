@@ -134,23 +134,11 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 			}
 		}
 	}
-	lenCoreSegsBefore := len(coreSegs)
-	coreSegs.FilterSegsByLeastHops(maxResSegs)
 
-	// All firstIAs of upSegs that are connected, used for filtering later.
-	connFirstIAs := make(map[addr.IA]struct{})
-	connFirstIAs[dst] = struct{}{}
-	for _, coreSeg := range coreSegs {
-		connFirstIAs[coreSeg.FirstIA()] = struct{}{}
-	}
-	// Make sure we only return connected segments.
-	upSegs.FilterSegs(func(s *seg.PathSegment) bool {
-		_, connected := connFirstIAs[s.FirstIA()]
-		return connected
-	})
-	lenUpSegsBefore := len(upSegs)
-	upSegs.FilterSegsByLeastHops(maxResSegs)
-	logger.Debug("[segReqHandler] found", "up", len(upSegs), "/", lenUpSegsBefore, "core", len(coreSegs), "/", lenCoreSegsBefore)
+	logger.Debug("[segReqHandler] found segs", "up", len(upSegs), "core", len(coreSegs))
+	selectConnectedSegs(maxResSegs, &upSegs, &coreSegs, nil, h.localIA, dst)
+
+	logger.Debug("[segReqHandler] returning segs", "up", len(upSegs), "core", len(coreSegs))
 	h.sendReply(ctx, msger, upSegs, coreSegs, nil, segReq)
 }
 
@@ -186,6 +174,9 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 		// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 		// Add a limit of cores we query.
 		for _, src := range upSegs.FirstIAs() {
+			if src.Eq(dst) {
+				continue
+			}
 			cs, err := h.fetchCoreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
 			if err != nil {
 				logger.Error("Failed to find core segs", "src", src, "dst", dst, "err", err)
@@ -194,40 +185,11 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 			coreSegs = append(coreSegs, cs...)
 		}
 	}
-	coreSegs.FilterSegsByLeastHops(maxResSegs)
-
-	// All firstIAs of up-/down-Segs that are connected, used for filtering later.
-	connUpFirstIAs := make(map[addr.IA]struct{})
-	connDownFirstIAs := make(map[addr.IA]struct{})
-	for _, dst := range downSegs.FirstIAs() {
-		for _, src := range upSegs.FirstIAs() {
-			if src.Eq(dst) {
-				connUpFirstIAs[src] = struct{}{}
-				connDownFirstIAs[dst] = struct{}{}
-			}
-		}
-	}
-	for _, coreSeg := range coreSegs {
-		connUpFirstIAs[coreSeg.FirstIA()] = struct{}{}
-		connDownFirstIAs[coreSeg.LastIA()] = struct{}{}
-	}
-
-	lenUpSegsBefore := len(upSegs)
-	// Make sure we only return connected segments.
-	// No need to filter cores, since we only query for connected ones.
-	upSegs.FilterSegs(func(s *seg.PathSegment) bool {
-		_, connected := connUpFirstIAs[s.FirstIA()]
-		return connected
-	})
-	upSegs.FilterSegsByLeastHops(maxResSegs)
-	lenDownSegsBefore := len(downSegs)
-	downSegs.FilterSegs(func(s *seg.PathSegment) bool {
-		_, connected := connDownFirstIAs[s.FirstIA()]
-		return connected
-	})
-	downSegs.FilterSegsByLeastHops(maxResSegs)
 	logger.Debug("[segReqHandler:handleNonCoreDst] found segs",
-		"up", len(upSegs), "upBefore", lenUpSegsBefore, "core", len(coreSegs), "down", len(downSegs), "downBefore", lenDownSegsBefore)
+		"up", len(upSegs), "core", len(coreSegs), "down", len(downSegs))
+	selectConnectedSegs(maxResSegs, &upSegs, &coreSegs, &downSegs, h.localIA, dstIA)
+	logger.Debug("[segReqHandler:handleNonCoreDst] returning segs",
+		"up", len(upSegs), "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, upSegs, coreSegs, downSegs, segReq)
 }
 

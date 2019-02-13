@@ -16,7 +16,6 @@ package seg
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
-	"sort"
 )
 
 // Segments is just a helper type to have additional methods on top of a slice of PathSegments.
@@ -45,23 +44,6 @@ func (segs *Segments) FilterSegsErr(keep func(*PathSegment) (bool, error)) (int,
 	}
 	*segs = filtered
 	return full - len(*segs), nil
-}
-
-// Filter to keep only the n Segments with the least number of hops
-func (segs *Segments) FilterSegsByLeastHops(n int) {
-	segs.filterOrderedSegs(n, func(i, j *PathSegment) bool {
-		return len(i.ASEntries) < len(j.ASEntries)
-	})
-}
-
-// Filter to keep only the n Segments with lowest value returned by less.
-func (segs *Segments) filterOrderedSegs(n int, less func(i, j *PathSegment) bool) {
-	if len(*segs) > n {
-		sort.Slice(*segs, func(i, j int) bool {
-			return less((*segs)[i], (*segs)[j])
-		})
-		*segs = (*segs)[0:n]
-	}
 }
 
 // FirstIAs returns the slice of FirstIAs in the given segments. Each FirstIA appears just once.
