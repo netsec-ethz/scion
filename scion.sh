@@ -66,7 +66,7 @@ cmd_run() {
 run_zk() {
     echo "Running zookeeper..."
     if is_docker_zk; then
-        host_zk_stop
+        host_zk_stop || true
         ./tools/quiet ./tools/dc zk up -d
     else
         host_zk_start
