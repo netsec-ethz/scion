@@ -161,9 +161,9 @@ func (path *Path) IsEmpty() bool {
 	return path == nil || len(path.Raw) == 0
 }
 
-// incOffsets jumps ahead skip bytes, and searches for the first routing Hop
-// Field starting at that location
-func (path *Path) incOffsets(skip int) error {
+// incOffsetsRaw jumps ahead skip bytes, but DOES NOT by default skip VerifyOnly HF,
+// and searches for the first Hop Field starting at that location
+func (path *Path) IncOffsetsRaw(skip int, skipVerify bool) error {
 	var hopF *HopField
 	infoF, err := path.GetInfoField(path.InfOff)
 	if err != nil {
@@ -183,12 +183,24 @@ func (path *Path) incOffsets(skip int) error {
 		if hopF, err = path.GetHopField(path.HopOff); err != nil {
 			return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
 		}
-		if !hopF.VerifyOnly {
+		if !skipVerify || !hopF.VerifyOnly {
 			break
 		}
 		path.HopOff += HopFieldLength
 	}
 	return nil
+}
+
+// incOffsets jumps ahead skip bytes, and searches for the first routing Hop
+// Field starting at that location
+func (path *Path) incOffsets(skip int) error {
+	return path.IncOffsetsRaw(skip, true)
+}
+
+// incOffsetsAny jumps ahead skip bytes, and searches for the first Verify/Routing/any Hop
+// Field starting at that location
+func (path *Path) incOffsetsAny(skip int) error {
+	return path.IncOffsetsRaw(skip, false)
 }
 
 func (path *Path) GetInfoField(offset int) (*InfoField, error) {

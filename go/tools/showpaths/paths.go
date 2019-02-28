@@ -44,7 +44,9 @@ var (
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status       = flag.Bool("p", false, "Probe the paths and print out the statuses")
-	version      = flag.Bool("version", false, "Output version information and exit.")
+	verbose      = flag.Bool("v", false, "Switch to verbose output and show additional "+
+		"information about paths.")
+	version = flag.Bool("version", false, "Output version information and exit.")
 )
 
 var (
@@ -90,6 +92,7 @@ func main() {
 	}
 	for i, path := range reply.Entries {
 		fmt.Printf("[%2d] %s", i, path.Path.String())
+
 		if *expiration {
 			fmt.Printf(" Expires: %s (%s)", path.Path.Expiry(),
 				time.Until(path.Path.Expiry()).Truncate(time.Second))
@@ -97,8 +100,39 @@ func main() {
 		if *status {
 			fmt.Printf(" Status: %s", pathStatuses[string(path.Path.FwdPath)])
 		}
+		if *verbose {
+			printHFDetails(i, path)
+		}
 		fmt.Printf("\n")
 	}
+}
+
+func printHFDetails(i int, path sciond.PathReplyEntry) {
+	vpath := &spath.Path{Raw: path.Path.FwdPath}
+	vpath.HopOff = common.LineLen // skip InfoField, cannot use vpath.InitOffsets() as it skips more
+	fmt.Printf("\nPath #%2d:\n Fields:", i)
+	for {
+		if vpath.HopOff == len(path.Path.FwdPath) {
+			break
+		}
+		hf, err := vpath.GetHopField(vpath.HopOff)
+		if err != nil {
+			fmt.Printf("\n\nGetHopField err:%v", err)
+			break
+		}
+		XoverVal := "."
+		if hf.Xover {
+			XoverVal = "X"
+		}
+		VerifyOnlyVal := "."
+		if hf.VerifyOnly {
+			VerifyOnlyVal = "V"
+		}
+		fmt.Printf("\n\tHF %s%s InIF: %v OutIF: %v \t\t\tExpTime: %v Mac: %v",
+			XoverVal, VerifyOnlyVal, hf.ConsIngress, hf.ConsEgress, hf.ExpTime, hf.Mac)
+		vpath.IncOffsetsRaw(spath.HopFieldLength, false)
+	}
+	fmt.Println()
 }
 
 func validateFlags() {
