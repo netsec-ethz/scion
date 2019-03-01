@@ -128,7 +128,7 @@ func printHFDetails(i int, path sciond.PathReplyEntry) {
 		if hf.VerifyOnly {
 			VerifyOnlyVal = "V"
 		}
-		fmt.Printf("\n\tHF %s%s InIF: %v OutIF: %v \t\t\tExpTime: %v Mac: %v",
+		fmt.Printf("\n\tHF %s%s InIF: %3v OutIF: %3v \t\t\tExpTime: %v Mac: %v",
 			XoverVal, VerifyOnlyVal, hf.ConsIngress, hf.ConsEgress, hf.ExpTime, hf.Mac)
 		vpath.IncOffsetsRaw(spath.HopFieldLength, false)
 	}

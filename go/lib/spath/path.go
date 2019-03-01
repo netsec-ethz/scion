@@ -161,7 +161,7 @@ func (path *Path) IsEmpty() bool {
 	return path == nil || len(path.Raw) == 0
 }
 
-// incOffsetsRaw jumps ahead skip bytes, but DOES NOT by default skip VerifyOnly HF,
+// IncOffsetsRaw jumps ahead skip bytes, but DOES NOT by default skip VerifyOnly HF,
 // and searches for the first Hop Field starting at that location
 func (path *Path) IncOffsetsRaw(skip int, skipVerify bool) error {
 	var hopF *HopField
