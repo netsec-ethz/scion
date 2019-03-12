@@ -44,7 +44,7 @@ const Sample = `[general]
     MaxAge = 7
 
     # Max count of old log files (default 3)
-    MaxCount = 3
+    # MaxCount = 3
 
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
