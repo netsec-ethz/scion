@@ -37,13 +37,13 @@ const Sample = `[general]
     Level = "debug"
 
     # Max size of log file in MiB (default 50)
-    # Size = 50
+    Size = 50
 
     # Max age of log file in days (default 7)
-    # MaxAge = 7
+    MaxAge = 7
 
     # Max count of old log files (default 3)
-    # MaxCount = 3
+    MaxCount = 3
 
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
