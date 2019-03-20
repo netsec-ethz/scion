@@ -48,6 +48,7 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "/var/log/scion/ps-1.log")
 		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
 		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
+		SoMsg("Size correct", cfg.Logging.File.Size, ShouldEqual, 50)
 		SoMsg("MaxAge correct", cfg.Logging.File.MaxAge, ShouldEqual, 7)
 		SoMsg("MaxCount correct", cfg.Logging.File.MaxCount, ShouldEqual, 3)
 		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
