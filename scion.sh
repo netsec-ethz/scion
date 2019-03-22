@@ -9,6 +9,11 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     set -e
     local zkclean
+    local avoid_zk_docker
+    if [ "$1" = "nodocker" ]; then
+        shift
+        avoid_zk_docker=1
+    fi
     if is_docker_be; then
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down
@@ -25,6 +30,10 @@ cmd_topology() {
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
+    if [ "$avoid_zk_docker" = 1 ]; then
+        # we don't want to run docker compose when calling run_zk
+        rm -f gen/scion-dc.yml gen/zk-dc.yml
+    fi
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
