@@ -42,7 +42,7 @@ type Addr struct {
 
 type SCIONAddress struct {
 	IA   addr.IA
-	Host *addr.HostAddr
+	Host addr.HostAddr
 }
 
 func (sa *SCIONAddress) String() string {
