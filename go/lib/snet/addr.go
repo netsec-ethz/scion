@@ -40,6 +40,18 @@ type Addr struct {
 	NextHop *overlay.OverlayAddr
 }
 
+type SCIONAddress struct {
+	IA   addr.IA
+	Host *addr.HostAddr
+}
+
+func (sa *SCIONAddress) String() string {
+	if sa.Host == nil {
+		return fmt.Sprintf("%s,<nil>", sa.IA)
+	}
+	return fmt.Sprintf("%s,[%v]", sa.IA, sa.Host)
+}
+
 func (a *Addr) Network() string {
 	return "scion"
 }
