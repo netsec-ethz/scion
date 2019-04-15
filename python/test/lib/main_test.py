@@ -100,6 +100,14 @@ class TestMainDefault(object):
         local_type = create_mock()
         topo.return_value = create_mock(["is_core_as"])
         topo.return_value.is_core_as = is_core
+        parser = argparse.return_value
+        args = parser.parse_args.return_value
+        args.log_dir = "logging"
+        args.server_id = "srvid"
+        args.conf_dir = "confdir"
+        args.prom = "prom"
+        args.spki_cache_dir = "gen-cache"
+        args.sciond_path = "default.sock"
         # Call
         main_default(core_type, local_type)
         # Tests
