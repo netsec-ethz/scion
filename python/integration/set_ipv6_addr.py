@@ -19,6 +19,7 @@ import argparse
 from ipaddress import IPv6Address, IPv6Network
 
 # SCION
+import lib.errors
 from lib.defines import (
     GEN_PATH,
     DEFAULT6_CLIENT,
@@ -64,12 +65,15 @@ def set_interfaces():
 
 def get_overlay():
     file_path = os.path.join(GEN_PATH, OVERLAY_FILE)
-    return read_file(file_path).strip()
+    try:
+        return read_file(file_path).strip()
+    except(lib.errors.SCIONIOError):
+        return None
 
 
 def main():
     overlay = get_overlay()
-    if "IPv4" in overlay:
+    if overlay is None or "IPv4" in overlay:
         return
 
     parser = argparse.ArgumentParser()
