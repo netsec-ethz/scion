@@ -125,6 +125,8 @@ run_setup() {
     [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
     # Make sure zookeeper is running
     run_zk
+    # Ensure we have gen-cache
+    mkdir -p gen-cache
 }
 
 cmd_stop() {
