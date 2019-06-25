@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package drkey
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -38,83 +40,101 @@ const (
 	DRKeyHandlerTimeout = 5 * time.Second
 )
 
-// DRKeyReqHandler handles first-level drkey requests.
-type DRKeyReqHandler struct {
+// Level1ReqHandler handles first-level drkey requests.
+type Level1ReqHandler struct {
 	State *csconfig.State
 	IA    addr.IA
-	// TODO: drktest we need to construct this obj
+	// TODO: drkeytest: we need to construct this obj
 }
 
-func (h *DRKeyReqHandler) Handle(r *infra.Request) {
-	// Bind the handler to a snapshot of the current config
-	h.HandleReq(r)
-}
-
-func (h *DRKeyReqHandler) HandleReq(r *infra.Request) {
+func (h *Level1ReqHandler) Handle(r *infra.Request) {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
-
 	saddr := r.Peer.(*snet.Addr)
 	req := r.Message.(*drkey_mgmt.DRKeyLvl1Req)
-	log.Debug("[DRKeyReqHandler] Received drkey lvl1 request", "addr", saddr, "req", req)
+	srcIA := saddr.IA
+	dstIA := req.SrcIa.IA()
 
-	if err := h.validateReq(req, saddr); err != nil {
-		h.logDropReq(saddr, req, err)
-		return
-	}
 	// add the SV to the configuration
 	var TODOSV drkey.DRKeySV
-	key, err := h.deriveKey(req, saddr.IA, TODOSV)
-	if err != nil {
-		log.Error("[DRKeyReqHandler] Unable to derive drkey", "err", err)
-		return
-	}
+
 	// Get the newest certificate for the remote host
 	cert, err := h.State.TrustDB.GetLeafCertMaxVersion(ctx, req.IA())
 	if err != nil {
-		log.Error("[DRKeyReqHandler] Unable to fetch certificate for remote host", "err", err)
+		log.Error("[DRKeyLevel1ReqHandler] Unable to fetch certificate for remote host", "err", err)
 		return
 	}
-	nc, err := scrypto.Nonce(24)
+	privateKey := h.State.GetDecryptKey()
+
+	cipher, nonce, err := Level1KeyBuildReply(srcIA, dstIA, TODOSV, cert, privateKey)
 	if err != nil {
-		log.Error("[DRKeyReqHandler] Unable to get random nonce drkey", "err", err)
+		log.Error("[DRKeyLevel1ReqHandler]", "err", err)
 		return
 	}
-	cipher, err := drkey.EncryptDRKeyLvl1(key, nc, cert.SubjectEncKey, h.State.GetDecryptKey())
-	if err != nil {
-		log.Error("[DRKeyReqHandler] Unable to encrypt drkey", "err", err)
-		return
-	}
+
+	// package and send reply
 	rep := &drkey_mgmt.DRKeyLvl1Rep{
 		SrcIa:      h.IA.IAInt(),
 		EpochBegin: TODOSV.Epoch.Begin,
 		EpochEnd:   TODOSV.Epoch.End,
 		Cipher:     cipher,
-		Nonce:      nc,
+		Nonce:      nonce,
 		CertVerDst: cert.Version,
 	}
 	if err := h.sendRep(ctx, saddr, rep, r.ID); err != nil {
-		log.Error("[DRKeyReqHandler] Unable to send drkey reply", "err", err)
+		log.Error("[DRKeyLevel1ReqHandler] Unable to send drkey reply", "err", err)
 	}
 }
 
-func (h *DRKeyReqHandler) validateReq(req *drkey_mgmt.DRKeyLvl1Req, addr *snet.Addr) error {
+// Level1KeyBuildReply constructs the level 1 key exchange reply message
+// cipher = {A | B | K_{A->B}}_PK_B
+// nonce = nonce
+func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.DRKeySV, cert *cert.Certificate, privateKey common.RawBytes) (cipher, nonce common.RawBytes, err error) {
+	log.Debug("Received drkey lvl1 request", "srcIA", srcIA, "dstIA", dstIA)
+
+	cipher = common.RawBytes{}
+	nonce = common.RawBytes{}
+	if err = validateReq(srcIA, dstIA); err != nil {
+		err = fmt.Errorf("Dropping DRKeyLvl1 request, validation error: %v", err)
+		return
+	}
+
+	key, err := deriveKey(srcIA, dstIA, sv)
+	if err != nil {
+		err = fmt.Errorf("Unable to derive drkey: %v", err)
+		return
+	}
+
+	nonce, err = scrypto.Nonce(24)
+	if err != nil {
+		err = fmt.Errorf("Unable to get random nonce drkey: %v", err)
+		return
+	}
+	cipher, err = drkey.EncryptDRKeyLvl1(key, nonce, cert.SubjectEncKey, privateKey)
+	if err != nil {
+		err = fmt.Errorf("Unable to encrypt drkey: %v", err)
+		return
+	}
+	return
+}
+
+func validateReq(srcIA, dstIA addr.IA) error {
 	// TODO(ben): validate request (validity time, etc.)
 	// TODO(ben): remove
-	log.Debug("[DRKeyReqHandler] Validating drkey lvl1 request", "req", req)
-	if !addr.IA.Eq(req.SrcIa.IA()) {
-		return common.NewBasicError(AddressMismatchError, nil,
-			"expected", addr.IA, "actual", req.SrcIa.IA())
-	}
+	log.Debug("[DRKeyReqHandler] Validating drkey lvl1 request", "src", srcIA, "dst", dstIA)
+	// if !srcIA.Eq(req.SrcIa.IA()) {
+	// 	return common.NewBasicError(AddressMismatchError, nil,
+	// 		"expected", addr.IA, "actual", req.SrcIa.IA())
+	// }
 	return nil
 }
 
-func (h *DRKeyReqHandler) deriveKey(req *drkey_mgmt.DRKeyLvl1Req, srcIA addr.IA, sv drkey.DRKeySV) (*drkey.DRKeyLvl1, error) {
+func deriveKey(srcIA, dstIA addr.IA, sv drkey.DRKeySV) (*drkey.DRKeyLvl1, error) {
 	// TODO(ben): remove
-	log.Debug("[DRKeyReqHandler] Deriving drkey for lvl1 request", "req", req)
+	log.Debug("[DRKeyReqHandler] Deriving drkey for lvl1 request", "srcIA", srcIA, "dstIA", dstIA)
 	key := &drkey.DRKeyLvl1{
 		SrcIa: srcIA,
-		DstIa: req.SrcIa.IA(),
+		DstIa: dstIA,
 		Epoch: sv.Epoch,
 	}
 	if err := key.SetKey(sv.Key); err != nil {
@@ -123,7 +143,7 @@ func (h *DRKeyReqHandler) deriveKey(req *drkey_mgmt.DRKeyLvl1Req, srcIA addr.IA,
 	return key, nil
 }
 
-func (h *DRKeyReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep,
+func (h *Level1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep,
 	id uint64) error {
 
 	msger, ok := infra.MessengerFromContext(ctx)
@@ -132,11 +152,6 @@ func (h *DRKeyReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey
 			"[DRKeyReqHandler] Unable to service request, no messenger found", nil)
 	}
 	return msger.SendDRKeyLvl1(ctx, rep, addr, id)
-}
-
-func (h *DRKeyReqHandler) logDropReq(addr net.Addr, req *drkey_mgmt.DRKeyLvl1Req, err error) {
-	log.Error("[DRKeyReqHandler] Dropping DRKeyLvl1 request", "addr", addr, "req", req,
-		"err", err)
 }
 
 // DRKeyRepHandler handles first-level drkey requests.

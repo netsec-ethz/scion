@@ -158,7 +158,7 @@ func setMessenger(config *Config) error {
 	msgr.AddHandler(infra.TRCRequest, config.state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, config.state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, config.state.Store.NewTRCPushHandler())
-	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.DRKeyReqHandler{})
+	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Level1ReqHandler{})
 	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.DRKeyRepHandler{})
 	msgr.UpdateSigner(config.state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(config.state.GetVerifier())

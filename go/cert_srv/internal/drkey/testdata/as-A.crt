@@ -1,0 +1,15 @@
+{
+    "TRCVersion": 1,
+    "Subject": "1-ff00:0:112",
+    "Comment": "AS Certificate",
+    "CanIssue": false,
+    "Issuer": "1-ff00:0:110",
+    "IssuingTime": 1561471240,
+    "Version": 1,
+    "SubjectSignKey": "dXdH4kTd+xNLlM/xNen5MSv/CFIGt4vLe9trh78NbL8=",
+    "ExpirationTime": 1592834440,
+    "SubjectEncKey": "fRUZcXvpFBUqoW5Om06JEjyn7WEKrbAwKrKOT9BawGs=",
+    "Signature": "+Xo+XyY/fsOKRmU9CQCbT0fJz5J87whR/Pk5ErbrsCmRLAn5PtBg12Gz8kOouvM4BIaL4cHHDw/sgm8M3g82CQ==",
+    "EncAlgorithm": "curve25519xsalsa20poly1305",
+    "SignAlgorithm": "ed25519"
+}
