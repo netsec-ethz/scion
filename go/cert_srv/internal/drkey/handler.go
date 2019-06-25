@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package drkey
 
 import (
 	"context"
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/cert_srv/conf"
+	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -38,14 +39,18 @@ const (
 )
 
 // DRKeyReqHandler handles first-level drkey requests.
-type DRKeyReqHandler struct{}
+type DRKeyReqHandler struct {
+	State *csconfig.State
+	IA    addr.IA
+	// TODO: drktest we need to construct this obj
+}
 
 func (h *DRKeyReqHandler) Handle(r *infra.Request) {
 	// Bind the handler to a snapshot of the current config
-	h.HandleReq(r, conf.Get())
+	h.HandleReq(r)
 }
 
-func (h *DRKeyReqHandler) HandleReq(r *infra.Request, config *conf.Conf) {
+func (h *DRKeyReqHandler) HandleReq(r *infra.Request) {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
 
@@ -57,13 +62,15 @@ func (h *DRKeyReqHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 		h.logDropReq(saddr, req, err)
 		return
 	}
-	key, err := h.deriveKey(req, config)
+	// add the SV to the configuration
+	var TODOSV drkey.DRKeySV
+	key, err := h.deriveKey(req, saddr.IA, TODOSV)
 	if err != nil {
 		log.Error("[DRKeyReqHandler] Unable to derive drkey", "err", err)
 		return
 	}
 	// Get the newest certificate for the remote host
-	cert, err := config.TrustDB.GetLeafCertMaxVersion(req.SrcIa.IA())
+	cert, err := h.State.TrustDB.GetLeafCertMaxVersion(ctx, req.IA())
 	if err != nil {
 		log.Error("[DRKeyReqHandler] Unable to fetch certificate for remote host", "err", err)
 		return
@@ -73,15 +80,15 @@ func (h *DRKeyReqHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 		log.Error("[DRKeyReqHandler] Unable to get random nonce drkey", "err", err)
 		return
 	}
-	cipher, err := drkey.EncryptDRKeyLvl1(key, nc, cert.SubjectEncKey, config.GetDecryptKey())
+	cipher, err := drkey.EncryptDRKeyLvl1(key, nc, cert.SubjectEncKey, h.State.GetDecryptKey())
 	if err != nil {
 		log.Error("[DRKeyReqHandler] Unable to encrypt drkey", "err", err)
 		return
 	}
 	rep := &drkey_mgmt.DRKeyLvl1Rep{
-		SrcIa:      config.Topo.ISD_AS.IAInt(),
-		EpochBegin: config.SV.Epoch.Begin,
-		EpochEnd:   config.SV.Epoch.End,
+		SrcIa:      h.IA.IAInt(),
+		EpochBegin: TODOSV.Epoch.Begin,
+		EpochEnd:   TODOSV.Epoch.End,
 		Cipher:     cipher,
 		Nonce:      nc,
 		CertVerDst: cert.Version,
@@ -102,17 +109,15 @@ func (h *DRKeyReqHandler) validateReq(req *drkey_mgmt.DRKeyLvl1Req, addr *snet.A
 	return nil
 }
 
-func (h *DRKeyReqHandler) deriveKey(req *drkey_mgmt.DRKeyLvl1Req,
-	config *conf.Conf) (*drkey.DRKeyLvl1, error) {
-
+func (h *DRKeyReqHandler) deriveKey(req *drkey_mgmt.DRKeyLvl1Req, srcIA addr.IA, sv drkey.DRKeySV) (*drkey.DRKeyLvl1, error) {
 	// TODO(ben): remove
 	log.Debug("[DRKeyReqHandler] Deriving drkey for lvl1 request", "req", req)
 	key := &drkey.DRKeyLvl1{
-		SrcIa: config.Topo.ISD_AS,
+		SrcIa: srcIA,
 		DstIa: req.SrcIa.IA(),
-		Epoch: config.SV.Epoch,
+		Epoch: sv.Epoch,
 	}
-	if err := key.SetKey(config.SV.Key); err != nil {
+	if err := key.SetKey(sv.Key); err != nil {
 		return nil, err
 	}
 	return key, nil
@@ -135,14 +140,19 @@ func (h *DRKeyReqHandler) logDropReq(addr net.Addr, req *drkey_mgmt.DRKeyLvl1Req
 }
 
 // DRKeyRepHandler handles first-level drkey requests.
-type DRKeyRepHandler struct{}
+type DRKeyRepHandler struct {
+	State *csconfig.State
+}
 
 func (h *DRKeyRepHandler) Handle(r *infra.Request) {
 	// Bind the handler to a snapshot of the current config
-	h.HandleRep(r, conf.Get())
+	h.HandleRep(r)
 }
 
-func (h *DRKeyRepHandler) HandleRep(r *infra.Request, config *conf.Conf) {
+func (h *DRKeyRepHandler) HandleRep(r *infra.Request) {
+	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
+	defer cancelF()
+
 	saddr := r.Peer.(*snet.Addr)
 	rep := r.Message.(*drkey_mgmt.DRKeyLvl1Rep)
 
@@ -151,13 +161,13 @@ func (h *DRKeyRepHandler) HandleRep(r *infra.Request, config *conf.Conf) {
 		h.logDropRep(saddr, rep, err)
 		return
 	}
-	cert, err := config.TrustDB.GetLeafCertMaxVersion(rep.SrcIa.IA())
+	cert, err := h.State.TrustDB.GetLeafCertMaxVersion(ctx, rep.IA())
 	if err != nil {
 		log.Error("[DRKeyRepHandler] Unable to fetch certificate for remote host", "err", err)
 		return
 	}
 	key, err := drkey.DecryptDRKeyLvl1(rep.Cipher, rep.Nonce, cert.SubjectEncKey,
-		config.GetDecryptKey())
+		h.State.GetDecryptKey())
 	// TODO(ben): remove
 	log.Debug("[DRKeyRepHandler] DRKey received", "key", key)
 	// TODO(ben): store in keystore
