@@ -47,6 +47,7 @@ type Level1ReqHandler struct {
 	// TODO: drkeytest: we need to construct this obj
 }
 
+// Handle handles the level 1 drkey requests
 func (h *Level1ReqHandler) Handle(r *infra.Request) {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
@@ -55,7 +56,7 @@ func (h *Level1ReqHandler) Handle(r *infra.Request) {
 	srcIA := saddr.IA
 	dstIA := req.SrcIa.IA()
 
-	// add the SV to the configuration
+	// TODO: drkeytest: add the SV to the configuration
 	var TODOSV drkey.DRKeySV
 
 	// Get the newest certificate for the remote host
@@ -65,23 +66,13 @@ func (h *Level1ReqHandler) Handle(r *infra.Request) {
 		return
 	}
 	privateKey := h.State.GetDecryptKey()
-
-	cipher, nonce, err := Level1KeyBuildReply(srcIA, dstIA, TODOSV, cert, privateKey)
+	reply, err := Level1KeyBuildReply(srcIA, dstIA, TODOSV, cert, privateKey)
 	if err != nil {
 		log.Error("[DRKeyLevel1ReqHandler]", "err", err)
 		return
 	}
 
-	// package and send reply
-	rep := &drkey_mgmt.DRKeyLvl1Rep{
-		SrcIa:      h.IA.IAInt(),
-		EpochBegin: TODOSV.Epoch.Begin,
-		EpochEnd:   TODOSV.Epoch.End,
-		Cipher:     cipher,
-		Nonce:      nonce,
-		CertVerDst: cert.Version,
-	}
-	if err := h.sendRep(ctx, saddr, rep, r.ID); err != nil {
+	if err := h.sendRep(ctx, saddr, reply, r.ID); err != nil {
 		log.Error("[DRKeyLevel1ReqHandler] Unable to send drkey reply", "err", err)
 	}
 }
@@ -89,11 +80,10 @@ func (h *Level1ReqHandler) Handle(r *infra.Request) {
 // Level1KeyBuildReply constructs the level 1 key exchange reply message
 // cipher = {A | B | K_{A->B}}_PK_B
 // nonce = nonce
-func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.DRKeySV, cert *cert.Certificate, privateKey common.RawBytes) (cipher, nonce common.RawBytes, err error) {
+// Epoch comes from the secret value (configuration)
+func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.DRKeySV, cert *cert.Certificate, privateKey common.RawBytes) (reply *drkey_mgmt.DRKeyLvl1Rep, err error) {
 	log.Debug("Received drkey lvl1 request", "srcIA", srcIA, "dstIA", dstIA)
 
-	cipher = common.RawBytes{}
-	nonce = common.RawBytes{}
 	if err = validateReq(srcIA, dstIA); err != nil {
 		err = fmt.Errorf("Dropping DRKeyLvl1 request, validation error: %v", err)
 		return
@@ -105,15 +95,25 @@ func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.DRKeySV, cert *cert.Cert
 		return
 	}
 
-	nonce, err = scrypto.Nonce(24)
+	nonce, err := scrypto.Nonce(24)
 	if err != nil {
 		err = fmt.Errorf("Unable to get random nonce drkey: %v", err)
 		return
 	}
-	cipher, err = drkey.EncryptDRKeyLvl1(key, nonce, cert.SubjectEncKey, privateKey)
+	cipher, err := drkey.EncryptDRKeyLvl1(key, nonce, cert.SubjectEncKey, privateKey)
 	if err != nil {
 		err = fmt.Errorf("Unable to encrypt drkey: %v", err)
 		return
+	}
+
+	// XXX(juan) originally SrcIa was     h.IA.IAInt(),
+	reply = &drkey_mgmt.DRKeyLvl1Rep{
+		SrcIa:      srcIA.IAInt(),
+		EpochBegin: sv.Epoch.Begin,
+		EpochEnd:   sv.Epoch.End,
+		Cipher:     cipher,
+		Nonce:      nonce,
+		CertVerDst: cert.Version,
 	}
 	return
 }

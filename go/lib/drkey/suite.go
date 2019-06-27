@@ -106,25 +106,28 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	return nil
 }
 
-func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey,
-	privkey common.RawBytes) (common.RawBytes, error) {
+// EncryptDRKeyLvl1 does the encryption step in the first level key exchange
+func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey, privkey common.RawBytes) (common.RawBytes, error) {
 	keyLen := len(drkey.Key)
-	msg := make(common.RawBytes, addr.IABytes+keyLen)
+	msg := make(common.RawBytes, addr.IABytes*2+keyLen)
 	drkey.SrcIa.Write(msg)
-	drkey.Key.WritePld(msg[addr.IABytes:])
-	cipher, err := scrypto.Encrypt(msg, nonce, pubkey, privkey, "Curve25519xSalsa20Poly1305")
+	drkey.DstIa.Write(msg[addr.IABytes:])
+	drkey.Key.WritePld(msg[addr.IABytes*2:])
+	cipher, err := scrypto.Encrypt(msg, nonce, pubkey, privkey, scrypto.Curve25519xSalsa20Poly1305)
 	if err != nil {
 		return nil, err
 	}
 	return cipher, nil
 }
 
+// DecryptDRKeyLvl1 decrypts the cipher text received during the first level key exchange
 func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (*DRKeyLvl1, error) {
-	msg, err := scrypto.Decrypt(cipher, nonce, pubkey, privkey, "Curve25519xSalsa20Poly1305")
+	msg, err := scrypto.Decrypt(cipher, nonce, pubkey, privkey, scrypto.Curve25519xSalsa20Poly1305)
 	if err != nil {
 		return nil, err
 	}
 	srcIa := addr.IAFromRaw(msg[:addr.IABytes])
-	key := msg[addr.IABytes:]
-	return &DRKeyLvl1{SrcIa: srcIa, Key: key}, nil
+	dstIa := addr.IAFromRaw(msg[addr.IABytes : addr.IABytes*2])
+	key := msg[addr.IABytes*2:]
+	return &DRKeyLvl1{SrcIa: srcIa, DstIa: dstIa, Key: key}, nil
 }

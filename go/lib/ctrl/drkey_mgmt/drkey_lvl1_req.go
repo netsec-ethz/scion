@@ -28,8 +28,9 @@ import (
 var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
 
 type DRKeyLvl1Req struct {
-	SrcIa   addr.IAInt
-	ValTime uint32
+	SrcIa     addr.IAInt
+	ValTime   uint32
+	Timestamp uint32
 }
 
 // IA returns the source ISD-AS of the requested DRKey
@@ -44,6 +45,11 @@ func (c *DRKeyLvl1Req) ProtoId() proto.ProtoIdType {
 // Time returns the validity time of the requested DRKey
 func (c *DRKeyLvl1Req) Time() time.Time {
 	return util.SecsToTime(c.ValTime)
+}
+
+// WhenCreated returns the time when this request was created
+func (c *DRKeyLvl1Req) WhenCreated() time.Time {
+	return util.SecsToTime(c.Timestamp)
 }
 
 func (c *DRKeyLvl1Req) String() string {
