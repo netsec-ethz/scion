@@ -87,6 +87,33 @@ func TestLevel1KeyBuildReply(t *testing.T) {
 	})
 }
 
+func TestLevel1KeyFromReply(t *testing.T) {
+	Convey("Get Level 1 key from reply", t, func() {
+		srcIA, _ := addr.IAFromString("1-ff00:0:1")
+		dstIA, _ := addr.IAFromString("1-ff00:0:2")
+		key := common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		sv := drkey.DRKeySV{
+			Epoch: drkey.Epoch{
+				Begin: 0,
+				End:   1,
+			},
+			Key: key,
+		}
+		certA := loadCert("testdata/as-A.crt", t)
+		privateKeyA, _ := keyconf.LoadKey("testdata/asA-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
+		certB := loadCert("testdata/as-B.crt", t)
+		privateKeyB, _ := keyconf.LoadKey("testdata/asB-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
+		expectedKey, _ := hex.DecodeString("c584cad32613547c64823c756651b6f5")
+		reply, err := Level1KeyBuildReply(srcIA, dstIA, sv, certB, privateKeyA)
+		SoMsg("err", err, ShouldBeNil)
+		gotKey, err := Level1KeyFromReply(reply, srcIA, certA, privateKeyB)
+		SoMsg("key", gotKey.Key, ShouldResemble, (common.RawBytes)(expectedKey))
+		SoMsg("srcIA", gotKey.SrcIa, ShouldResemble, srcIA)
+		SoMsg("dstIA", gotKey.DstIa, ShouldResemble, dstIA)
+		SoMsg("Epoch", gotKey.Epoch, ShouldResemble, sv.Epoch)
+	})
+}
+
 func loadCert(filename string, t *testing.T) *cert.Certificate {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
