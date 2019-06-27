@@ -46,8 +46,8 @@ func (c *DRKeyLvl1Rep) ProtoId() proto.ProtoIdType {
 }
 
 // Epoch returns the begin and end of the validity period of DRKey
-func (c *DRKeyLvl1Rep) Epoch() *drkey.Epoch {
-	return &drkey.Epoch{Begin: c.EpochBegin, End: c.EpochEnd}
+func (c *DRKeyLvl1Rep) Epoch() drkey.Epoch {
+	return drkey.Epoch{Begin: c.EpochBegin, End: c.EpochEnd}
 }
 
 func (c *DRKeyLvl1Rep) String() string {

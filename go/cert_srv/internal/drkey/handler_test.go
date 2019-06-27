@@ -57,18 +57,6 @@ func TestValidateRequest(t *testing.T) {
 	})
 }
 
-func loadCert(filename string, t *testing.T) *cert.Certificate {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatalf("Unable to load raw from '%s': %v", filename, err)
-	}
-	trc, err := cert.CertificateFromRaw(b)
-	if err != nil {
-		t.Fatalf("Error loading Certificate from '%s': %v", filename, err)
-	}
-	return trc
-}
-
 func TestLevel1KeyBuildReply(t *testing.T) {
 	Convey("Construct a Level 1 DRKey reply", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:1")
@@ -86,16 +74,27 @@ func TestLevel1KeyBuildReply(t *testing.T) {
 		certB := loadCert("testdata/as-B.crt", t)
 		privateKeyB, _ := keyconf.LoadKey("testdata/asB-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
 		expectedDerivedKey, _ := hex.DecodeString("c584cad32613547c64823c756651b6f5")
-		cipher, nonce, err := Level1KeyBuildReply(srcIA, dstIA, sv, certB, privateKeyA)
+		reply, err := Level1KeyBuildReply(srcIA, dstIA, sv, certB, privateKeyA)
 		SoMsg("err", err, ShouldBeNil)
-
-		decryptedKey, err := drkey.DecryptDRKeyLvl1(cipher, nonce, certB.SubjectEncKey, privateKeyB)
+		decryptedKey, err := drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, certB.SubjectEncKey, privateKeyB)
 		SoMsg("err", err, ShouldNotBeNil)
-		decryptedKey, err = drkey.DecryptDRKeyLvl1(cipher, nonce, certA.SubjectEncKey, privateKeyB)
+		decryptedKey, err = drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, certA.SubjectEncKey, privateKeyB)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("decryptedKey", decryptedKey.Key, ShouldResemble, (common.RawBytes)(expectedDerivedKey))
 		SoMsg("srcIA", decryptedKey.SrcIa, ShouldResemble, srcIA)
 		SoMsg("dstIA", decryptedKey.DstIa, ShouldResemble, dstIA)
-		SoMsg("decryptedKey.Epoch", decryptedKey.Epoch, ShouldEqual, sv.Epoch)
+		SoMsg("Epoch", reply.Epoch(), ShouldResemble, sv.Epoch)
 	})
+}
+
+func loadCert(filename string, t *testing.T) *cert.Certificate {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("Unable to load raw from '%s': %v", filename, err)
+	}
+	trc, err := cert.CertificateFromRaw(b)
+	if err != nil {
+		t.Fatalf("Error loading Certificate from '%s': %v", filename, err)
+	}
+	return trc
 }

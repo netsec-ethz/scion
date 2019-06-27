@@ -7,6 +7,7 @@ $Go.import("github.com/scionproto/scion/go/proto");
 struct DRKeyLvl1Req {
     srcIa @0 :UInt64;     # Src ISD-AS of the requested DRKey
     valTime @1 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
+    timestamp @2 :UInt32; # Point in time when the request was created
 }
 
 struct DRKeyLvl1Rep {
