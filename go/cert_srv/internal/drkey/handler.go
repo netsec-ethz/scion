@@ -143,9 +143,7 @@ func deriveKey(srcIA, dstIA addr.IA, sv drkey.DRKeySV) (*drkey.DRKeyLvl1, error)
 	return key, nil
 }
 
-func (h *Level1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep,
-	id uint64) error {
-
+func (h *Level1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep, id uint64) error {
 	msger, ok := infra.MessengerFromContext(ctx)
 	if !ok {
 		return common.NewBasicError(
@@ -154,52 +152,58 @@ func (h *Level1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drke
 	return msger.SendDRKeyLvl1(ctx, rep, addr, id)
 }
 
-// DRKeyRepHandler handles first-level drkey requests.
-type DRKeyRepHandler struct {
+// Level1ReplyHandler handles first-level drkey replies.
+type Level1ReplyHandler struct {
 	State *csconfig.State
 }
 
-func (h *DRKeyRepHandler) Handle(r *infra.Request) {
-	// Bind the handler to a snapshot of the current config
-	h.HandleRep(r)
-}
-
-func (h *DRKeyRepHandler) HandleRep(r *infra.Request) {
+// Handle handles the a level drkey reply
+func (h *Level1ReplyHandler) Handle(r *infra.Request) {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
 
 	saddr := r.Peer.(*snet.Addr)
-	rep := r.Message.(*drkey_mgmt.DRKeyLvl1Rep)
-
-	log.Debug("[DRKeyRepHandler] Received drkey lvl1 reply", "addr", saddr, "rep", rep)
-	if err := h.validateRep(rep, saddr); err != nil {
-		h.logDropRep(saddr, rep, err)
+	reply := r.Message.(*drkey_mgmt.DRKeyLvl1Rep)
+	log.Debug("[Level1ReplyHandler] Received drkey lvl1 reply", "addr", saddr, "reply", reply)
+	if reply == nil {
+		log.Error("[Level1ReplyHandler] Reply is null after cast")
 		return
 	}
-	cert, err := h.State.TrustDB.GetLeafCertMaxVersion(ctx, rep.IA())
+	cert, err := h.State.TrustDB.GetLeafCertMaxVersion(ctx, reply.IA())
 	if err != nil {
-		log.Error("[DRKeyRepHandler] Unable to fetch certificate for remote host", "err", err)
+		log.Error("[Level1ReplyHandler] Unable to fetch certificate for remote host", "err", err)
 		return
 	}
-	key, err := drkey.DecryptDRKeyLvl1(rep.Cipher, rep.Nonce, cert.SubjectEncKey,
-		h.State.GetDecryptKey())
-	// TODO(ben): remove
-	log.Debug("[DRKeyRepHandler] DRKey received", "key", key)
+	privateKey := h.State.GetDecryptKey()
+
+	key, err := Level1KeyFromReply(reply, saddr.IA, cert, privateKey)
 	// TODO(ben): store in keystore
+	print(key) // TODO remove
 }
 
-func (h *DRKeyRepHandler) validateRep(rep *drkey_mgmt.DRKeyLvl1Rep, addr *snet.Addr) error {
+// Level1KeyFromReply validates a level 1 reply and returns the level 1 key embedded in it
+func Level1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.Certificate, privateKey common.RawBytes) (key *drkey.DRKeyLvl1, err error) {
+	if err = validateReply(reply, srcIA); err != nil {
+		err = fmt.Errorf("Dropping DRKeyLvl1 reply: %v", err)
+		return
+	}
+	// TODO(juan): match this reply with a request from this CS
+	key, err = drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, cert.SubjectEncKey, privateKey)
+	if err != nil {
+		err = fmt.Errorf("Error decrypting the key from the reply: %v", err)
+		return
+	}
+	log.Debug("[Level1ReplyHandler] DRKey received", "key", key)
+	key.Epoch = reply.Epoch()
+
+	return
+}
+
+func validateReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
 	// TODO(ben): validate reply (validity time, etc.)
-	// TODO(ben): remove
-	log.Debug("[DRKeyRepHandler] Validating drkey lvl1 reply", "rep", rep)
-	if !addr.IA.Eq(rep.SrcIa.IA()) {
-		return common.NewBasicError(AddressMismatchError, nil,
-			"expected", addr.IA, "actual", rep.SrcIa.IA())
+	log.Debug("[Level1ReplyHandler] Validating drkey lvl1 reply", "reply", reply)
+	if !srcIA.Eq(reply.SrcIa.IA()) {
+		return common.NewBasicError(AddressMismatchError, nil, "expected", srcIA, "actual", reply.SrcIa.IA())
 	}
 	return nil
-}
-
-func (h *DRKeyRepHandler) logDropRep(addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep, err error) {
-	log.Error("[DRKeyRepHandler] Dropping DRKeyLvl1 reply", "addr", addr, "rep", rep,
-		"err", err)
 }
