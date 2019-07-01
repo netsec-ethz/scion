@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/drkey/keystore"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/keyconf"
@@ -45,6 +46,8 @@ type State struct {
 	verifier ctrl.SigVerifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
+	// drykey stored keys
+	DrkeyStore *keystore.DB
 }
 
 func LoadState(confDir string, isCore bool) (*State, error) {

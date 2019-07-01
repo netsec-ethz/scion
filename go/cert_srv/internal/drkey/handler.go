@@ -44,7 +44,6 @@ const (
 type Level1ReqHandler struct {
 	State *csconfig.State
 	IA    addr.IA
-	// TODO: drkeytest: we need to construct this obj
 }
 
 // Handle handles the level 1 drkey requests
@@ -177,8 +176,11 @@ func (h *Level1ReplyHandler) Handle(r *infra.Request) {
 	privateKey := h.State.GetDecryptKey()
 
 	key, err := Level1KeyFromReply(reply, saddr.IA, cert, privateKey)
-	// TODO(ben): store in keystore
-	print(key) // TODO remove
+	_, err = h.State.DrkeyStore.InsertDRKeyLvl1Ctx(ctx, key)
+	if err != nil {
+		log.Error("[Level1ReplyHandler] Could not insert the DR key in the DB", "err", err)
+		return
+	}
 }
 
 // Level1KeyFromReply validates a level 1 reply and returns the level 1 key embedded in it

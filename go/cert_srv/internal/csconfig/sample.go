@@ -86,4 +86,7 @@ const Sample = `[general]
 
   # Whether automatic reissuing is enabled. Default is false.
   AutomaticRenewal = false
+
+  # Location where the DRKey store can be found
+  DrkeyStore = "/var/lib/scion/spki/cs-drkey.store.db"
 `

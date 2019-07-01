@@ -49,6 +49,8 @@ type Conf struct {
 	ReissueTimeout util.DurWrap
 	// AutomaticRenewal whether automatic reissuing is enabled.
 	AutomaticRenewal bool
+	// Key store for DRKey
+	DrkeyStore string
 }
 
 // Init sets the uninitialized fields.
