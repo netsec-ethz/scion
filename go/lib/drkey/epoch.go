@@ -25,12 +25,18 @@ type Epoch struct {
 	End   uint32
 }
 
-func (e *Epoch) Length() uint32 {
+// NewEpochFromDuration builds and returns an Epoch given its starting point and its duration.
+// Both parameters in seconds.
+func NewEpochFromDuration(begin uint32, duration int32) Epoch {
+	return Epoch{Begin: begin, End: uint32(int32(begin) + duration)}
+}
+
+func (e *Epoch) Duration() uint32 {
 	return e.End - e.Begin
 }
 
 func (e *Epoch) Nr(offset uint32) uint32 {
-	l := e.Length()
+	l := e.Duration()
 	t := util.TimeToSecs(time.Now())
 	nr := t / l
 	if t < (nr*l + offset) {
@@ -39,10 +45,10 @@ func (e *Epoch) Nr(offset uint32) uint32 {
 	return nr
 }
 
-func (e *Epoch) GetPreviousEpoch(length uint32) *Epoch {
-	return &Epoch{Begin: e.Begin - length, End: e.Begin}
+func (e *Epoch) GetPreviousEpoch(duration uint32) *Epoch {
+	return &Epoch{Begin: e.Begin - duration, End: e.Begin}
 }
 
-func (e *Epoch) GetNextEpoch(length uint32) *Epoch {
-	return &Epoch{Begin: e.End, End: e.End + length}
+func (e *Epoch) GetNextEpoch(duration uint32) *Epoch {
+	return &Epoch{Begin: e.End, End: e.End + duration}
 }

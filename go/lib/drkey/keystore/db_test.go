@@ -21,25 +21,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/util"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
-	timeOffset = 10 * time.Minute
+	timeOffset = 10 * 60 // 10 minutes
 )
 
 var (
-	rawSecret = []byte("0123456789012345")
-	rawSrcIA  = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x77}
-	rawDstIA  = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x88}
-	SrcHostIP = net.IPv4(192, 168, 1, 37)
-	DstHostIP = net.IPv4(192, 168, 1, 38)
+	asMasterPassword = []byte("0123456789012345")
+	rawSrcIA         = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x77}
+	rawDstIA         = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x88}
+	SrcHostIP        = net.IPv4(192, 168, 1, 37)
+	DstHostIP        = net.IPv4(192, 168, 1, 38)
 )
 
 func TestDRKeyLvl1(t *testing.T) {
@@ -47,24 +45,25 @@ func TestDRKeyLvl1(t *testing.T) {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		expTime := util.TimeToSecs(time.Now().Add(timeOffset))
-		sv := &drkey.DRKeySV{ExpTime: expTime}
+		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
+		sv := &drkey.DRKeySV{Epoch: epoch}
 		SoMsg("drkey", sv, ShouldNotBeNil)
-		err := sv.SetKey(rawSecret, common.RawBytes(time.Now().Format("01-02-2016")))
+		err := sv.SetKey(asMasterPassword, epoch)
 		SoMsg("drkey", err, ShouldBeNil)
+		// TODO: drkeytest: check the key itself?
+
 		drkeyLvl1 := &drkey.DRKeyLvl1{
-			SrcIa:   addr.IAFromRaw(rawSrcIA),
-			DstIa:   addr.IAFromRaw(rawDstIA),
-			ExpTime: expTime,
+			SrcIa: addr.IAFromRaw(rawSrcIA),
+			DstIa: addr.IAFromRaw(rawDstIA),
+			Epoch: epoch,
 		}
-		SoMsg("drkey", drkeyLvl1, ShouldNotBeNil)
 		err = drkeyLvl1.SetKey(sv.Key)
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
-			rows, err := db.InsertDRKeyLvl1(drkeyLvl1, expTime)
+			rows, err := db.InsertDRKeyLvl1(drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-			rows, err = db.InsertDRKeyLvl1(drkeyLvl1, expTime)
+			SoMsg("rows", rows, ShouldEqual, 1)
+			rows, err = db.InsertDRKeyLvl1(drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Fetch drkey from database", func() {
@@ -74,10 +73,12 @@ func TestDRKeyLvl1(t *testing.T) {
 			})
 
 			Convey("Remove outdated drkeys", func() {
-				db.RemoveOutdatedDRKeyLvl1(util.TimeToSecs(time.Now().Add(-timeOffset)))
+				rows = db.GetLvl1Count()
+				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
+				rows, err = db.RemoveOutdatedDRKeyLvl1(util.TimeToSecs(time.Now().Add(-timeOffset * time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl1(util.TimeToSecs(time.Now().Add(2 * timeOffset)))
+				rows, err = db.RemoveOutdatedDRKeyLvl1(util.TimeToSecs(time.Now().Add(2 * timeOffset * time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
 			})
@@ -92,31 +93,29 @@ func TestDRKeyLvl2(t *testing.T) {
 
 		srcIa := addr.IAFromRaw(rawSrcIA)
 		dstIa := addr.IAFromRaw(rawDstIA)
-		expTime := util.TimeToSecs(time.Now().Add(timeOffset))
+		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
 		drkeyLvl1 := &drkey.DRKeyLvl1{
-			SrcIa:   srcIa,
-			DstIa:   dstIa,
-			ExpTime: expTime,
-			Key:     rawSecret,
+			SrcIa: srcIa,
+			DstIa: dstIa,
+			Epoch: epoch,
+			Key:   asMasterPassword,
 		}
-		SoMsg("drkey", drkeyLvl1, ShouldNotBeNil)
 		drkeyLvl2 := &drkey.DRKeyLvl2{
-			Proto:   "test",
-			Type:    drkey.Host2Host,
-			SrcIa:   srcIa,
-			DstIa:   dstIa,
-			SrcHost: addr.HostFromIP(SrcHostIP),
-			DstHost: addr.HostFromIP(DstHostIP),
-			ExpTime: expTime,
+			Protocol: "test",
+			KeyType:  drkey.Host2Host,
+			SrcIa:    srcIa,
+			DstIa:    dstIa,
+			SrcHost:  addr.HostFromIP(SrcHostIP),
+			DstHost:  addr.HostFromIP(DstHostIP),
+			Epoch:    epoch,
 		}
-		SoMsg("drkey", drkeyLvl2, ShouldNotBeNil)
 		err := drkeyLvl2.SetKey(drkeyLvl1.Key)
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
-			rows, err := db.InsertDRKeyLvl2(drkeyLvl2, expTime)
+			rows, err := db.InsertDRKeyLvl2(drkeyLvl2)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-			rows, err = db.InsertDRKeyLvl2(drkeyLvl2, expTime)
+			SoMsg("rows", rows, ShouldEqual, 1)
+			rows, err = db.InsertDRKeyLvl2(drkeyLvl2)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Fetch drkey from database", func() {
@@ -126,10 +125,12 @@ func TestDRKeyLvl2(t *testing.T) {
 			})
 
 			Convey("Remove outdated drkeys", func() {
-				db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(-timeOffset)))
+				rows = db.GetLvl2Count()
+				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
+				rows, err = db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(-timeOffset * time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(2 * timeOffset)))
+				rows, err = db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(2 * timeOffset * time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
 			})
