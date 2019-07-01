@@ -132,6 +132,9 @@ func (cfg *CSConfig) InitDefaults() {
 	if cfg.ReissueTimeout.Duration == 0 {
 		cfg.ReissueTimeout.Duration = ReissueReqTimeout
 	}
+	if c.DrkeyStore == "" {
+		c.DrkeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
+	}
 }
 
 func (cfg *CSConfig) Validate() error {

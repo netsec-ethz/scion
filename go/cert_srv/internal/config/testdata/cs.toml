@@ -4,3 +4,4 @@
   ReissueRate = "12s"
   ReissueTimeout = "6s"
   AutomaticRenewal = true
+  DrkeyStore = "./cs1-ff00_0_123-1.drkey.trust.store.db"
