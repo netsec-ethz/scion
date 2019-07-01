@@ -88,5 +88,5 @@ const Sample = `[general]
   AutomaticRenewal = false
 
   # Location where the DRKey store can be found
-  DrkeyStore = "/var/lib/scion/spki/cs-drkey.store.db"
+  DrkeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
 `

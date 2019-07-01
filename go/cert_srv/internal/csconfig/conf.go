@@ -74,6 +74,9 @@ func (c *Conf) initDefaults() {
 	if c.ReissueTimeout.Duration == 0 {
 		c.ReissueTimeout.Duration = ReissueReqTimeout
 	}
+	if c.DrkeyStore == "" {
+		c.DrkeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
+	}
 }
 
 // loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL

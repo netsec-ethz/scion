@@ -63,6 +63,8 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("IssuerReissTime correct", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual,
 			IssuerReissTime)
 		SoMsg("AutomaticRenewal correct", cfg.CS.AutomaticRenewal, ShouldBeFalse)
+		SoMsg("DrkeyStore correct", cfg.CS.DrkeyStore, ShouldEqual,
+			"/var/lib/scion/spki/cs-1.drkey.store.db")
 	})
 }
 
@@ -76,6 +78,7 @@ func TestLoadConf(t *testing.T) {
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
 		SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeTrue)
+		SoMsg("drkeystore", cfg.CS.DrkeyStore, ShouldEqual, "./cs1-ff00_0_123-1.drkey.trust.store.db")
 	})
 
 	Convey("Load Default", t, func() {
@@ -87,6 +90,7 @@ func TestLoadConf(t *testing.T) {
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldBeZeroValue)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldBeZeroValue)
 		SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeFalse)
+		SoMsg("drkeystore", cfg.CS.DrkeyStore, ShouldBeEmpty)
 	})
 }
 
@@ -104,6 +108,7 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
 			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeTrue)
+			SoMsg("drkeystore", cfg.CS.DrkeyStore, ShouldEqual, "./cs1-ff00_0_123-1.drkey.trust.store.db")
 		})
 	})
 
@@ -120,6 +125,7 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
 			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeFalse)
+			SoMsg("drkeystore", cfg.CS.DrkeyStore, ShouldEqual, "/var/lib/scion/spki/cs-1.drkey.store.db")
 		})
 	})
 }
