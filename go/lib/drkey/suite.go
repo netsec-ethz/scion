@@ -30,14 +30,16 @@ const (
 	drkeyLength = 16
 )
 
-func (sv *DRKeySV) SetKey(secret common.RawBytes, epochNr uint32) error {
-	msLen := len(secret)
-	all := make(common.RawBytes, msLen+4)
-	_, err := secret.WritePld(all[:msLen])
+// SetKey creates the SV_A . The passed asSecret is typically the AS master password
+func (sv *DRKeySV) SetKey(asSecret common.RawBytes, epoch Epoch) error {
+	msLen := len(asSecret)
+	all := make(common.RawBytes, msLen+8)
+	_, err := asSecret.WritePld(all[:msLen])
 	if err != nil {
 		return err
 	}
-	binary.LittleEndian.PutUint32(all[msLen:], epochNr)
+	binary.LittleEndian.PutUint32(all[msLen:], epoch.Begin)
+	binary.LittleEndian.PutUint32(all[msLen+4:], epoch.End)
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	sv.Key = key
 	return nil
