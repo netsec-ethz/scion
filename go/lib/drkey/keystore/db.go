@@ -40,9 +40,10 @@ const (
 		SrcAsID 	INTEGER NOT NULL,
 		DstIsdID 	INTEGER NOT NULL,
 		DstAsID 	INTEGER NOT NULL,
-		ExpTime 	INTEGER NOT NULL,
+		EpochBegin 	INTEGER NOT NULL,
+		EpochEnd 	INTEGER NOT NULL,
 		Key 		TEXT NOT NULL,
-		PRIMARY KEY (SrcIsdID, SrcAsID, DstIsdID, DstAsID, ExpTime)
+		PRIMARY KEY (SrcIsdID, SrcAsID, DstIsdID, DstAsID, EpochBegin)
 	);
 
 	CREATE TABLE DRKeyLvl2 (
@@ -56,7 +57,7 @@ const (
 		DstHostIP	TEXT,
 		ExpTime 	INTEGER NOT NULL,
 		Key 		TEXT NOT NULL,
-		PRIMARY KEY (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, SrcHostIP, DstHostIP, 
+		PRIMARY KEY (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, SrcHostIP, DstHostIP,
 			ExpTime)
 	);`
 
@@ -66,22 +67,22 @@ const (
 
 const (
 	getDRKeyLvl1 = `
-		SELECT Key FROM DRKeyLvl1 WHERE SrcIsdID=? AND SrcAsID=? AND DstIsdID=? AND DstAsID=? 
-		AND ?<=ExpTime
+		SELECT Key FROM DRKeyLvl1 WHERE SrcIsdID=? AND SrcAsID=? AND DstIsdID=? AND DstAsID=?
+		AND ?<=EpochBegin AND ?>=EpochEnd
 	`
 	insertDRKeyLvl1 = `
-		INSERT OR IGNORE INTO DRKeyLvl1 (SrcIsdID, SrcAsID, DstIsdID, DstAsID, ExpTime, Key)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT OR IGNORE INTO DRKeyLvl1 (SrcIsdID, SrcAsID, DstIsdID, DstAsID, EpochBegin, EpochEnd, Key)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	removeOutdatedDRKeyLvl1 = `
-		DELETE FROM DRKeyLvl1 WHERE ?>ExpTime
+		DELETE FROM DRKeyLvl1 WHERE ?>EpochEnd
 	`
 	getDRKeyLvl2 = `
-		SELECT Key FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND 
+		SELECT Key FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND
 		DstIsdID=? AND DstAsID=? AND SrcHostIP=? AND DstHostIP=? AND ?<=ExpTime
 	`
 	insertDRKeyLvl2 = `
-		INSERT OR IGNORE INTO DRKeyLvl2 (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, 
+		INSERT OR IGNORE INTO DRKeyLvl2 (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID,
 		SrcHostIP, DstHostIP, ExpTime, Key)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
@@ -153,11 +154,9 @@ func (db *DB) GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (common.RawByte
 }
 
 // GetDRKeyLvl1Ctx is the context-aware version of GetDRKeyLvl1.
-func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1,
-	valTime uint32) (common.RawBytes, error) {
+func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
-	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I,
-		key.DstIa.A, valTime).Scan(&drkeyRaw)
+	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I, key.DstIa.A, valTime, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
 	}
@@ -166,14 +165,13 @@ func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1,
 
 // InsertDRKeyLvl1 inserts a first level DRKey and returns the number of affected rows.
 func (db *DB) InsertDRKeyLvl1(key *drkey.DRKeyLvl1, expTime uint32) (int64, error) {
-	return db.InsertDRKeyLvl1Ctx(context.Background(), key, expTime)
+	return db.InsertDRKeyLvl1Ctx(context.Background(), key)
 }
 
 // InsertDRKeyLvl1Ctx is the context-aware version of InsertDRKey.
-func (db *DB) InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1,
-	expTime uint32) (int64, error) {
+func (db *DB) InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error) {
 	res, err := db.insertDRKeyLvl1Stmt.ExecContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I,
-		key.DstIa.A, expTime, key.Key)
+		key.DstIa.A, key.Epoch.Begin, key.Epoch.End, key.Key)
 	if err != nil {
 		return 0, err
 	}

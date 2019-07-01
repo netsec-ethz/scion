@@ -115,6 +115,8 @@ type CSConfig struct {
 	ReissueTimeout util.DurWrap
 	// AutomaticRenewal whether automatic reissuing is enabled.
 	AutomaticRenewal bool
+	// Key store for DRKey
+	DrkeyStore string
 }
 
 func (cfg *CSConfig) InitDefaults() {

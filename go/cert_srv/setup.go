@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/drkey/keystore"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -138,6 +139,10 @@ func initState(cfg *config.Config, router snet.Router) error {
 	}
 	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
+	}
+	config.state.DrkeyStore, err = keystore.New(config.CS.DrkeyStore)
+	if err != nil {
+		return common.NewBasicError("Unable to initialize drkey key store", err)
 	}
 	return nil
 }
