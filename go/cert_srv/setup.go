@@ -22,6 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
+	"github.com/scionproto/scion/go/cert_srv/internal/drkey"
 	"github.com/scionproto/scion/go/cert_srv/internal/metrics"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -133,16 +134,16 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore)
+	drkeyStore, err := keystore.New(cfg.CS.DrkeyStore)
+	if err != nil {
+		return common.NewBasicError("Unable to initialize drkey key store", err)
+	}
+	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore, drkeyStore)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
 	}
 	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
-	}
-	config.state.DrkeyStore, err = keystore.New(config.CS.DrkeyStore)
-	if err != nil {
-		return common.NewBasicError("Unable to initialize drkey key store", err)
 	}
 	return nil
 }
@@ -198,8 +199,8 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	msgr.AddHandler(infra.DRKeyLvl1Request, &DRKeyReqHandler{})
-	msgr.AddHandler(infra.DRKeyLvl1Reply, &DRKeyRepHandler{})
+	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Level1ReqHandler{})
+	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Level1ReplyHandler{})
 	//msgr.AddHandler(infra.DRKeyLvl2Request, &DRKeyHandler{})
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())

@@ -48,11 +48,12 @@ type State struct {
 }
 
 func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
-	trustStore *trust.Store) (*State, error) {
+	trustStore *trust.Store, drkeyStore *keystore.DB) (*State, error) {
 
 	s := &State{
-		Store:   trustStore,
-		TrustDB: trustDB,
+		Store:      trustStore,
+		TrustDB:    trustDB,
+		DrkeyStore: drkeyStore,
 	}
 	if err := s.loadKeyConf(confDir, isCore); err != nil {
 		return nil, err

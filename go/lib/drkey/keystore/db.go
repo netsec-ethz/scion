@@ -23,7 +23,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/sqlite"
+
+	// "github.com/scionproto/scion/go/lib/sqlite"
+	// "github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
 const (
@@ -113,35 +116,35 @@ func New(path string) (*DB, error) {
 		return nil, common.NewBasicError(InvalidDBPath, nil)
 	}
 	var err error
-	db := &DB{}
-	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
+	keystore := &DB{}
+	if keystore.db, err = db.NewSqlite(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
 	// On future errors, close the sql database before exiting
 	defer func() {
 		if err != nil {
-			db.db.Close()
+			keystore.db.Close()
 		}
 	}()
-	if db.getDRKeyLvl1Stmt, err = db.db.Prepare(getDRKeyLvl1); err != nil {
+	if keystore.getDRKeyLvl1Stmt, err = keystore.db.Prepare(getDRKeyLvl1); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	if db.insertDRKeyLvl1Stmt, err = db.db.Prepare(insertDRKeyLvl1); err != nil {
+	if keystore.insertDRKeyLvl1Stmt, err = keystore.db.Prepare(insertDRKeyLvl1); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	if db.removeOutdatedDRKeyLvl1Stmt, err = db.db.Prepare(removeOutdatedDRKeyLvl1); err != nil {
+	if keystore.removeOutdatedDRKeyLvl1Stmt, err = keystore.db.Prepare(removeOutdatedDRKeyLvl1); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	if db.getDRKeyLvl2Stmt, err = db.db.Prepare(getDRKeyLvl2); err != nil {
+	if keystore.getDRKeyLvl2Stmt, err = keystore.db.Prepare(getDRKeyLvl2); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	if db.insertDRKeyLvl2Stmt, err = db.db.Prepare(insertDRKeyLvl2); err != nil {
+	if keystore.insertDRKeyLvl2Stmt, err = keystore.db.Prepare(insertDRKeyLvl2); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	if db.removeOutdatedDRKeyLvl2Stmt, err = db.db.Prepare(removeOutdatedDRKeyLvl2); err != nil {
+	if keystore.removeOutdatedDRKeyLvl2Stmt, err = keystore.db.Prepare(removeOutdatedDRKeyLvl2); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	return db, nil
+	return keystore, nil
 }
 
 // Close closes the database connection.

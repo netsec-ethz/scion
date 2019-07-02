@@ -363,6 +363,8 @@ type ResponseWriter interface {
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep) error
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error
 	SendIfStateInfoReply(ctx context.Context, msg *path_mgmt.IFStateInfos) error
+	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error
+	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error
 }
 
 func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {

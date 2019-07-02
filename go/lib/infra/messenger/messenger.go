@@ -82,7 +82,7 @@ import (
 	"time"
 
 	quic "github.com/lucas-clemente/quic-go"
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -91,8 +91,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
-	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -635,12 +635,12 @@ func (m *Messenger) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyL
 	}
 	logger.Debug("[Messenger] Sending request", "req_type", infra.DRKeyLvl1Request,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err :=
-		m.getRequester(infra.DRKeyLvl1Request, infra.DRKeyLvl1Reply).Request(ctx, pld, a)
+	replyCtrlPld, err :=
+		m.getFallbackRequester(infra.DRKeyLvl1Request).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
 			"debug_id", debug_id)
@@ -663,7 +663,7 @@ func (m *Messenger) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1
 		return err
 	}
 	m.log.Debug("[Messenger] Sending Notify", "type", infra.DRKeyLvl1Request, "to", a, "id", id)
-	return m.getRequester(infra.DRKeyLvl1Request, infra.DRKeyLvl1Reply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.DRKeyLvl1Request).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr,
@@ -677,12 +677,12 @@ func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyL
 	}
 	logger.Debug("[Messenger] Sending request", "req_type", infra.DRKeyLvl2Request,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, _, err :=
-		m.getRequester(infra.DRKeyLvl2Request, infra.DRKeyLvl2Reply).Request(ctx, pld, a)
+	replyCtrlPld, err :=
+		m.getFallbackRequester(infra.DRKeyLvl2Request).Request(ctx, pld, a, false)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
+	_, replyMsg, err := validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
 			"debug_id", debug_id)
@@ -705,7 +705,7 @@ func (m *Messenger) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2
 		return err
 	}
 	m.log.Debug("[Messenger] Sending Notify", "type", infra.DRKeyLvl2Request, "to", a, "id", id)
-	return m.getRequester(infra.DRKeyLvl2Request, infra.DRKeyLvl2Reply).Notify(ctx, pld, a)
+	return m.getFallbackRequester(infra.DRKeyLvl2Request).Notify(ctx, pld, a)
 }
 
 // AddHandler registers a handler for msgType.
@@ -1093,8 +1093,8 @@ func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 					nil, "capnp_which", pld.PathMgmt.Which)
 		}
 	case proto.CtrlPld_Which_ack:
-        return infra.Ack, pld.Ack, nil
-    case proto.CtrlPld_Which_drkeyMgmt:
+		return infra.Ack, pld.Ack, nil
+	case proto.CtrlPld_Which_drkeyMgmt:
 		switch pld.DRKeyMgmt.Which {
 		case proto.DRKeyMgmt_Which_drkeyLvl1Req:
 			return infra.DRKeyLvl1Request, pld.DRKeyMgmt.DRKeyLvl1Req, nil

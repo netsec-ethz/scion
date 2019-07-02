@@ -46,17 +46,15 @@ func (sv *DRKeySV) SetKey(asSecret common.RawBytes, epoch Epoch) error {
 }
 
 func (k *DRKeyLvl1) SetKey(secret common.RawBytes) error {
-	h, err := scrypto.InitMac(secret)
+	mac, err := scrypto.InitMac(secret)
 	if err != nil {
 		return err
 	}
 	all := make(common.RawBytes, addr.IABytes)
 	k.DstIa.Write(all)
-	key, err := scrypto.Mac(h, all)
-	if err != nil {
-		return err
-	}
-	k.Key = key
+	mac.Write(all)
+	tmp := make([]byte, 0, mac.Size())
+	k.Key = mac.Sum(tmp)
 	return nil
 }
 
@@ -100,11 +98,12 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}
-	key, err := scrypto.Mac(h, all)
-	if err != nil {
-		return err
-	}
-	k.Key = key
+	// key, err := scrypto.Mac(h, all)
+	// if err != nil {
+	// 	return err
+	// }
+	// k.Key = key
+	k.Key = h.Sum(all)
 	return nil
 }
 

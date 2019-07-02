@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
@@ -119,4 +120,13 @@ func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
 		return err
 	}
 	return rw.ReplyWriter.WriteReply(&rpc.Reply{Message: msg})
+}
+
+func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error {
+	// TODO: drkeytest do this
+	return nil
+}
+func (rw *QUICResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error {
+	// TODO: drkeytest do this
+	return nil
 }

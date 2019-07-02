@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 )
@@ -58,4 +59,11 @@ func (rw *UDPResponseWriter) SendIfStateInfoReply(ctx context.Context,
 	msg *path_mgmt.IFStateInfos) error {
 
 	return rw.Messenger.SendIfStateInfos(ctx, msg, rw.Remote, rw.ID)
+}
+
+func (rw *UDPResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error {
+	return rw.Messenger.SendDRKeyLvl1(ctx, msg, rw.Remote, rw.ID)
+}
+func (rw *UDPResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error {
+	return rw.Messenger.SendDRKeyLvl2(ctx, msg, rw.Remote, rw.ID)
 }
