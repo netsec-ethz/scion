@@ -69,7 +69,7 @@ const (
 const (
 	getDRKeyLvl1 = `
 		SELECT Key FROM DRKeyLvl1 WHERE SrcIsdID=? AND SrcAsID=? AND DstIsdID=? AND DstAsID=?
-		AND EpochBegin<=? AND ?<EpochEnd
+		AND EpochBegin <= ? < EpochEnd
 	`
 	insertDRKeyLvl1 = `
 		INSERT OR IGNORE INTO DRKeyLvl1 (SrcIsdID, SrcAsID, DstIsdID, DstAsID, EpochBegin, EpochEnd, Key)
@@ -80,8 +80,7 @@ const (
 	`
 	getDRKeyLvl2 = `
 		SELECT Key FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND
-		DstIsdID=? AND DstAsID=? AND SrcHostIP=? AND DstHostIP=?
-		AND EpochBegin<=? AND ?<EpochEnd
+		DstIsdID=? AND DstAsID=? AND SrcHostIP=? AND DstHostIP=? AND EpochBegin <= ? < EpochEnd
 	`
 	insertDRKeyLvl2 = `
 		INSERT OR IGNORE INTO DRKeyLvl2 (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID,
@@ -89,7 +88,7 @@ const (
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	removeOutdatedDRKeyLvl2 = `
-		DELETE FROM DRKeyLvl2 WHERE ?>EpochEnd
+		DELETE FROM DRKeyLvl2 WHERE ? > EpochEnd
 	`
 )
 
@@ -166,7 +165,7 @@ func (db *DB) GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (common.RawByte
 // GetDRKeyLvl1Ctx is the context-aware version of GetDRKeyLvl1.
 func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
-	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I, key.DstIa.A, valTime, valTime).Scan(&drkeyRaw)
+	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I, key.DstIa.A, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		fmt.Printf("[DEBUG] 100 breiko breiko! such much error: %v\n", err)
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
@@ -223,7 +222,7 @@ func (db *DB) GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (common.RawByte
 func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
 	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIa.I,
-		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, valTime, valTime).Scan(&drkeyRaw)
+		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
 	}
