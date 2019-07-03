@@ -32,7 +32,7 @@ func TestLoadState(t *testing.T) {
 	issSig, _ := keyconf.LoadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
 	online, _ := keyconf.LoadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
 	Convey("Load core state", t, func() {
-		state, err := LoadState("testdata", true, nil, nil)
+		state, err := LoadState("testdata", true, nil, nil, nil)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
@@ -44,7 +44,7 @@ func TestLoadState(t *testing.T) {
 	})
 
 	Convey("Load non-core state", t, func() {
-		state, err := LoadState("testdata", false, nil, nil)
+		state, err := LoadState("testdata", false, nil, nil, nil)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
