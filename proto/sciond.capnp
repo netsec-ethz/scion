@@ -6,6 +6,7 @@ $Go.import("github.com/scionproto/scion/go/proto");
 using Common = import "common.capnp";
 using Sign = import "sign.capnp";
 using PSeg = import "path_seg.capnp";
+using DRKey = import "drkey_mgmt.capnp";
 
 struct SCIONDMsg {
     id @0 :UInt64;  # Request ID
@@ -23,6 +24,7 @@ struct SCIONDMsg {
         revReply @11 :RevReply;
         segTypeHopReq @12 :SegTypeHopReq;
         segTypeHopReply @13 :SegTypeHopReply;
+        drkeyLvl2Req @14 :DrkeyLvl2Req;
     }
 }
 
@@ -126,4 +128,8 @@ struct SegTypeHopReplyEntry {
     interfaces @0 :List(PathInterface);  # List of interfaces for the segment
     timestamp @1 :UInt32;                # Creation timestamp, seconds since Unix Epoch
     expTime @2 :UInt32;                  # Expiration timestamp, seconds since Unix Epoch
+}
+
+struct DrkeyLvl2Req {
+    request @0 :DRKey.DRKeyLvl2Req;     # A level 2 DRKey request
 }

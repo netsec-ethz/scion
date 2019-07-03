@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
@@ -158,6 +159,11 @@ func (m *MockConn) RevNotification(ctx context.Context,
 	return &RevReply{
 		Result: RevValid,
 	}, nil
+}
+
+// DRKeyGetLvl2Key is not implemented
+func (m *MockConn) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
+	panic("not implemented")
 }
 
 // Close is a no-op.

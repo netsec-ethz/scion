@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -123,6 +124,10 @@ func (c *reconnector) RevNotification(ctx context.Context,
 	}
 	defer conn.Close(ctx)
 	return conn.RevNotification(ctx, sRevInfo)
+}
+
+func (c *reconnector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
+	return nil, nil
 }
 
 func (c *reconnector) Close(ctx context.Context) error {

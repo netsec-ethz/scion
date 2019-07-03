@@ -38,6 +38,8 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 )
 
+// TODO: drkeytest: add a runner
+
 var (
 	cfg         config.Config
 	state       *config.State

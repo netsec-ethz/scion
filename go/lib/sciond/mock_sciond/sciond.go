@@ -121,6 +121,21 @@ func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close), arg0)
 }
 
+// DRKeyGetLvl2Key mocks base method
+func (m *MockConnector) DRKeyGetLvl2Key(arg0 context.Context, arg1 byte, arg2 string, arg3 uint32, arg4, arg5 addr.IA, arg6, arg7 addr.HostAddr) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeyGetLvl2Key", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DRKeyGetLvl2Key indicates an expected call of DRKeyGetLvl2Key
+func (mr *MockConnectorMockRecorder) DRKeyGetLvl2Key(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetLvl2Key", reflect.TypeOf((*MockConnector)(nil).DRKeyGetLvl2Key), arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+}
+
 // IFInfo mocks base method
 func (m *MockConnector) IFInfo(arg0 context.Context, arg1 []common.IFIDType) (*sciond.IFInfoReply, error) {
 	m.ctrl.T.Helper()

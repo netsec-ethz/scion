@@ -287,6 +287,15 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 	}
 }
 
+type DrKeyLvl2RequestHandler struct {
+	Messenger infra.Messenger
+}
+
+func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
+	src net.Addr, pld *sciond.Pld) {
+	// TODO
+}
+
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
 // and immediately returns with an error if it cannot. Then, revocation
 // verification is performed and the result is returned.

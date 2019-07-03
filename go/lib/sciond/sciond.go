@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -126,6 +127,8 @@ type Connector interface {
 	RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error)
 	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
+	// DRKey Level 2 request
+	DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close(ctx context.Context) error
 }
@@ -350,6 +353,10 @@ func (c *connector) RevNotification(ctx context.Context,
 		return nil, common.NewBasicError("[sciond-API] Failed to send RevNotification", err)
 	}
 	return reply.(*Pld).RevReply, nil
+}
+
+func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
+	return nil, nil
 }
 
 func (c *connector) Close(ctx context.Context) error {
