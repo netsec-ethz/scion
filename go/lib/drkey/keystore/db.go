@@ -169,7 +169,8 @@ func (db *DB) GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (common.RawByte
 // GetDRKeyLvl1Ctx is the context-aware version of GetDRKeyLvl1.
 func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
-	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I, key.DstIa.A, valTime, valTime).Scan(&drkeyRaw)
+	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
+		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		fmt.Printf("[DEBUG] 100 breiko breiko! such much error: %v\n", err)
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
@@ -184,8 +185,8 @@ func (db *DB) InsertDRKeyLvl1(key *drkey.DRKeyLvl1) (int64, error) {
 
 // InsertDRKeyLvl1Ctx is the context-aware version of InsertDRKey.
 func (db *DB) InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error) {
-	res, err := db.insertDRKeyLvl1Stmt.ExecContext(ctx, key.SrcIa.I, key.SrcIa.A, key.DstIa.I,
-		key.DstIa.A, key.Epoch.Begin, key.Epoch.End, key.Key)
+	res, err := db.insertDRKeyLvl1Stmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
+		key.DstIA.A, key.Epoch.Begin, key.Epoch.End, key.Key)
 	if err != nil {
 		return 0, err
 	}
@@ -225,8 +226,8 @@ func (db *DB) GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (common.RawByte
 // GetDRKeyLvl2Ctx is the context-aware version of GetDRKeyLvl2.
 func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (common.RawBytes, error) {
 	var drkeyRaw common.RawBytes
-	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIa.I,
-		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost, valTime, valTime).Scan(&drkeyRaw)
+	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
+		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost, valTime, valTime).Scan(&drkeyRaw)
 	if err != nil {
 		return nil, common.NewBasicError(UnableToExecuteStmt, err)
 	}
@@ -240,8 +241,8 @@ func (db *DB) InsertDRKeyLvl2(key *drkey.DRKeyLvl2) (int64, error) {
 
 // InsertDRKeyLvl2Ctx is the context-aware version of InsertDRKeyLvl2.
 func (db *DB) InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error) {
-	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIa.I,
-		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.SrcHost, key.DstHost,
+	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
+		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost,
 		key.Epoch.Begin, key.Epoch.End, key.Key)
 	if err != nil {
 		return 0, err

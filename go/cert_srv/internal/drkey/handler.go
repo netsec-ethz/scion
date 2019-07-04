@@ -133,9 +133,9 @@ func deriveKey(srcIA, dstIA addr.IA, sv drkey.DRKeySV) (*drkey.DRKeyLvl1, error)
 	// TODO(ben): remove
 	log.Debug("[DRKeyReqHandler] Deriving drkey for lvl1 request", "srcIA", srcIA, "dstIA", dstIA)
 	key := &drkey.DRKeyLvl1{
-		SrcIa: srcIA,
-		DstIa: dstIA,
-		Epoch: sv.Epoch,
+		DRKey: drkey.DRKey{Epoch: sv.Epoch},
+		SrcIA: srcIA,
+		DstIA: dstIA,
 	}
 	if err := key.SetKey(sv.Key); err != nil {
 		return nil, err

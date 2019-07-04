@@ -155,7 +155,10 @@ func realMain() int {
 			RevCache:   revCache,
 			TrustStore: trustStore,
 		},
-		proto.SCIONDMsg_Which_drkeyLvl2Req: &servers.DrKeyLvl2RequestHandler{Messenger: msger},
+		proto.SCIONDMsg_Which_drkeyLvl2Req: &servers.DrKeyLvl2RequestHandler{
+			Msger:    msger,
+			Topology: itopo.Get(),
+		},
 	}
 	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)

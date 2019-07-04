@@ -10,6 +10,7 @@ import (
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	drkey "github.com/scionproto/scion/go/lib/drkey"
 	sciond "github.com/scionproto/scion/go/lib/sciond"
 	proto "github.com/scionproto/scion/go/proto"
 	reflect "reflect"
@@ -122,10 +123,10 @@ func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
 }
 
 // DRKeyGetLvl2Key mocks base method
-func (m *MockConnector) DRKeyGetLvl2Key(arg0 context.Context, arg1 byte, arg2 string, arg3 uint32, arg4, arg5 addr.IA, arg6, arg7 addr.HostAddr) (int, error) {
+func (m *MockConnector) DRKeyGetLvl2Key(arg0 context.Context, arg1 byte, arg2 string, arg3 uint32, arg4, arg5 addr.IA, arg6, arg7 addr.HostAddr) (*drkey.DRKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DRKeyGetLvl2Key", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(*drkey.DRKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

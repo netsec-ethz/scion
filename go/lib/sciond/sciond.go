@@ -39,6 +39,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra/disp"
@@ -128,7 +129,8 @@ type Connector interface {
 	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
 	// DRKey Level 2 request
-	DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error)
+	DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32,
+		srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKey, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close(ctx context.Context) error
 }
@@ -355,8 +357,39 @@ func (c *connector) RevNotification(ctx context.Context,
 	return reply.(*Pld).RevReply, nil
 }
 
-func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
-	return nil, nil
+func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string,
+	valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKey, error) {
+
+	c.Lock()
+	defer c.Unlock()
+
+	reply, err := c.dispatcher.Request(
+		ctx,
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_drkeyLvl2Req,
+			// TODO drkeytest: fill this up:
+			DRKeyLvl2Req: &drkey_mgmt.DRKeyLvl2Req{},
+		},
+		nil,
+	)
+	if err != nil {
+		return nil, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
+			"keyType", keyType, "protocol", protocol, "valTime", valTime,
+			"srcIA", srcIA, "srcHost", srcHost.IP().String(),
+			"dstIA", dstIA, "dstHost", dsthost.IP().String(),
+		)
+	}
+	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
+	key := drkey.DRKey{
+		Epoch: drkey.Epoch{
+			Begin: lvl2rep.EpochBegin,
+			End:   lvl2rep.EpochEnd,
+		},
+		Key: lvl2rep.Drkey,
+	}
+
+	return &key, nil
 }
 
 func (c *connector) Close(ctx context.Context) error {

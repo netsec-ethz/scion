@@ -81,8 +81,8 @@ func TestLevel1KeyBuildReply(t *testing.T) {
 		decryptedKey, err = drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, certA.SubjectEncKey, privateKeyB)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("decryptedKey", decryptedKey.Key, ShouldResemble, (common.RawBytes)(expectedDerivedKey))
-		SoMsg("srcIA", decryptedKey.SrcIa, ShouldResemble, srcIA)
-		SoMsg("dstIA", decryptedKey.DstIa, ShouldResemble, dstIA)
+		SoMsg("srcIA", decryptedKey.SrcIA, ShouldResemble, srcIA)
+		SoMsg("dstIA", decryptedKey.DstIA, ShouldResemble, dstIA)
 		SoMsg("Epoch", reply.Epoch(), ShouldResemble, sv.Epoch)
 	})
 }
@@ -108,8 +108,8 @@ func TestLevel1KeyFromReply(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 		gotKey, err := Level1KeyFromReply(reply, srcIA, certA, privateKeyB)
 		SoMsg("key", gotKey.Key, ShouldResemble, (common.RawBytes)(expectedKey))
-		SoMsg("srcIA", gotKey.SrcIa, ShouldResemble, srcIA)
-		SoMsg("dstIA", gotKey.DstIa, ShouldResemble, dstIA)
+		SoMsg("srcIA", gotKey.SrcIA, ShouldResemble, srcIA)
+		SoMsg("dstIA", gotKey.DstIA, ShouldResemble, dstIA)
 		SoMsg("Epoch", gotKey.Epoch, ShouldResemble, sv.Epoch)
 	})
 }

@@ -21,28 +21,40 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-type DRKeySV struct {
+type DRKey struct {
 	Epoch Epoch
 	Key   common.RawBytes
 }
+
+type DRKeySV DRKey
 
 type DRKeyLvl1 struct {
-	SrcIa addr.IA
-	DstIa addr.IA
-	Epoch Epoch
-	Key   common.RawBytes
+	DRKey
+	SrcIA addr.IA
+	DstIA addr.IA
 }
 
-// DRKeyLvl2Type represents the different types of second level DRKeys.
-type DRKeyLvl2Type uint8
+func NewDRKeyLvl1(epoch Epoch, key common.RawBytes, srcIA, dstIA addr.IA) *DRKeyLvl1 {
+	return &DRKeyLvl1{
+		DRKey: DRKey{
+			Epoch: epoch,
+			Key:   key,
+		},
+		SrcIA: srcIA,
+		DstIA: dstIA,
+	}
+}
+
+// Lvl2Type represents the different types of second level DRKeys.
+type Lvl2Type uint8
 
 const (
-	AS2AS DRKeyLvl2Type = iota
+	AS2AS Lvl2Type = iota
 	AS2Host
 	Host2Host
 )
 
-func (t DRKeyLvl2Type) String() string {
+func (t Lvl2Type) String() string {
 	switch t {
 	case AS2AS:
 		return "AS-to-AS"
@@ -57,14 +69,23 @@ func (t DRKeyLvl2Type) String() string {
 
 // DRKeyLvl2 represents a second level DRKey
 type DRKeyLvl2 struct {
+	DRKeyLvl1
+	KeyType  Lvl2Type
 	Protocol string
-	KeyType  DRKeyLvl2Type
-	SrcIa    addr.IA
-	DstIa    addr.IA
 	SrcHost  addr.HostAddr
 	DstHost  addr.HostAddr
-	Epoch    Epoch
-	Key      common.RawBytes
+}
+
+// func NewDRKeyLvl1(epoch Epoch, key common.RawBytes, srcIA, dstIA addr.IA) *DRKeyLvl1 {
+func NewDRKeyLvl2(lvl1Key *DRKeyLvl1, keyType Lvl2Type, protocol string,
+	srcHost, dstHost addr.HostAddr) *DRKeyLvl2 {
+	return &DRKeyLvl2{
+		DRKeyLvl1: *lvl1Key,
+		KeyType:   keyType,
+		Protocol:  protocol,
+		SrcHost:   srcHost,
+		DstHost:   dstHost,
+	}
 }
 
 // InputType is used to determine the input of the PRF for the second level derivation. It

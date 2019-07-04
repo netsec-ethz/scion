@@ -126,8 +126,14 @@ func (c *reconnector) RevNotification(ctx context.Context,
 	return conn.RevNotification(ctx, sRevInfo)
 }
 
-func (c *reconnector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
-	return nil, nil
+func (c *reconnector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string,
+	valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKey, error) {
+	conn, err := c.ctxAwareConnect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+	return conn.DRKeyGetLvl2Key(ctx, keyType, protocol, valTime, srcIA, dstIA, srcHost, dsthost)
 }
 
 func (c *reconnector) Close(ctx context.Context) error {

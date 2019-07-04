@@ -20,15 +20,19 @@ import (
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
@@ -288,12 +292,32 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 }
 
 type DrKeyLvl2RequestHandler struct {
-	Messenger infra.Messenger
+	Msger    infra.Messenger
+	Topology *topology.Topo
 }
 
 func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
-	// TODO
+
+	logger := log.FromCtx(ctx)
+	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", pld.DRKeyLvl2Req)
+	csAddress := &snet.Addr{IA: h.Topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	request := pld.DRKeyLvl2Req
+	rep, err := h.Msger.RequestDRKeyLvl2(ctx, request, csAddress, messenger.NextId())
+	if err != nil {
+		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)
+		return
+	}
+	replyToSend := &sciond.Pld{
+		Id:           pld.Id,
+		Which:        proto.SCIONDMsg_Which_drkeyLvl2Rep,
+		DRKeyLvl2Rep: rep,
+	}
+	if err := sendReply(replyToSend, conn, src); err != nil {
+		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)
+	} else {
+		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.DRKeyLvl2Rep{})
+	}
 }
 
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,

@@ -25,6 +25,7 @@ struct SCIONDMsg {
         segTypeHopReq @12 :SegTypeHopReq;
         segTypeHopReply @13 :SegTypeHopReply;
         drkeyLvl2Req @14 :DrkeyLvl2Req;
+        drkeyLvl2Rep @15 :DrkeyLvl2Rep;
     }
 }
 
@@ -132,4 +133,8 @@ struct SegTypeHopReplyEntry {
 
 struct DrkeyLvl2Req {
     request @0 :DRKey.DRKeyLvl2Req;     # A level 2 DRKey request
+}
+
+struct DrkeyLvl2Rep {
+    reply @0 :DRKey.DRKeyLvl2Rep;       # A level 2 DRKey reply
 }

@@ -51,7 +51,7 @@ func (k *DRKeyLvl1) SetKey(secret common.RawBytes) error {
 		return err
 	}
 	all := make(common.RawBytes, addr.IABytes)
-	k.DstIa.Write(all)
+	k.DstIA.Write(all)
 	mac.Write(all)
 	tmp := make([]byte, 0, mac.Size())
 	k.Key = mac.Sum(tmp)
@@ -98,11 +98,6 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}
-	// key, err := scrypto.Mac(h, all)
-	// if err != nil {
-	// 	return err
-	// }
-	// k.Key = key
 	k.Key = h.Sum(all)
 	return nil
 }
@@ -111,8 +106,8 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey, privkey common.RawBytes) (common.RawBytes, error) {
 	keyLen := len(drkey.Key)
 	msg := make(common.RawBytes, addr.IABytes*2+keyLen)
-	drkey.SrcIa.Write(msg)
-	drkey.DstIa.Write(msg[addr.IABytes:])
+	drkey.SrcIA.Write(msg)
+	drkey.DstIA.Write(msg[addr.IABytes:])
 	drkey.Key.WritePld(msg[addr.IABytes*2:])
 	cipher, err := scrypto.Encrypt(msg, nonce, pubkey, privkey, scrypto.Curve25519xSalsa20Poly1305)
 	if err != nil {
@@ -127,8 +122,8 @@ func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (*DRKeyLvl
 	if err != nil {
 		return nil, err
 	}
-	srcIa := addr.IAFromRaw(msg[:addr.IABytes])
-	dstIa := addr.IAFromRaw(msg[addr.IABytes : addr.IABytes*2])
+	srcIA := addr.IAFromRaw(msg[:addr.IABytes])
+	dstIA := addr.IAFromRaw(msg[addr.IABytes : addr.IABytes*2])
 	key := msg[addr.IABytes*2:]
-	return &DRKeyLvl1{SrcIa: srcIa, DstIa: dstIa, Key: key}, nil
+	return NewDRKeyLvl1(Epoch{}, key, srcIA, dstIA), nil
 }
