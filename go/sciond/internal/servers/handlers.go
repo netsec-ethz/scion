@@ -302,7 +302,7 @@ func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketCon
 	logger := log.FromCtx(ctx)
 	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", pld.DRKeyLvl2Req)
 	csAddress := &snet.Addr{IA: h.Topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	request := pld.DRKeyLvl2Req
+	request := &drkey_mgmt.DRKeyLvl2Req{}
 	rep, err := h.Msger.RequestDRKeyLvl2(ctx, request, csAddress, messenger.NextId())
 	if err != nil {
 		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)

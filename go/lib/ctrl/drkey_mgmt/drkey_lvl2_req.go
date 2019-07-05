@@ -20,14 +20,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
-
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*DRKeyLvl2Req)(nil)
+
+type DRKeyHost struct {
+	Type uint8
+	Host common.RawBytes
+}
 
 type DRKeyLvl2Req struct {
 	Protocol string
@@ -35,8 +39,8 @@ type DRKeyLvl2Req struct {
 	ValTime  uint32
 	SrcIa    addr.IAInt
 	DstIa    addr.IAInt
-	SrcHost  addr.HostAddr
-	DstHost  addr.HostAddr
+	SrcHost  DRKeyHost
+	DstHost  DRKeyHost
 	Misc     common.RawBytes
 }
 

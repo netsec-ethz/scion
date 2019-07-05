@@ -134,7 +134,7 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	drkeyStore, err := keystore.New(cfg.CS.DrkeyStore)
+	drkeyStore, err := keystore.New(cfg.CS.DRKeyStore)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize drkey key store", err)
 	}

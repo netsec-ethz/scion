@@ -75,8 +75,8 @@ type Pld struct {
 	IfInfoReply        *IFInfoReply
 	ServiceInfoRequest *ServiceInfoRequest
 	ServiceInfoReply   *ServiceInfoReply
-	DRKeyLvl2Req       *drkey_mgmt.DRKeyLvl2Req
-	DRKeyLvl2Rep       *drkey_mgmt.DRKeyLvl2Rep
+	DRKeyLvl2Req       *drkey_mgmt.DRKeyLvl2Req `capnp:"drkeyLvl2Req"`
+	DRKeyLvl2Rep       *drkey_mgmt.DRKeyLvl2Rep `capnp:"drkeyLvl2Rep"`
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
@@ -123,6 +123,8 @@ func (p *Pld) union() (interface{}, error) {
 		return p.ServiceInfoReply, nil
 	case proto.SCIONDMsg_Which_drkeyLvl2Req:
 		return p.DRKeyLvl2Req, nil
+	case proto.SCIONDMsg_Which_drkeyLvl2Rep:
+		return p.DRKeyLvl2Rep, nil
 	}
 	return nil, common.NewBasicError("Unsupported SCIOND union type", nil, "type", p.Which)
 }

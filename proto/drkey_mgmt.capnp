@@ -25,23 +25,14 @@ struct DRKeyHost {
 }
 
 struct DRKeyLvl2Req {
-    protocol @0 :Data;    # Protocol identifier
-    reqType @1 :UInt8;    # Requested DRKeyProtoKeyType
-    valTime @2 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
-    srcIa @3 :UInt64;     # Src ISD-AS of the requested DRKey
-    dstIa @4 :UInt64;     # Dst ISD-AS of the requested DRKey
-    srcHost :union {      # Src Host of the request DRKey (optional)
-        unset @5 :Void;
-        host @6 :DRKeyHost;
-    }
-    dstHost :union {      # Dst Host of the request DRKey (optional)
-        unset @7 :Void;
-        host @8 :DRKeyHost;
-    }
-    misc :union {         # Additional information for DRKey derivation (optional)
-        unset @9 :Void;
-        data @10 :Data;
-    }
+    protocol @0 :Text;      # Protocol identifier
+    reqType @1 :UInt8;      # Requested DRKeyProtoKeyType
+    valTime @2 :UInt32;     # Point in time where requested DRKey is valid. Used to identify the epoch
+    srcIa @3 :UInt64;       # Src ISD-AS of the requested DRKey
+    dstIa @4 :UInt64;       # Dst ISD-AS of the requested DRKey
+    srcHost @5 :DRKeyHost;  # Src Host of the request DRKey (optional)
+    dstHost @6 :DRKeyHost;  # Dst Host of the request DRKey (optional)
+    misc @7 :Data;          # Additional information (optional)
 }
 
 struct DRKeyLvl2Rep {
@@ -49,10 +40,7 @@ struct DRKeyLvl2Rep {
     drkey @1 :Data;        # Derived DRKey
     epochBegin @2 :UInt32; # Begin of validity period of DRKey
     epochEnd @3 :UInt32;   # End of validity period of DRKey
-    misc :union {          # Additional information (optional)
-        unset @4 :Void;
-        data @5 :Data;
-    }
+    misc @4 :Data;         # Additional information (optional)
 }
 
 struct DRKeyMgmt {

@@ -44,7 +44,7 @@ type State struct {
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
 	// drykey stored keys
-	DrkeyStore *keystore.DB
+	DRKeyStore *keystore.DB
 }
 
 func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
@@ -53,7 +53,7 @@ func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
 	s := &State{
 		Store:      trustStore,
 		TrustDB:    trustDB,
-		DrkeyStore: drkeyStore,
+		DRKeyStore: drkeyStore,
 	}
 	if err := s.loadKeyConf(confDir, isCore); err != nil {
 		return nil, err

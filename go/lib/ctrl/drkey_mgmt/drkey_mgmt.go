@@ -24,10 +24,10 @@ import (
 
 type union struct {
 	Which        proto.DRKeyMgmt_Which
-	DRKeyLvl1Req *DRKeyLvl1Req `capnp:"DRKeyLvl1Req"`
-	DRKeyLvl1Rep *DRKeyLvl1Rep `capnp:"DRKeyLvl1Rep"`
-	DRKeyLvl2Req *DRKeyLvl2Req `capnp:"DRKeyLvl2Req"`
-	DRKeyLvl2Rep *DRKeyLvl2Rep `capnp:"DRKeyLvl2Rep"`
+	DRKeyLvl1Req *DRKeyLvl1Req `capnp:"drkeyLvl1Req"`
+	DRKeyLvl1Rep *DRKeyLvl1Rep `capnp:"drkeyLvl1Rep"`
+	DRKeyLvl2Req *DRKeyLvl2Req `capnp:"drkeyLvl2Req"`
+	DRKeyLvl2Rep *DRKeyLvl2Rep `capnp:"drkeyLvl2Rep"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {

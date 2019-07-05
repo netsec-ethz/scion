@@ -24,8 +24,8 @@ struct SCIONDMsg {
         revReply @11 :RevReply;
         segTypeHopReq @12 :SegTypeHopReq;
         segTypeHopReply @13 :SegTypeHopReply;
-        drkeyLvl2Req @14 :DrkeyLvl2Req;
-        drkeyLvl2Rep @15 :DrkeyLvl2Rep;
+        drkeyLvl2Req @14 :DRKey.DRKeyLvl2Req;
+        drkeyLvl2Rep @15 :DRKey.DRKeyLvl2Rep;
     }
 }
 
@@ -129,12 +129,4 @@ struct SegTypeHopReplyEntry {
     interfaces @0 :List(PathInterface);  # List of interfaces for the segment
     timestamp @1 :UInt32;                # Creation timestamp, seconds since Unix Epoch
     expTime @2 :UInt32;                  # Expiration timestamp, seconds since Unix Epoch
-}
-
-struct DrkeyLvl2Req {
-    request @0 :DRKey.DRKeyLvl2Req;     # A level 2 DRKey request
-}
-
-struct DrkeyLvl2Rep {
-    reply @0 :DRKey.DRKeyLvl2Rep;       # A level 2 DRKey reply
 }

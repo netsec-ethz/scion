@@ -116,7 +116,7 @@ type CSConfig struct {
 	// AutomaticRenewal whether automatic reissuing is enabled.
 	AutomaticRenewal bool
 	// Key store for DRKey
-	DrkeyStore string
+	DRKeyStore string
 }
 
 func (cfg *CSConfig) InitDefaults() {
@@ -132,8 +132,8 @@ func (cfg *CSConfig) InitDefaults() {
 	if cfg.ReissueTimeout.Duration == 0 {
 		cfg.ReissueTimeout.Duration = ReissueReqTimeout
 	}
-	if cfg.DrkeyStore == "" {
-		cfg.DrkeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
+	if cfg.DRKeyStore == "" {
+		cfg.DRKeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
 	}
 }
 

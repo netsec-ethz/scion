@@ -179,7 +179,7 @@ func (h *Level1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	privateKey := h.State.GetDecryptKey()
 
 	key, err := Level1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
-	_, err = h.State.DrkeyStore.InsertDRKeyLvl1Ctx(ctx, key)
+	_, err = h.State.DRKeyStore.InsertDRKeyLvl1Ctx(ctx, key)
 	if err != nil {
 		log.Error("[Level1ReplyHandler] Could not insert the DR key in the DB", "err", err)
 		return infra.MetricsErrInternal

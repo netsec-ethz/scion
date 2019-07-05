@@ -36,5 +36,5 @@ ReissueTimeout = "5s"
 AutomaticRenewal = false
 
 # Location where the DRKey store can be found
-DrkeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
+DRKeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
 `

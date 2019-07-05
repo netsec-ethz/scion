@@ -358,11 +358,23 @@ func (c *connector) RevNotification(ctx context.Context,
 }
 
 func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string,
-	valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKey, error) {
+	valTime uint32, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKey, error) {
 
 	c.Lock()
 	defer c.Unlock()
 
+	var srcHostStr, dstHostStr string
+	if srcHost != nil {
+		srcHostStr = srcHost.IP().String()
+	} else {
+		srcHostStr = "(none)"
+	}
+	if dstHost != nil {
+		dstHostStr = dstHost.IP().String()
+	} else {
+		dstHostStr = "(none)"
+	}
+	fmt.Println("************************ [DEBUG] sciond ")
 	reply, err := c.dispatcher.Request(
 		ctx,
 		&Pld{
@@ -376,8 +388,8 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 	if err != nil {
 		return nil, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
 			"keyType", keyType, "protocol", protocol, "valTime", valTime,
-			"srcIA", srcIA, "srcHost", srcHost.IP().String(),
-			"dstIA", dstIA, "dstHost", dsthost.IP().String(),
+			"srcIA", srcIA, "srcHost", srcHostStr,
+			"dstIA", dstIA, "dstHost", dstHostStr,
 		)
 	}
 	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
@@ -386,7 +398,7 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 			Begin: lvl2rep.EpochBegin,
 			End:   lvl2rep.EpochEnd,
 		},
-		Key: lvl2rep.Drkey,
+		Key: lvl2rep.DRKey,
 	}
 
 	return &key, nil
