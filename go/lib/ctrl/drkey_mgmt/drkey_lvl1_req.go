@@ -28,14 +28,16 @@ import (
 var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
 
 type DRKeyLvl1Req struct {
-	SrcIa     addr.IAInt
+	// TODO drkeytest: why src IA instead of dst IA ?
+	// SrcIa     addr.IAInt
+	DstIa     addr.IAInt
 	ValTime   uint32
 	Timestamp uint32
 }
 
 // IA returns the source ISD-AS of the requested DRKey
-func (c *DRKeyLvl1Req) IA() addr.IA {
-	return c.SrcIa.IA()
+func (c *DRKeyLvl1Req) DstIA() addr.IA {
+	return c.DstIa.IA()
 }
 
 func (c *DRKeyLvl1Req) ProtoId() proto.ProtoIdType {
@@ -53,5 +55,5 @@ func (c *DRKeyLvl1Req) WhenCreated() time.Time {
 }
 
 func (c *DRKeyLvl1Req) String() string {
-	return fmt.Sprintf("SrcIA: %s ValTime: %v", c.IA(), util.TimeToString(c.Time()))
+	return fmt.Sprintf("SrcIA: %s ValTime: %v", c.DstIA(), util.TimeToString(c.Time()))
 }

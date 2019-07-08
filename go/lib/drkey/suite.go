@@ -17,6 +17,7 @@ package drkey
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -74,16 +75,23 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 		if err != nil {
 			return err
 		}
+		if k.DstHost.Size() == 0 {
+			return errors.New("DRKey Level 2: Type requires a host address but empty")
+		}
 		inputLen += it.RequiredLength()
 	case Host2Host:
 		it, err := InputTypeFromHostTypes(k.SrcHost.Type(), k.DstHost.Type())
 		if err != nil {
 			return err
 		}
+		if k.DstHost.Size() == 0 || k.SrcHost.Size() == 0 {
+			return errors.New("DRKey Level 2: Type requires host address but at least one is empty")
+		}
 		inputLen += it.RequiredLength()
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}
+	// TODO drkeytest: this is different from the docs: all[0] is the length
 	all := make(common.RawBytes, inputLen)
 	copy(all[:1], common.RawBytes{uint8(pLen)})
 	copy(all[1:], p)

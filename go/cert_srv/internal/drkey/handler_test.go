@@ -29,26 +29,19 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 )
 
-func TestDeriveKey(t *testing.T) {
+func TestDeriveLvl1Key(t *testing.T) {
 	Convey("Derive a Level 1 DRKey", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:1")
 		dstIA, _ := addr.IAFromString("1-ff00:0:2")
-		key := common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-		sv := drkey.DRKeySV{
-			Epoch: drkey.Epoch{
-				Begin: 0,
-				End:   1,
-			},
-			Key: key,
-		}
+		sv := getTestSV()
 		expectedKey, _ := hex.DecodeString("c584cad32613547c64823c756651b6f5")
-		lvl1Key, err := deriveKey(srcIA, dstIA, sv)
+		lvl1Key, err := deriveLvl1Key(srcIA, dstIA, sv)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("key", lvl1Key.Key, ShouldResemble, (common.RawBytes)(expectedKey))
 	})
 }
 
-func TestValidateRequest(t *testing.T) {
+func TestValidateLvl1Request(t *testing.T) {
 	Convey("Validate a level 1 request", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:1")
 		dstIA, _ := addr.IAFromString("1-ff00:0:2")
@@ -61,14 +54,7 @@ func TestLevel1KeyBuildReply(t *testing.T) {
 	Convey("Construct a Level 1 DRKey reply", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:1")
 		dstIA, _ := addr.IAFromString("1-ff00:0:2")
-		key := common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-		sv := drkey.DRKeySV{
-			Epoch: drkey.Epoch{
-				Begin: 0,
-				End:   1,
-			},
-			Key: key,
-		}
+		sv := getTestSV()
 		certA := loadCert("testdata/as-A.crt", t)
 		privateKeyA, _ := keyconf.LoadKey("testdata/asA-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
 		certB := loadCert("testdata/as-B.crt", t)
@@ -91,14 +77,7 @@ func TestLevel1KeyFromReply(t *testing.T) {
 	Convey("Get Level 1 key from reply", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:1")
 		dstIA, _ := addr.IAFromString("1-ff00:0:2")
-		key := common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-		sv := drkey.DRKeySV{
-			Epoch: drkey.Epoch{
-				Begin: 0,
-				End:   1,
-			},
-			Key: key,
-		}
+		sv := getTestSV()
 		certA := loadCert("testdata/as-A.crt", t)
 		privateKeyA, _ := keyconf.LoadKey("testdata/asA-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
 		certB := loadCert("testdata/as-B.crt", t)
@@ -112,6 +91,70 @@ func TestLevel1KeyFromReply(t *testing.T) {
 		SoMsg("dstIA", gotKey.DstIA, ShouldResemble, dstIA)
 		SoMsg("Epoch", gotKey.Epoch, ShouldResemble, sv.Epoch)
 	})
+}
+
+func TestDeriveLvl2Key(t *testing.T) {
+	Convey("Derive a Level 2 DRKey", t, func() {
+		srcIA, _ := addr.IAFromString("1-ff00:0:1")
+		dstIA, _ := addr.IAFromString("1-ff00:0:2")
+		k, _ := hex.DecodeString("c584cad32613547c64823c756651b6f5") // just a level 1 key
+		sv := getTestSV()
+		sv.Key = k
+		lvl1Key := &drkey.DRKeyLvl1{
+			DRKey: drkey.DRKey(*sv),
+			SrcIA: srcIA,
+			DstIA: dstIA,
+		}
+		var srcHost addr.HostAddr = addr.HostNone{}
+		var dstHost addr.HostAddr = addr.HostNone{}
+		lvl2Key, err := deriveLvl2Key(lvl1Key, drkey.AS2AS, "foo", srcHost, dstHost)
+		SoMsg("err", err, ShouldBeNil)
+		expectedLvl2Key, _ := hex.DecodeString("03666f6fbc92eb6adcf36df6263a26254ca5209e")
+		SoMsg("lvl2Key", lvl2Key.Key, ShouldResemble, common.RawBytes(expectedLvl2Key))
+		// different protocol should affect the output:
+		lvl2Key, err = deriveLvl2Key(lvl1Key, drkey.AS2AS, "bar", srcHost, dstHost)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("lvl2Key", lvl2Key.Key, ShouldNotResemble, common.RawBytes(expectedLvl2Key))
+		// as2host and empty host address should error:
+		lvl2Key, err = deriveLvl2Key(lvl1Key, drkey.AS2Host, "foo", srcHost, dstHost)
+		SoMsg("err", err, ShouldNotBeNil)
+		// different type should affect the output:
+		dstHost = addr.HostFromIPStr("127.0.0.1")
+		lvl2Key, err = deriveLvl2Key(lvl1Key, drkey.AS2Host, "foo", srcHost, dstHost)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("lvl2Key", lvl2Key.Key, ShouldNotResemble, common.RawBytes(expectedLvl2Key))
+		// when host 2 host both host addresses must be set
+		lvl2Key, err = deriveLvl2Key(lvl1Key, drkey.Host2Host, "foo", srcHost, dstHost)
+		SoMsg("err", err, ShouldNotBeNil)
+		srcHost = addr.HostFromIPStr("127.0.0.1")
+		lvl2Key, err = deriveLvl2Key(lvl1Key, drkey.Host2Host, "foo", srcHost, dstHost)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("lvl2Key", lvl2Key.Key, ShouldNotResemble, common.RawBytes(expectedLvl2Key))
+	})
+}
+
+func TestLevel2KeyBuildReply(t *testing.T) {
+	Convey("Derive a Level 2 DRKey with src AS here", t, func() {
+		srcIA, _ := addr.IAFromString("1-ff00:0:1")
+		dstIA, _ := addr.IAFromString("1-ff00:0:2")
+		sv := getTestSV()
+		var srcHost addr.HostAddr = addr.HostNone{}
+		var dstHost addr.HostAddr = addr.HostNone{}
+		reply, err := Level2KeyBuildReply(srcIA, srcIA, dstIA, sv, drkey.AS2AS, "foo", srcHost, dstHost)
+		SoMsg("err", err, ShouldBeNil)
+		expectedLvl2Key, _ := hex.DecodeString("03666f6fbc92eb6adcf36df6263a26254ca5209e")
+		SoMsg("lvl2Key", reply.DRKey, ShouldResemble, common.RawBytes(expectedLvl2Key))
+	})
+}
+
+func getTestSV() *drkey.DRKeySV {
+	return &drkey.DRKeySV{
+		Epoch: drkey.Epoch{
+			Begin: 0,
+			End:   1,
+		},
+		Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
 }
 
 func loadCert(filename string, t *testing.T) *cert.Certificate {

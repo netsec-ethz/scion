@@ -16,7 +16,6 @@ package messenger
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"

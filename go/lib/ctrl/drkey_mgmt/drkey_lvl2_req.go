@@ -29,8 +29,25 @@ import (
 var _ proto.Cerealizable = (*DRKeyLvl2Req)(nil)
 
 type DRKeyHost struct {
-	Type uint8
+	Type addr.HostAddrType // uint8
 	Host common.RawBytes
+}
+
+// NewDRKeyHost returns a new DRKeyHost from an addr.HostAddr
+func NewDRKeyHost(host addr.HostAddr) *DRKeyHost {
+	return &DRKeyHost{
+		Type: host.Type(),
+		Host: host.Pack(),
+	}
+}
+
+// ToHostAddr returns the host as a addr.HostAddr
+func (h *DRKeyHost) ToHostAddr() addr.HostAddr {
+	host, err := addr.HostFromRaw(h.Host, addr.HostAddrType(h.Type))
+	if err != nil {
+		panic("Could not convert addr.HostAddr to drkey.DRKeyHost")
+	}
+	return host
 }
 
 type DRKeyLvl2Req struct {
@@ -44,8 +61,12 @@ type DRKeyLvl2Req struct {
 	Misc     common.RawBytes
 }
 
-func (c *DRKeyLvl2Req) IA() addr.IA {
+func (c *DRKeyLvl2Req) SrcIA() addr.IA {
 	return c.SrcIa.IA()
+}
+
+func (c *DRKeyLvl2Req) DstIA() addr.IA {
+	return c.DstIa.IA()
 }
 
 func (c *DRKeyLvl2Req) ProtoId() proto.ProtoIdType {
@@ -58,5 +79,5 @@ func (c *DRKeyLvl2Req) Time() time.Time {
 }
 
 func (c *DRKeyLvl2Req) String() string {
-	return fmt.Sprintf("SrcIA: %s ValTime: %v", c.IA(), util.TimeToString(c.Time()))
+	return fmt.Sprintf("SrcIA: %s DstIA: %s ValTime: %v", c.SrcIA(), c.DstIA(), util.TimeToString(c.Time()))
 }
