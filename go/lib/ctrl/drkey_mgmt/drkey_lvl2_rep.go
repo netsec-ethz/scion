@@ -28,7 +28,7 @@ var _ proto.Cerealizable = (*DRKeyLvl2Rep)(nil)
 
 type DRKeyLvl2Rep struct {
 	Timestamp  uint32
-	DRKey      common.RawBytes
+	DRKey      common.RawBytes `capnp:"drkey"`
 	EpochBegin uint32
 	EpochEnd   uint32
 	Misc       common.RawBytes

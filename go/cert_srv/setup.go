@@ -175,10 +175,10 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		return common.NewBasicError("Unable to find topo address", nil)
 	}
 	nc := infraenv.NetworkConfig{
-		IA:     topo.ISD_AS,
-		Public: env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
-		Bind:   env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
-		SVC:    addr.SvcCS,
+		IA:                    topo.ISD_AS,
+		Public:                env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
+		Bind:                  env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		SVC:                   addr.SvcCS,
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
 			Address:  cfg.QUIC.Address,
@@ -199,9 +199,15 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Level1ReqHandler{})
+	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Level1ReqHandler{
+		State: state,
+		IA:    topo.ISD_AS,
+	})
 	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Level1ReplyHandler{})
-	//msgr.AddHandler(infra.DRKeyLvl2Request, &DRKeyHandler{})
+	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Level2ReqHandler{
+		State: state,
+		IA:    topo.ISD_AS,
+	})
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.

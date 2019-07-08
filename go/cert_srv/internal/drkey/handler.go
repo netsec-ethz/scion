@@ -73,6 +73,7 @@ func (h *Level1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 
 	if err := h.sendRep(ctx, saddr, reply, r.ID); err != nil {
 		log.Error("[DRKeyLevel1ReqHandler] Unable to send drkey reply", "err", err)
+		return infra.MetricsErrInternal
 	}
 	return infra.MetricsResultOk
 }
@@ -144,7 +145,6 @@ func deriveKey(srcIA, dstIA addr.IA, sv drkey.DRKeySV) (*drkey.DRKeyLvl1, error)
 }
 
 func (h *Level1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep, id uint64) error {
-	// msger, ok := infra.MessengerFromContext(ctx)
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		return common.NewBasicError(
@@ -212,4 +212,33 @@ func validateReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
 		return common.NewBasicError(AddressMismatchError, nil, "expected", srcIA, "actual", reply.SrcIa.IA())
 	}
 	return nil
+}
+
+type Level2ReqHandler struct {
+	State *config.State
+	IA    addr.IA
+}
+
+// Handle handles the level 1 drkey requests
+func (h *Level2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
+	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
+	defer cancelF()
+	saddr := r.Peer.(*snet.Addr)
+	log.Debug("CERT_SRV DRKEY level 2 handler TODO drkeytest do something for God's sake")
+
+	reply := &drkey_mgmt.DRKeyLvl2Rep{}
+	if err := h.sendRep(ctx, saddr, reply, r.ID); err != nil {
+		log.Error("[DRKeyLevel2ReqHandler] Unable to send drkey reply", "err", err)
+		return infra.MetricsErrInternal
+	}
+	log.Debug("CERT_SRV DRKEY level 2 handler STEP 10")
+	return infra.MetricsResultOk
+}
+
+func (h *Level2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl2Rep, id uint64) error {
+	rw, ok := infra.ResponseWriterFromContext(ctx)
+	if !ok {
+		return common.NewBasicError("[DRKeyReqHandler] Unable to service request, no messenger found", nil)
+	}
+	return rw.SendDRKeyLvl2(ctx, rep)
 }

@@ -16,6 +16,7 @@ package messenger
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -110,6 +111,31 @@ func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
 	return common.NewBasicError("IFStateInfos responses not supported in QUIC", nil)
 }
 
+func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error {
+	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	return rw.sendMessage(ctrlPld)
+}
+func (rw *QUICResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error {
+	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	return rw.sendMessage(ctrlPld)
+}
+
 func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
 	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
 	if err != nil {
@@ -120,13 +146,4 @@ func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
 		return err
 	}
 	return rw.ReplyWriter.WriteReply(&rpc.Reply{Message: msg})
-}
-
-func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error {
-	// TODO: drkeytest do this
-	return nil
-}
-func (rw *QUICResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error {
-	// TODO: drkeytest do this
-	return nil
 }

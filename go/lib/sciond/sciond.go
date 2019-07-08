@@ -374,7 +374,6 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 	} else {
 		dstHostStr = "(none)"
 	}
-	fmt.Println("************************ [DEBUG] sciond ")
 	reply, err := c.dispatcher.Request(
 		ctx,
 		&Pld{
