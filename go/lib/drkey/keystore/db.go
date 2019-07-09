@@ -17,15 +17,12 @@ package keystore
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 
-	// "github.com/scionproto/scion/go/lib/sqlite"
-	// "github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
@@ -33,6 +30,10 @@ const (
 	InvalidDBPath       = "Invalid path for database"
 	UnableToPrepareStmt = "Unable to prepare stmt"
 	UnableToExecuteStmt = "Unable to execute stmt"
+)
+
+var (
+	ErrNoKeys = sql.ErrNoRows
 )
 
 const (
@@ -59,8 +60,8 @@ const (
 		DstAsID 	INTEGER NOT NULL,
 		SrcHostIP 	TEXT,
         DstHostIP	TEXT,
-        EpochBegin INTEGER NOT NULL,
-        EpochEnd INTEGER NOT NULL,
+        EpochBegin  INTEGER NOT NULL,
+        EpochEnd    INTEGER NOT NULL,
 		Key 		TEXT NOT NULL,
 		PRIMARY KEY (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID, SrcHostIP, DstHostIP, EpochBegin)
 	);`
@@ -82,7 +83,8 @@ const (
 		DELETE FROM DRKeyLvl1 WHERE ?>EpochEnd
 	`
 	getDRKeyLvl2 = `
-		SELECT Key FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND
+		SELECT EpochBegin, EpochEnd, Key
+		FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND
 		DstIsdID=? AND DstAsID=? AND SrcHostIP=? AND DstHostIP=?
 		AND EpochBegin<=? AND ?<EpochEnd
 	`
@@ -172,8 +174,10 @@ func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime
 	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
 		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&drkeyRaw)
 	if err != nil {
-		fmt.Printf("[DEBUG] 100 breiko breiko! such much error: %v\n", err)
-		return nil, common.NewBasicError(UnableToExecuteStmt, err)
+		if err != sql.ErrNoRows {
+			err = common.NewBasicError(UnableToExecuteStmt, err)
+		}
+		return nil, err
 	}
 	return drkeyRaw, nil
 }
@@ -219,19 +223,30 @@ func (db *DB) GetLvl2Count() int64 {
 // GetDRKeyLvl2 takes a source, destination and additional ISD-AS, a source, destination and
 // additional host, and a timestamp at which the DRKey should be valid and
 // returns a second level DRKey of the request type
-func (db *DB) GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (common.RawBytes, error) {
+func (db *DB) GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error) {
 	return db.GetDRKeyLvl2Ctx(context.Background(), key, valTime)
 }
 
 // GetDRKeyLvl2Ctx is the context-aware version of GetDRKeyLvl2.
-func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (common.RawBytes, error) {
-	var drkeyRaw common.RawBytes
+func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error) {
+	var epochBegin int
+	var epochEnd int
+	var bytes common.RawBytes
+
 	err := db.getDRKeyLvl2Stmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
-		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost, valTime, valTime).Scan(&drkeyRaw)
+		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost, valTime,
+		valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
-		return nil, common.NewBasicError(UnableToExecuteStmt, err)
+		if err != sql.ErrNoRows {
+			err = common.NewBasicError(UnableToExecuteStmt, err)
+		}
+		return nil, err
 	}
-	return drkeyRaw, nil
+	returningKey := key
+	returningKey.Epoch.Begin = uint32(epochBegin)
+	returningKey.Epoch.End = uint32(epochEnd)
+	returningKey.Key = bytes
+	return returningKey, nil
 }
 
 // InsertDRKeyLvl2 inserts a second-level DRKey.

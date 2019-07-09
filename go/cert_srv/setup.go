@@ -202,11 +202,13 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Level1ReqHandler{
 		State: state,
 		IA:    topo.ISD_AS,
+		Msgr:  msgr,
 	})
 	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Level1ReplyHandler{})
 	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Level2ReqHandler{
 		State: state,
 		IA:    topo.ISD_AS,
+		Msgr:  msgr,
 	})
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())

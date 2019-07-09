@@ -91,7 +91,7 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	default:
 		return common.NewBasicError("Unknown DRKey type", nil)
 	}
-	// TODO drkeytest: this is different from the docs: all[0] is the length
+	// TODO drkeytest: this is different from the docs: all[0] is the protocol length
 	all := make(common.RawBytes, inputLen)
 	copy(all[:1], common.RawBytes{uint8(pLen)})
 	copy(all[1:], p)

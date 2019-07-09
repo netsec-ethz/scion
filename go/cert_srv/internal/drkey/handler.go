@@ -24,7 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/keystore"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -43,6 +45,7 @@ const (
 type Level1ReqHandler struct {
 	State *config.State
 	IA    addr.IA
+	Msger infra.Messenger
 }
 
 // Handle handles the level 1 drkey requests
@@ -171,7 +174,6 @@ func (h *Level1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 		log.Error("[Level1ReplyHandler] Reply is null after cast")
 		return infra.MetricsErrInternal
 	}
-	// cert, err := h.State.TrustDB.GetLeafCertMaxVersion(ctx, reply.IA())
 	chain, err := h.State.TrustDB.GetChainMaxVersion(ctx, reply.IA())
 	if err != nil {
 		log.Error("[Level1ReplyHandler] Unable to fetch certificate for remote host", "err", err)
@@ -180,6 +182,7 @@ func (h *Level1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	privateKey := h.State.GetDecryptKey()
 
 	key, err := Level1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
+	// because we received a reply, we probably want to keep a copy in our local DB:
 	_, err = h.State.DRKeyStore.InsertDRKeyLvl1Ctx(ctx, key)
 	if err != nil {
 		log.Error("[Level1ReplyHandler] Could not insert the DR key in the DB", "err", err)
@@ -218,6 +221,7 @@ func validateReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
 type Level2ReqHandler struct {
 	State *config.State
 	IA    addr.IA
+	Msger infra.Messenger
 }
 
 // Handle handles the level 1 drkey requests
@@ -230,12 +234,9 @@ func (h *Level2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 
 	srcIA := saddr.IA
 	dstIA := req.DstIA()
-	srcHost := req.SrcHost.ToHostAddr()
-	dstHost := req.DstHost.ToHostAddr()
 
 	sv := getSecretValue()
-	reply, err := Level2KeyBuildReply(h.IA, srcIA, dstIA, sv,
-		drkey.Lvl2Type(req.ReqType), req.Protocol, srcHost, dstHost)
+	reply, err := h.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 	if err != nil {
 		log.Error("[DRKeyLevel2ReqHandler] Could not build reply", "err", err)
 		return infra.MetricsErrInternal
@@ -248,14 +249,19 @@ func (h *Level2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-// Level2KeyBuildReply returns the level 2 drkey reply message
+// level2KeyBuildReply returns the level 2 drkey reply message
 // Needs the level 1 key K_{A->B} in order to derive the level 2 if src AS is us.
 // If src AS is not us, will ask the appropriate CS
-func Level2KeyBuildReply(ourIA, srcIA, dstIA addr.IA, sv *drkey.DRKeySV, keyType drkey.Lvl2Type,
-	protocol string, srcHost, dstHost addr.HostAddr) (reply *drkey_mgmt.DRKeyLvl2Rep, err error) {
+func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_mgmt.DRKeyLvl2Req, srcIA, dstIA addr.IA,
+	sv *drkey.DRKeySV) (reply *drkey_mgmt.DRKeyLvl2Rep, err error) {
 
+	srcHost := req.SrcHost.ToHostAddr()
+	dstHost := req.DstHost.ToHostAddr()
+	valTime := req.ValTime
+	keyType := drkey.Lvl2Type(req.ReqType)
+	protocol := req.Protocol
 	// is it us in the fast path?
-	if srcIA.Equal(ourIA) {
+	if srcIA.Equal(h.IA) {
 		// derive level 1 first:
 		var lvl1Key *drkey.DRKeyLvl1
 		lvl1Key, err = deriveLvl1Key(srcIA, dstIA, sv)
@@ -275,11 +281,34 @@ func Level2KeyBuildReply(ourIA, srcIA, dstIA addr.IA, sv *drkey.DRKeySV, keyType
 			}
 		}
 		return
-	} else {
-		// check DB and request other CS
-		panic("TODO drkeytest: not yet implemented")
 	}
-	// return
+	// check DB or request other CS
+	var stored *drkey.DRKeyLvl2
+	stored, err = findLvl2KeyInDB(h.State.DRKeyStore, valTime, protocol, keyType, srcIA, dstIA, srcHost, dstHost)
+	if err != nil {
+		err = common.NewBasicError("Cannot query the DRKey DB", err)
+		return
+	}
+	if stored != nil {
+		// found the key in the DB
+		reply = &drkey_mgmt.DRKeyLvl2Rep{
+			Timestamp:  uint32(time.Now().Unix()),
+			DRKey:      stored.Key,
+			EpochBegin: stored.Epoch.Begin,
+			EpochEnd:   stored.Epoch.End,
+		}
+		return
+	}
+	// need to ask CS_{srcIA} for the key
+	csAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	reply, err = h.Msger.RequestDRKeyLvl2(ctx, req, csAddr, messenger.NextId())
+	if err != nil {
+		err = common.NewBasicError("Error querying src CS for DRKey Level 2", err, "srcIA", srcIA,
+			"req", req)
+		return
+	}
+
+	return
 }
 
 // deriveLvl2Key derives the level 2 DRKey
@@ -297,6 +326,25 @@ func deriveLvl2Key(lvl1Key *drkey.DRKeyLvl1, keyType drkey.Lvl2Type, protocol st
 		return nil, common.NewBasicError("Cannot derive Level 2 DRKey", err)
 	}
 	return &key, nil
+}
+
+func findLvl2KeyInDB(db *keystore.DB, valTime uint32, protocol string, keyType drkey.Lvl2Type, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
+	key := &drkey.DRKeyLvl2{
+		DRKeyLvl1: drkey.DRKeyLvl1{
+			// no need to copy the epoch here
+			SrcIA: srcIA,
+			DstIA: dstIA,
+		},
+		Protocol: protocol,
+		KeyType:  keyType,
+		SrcHost:  srcHost,
+		DstHost:  dstHost,
+	}
+	stored, err := db.GetDRKeyLvl2(key, valTime)
+	if err != nil && err != keystore.ErrNoKeys {
+		return nil, common.NewBasicError("Cannot query DRKey Store", err)
+	}
+	return stored, nil
 }
 
 func (h *Level2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl2Rep, id uint64) error {
