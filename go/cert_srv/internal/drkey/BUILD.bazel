@@ -32,7 +32,7 @@ go_test(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/drkey_mgmt:go_default_library",
         "//go/lib/drkey:go_default_library",
-        "//go/lib/drkey/keystore:go_default_library",
+        "//go/lib/drkey/keystore/mock_keystore:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/keyconf:go_default_library",
         "//go/lib/scrypto:go_default_library",

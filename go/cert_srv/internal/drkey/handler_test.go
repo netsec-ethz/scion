@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/hex"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
@@ -30,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/keystore"
+	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -164,14 +163,9 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 	})
 
 	Convey("Obtain a Level 2 DRKey with fast path in another AS", t, func() {
-		db, cleanFcn := newDatabase(t)
-		defer cleanFcn()
 		srcIA, _ := addr.IAFromString("1-ff00:0:2")
 		dstIA, _ := addr.IAFromString("1-ff00:0:1")
-		ctrl, msger, handler := setup(t, dstIA)
-		defer ctrl.Finish()
-		// TODO drkeytest: remove this
-		handler.State.DRKeyStore = db
+
 		sv := getTestSV()
 		req := &drkey_mgmt.DRKeyLvl2Req{
 			Protocol: "foo",
@@ -181,18 +175,29 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			DstHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 		}
 		Convey("Key in DB", func() {
-			// insert a key in the DB
-			drkeyLvl1 := drkey.NewDRKeyLvl1(sv.Epoch, sv.Key, srcIA, dstIA)
-			drkeyLvl2 := drkey.NewDRKeyLvl2(drkeyLvl1, drkey.AS2AS, "foo",
-				addr.HostNone{}, addr.HostNone{})
-			_, err := db.InsertDRKeyLvl2(drkeyLvl2)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("Lvl2Count", db.GetLvl2Count(), ShouldEqual, 1)
+			ctrl, _, db, handler := setup(t, dstIA)
+			defer ctrl.Finish()
+			// mock a key in the DB
+			drkeyLvl2 := drkey.NewDRKeyLvl2(drkey.NewDRKeyLvl1(sv.Epoch, sv.Key, srcIA, dstIA),
+				drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
+			db.EXPECT().GetDRKeyLvl2(gomock.Any(), uint32(0)).Return(drkeyLvl2, nil).Do(
+				func(argKey *drkey.DRKeyLvl2, argValTime uint32) {
+					if argKey.DRKeyLvl1.SrcIA != srcIA ||
+						argKey.DRKeyLvl1.DstIA != dstIA ||
+						argKey.Protocol != "foo" || argKey.KeyType != drkey.AS2AS ||
+						!argKey.SrcHost.Equal(drkeyLvl2.SrcHost) ||
+						!argKey.DstHost.Equal(drkeyLvl2.DstHost) {
+						SoMsg("Unexpected requested key to the DB", argKey, ShouldBeTrue)
+					}
+				})
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("reply.DRKey", reply.DRKey, ShouldResemble, sv.Key)
 		})
 		Convey("key not in DB, relay on CS_{srcIA}", func() {
+			ctrl, msger, db, handler := setup(t, dstIA)
+			defer ctrl.Finish()
+			db.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
 			csSrcAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 			msger.EXPECT().RequestDRKeyLvl2(gomock.Any(), gomock.Any(), csSrcAddr, gomock.Any())
 			handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
@@ -222,33 +227,18 @@ func loadCert(filename string, t *testing.T) *cert.Certificate {
 	return trc
 }
 
-func newDatabase(t *testing.T) (*keystore.DB, func()) {
-	file, err := ioutil.TempFile("", "db-test-")
-	if err != nil {
-		t.Fatalf("unable to create temp file")
-	}
-	name := file.Name()
-	if err := file.Close(); err != nil {
-		t.Fatalf("unable to close temp file")
-	}
-	db, err := keystore.New(name)
-	if err != nil {
-		t.Fatalf("unable to initialize database")
-	}
-	return db, func() {
-		db.Close()
-		os.Remove(name)
-	}
-}
-
-func setup(t *testing.T, thisIA addr.IA) (*gomock.Controller, *mock_infra.MockMessenger, *Level2ReqHandler) {
+func setup(t *testing.T, thisIA addr.IA) (*gomock.Controller, *mock_infra.MockMessenger, *mock_keystore.MockDRKeyStore, *Level2ReqHandler) {
 	ctrl := gomock.NewController(t)
 	msger := mock_infra.NewMockMessenger(ctrl)
+	db := mock_keystore.NewMockDRKeyStore(ctrl)
 	// TODO drkeytest: we should have a mock also for DRKeystore
+
 	handler := &Level2ReqHandler{
-		State: &config.State{},
+		State: &config.State{
+			DRKeyStore: db,
+		},
 		IA:    thisIA,
 		Msger: msger,
 	}
-	return ctrl, msger, handler
+	return ctrl, msger, db, handler
 }
