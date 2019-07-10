@@ -19,6 +19,7 @@ package drkey_mgmt
 import (
 	"fmt"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/proto"
@@ -34,6 +35,15 @@ type DRKeyLvl2Rep struct {
 	Misc       common.RawBytes
 }
 
+func NewDRKeyLvl2RepFromKeyRepresentation(key drkey.DRKeyLvl2, timestamp uint32) *DRKeyLvl2Rep {
+	return &DRKeyLvl2Rep{
+		Timestamp:  timestamp,
+		DRKey:      key.Key,
+		EpochBegin: key.Epoch.Begin,
+		EpochEnd:   key.Epoch.End,
+	}
+}
+
 func (c *DRKeyLvl2Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Rep_TypeID
 }
@@ -46,4 +56,10 @@ func (c *DRKeyLvl2Rep) Epoch() *drkey.Epoch {
 func (c *DRKeyLvl2Rep) String() string {
 	return fmt.Sprintf("Timestamp: %d EpochBegin: %d EpochEnd: %d Misc: %v",
 		c.Timestamp, c.EpochBegin, c.EpochEnd, c.Misc)
+}
+
+func (k *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2Type,
+	protocol string, srcHost, dstHost addr.HostAddr) *drkey.DRKeyLvl2 {
+	return drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(*drkey.NewEpochFromBeginEnd(k.EpochBegin, k.EpochEnd),
+		k.DRKey, srcIA, dstIA), keyType, protocol, srcHost, dstHost)
 }

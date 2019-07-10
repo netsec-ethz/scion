@@ -47,13 +47,13 @@ func TestDRKeyLvl1(t *testing.T) {
 		defer cleanF()
 
 		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
-		sv := &drkey.DRKeySV{Epoch: epoch}
+		sv := &drkey.DRKeySV{Epoch: *epoch}
 		SoMsg("drkey", sv, ShouldNotBeNil)
-		err := sv.SetKey(asMasterPassword, epoch)
+		err := sv.SetKey(asMasterPassword, *epoch)
 		SoMsg("drkey", err, ShouldBeNil)
 		// TODO: drkeytest: check the key itself?
 
-		drkeyLvl1 := drkey.NewDRKeyLvl1(epoch, common.RawBytes{},
+		drkeyLvl1 := drkey.NewDRKeyLvl1(*epoch, common.RawBytes{},
 			addr.IAFromRaw(rawSrcIA), addr.IAFromRaw(rawDstIA))
 		err = drkeyLvl1.SetKey(sv.Key)
 		SoMsg("drkey", err, ShouldBeNil)
@@ -92,8 +92,8 @@ func TestDRKeyLvl2(t *testing.T) {
 		srcIA := addr.IAFromRaw(rawSrcIA)
 		dstIA := addr.IAFromRaw(rawDstIA)
 		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
-		drkeyLvl1 := drkey.NewDRKeyLvl1(epoch, asMasterPassword, srcIA, dstIA)
-		drkeyLvl2 := drkey.NewDRKeyLvl2(drkeyLvl1, drkey.Host2Host, "test",
+		drkeyLvl1 := drkey.NewDRKeyLvl1(*epoch, asMasterPassword, srcIA, dstIA)
+		drkeyLvl2 := drkey.NewDRKeyLvl2(*drkeyLvl1, drkey.Host2Host, "test",
 			addr.HostFromIP(SrcHostIP), addr.HostFromIP(DstHostIP))
 		err := drkeyLvl2.SetKey(drkeyLvl1.Key)
 		SoMsg("drkey", err, ShouldBeNil)

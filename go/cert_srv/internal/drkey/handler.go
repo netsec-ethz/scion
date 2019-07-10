@@ -291,12 +291,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 	}
 	if stored != nil {
 		// found the key in the DB
-		reply = &drkey_mgmt.DRKeyLvl2Rep{
-			Timestamp:  uint32(time.Now().Unix()),
-			DRKey:      stored.Key,
-			EpochBegin: stored.Epoch.Begin,
-			EpochEnd:   stored.Epoch.End,
-		}
+		reply = drkey_mgmt.NewDRKeyLvl2RepFromKeyRepresentation(*stored, uint32(time.Now().Unix()))
 		return
 	}
 	// need to ask CS_{srcIA} for the key
@@ -305,6 +300,18 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 	if err != nil {
 		err = common.NewBasicError("Error querying src CS for DRKey Level 2", err, "srcIA", srcIA,
 			"req", req)
+		return
+	}
+	// save the key in the DB
+	if reply == nil {
+		err = common.NewBasicError("Returned key from CS was NULL", nil, "csAddr", csAddr, "req", req)
+		return
+	}
+	lvl2key := reply.ToKeyRepresentation(srcIA, dstIA, keyType, protocol, srcHost, dstHost)
+	err = storeLvl2KeyInDB(h.State.DRKeyStore, lvl2key)
+	if err != nil {
+		err = common.NewBasicError("Could not store the level 2 DRKey in the DB", err, "reply", reply)
+		reply = nil
 		return
 	}
 
@@ -345,6 +352,11 @@ func findLvl2KeyInDB(db keystore.DRKeyStore, valTime uint32, protocol string, ke
 		return nil, common.NewBasicError("Cannot query DRKey Store", err)
 	}
 	return stored, nil
+}
+
+func storeLvl2KeyInDB(db keystore.DRKeyStore, key *drkey.DRKeyLvl2) error {
+	_, err := db.InsertDRKeyLvl2(key)
+	return err
 }
 
 func (h *Level2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl2Rep, id uint64) error {

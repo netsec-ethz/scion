@@ -27,8 +27,15 @@ type Epoch struct {
 
 // NewEpochFromDuration builds and returns an Epoch given its starting point and its duration.
 // Both parameters in seconds.
-func NewEpochFromDuration(begin uint32, duration int32) Epoch {
-	return Epoch{Begin: begin, End: uint32(int32(begin) + duration)}
+func NewEpochFromDuration(begin uint32, duration int32) *Epoch {
+	return &Epoch{Begin: begin, End: uint32(int32(begin) + duration)}
+}
+
+func NewEpochFromBeginEnd(begin, end uint32) *Epoch {
+	return &Epoch{
+		Begin: begin,
+		End:   end,
+	}
 }
 
 func (e *Epoch) Duration() uint32 {

@@ -174,12 +174,12 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			SrcHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 			DstHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 		}
+		drkeyLvl2 := drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(sv.Epoch, sv.Key, srcIA, dstIA),
+			drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
 		Convey("Key in DB", func() {
 			ctrl, _, db, handler := setup(t, dstIA)
 			defer ctrl.Finish()
 			// mock a key in the DB
-			drkeyLvl2 := drkey.NewDRKeyLvl2(drkey.NewDRKeyLvl1(sv.Epoch, sv.Key, srcIA, dstIA),
-				drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
 			db.EXPECT().GetDRKeyLvl2(gomock.Any(), uint32(0)).Return(drkeyLvl2, nil).Do(
 				func(argKey *drkey.DRKeyLvl2, argValTime uint32) {
 					if argKey.DRKeyLvl1.SrcIA != srcIA ||
@@ -197,10 +197,16 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 		Convey("key not in DB, relay on CS_{srcIA}", func() {
 			ctrl, msger, db, handler := setup(t, dstIA)
 			defer ctrl.Finish()
-			db.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
 			csSrcAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-			msger.EXPECT().RequestDRKeyLvl2(gomock.Any(), gomock.Any(), csSrcAddr, gomock.Any())
-			handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
+			replyFromOtherCS := drkey_mgmt.NewDRKeyLvl2RepFromKeyRepresentation(*drkeyLvl2, uint32(0))
+
+			db.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
+			msger.EXPECT().RequestDRKeyLvl2(gomock.Any(), gomock.Any(), csSrcAddr, gomock.Any()).Return(replyFromOtherCS, nil)
+			db.EXPECT().InsertDRKeyLvl2(drkeyLvl2).Return(int64(1), nil)
+
+			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("reply", reply, ShouldResemble, replyFromOtherCS)
 		})
 	})
 }

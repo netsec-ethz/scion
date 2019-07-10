@@ -77,10 +77,10 @@ type DRKeyLvl2 struct {
 }
 
 // func NewDRKeyLvl1(epoch Epoch, key common.RawBytes, srcIA, dstIA addr.IA) *DRKeyLvl1 {
-func NewDRKeyLvl2(lvl1Key *DRKeyLvl1, keyType Lvl2Type, protocol string,
+func NewDRKeyLvl2(lvl1Key DRKeyLvl1, keyType Lvl2Type, protocol string,
 	srcHost, dstHost addr.HostAddr) *DRKeyLvl2 {
 	return &DRKeyLvl2{
-		DRKeyLvl1: *lvl1Key,
+		DRKeyLvl1: lvl1Key,
 		KeyType:   keyType,
 		Protocol:  protocol,
 		SrcHost:   srcHost,
