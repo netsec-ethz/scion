@@ -328,7 +328,7 @@ func deriveLvl2Key(lvl1Key *drkey.DRKeyLvl1, keyType drkey.Lvl2Type, protocol st
 	return &key, nil
 }
 
-func findLvl2KeyInDB(db *keystore.DB, valTime uint32, protocol string, keyType drkey.Lvl2Type, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
+func findLvl2KeyInDB(db keystore.DRKeyStore, valTime uint32, protocol string, keyType drkey.Lvl2Type, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
 	key := &drkey.DRKeyLvl2{
 		DRKeyLvl1: drkey.DRKeyLvl1{
 			// no need to copy the epoch here

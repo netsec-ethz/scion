@@ -37,6 +37,7 @@ MOCK_TARGETS = [
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/keepalive", "IfStatePusher,RevDropper"),
         (SCION_PACKAGE_PREFIX + "/go/beacon_srv/internal/revocation", "Store"),
         (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
+        (SCION_PACKAGE_PREFIX + "/go/lib/drkey/keystore", "DRKeyStore"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra", "TrustStore,Messenger,ResponseWriter,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust/trustdb", "TrustDB"),

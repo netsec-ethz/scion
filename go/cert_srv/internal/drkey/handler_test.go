@@ -244,6 +244,7 @@ func newDatabase(t *testing.T) (*keystore.DB, func()) {
 func setup(t *testing.T, thisIA addr.IA) (*gomock.Controller, *mock_infra.MockMessenger, *Level2ReqHandler) {
 	ctrl := gomock.NewController(t)
 	msger := mock_infra.NewMockMessenger(ctrl)
+	// TODO drkeytest: we should have a mock also for DRKeystore
 	handler := &Level2ReqHandler{
 		State: &config.State{},
 		IA:    thisIA,

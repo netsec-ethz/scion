@@ -44,11 +44,11 @@ type State struct {
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
 	// drykey stored keys
-	DRKeyStore *keystore.DB
+	DRKeyStore keystore.DRKeyStore
 }
 
 func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
-	trustStore *trust.Store, drkeyStore *keystore.DB) (*State, error) {
+	trustStore *trust.Store, drkeyStore keystore.DRKeyStore) (*State, error) {
 
 	s := &State{
 		Store:      trustStore,

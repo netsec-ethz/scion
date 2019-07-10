@@ -98,6 +98,18 @@ const (
 	`
 )
 
+type DRKeyStore interface {
+	Close() error
+	GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error)
+	InsertDRKeyLvl1(key *drkey.DRKeyLvl1) (int64, error)
+	InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
+	RemoveOutdatedDRKeyLvl1(cutoff uint32) (int64, error)
+	GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
+	InsertDRKeyLvl2(key *drkey.DRKeyLvl2) (int64, error)
+	InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error)
+	RemoveOutdatedDRKeyLvl2(cutoff uint32) (int64, error)
+}
+
 // DB is a database containing first order and second order DRKeys, stored in JSON format.
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
