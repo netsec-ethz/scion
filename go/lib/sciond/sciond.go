@@ -363,32 +363,29 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 	c.Lock()
 	defer c.Unlock()
 
-	var srcHostStr, dstHostStr string
-	if srcHost != nil {
-		srcHostStr = srcHost.IP().String()
-	} else {
-		srcHostStr = "(none)"
-	}
-	if dstHost != nil {
-		dstHostStr = dstHost.IP().String()
-	} else {
-		dstHostStr = "(none)"
-	}
+	// TODO drkeytest: use a cache here
 	reply, err := c.dispatcher.Request(
 		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_drkeyLvl2Req,
-			// TODO drkeytest: fill this up:
-			DRKeyLvl2Req: &drkey_mgmt.DRKeyLvl2Req{},
+			DRKeyLvl2Req: &drkey_mgmt.DRKeyLvl2Req{
+				Protocol: protocol,
+				ReqType:  keyType,
+				ValTime:  valTime,
+				SrcIa:    srcIA.IAInt(),
+				DstIa:    dstIA.IAInt(),
+				SrcHost:  *drkey_mgmt.NewDRKeyHost(srcHost),
+				DstHost:  *drkey_mgmt.NewDRKeyHost(dstHost),
+			},
 		},
 		nil,
 	)
 	if err != nil {
 		return nil, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
 			"keyType", keyType, "protocol", protocol, "valTime", valTime,
-			"srcIA", srcIA, "srcHost", srcHostStr,
-			"dstIA", dstIA, "dstHost", dstHostStr,
+			"srcIA", srcIA, "srcHost", srcHost,
+			"dstIA", dstIA, "dstHost", dstHost,
 		)
 	}
 	lvl2rep := reply.(*Pld).DRKeyLvl2Rep

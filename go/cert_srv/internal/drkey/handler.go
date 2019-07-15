@@ -120,7 +120,9 @@ func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.DRKeySV, cert *cert.Cer
 
 func getSecretValue() *drkey.DRKeySV {
 	// TODO: drkeytest: add the SV to the configuration
-	return &drkey.DRKeySV{}
+	return &drkey.DRKeySV{
+		Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
 }
 
 func validateReq(srcIA, dstIA addr.IA) error {
@@ -136,7 +138,8 @@ func validateReq(srcIA, dstIA addr.IA) error {
 
 func deriveLvl1Key(srcIA, dstIA addr.IA, sv *drkey.DRKeySV) (*drkey.DRKeyLvl1, error) {
 	// TODO(ben): remove
-	log.Debug("[DRKeyReqHandler] Deriving drkey for lvl1 request", "srcIA", srcIA, "dstIA", dstIA)
+	log.Debug("[DRKeyReqHandler] Deriving drkey for lvl1", "srcIA", srcIA, "dstIA", dstIA)
+	log.Debug("DELETEME ************************", "len(sv.Key)", len(sv.Key))
 	key := &drkey.DRKeyLvl1{
 		DRKey: drkey.DRKey{Epoch: sv.Epoch},
 		SrcIA: srcIA,
