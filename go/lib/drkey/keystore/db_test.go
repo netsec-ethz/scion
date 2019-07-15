@@ -67,7 +67,7 @@ func TestDRKeyLvl1(t *testing.T) {
 			Convey("Fetch drkey from database", func() {
 				newKey, err := db.GetDRKeyLvl1(drkeyLvl1, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("drkey", newKey, ShouldResemble, drkeyLvl1.Key)
+				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl1.Key)
 			})
 
 			Convey("Remove outdated drkeys", func() {

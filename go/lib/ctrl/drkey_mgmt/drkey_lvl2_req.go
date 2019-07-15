@@ -35,6 +35,9 @@ type DRKeyHost struct {
 
 // NewDRKeyHost returns a new DRKeyHost from an addr.HostAddr
 func NewDRKeyHost(host addr.HostAddr) *DRKeyHost {
+	if host == nil {
+		host = addr.HostNone{}
+	}
 	return &DRKeyHost{
 		Type: host.Type(),
 		Host: host.Pack(),
@@ -79,5 +82,6 @@ func (c *DRKeyLvl2Req) Time() time.Time {
 }
 
 func (c *DRKeyLvl2Req) String() string {
-	return fmt.Sprintf("SrcIA: %s DstIA: %s ValTime: %v", c.SrcIA(), c.DstIA(), util.TimeToString(c.Time()))
+	return fmt.Sprintf("KeyType: %v Protocol: %s SrcIA: %s DstIA: %s ValTime: %v",
+		c.ReqType, c.Protocol, c.SrcIA(), c.DstIA(), util.TimeToString(c.Time()))
 }

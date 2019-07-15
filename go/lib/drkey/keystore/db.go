@@ -72,7 +72,8 @@ const (
 
 const (
 	getDRKeyLvl1 = `
-		SELECT Key FROM DRKeyLvl1 WHERE SrcIsdID=? AND SrcAsID=? AND DstIsdID=? AND DstAsID=?
+		SELECT EpochBegin, EpochEnd, Key FROM DRKeyLvl1
+		WHERE SrcIsdID=? AND SrcAsID=? AND DstIsdID=? AND DstAsID=?
 		AND EpochBegin<=? AND ?<EpochEnd
 	`
 	insertDRKeyLvl1 = `
@@ -100,7 +101,7 @@ const (
 
 type DRKeyStore interface {
 	Close() error
-	GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error)
+	GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
 	InsertDRKeyLvl1(key *drkey.DRKeyLvl1) (int64, error)
 	InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
 	RemoveOutdatedDRKeyLvl1(cutoff uint32) (int64, error)
@@ -176,22 +177,34 @@ func (db *DB) GetLvl1Count() int64 {
 
 // GetDRKeyLvl1 takes an pointer to a first level DRKey and a timestamp at which the DRKey should be
 // valid and returns the corresponding first level DRKey.
-func (db *DB) GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error) {
+func (db *DB) GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error) {
 	return db.GetDRKeyLvl1Ctx(context.Background(), key, valTime)
 }
 
 // GetDRKeyLvl1Ctx is the context-aware version of GetDRKeyLvl1.
-func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (common.RawBytes, error) {
-	var drkeyRaw common.RawBytes
+func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error) {
+	var epochBegin, epochEnd int
+	var bytes common.RawBytes
 	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
-		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&drkeyRaw)
+		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			err = common.NewBasicError(UnableToExecuteStmt, err)
 		}
 		return nil, err
 	}
-	return drkeyRaw, nil
+	returningKey := &drkey.DRKeyLvl1{
+		DRKey: drkey.DRKey{
+			Epoch: drkey.Epoch{
+				Begin: uint32(epochBegin),
+				End:   uint32(epochEnd),
+			},
+			Key: bytes,
+		},
+		SrcIA: key.SrcIA,
+		DstIA: key.DstIA,
+	}
+	return returningKey, nil
 }
 
 // InsertDRKeyLvl1 inserts a first level DRKey and returns the number of affected rows.
@@ -254,10 +267,23 @@ func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime
 		}
 		return nil, err
 	}
-	returningKey := key
-	returningKey.Epoch.Begin = uint32(epochBegin)
-	returningKey.Epoch.End = uint32(epochEnd)
-	returningKey.Key = bytes
+	returningKey := &drkey.DRKeyLvl2{
+		DRKeyLvl1: drkey.DRKeyLvl1{
+			DRKey: drkey.DRKey{
+				Epoch: drkey.Epoch{
+					Begin: uint32(epochBegin),
+					End:   uint32(epochEnd),
+				},
+				Key: bytes,
+			},
+			SrcIA: key.SrcIA,
+			DstIA: key.DstIA,
+		},
+		KeyType:  key.KeyType,
+		Protocol: key.Protocol,
+		SrcHost:  key.SrcHost,
+		DstHost:  key.DstHost,
+	}
 	return returningKey, nil
 }
 

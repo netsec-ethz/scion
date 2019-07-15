@@ -27,6 +27,7 @@ import (
 
 var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
 
+// DRKeyLvl1Req represents a level 1 request between certificate servers
 type DRKeyLvl1Req struct {
 	// TODO drkeytest: why src IA instead of dst IA ?
 	// SrcIa     addr.IAInt
@@ -35,11 +36,21 @@ type DRKeyLvl1Req struct {
 	Timestamp uint32
 }
 
-// IA returns the source ISD-AS of the requested DRKey
+// NewDRKeyLvl1Req creates a new L1 request struct
+func NewDRKeyLvl1Req(dstIA addr.IA, valTime uint32) *DRKeyLvl1Req {
+	return &DRKeyLvl1Req{
+		DstIa:     dstIA.IAInt(),
+		ValTime:   valTime,
+		Timestamp: uint32(time.Now().Unix()),
+	}
+}
+
+// DstIA returns the source ISD-AS of the requested DRKey
 func (c *DRKeyLvl1Req) DstIA() addr.IA {
 	return c.DstIa.IA()
 }
 
+// ProtoId returns the proto ID
 func (c *DRKeyLvl1Req) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl1Req_TypeID
 }
@@ -55,5 +66,5 @@ func (c *DRKeyLvl1Req) WhenCreated() time.Time {
 }
 
 func (c *DRKeyLvl1Req) String() string {
-	return fmt.Sprintf("SrcIA: %s ValTime: %v", c.DstIA(), util.TimeToString(c.Time()))
+	return fmt.Sprintf("DstIA: %s ValTime: %v", c.DstIA(), util.TimeToString(c.Time()))
 }

@@ -14,7 +14,7 @@ struct DRKeyLvl1Req {
 }
 
 struct DRKeyLvl1Rep {
-    srcIa @0 :UInt64;      # Src ISD-AS of the DRKey
+    dstIa @0 :UInt64;      # Src ISD-AS of the DRKey
     epochBegin @1 :UInt32; # Begin of validity period of DRKey
     epochEnd @2 :UInt32;   # End of validity period of DRKey
     cipher @3 :Data;       # Encrypted DRKey

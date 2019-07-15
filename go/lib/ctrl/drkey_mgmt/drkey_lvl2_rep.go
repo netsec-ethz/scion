@@ -35,7 +35,7 @@ type DRKeyLvl2Rep struct {
 	Misc       common.RawBytes
 }
 
-func NewDRKeyLvl2RepFromKeyRepresentation(key drkey.DRKeyLvl2, timestamp uint32) *DRKeyLvl2Rep {
+func NewDRKeyLvl2RepFromKeyRepresentation(key *drkey.DRKeyLvl2, timestamp uint32) *DRKeyLvl2Rep {
 	return &DRKeyLvl2Rep{
 		Timestamp:  timestamp,
 		DRKey:      key.Key,

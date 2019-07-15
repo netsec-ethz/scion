@@ -201,12 +201,20 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			replyFromOtherCS := drkey_mgmt.NewDRKeyLvl2RepFromKeyRepresentation(*drkeyLvl2, uint32(0))
 
 			db.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
+			// TODO this should fail, as the message we expect is the request for an L1
 			msger.EXPECT().RequestDRKeyLvl2(gomock.Any(), gomock.Any(), csSrcAddr, gomock.Any()).Return(replyFromOtherCS, nil)
 			db.EXPECT().InsertDRKeyLvl2(drkeyLvl2).Return(int64(1), nil)
 
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("reply", reply, ShouldResemble, replyFromOtherCS)
+		})
+
+		Convey("key not in DB, L1 in DB, expect derivation", func() {
+			ctrl, msger, db, handler := setup(t, dstIA)
+			defer ctrl.Finish()
+			db.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
+			msger.EXPECT().RequestDRKeyL1()
 		})
 	})
 }
