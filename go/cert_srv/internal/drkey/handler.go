@@ -145,7 +145,6 @@ func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.DRKeySV, cert *cert.Cer
 		return
 	}
 
-	// XXX(juan) originally SrcIa was     h.IA.IAInt(),
 	reply = &drkey_mgmt.DRKeyLvl1Rep{
 		DstIa:      dstIA.IAInt(),
 		EpochBegin: sv.Epoch.Begin,
@@ -306,7 +305,6 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 	protocol := req.Protocol
 	var lvl1Key *drkey.DRKeyLvl1
 	// is it us in the fast path?
-	log.Debug("deleteme 1", "this IA", h.IA, "srcIA", srcIA)
 	if srcIA.Equal(h.IA) {
 		log.Debug("[DRKeyLevel2BuildReply] this AS in the fast path")
 		// derive level 1 first:

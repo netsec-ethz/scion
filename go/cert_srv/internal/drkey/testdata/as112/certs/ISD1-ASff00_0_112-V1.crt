@@ -1,0 +1,32 @@
+{
+    "0": {
+        "Subject": "1-ff00:0:112",
+        "Issuer": "1-ff00:0:110",
+        "EncAlgorithm": "curve25519xsalsa20poly1305",
+        "SubjectSignKey": "BL/9pQTbeySPVssoo9tsiVQYH1vBAk9gLq2yR2EvLOc=",
+        "SignAlgorithm": "ed25519",
+        "Comment": "AS Certificate",
+        "IssuingTime": 1562315697,
+        "CanIssue": false,
+        "ExpirationTime": 1593678897,
+        "SubjectEncKey": "7UxL+pGQUHttnltqsTDoWnU+B3MGK5/RRzPazyIqb2s=",
+        "Signature": "n5PSj0gIX5Dc697nbzsEgO7A+hpzq1DgQX8tViv7PQ3eCRX7MollyBkYJNAXSDzBx++t8jY/0Qc+oEGoZzyuDQ==",
+        "TRCVersion": 1,
+        "Version": 1
+    },
+    "1": {
+        "Subject": "1-ff00:0:110",
+        "Issuer": "1-ff00:0:110",
+        "EncAlgorithm": "curve25519xsalsa20poly1305",
+        "SubjectSignKey": "tBYaqoSbQ3lr2NoRzTEMXPNjxnZa+D8bWa/X3++a2OQ=",
+        "SignAlgorithm": "ed25519",
+        "Comment": "Core AS Certificate",
+        "IssuingTime": 1562315695,
+        "CanIssue": true,
+        "ExpirationTime": 1593765295,
+        "SubjectEncKey": "PxYeyGgHSqoZPNRhsIjT3liC3u6g5FPmCBuFbQtoZlk=",
+        "Signature": "O5SRubH7zstVwi35YB5cefkA1R/+HVwAdk5ZZVIJysc4fsC7baG1RyvqyJ5xeo9cI9rZShVenP1Ra5YetQWwAQ==",
+        "TRCVersion": 1,
+        "Version": 1
+    }
+}

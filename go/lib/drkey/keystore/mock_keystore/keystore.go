@@ -7,7 +7,6 @@ package mock_keystore
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	common "github.com/scionproto/scion/go/lib/common"
 	drkey "github.com/scionproto/scion/go/lib/drkey"
 	reflect "reflect"
 )
@@ -50,10 +49,10 @@ func (mr *MockDRKeyStoreMockRecorder) Close() *gomock.Call {
 }
 
 // GetDRKeyLvl1 mocks base method
-func (m *MockDRKeyStore) GetDRKeyLvl1(arg0 *drkey.DRKeyLvl1, arg1 uint32) (common.RawBytes, error) {
+func (m *MockDRKeyStore) GetDRKeyLvl1(arg0 *drkey.DRKeyLvl1, arg1 uint32) (*drkey.DRKeyLvl1, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDRKeyLvl1", arg0, arg1)
-	ret0, _ := ret[0].(common.RawBytes)
+	ret0, _ := ret[0].(*drkey.DRKeyLvl1)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
