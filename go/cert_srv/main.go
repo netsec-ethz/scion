@@ -25,6 +25,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
+	"github.com/scionproto/scion/go/cert_srv/internal/drkey"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -41,13 +42,14 @@ import (
 // TODO: drkeytest: add a runner
 
 var (
-	cfg         config.Config
-	state       *config.State
-	reissRunner *periodic.Runner
-	discRunners idiscovery.Runners
-	corePusher  *periodic.Runner
-	msgr        infra.Messenger
-	trustDB     trustdb.TrustDB
+	cfg              config.Config
+	state            *config.State
+	reissRunner      *periodic.Runner
+	discRunners      idiscovery.Runners
+	corePusher       *periodic.Runner
+	drkeyStoreKeeper *periodic.Runner
+	msgr             infra.Messenger
+	trustDB          trustdb.TrustDB
 )
 
 func init() {
@@ -87,6 +89,8 @@ func realMain() int {
 	opentracing.SetGlobalTracer(tracer)
 	// Start the periodic reissuance task.
 	startReissRunner()
+	// Start the DRKey periodic tasks
+	startDRKeyRunners()
 	// Start the periodic fetching from discovery service.
 	startDiscovery()
 	// Start the messenger.
@@ -153,6 +157,16 @@ func startReissRunner() {
 	)
 }
 
+func startDRKeyRunners() {
+	drkeyStoreKeeper = periodic.StartPeriodicTask(
+		&drkey.StoreKeeper{
+			State: state,
+		},
+		periodic.NewTicker(5*time.Minute),
+		time.Minute,
+	)
+}
+
 func startDiscovery() {
 	var err error
 	discRunners, err = idiscovery.StartRunners(cfg.Discovery, discovery.Full,
@@ -171,8 +185,15 @@ func stopReissRunner() {
 	}
 }
 
+func stopDRKeyRunners() {
+	if drkeyStoreKeeper != nil {
+		drkeyStoreKeeper.Stop()
+	}
+}
+
 func stop() {
 	stopReissRunner()
+	stopDRKeyRunners()
 	discRunners.Kill()
 	msgr.CloseServer()
 	trustDB.Close()

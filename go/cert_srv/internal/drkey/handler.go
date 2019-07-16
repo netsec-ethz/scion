@@ -237,7 +237,7 @@ func Level1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cer
 		err = common.NewBasicError("Dropping DRKeyLvl1 reply", err)
 		return
 	}
-	// TODO(juan): match this reply with a request from this CS
+	// TODO drkeytest: match this reply with a request from this CS
 	key, err = drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, cert.SubjectEncKey, privateKey)
 	if err != nil {
 		err = common.NewBasicError("Error decrypting the key from the reply", err)

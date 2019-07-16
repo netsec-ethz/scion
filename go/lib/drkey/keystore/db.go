@@ -81,7 +81,7 @@ const (
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	removeOutdatedDRKeyLvl1 = `
-		DELETE FROM DRKeyLvl1 WHERE ?>EpochEnd
+		DELETE FROM DRKeyLvl1 WHERE ? >= EpochEnd
 	`
 	getDRKeyLvl2 = `
 		SELECT EpochBegin, EpochEnd, Key
@@ -95,7 +95,7 @@ const (
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	removeOutdatedDRKeyLvl2 = `
-		DELETE FROM DRKeyLvl2 WHERE ?>EpochEnd
+		DELETE FROM DRKeyLvl2 WHERE ? >= EpochEnd
 	`
 )
 

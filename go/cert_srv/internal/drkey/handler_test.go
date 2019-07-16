@@ -141,7 +141,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 	Convey("Derive a Level 2 DRKey (this CS is in the src AS)", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:112")
 		dstIA, _ := addr.IAFromString("1-ff00:0:111")
-		ctrl, _, _, db, handler := setup(t, srcIA, "")
+		ctrl, _, _, db, handler := setupHandler(t, srcIA, "")
 		defer ctrl.Finish()
 
 		sv := getTestSV()
@@ -178,7 +178,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
 
 		Convey("Key L2 in DB", func() {
-			ctrl, _, _, db, handler := setup(t, dstIA, "")
+			ctrl, _, _, db, handler := setupHandler(t, dstIA, "")
 			defer ctrl.Finish()
 			// mock a key in the DB
 			db.EXPECT().GetDRKeyLvl2(gomock.Any(), uint32(0)).Return(drkeyLvl2, nil).Do(
@@ -197,7 +197,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 		})
 
 		Convey("key not in DB, L1 in DB, expect derivation", func() {
-			ctrl, _, _, drkeyStore, handler := setup(t, dstIA, "testdata/as112/")
+			ctrl, _, _, drkeyStore, handler := setupHandler(t, dstIA, "testdata/as112/")
 			defer ctrl.Finish()
 			lvl1Key, err := deriveLvl1Key(srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
@@ -212,7 +212,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 		})
 
 		Convey("key not in DB, relay on CS_{srcIA}", func() {
-			ctrl, msger, trustDB, db, handler := setup(t, dstIA, "testdata/as112/")
+			ctrl, msger, trustDB, db, handler := setupHandler(t, dstIA, "testdata/as112/")
 			defer ctrl.Finish()
 			csSrcAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 			replyFromOtherCS, err := Level1KeyBuildReply(srcIA, dstIA, sv, cert111, privateKey112)
@@ -258,7 +258,7 @@ func loadCertsKeys(t *testing.T) (*cert.Certificate, common.RawBytes, *cert.Cert
 	return cert111, privateKey111, cert112, privateKey112
 }
 
-func setup(t *testing.T, thisIA addr.IA, confDir string) (*gomock.Controller, *mock_infra.MockMessenger, *mock_trustdb.MockTrustDB, *mock_keystore.MockDRKeyStore, *Level2ReqHandler) {
+func setupHandler(t *testing.T, thisIA addr.IA, confDir string) (*gomock.Controller, *mock_infra.MockMessenger, *mock_trustdb.MockTrustDB, *mock_keystore.MockDRKeyStore, *Level2ReqHandler) {
 	ctrl := gomock.NewController(t)
 	msger := mock_infra.NewMockMessenger(ctrl)
 	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
