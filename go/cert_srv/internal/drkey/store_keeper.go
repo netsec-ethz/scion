@@ -36,14 +36,14 @@ func (k *StoreKeeper) Run(ctx context.Context) {
 	cutoff := uint32(time.Now().Unix())
 	log.Trace("[drkey.StoreKeeper] Runs now", "cutoff", cutoff)
 	log.Trace("[drkey.StoreKeeper] Calling RemoveOutDatedDRKeyL1 now")
-	count, err := k.State.DRKeyStore.RemoveOutdatedDRKeyLvl1(cutoff)
+	count, err := k.State.DRKeyStore.RemoveOutdatedDRKeyLvl1(ctx, cutoff)
 	log.Trace("[drkey.StoreKeeper] RemoveOutDatedDRKeyL1 finished", "count", count, "err", err)
 	if err != nil {
 		log.Error("[drkey.StoreKeeper] Unable to remove outdated L1 keys", "err", err)
 	}
 
 	log.Trace("[drkey.StoreKeeper] Calling RemoveOutDatedDRKeyL2 now")
-	count, err = k.State.DRKeyStore.RemoveOutdatedDRKeyLvl2(cutoff)
+	count, err = k.State.DRKeyStore.RemoveOutdatedDRKeyLvl2(ctx, cutoff)
 	log.Trace("[drkey.StoreKeeper] RemoveOutDatedDRKeyL2 finished", "count", count, "err", err)
 	if err != nil {
 		log.Error("[drkey.StoreKeeper] Unable to remove outdated L2 keys", "err", err)

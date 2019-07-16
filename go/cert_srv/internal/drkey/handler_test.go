@@ -141,7 +141,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 	Convey("Derive a Level 2 DRKey (this CS is in the src AS)", t, func() {
 		srcIA, _ := addr.IAFromString("1-ff00:0:112")
 		dstIA, _ := addr.IAFromString("1-ff00:0:111")
-		ctrl, _, _, db, handler := setupHandler(t, srcIA, "")
+		ctrl, _, _, store, handler := setupHandler(t, srcIA, "")
 		defer ctrl.Finish()
 
 		sv := getTestSV()
@@ -155,7 +155,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 		expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 		drkeyLvl2 := drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(sv.Epoch, expectedLvl2Key, srcIA, dstIA),
 			drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
-		db.EXPECT().InsertDRKeyLvl2(drkeyLvl2).Return(int64(1), nil)
+		store.EXPECT().InsertDRKeyLvl2(ctx, drkeyLvl2).Return(int64(1), nil)
 		reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("lvl2Key", reply.DRKey, ShouldResemble, common.RawBytes(expectedLvl2Key))
@@ -178,11 +178,11 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
 
 		Convey("Key L2 in DB", func() {
-			ctrl, _, _, db, handler := setupHandler(t, dstIA, "")
+			ctrl, _, _, store, handler := setupHandler(t, dstIA, "")
 			defer ctrl.Finish()
 			// mock a key in the DB
-			db.EXPECT().GetDRKeyLvl2(gomock.Any(), uint32(0)).Return(drkeyLvl2, nil).Do(
-				func(argKey *drkey.DRKeyLvl2, argValTime uint32) {
+			store.EXPECT().GetDRKeyLvl2(ctx, gomock.Any(), uint32(0)).Return(drkeyLvl2, nil).Do(
+				func(ctx context.Context, argKey *drkey.DRKeyLvl2, argValTime uint32) {
 					if argKey.DRKeyLvl1.SrcIA != srcIA ||
 						argKey.DRKeyLvl1.DstIA != dstIA ||
 						argKey.Protocol != "foo" || argKey.KeyType != drkey.AS2AS ||
@@ -203,16 +203,16 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 			drkeyLvl2.DRKey.Key = expectedLvl2Key
-			drkeyStore.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
-			drkeyStore.EXPECT().GetDRKeyLvl1(&drkey.DRKeyLvl1{SrcIA: srcIA, DstIA: dstIA}, req.ValTime).Return(lvl1Key, nil)
-			drkeyStore.EXPECT().InsertDRKeyLvl2(drkeyLvl2).Return(int64(1), nil)
+			drkeyStore.EXPECT().GetDRKeyLvl2(ctx, gomock.Any(), gomock.Any()).Return(nil, nil)
+			drkeyStore.EXPECT().GetDRKeyLvl1(ctx, &drkey.DRKeyLvl1{SrcIA: srcIA, DstIA: dstIA}, req.ValTime).Return(lvl1Key, nil)
+			drkeyStore.EXPECT().InsertDRKeyLvl2(ctx, drkeyLvl2).Return(int64(1), nil)
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("reply.DRKey", reply.DRKey, ShouldResemble, common.RawBytes(expectedLvl2Key))
 		})
 
 		Convey("key not in DB, relay on CS_{srcIA}", func() {
-			ctrl, msger, trustDB, db, handler := setupHandler(t, dstIA, "testdata/as112/")
+			ctrl, msger, trustDB, store, handler := setupHandler(t, dstIA, "testdata/as112/")
 			defer ctrl.Finish()
 			csSrcAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 			replyFromOtherCS, err := Level1KeyBuildReply(srcIA, dstIA, sv, cert111, privateKey112)
@@ -220,11 +220,11 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 			drkeyLvl2.DRKey.Key = expectedLvl2Key
 
-			db.EXPECT().GetDRKeyLvl2(gomock.Any(), gomock.Any()).Return(nil, nil)
-			db.EXPECT().GetDRKeyLvl1(gomock.Any(), gomock.Any()).Return(nil, nil)
+			store.EXPECT().GetDRKeyLvl2(ctx, gomock.Any(), gomock.Any()).Return(nil, nil)
+			store.EXPECT().GetDRKeyLvl1(ctx, gomock.Any(), gomock.Any()).Return(nil, nil)
 			trustDB.EXPECT().GetChainMaxVersion(gomock.Any(), srcIA).Return(&cert.Chain{Leaf: cert111}, nil)
 			msger.EXPECT().RequestDRKeyLvl1(gomock.Any(), gomock.Any(), csSrcAddr, gomock.Any()).Return(replyFromOtherCS, nil)
-			db.EXPECT().InsertDRKeyLvl2(drkeyLvl2).Return(int64(1), nil)
+			store.EXPECT().InsertDRKeyLvl2(ctx, drkeyLvl2).Return(int64(1), nil)
 
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)

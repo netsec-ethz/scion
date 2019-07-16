@@ -49,121 +49,91 @@ func (mr *MockDRKeyStoreMockRecorder) Close() *gomock.Call {
 }
 
 // GetDRKeyLvl1 mocks base method
-func (m *MockDRKeyStore) GetDRKeyLvl1(arg0 *drkey.DRKeyLvl1, arg1 uint32) (*drkey.DRKeyLvl1, error) {
+func (m *MockDRKeyStore) GetDRKeyLvl1(arg0 context.Context, arg1 *drkey.DRKeyLvl1, arg2 uint32) (*drkey.DRKeyLvl1, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDRKeyLvl1", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetDRKeyLvl1", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*drkey.DRKeyLvl1)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDRKeyLvl1 indicates an expected call of GetDRKeyLvl1
-func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl1(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl1(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl1", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl1), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl1", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl1), arg0, arg1, arg2)
 }
 
 // GetDRKeyLvl2 mocks base method
-func (m *MockDRKeyStore) GetDRKeyLvl2(arg0 *drkey.DRKeyLvl2, arg1 uint32) (*drkey.DRKeyLvl2, error) {
+func (m *MockDRKeyStore) GetDRKeyLvl2(arg0 context.Context, arg1 *drkey.DRKeyLvl2, arg2 uint32) (*drkey.DRKeyLvl2, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDRKeyLvl2", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetDRKeyLvl2", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*drkey.DRKeyLvl2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDRKeyLvl2 indicates an expected call of GetDRKeyLvl2
-func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl2(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl2), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl2), arg0, arg1, arg2)
 }
 
 // InsertDRKeyLvl1 mocks base method
-func (m *MockDRKeyStore) InsertDRKeyLvl1(arg0 *drkey.DRKeyLvl1) (int64, error) {
+func (m *MockDRKeyStore) InsertDRKeyLvl1(arg0 context.Context, arg1 *drkey.DRKeyLvl1) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertDRKeyLvl1", arg0)
+	ret := m.ctrl.Call(m, "InsertDRKeyLvl1", arg0, arg1)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // InsertDRKeyLvl1 indicates an expected call of InsertDRKeyLvl1
-func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl1(arg0 interface{}) *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl1(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertDRKeyLvl1", reflect.TypeOf((*MockDRKeyStore)(nil).InsertDRKeyLvl1), arg0)
-}
-
-// InsertDRKeyLvl1Ctx mocks base method
-func (m *MockDRKeyStore) InsertDRKeyLvl1Ctx(arg0 context.Context, arg1 *drkey.DRKeyLvl1) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertDRKeyLvl1Ctx", arg0, arg1)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// InsertDRKeyLvl1Ctx indicates an expected call of InsertDRKeyLvl1Ctx
-func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl1Ctx(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertDRKeyLvl1Ctx", reflect.TypeOf((*MockDRKeyStore)(nil).InsertDRKeyLvl1Ctx), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertDRKeyLvl1", reflect.TypeOf((*MockDRKeyStore)(nil).InsertDRKeyLvl1), arg0, arg1)
 }
 
 // InsertDRKeyLvl2 mocks base method
-func (m *MockDRKeyStore) InsertDRKeyLvl2(arg0 *drkey.DRKeyLvl2) (int64, error) {
+func (m *MockDRKeyStore) InsertDRKeyLvl2(arg0 context.Context, arg1 *drkey.DRKeyLvl2) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertDRKeyLvl2", arg0)
+	ret := m.ctrl.Call(m, "InsertDRKeyLvl2", arg0, arg1)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // InsertDRKeyLvl2 indicates an expected call of InsertDRKeyLvl2
-func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl2(arg0 interface{}) *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).InsertDRKeyLvl2), arg0)
-}
-
-// InsertDRKeyLvl2Ctx mocks base method
-func (m *MockDRKeyStore) InsertDRKeyLvl2Ctx(arg0 context.Context, arg1 *drkey.DRKeyLvl2) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertDRKeyLvl2Ctx", arg0, arg1)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// InsertDRKeyLvl2Ctx indicates an expected call of InsertDRKeyLvl2Ctx
-func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl2Ctx(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertDRKeyLvl2Ctx", reflect.TypeOf((*MockDRKeyStore)(nil).InsertDRKeyLvl2Ctx), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).InsertDRKeyLvl2), arg0, arg1)
 }
 
 // RemoveOutdatedDRKeyLvl1 mocks base method
-func (m *MockDRKeyStore) RemoveOutdatedDRKeyLvl1(arg0 uint32) (int64, error) {
+func (m *MockDRKeyStore) RemoveOutdatedDRKeyLvl1(arg0 context.Context, arg1 uint32) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveOutdatedDRKeyLvl1", arg0)
+	ret := m.ctrl.Call(m, "RemoveOutdatedDRKeyLvl1", arg0, arg1)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RemoveOutdatedDRKeyLvl1 indicates an expected call of RemoveOutdatedDRKeyLvl1
-func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl1(arg0 interface{}) *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl1(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveOutdatedDRKeyLvl1", reflect.TypeOf((*MockDRKeyStore)(nil).RemoveOutdatedDRKeyLvl1), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveOutdatedDRKeyLvl1", reflect.TypeOf((*MockDRKeyStore)(nil).RemoveOutdatedDRKeyLvl1), arg0, arg1)
 }
 
 // RemoveOutdatedDRKeyLvl2 mocks base method
-func (m *MockDRKeyStore) RemoveOutdatedDRKeyLvl2(arg0 uint32) (int64, error) {
+func (m *MockDRKeyStore) RemoveOutdatedDRKeyLvl2(arg0 context.Context, arg1 uint32) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveOutdatedDRKeyLvl2", arg0)
+	ret := m.ctrl.Call(m, "RemoveOutdatedDRKeyLvl2", arg0, arg1)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RemoveOutdatedDRKeyLvl2 indicates an expected call of RemoveOutdatedDRKeyLvl2
-func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl2(arg0 interface{}) *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveOutdatedDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).RemoveOutdatedDRKeyLvl2), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveOutdatedDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).RemoveOutdatedDRKeyLvl2), arg0, arg1)
 }

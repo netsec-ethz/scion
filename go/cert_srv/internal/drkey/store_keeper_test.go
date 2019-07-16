@@ -46,12 +46,14 @@ func TestEmptyDB(t *testing.T) {
 		defer ctrl.Finish()
 		cutoff := uint32(time.Now().Unix())
 		tolerance := uint32(1)
-		match := func(cutoffArg uint32) {
+		match := func(ctx context.Context, cutoffArg uint32) {
 			SoMsg("cutoff", cutoffArg, ShouldBeGreaterThanOrEqualTo, cutoff-tolerance)
 			SoMsg("cutoff", cutoffArg, ShouldBeLessThanOrEqualTo, cutoff+tolerance)
 		}
-		store.EXPECT().RemoveOutdatedDRKeyLvl1(gomock.Any()).Do(match)
-		store.EXPECT().RemoveOutdatedDRKeyLvl2(gomock.Any()).Do(match)
+		store.EXPECT().RemoveOutdatedDRKeyLvl1(gomock.Any(), gomock.Any()).Do(match)
+		store.EXPECT().RemoveOutdatedDRKeyLvl2(gomock.Any(), gomock.Any()).Do(match)
+		_ = store
+		_ = match
 		task.Run(ctx)
 	})
 }

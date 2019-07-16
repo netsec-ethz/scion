@@ -223,7 +223,7 @@ func (h *Level1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 
 	key, err := Level1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
 	// because we received a reply, we probably want to keep a copy in our local DB:
-	_, err = h.State.DRKeyStore.InsertDRKeyLvl1Ctx(ctx, key)
+	_, err = h.State.DRKeyStore.InsertDRKeyLvl1(ctx, key)
 	if err != nil {
 		log.Error("[Level1ReplyHandler] Could not insert the DR key in the DB", "err", err)
 		return infra.MetricsErrInternal
@@ -317,7 +317,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 		log.Debug("[DRKeyLevel2BuildReply] this AS in the slow path")
 		// check DB for the L2 key
 		var stored *drkey.DRKeyLvl2
-		stored, err = findLvl2KeyInDB(h.State.DRKeyStore, valTime, protocol, keyType, srcIA, dstIA, srcHost, dstHost)
+		stored, err = findLvl2KeyInDB(ctx, h.State.DRKeyStore, valTime, protocol, keyType, srcIA, dstIA, srcHost, dstHost)
 		if err != nil {
 			err = common.NewBasicError("Cannot query the DRKey DB", err)
 			return
@@ -329,7 +329,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 			return
 		}
 		// check DB for the L1 key
-		lvl1Key, err = findLvl1KeyInDB(h.State.DRKeyStore, valTime, srcIA, dstIA)
+		lvl1Key, err = findLvl1KeyInDB(ctx, h.State.DRKeyStore, valTime, srcIA, dstIA)
 		if err != nil {
 			err = common.NewBasicError("Cannot query the DRKey DB", err)
 			return
@@ -357,7 +357,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 	log.Trace("[DRKeyLevel2BuildReply] about to save key in DB")
 	reply = drkey_mgmt.NewDRKeyLvl2RepFromKeyRepresentation(lvl2key, uint32(time.Now().Unix()))
 	// save the key in the DB
-	err = storeLvl2KeyInDB(h.State.DRKeyStore, lvl2key)
+	err = storeLvl2KeyInDB(ctx, h.State.DRKeyStore, lvl2key)
 	if err != nil {
 		err = common.NewBasicError("Could not store the level 2 DRKey in the DB", err, "reply", reply)
 		reply = nil
@@ -408,19 +408,19 @@ func deriveLvl2Key(lvl1Key *drkey.DRKeyLvl1, keyType drkey.Lvl2Type, protocol st
 	return &key, nil
 }
 
-func findLvl1KeyInDB(db keystore.DRKeyStore, valTime uint32, srcIA, dstIA addr.IA) (*drkey.DRKeyLvl1, error) {
+func findLvl1KeyInDB(ctx context.Context, db keystore.DRKeyStore, valTime uint32, srcIA, dstIA addr.IA) (*drkey.DRKeyLvl1, error) {
 	key := &drkey.DRKeyLvl1{
 		SrcIA: srcIA,
 		DstIA: dstIA,
 	}
-	stored, err := db.GetDRKeyLvl1(key, valTime)
+	stored, err := db.GetDRKeyLvl1(ctx, key, valTime)
 	if err != nil && err != keystore.ErrNoKeys {
 		return nil, common.NewBasicError("Cannot query DRKey Store [level1]", err)
 	}
 	return stored, nil
 }
 
-func findLvl2KeyInDB(db keystore.DRKeyStore, valTime uint32, protocol string, keyType drkey.Lvl2Type, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
+func findLvl2KeyInDB(ctx context.Context, db keystore.DRKeyStore, valTime uint32, protocol string, keyType drkey.Lvl2Type, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKeyLvl2, error) {
 	key := &drkey.DRKeyLvl2{
 		DRKeyLvl1: drkey.DRKeyLvl1{
 			// no need to copy the epoch here
@@ -432,15 +432,15 @@ func findLvl2KeyInDB(db keystore.DRKeyStore, valTime uint32, protocol string, ke
 		SrcHost:  srcHost,
 		DstHost:  dstHost,
 	}
-	stored, err := db.GetDRKeyLvl2(key, valTime)
+	stored, err := db.GetDRKeyLvl2(ctx, key, valTime)
 	if err != nil && err != keystore.ErrNoKeys {
 		return nil, common.NewBasicError("Cannot query DRKey Store [level2]", err)
 	}
 	return stored, nil
 }
 
-func storeLvl2KeyInDB(db keystore.DRKeyStore, key *drkey.DRKeyLvl2) error {
-	_, err := db.InsertDRKeyLvl2(key)
+func storeLvl2KeyInDB(ctx context.Context, db keystore.DRKeyStore, key *drkey.DRKeyLvl2) error {
+	_, err := db.InsertDRKeyLvl2(ctx, key)
 	return err
 }
 

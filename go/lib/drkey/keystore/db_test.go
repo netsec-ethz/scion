@@ -15,6 +15,7 @@
 package keystore
 
 import (
+	"context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -42,6 +43,8 @@ var (
 )
 
 func TestDRKeyLvl1(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
 	Convey("Initialize DB and derive DRKey", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
@@ -58,14 +61,14 @@ func TestDRKeyLvl1(t *testing.T) {
 		err = drkeyLvl1.SetKey(sv.Key)
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
-			rows, err := db.InsertDRKeyLvl1(drkeyLvl1)
+			rows, err := db.InsertDRKeyLvl1(ctx, drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 1)
-			rows, err = db.InsertDRKeyLvl1(drkeyLvl1)
+			rows, err = db.InsertDRKeyLvl1(ctx, drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetDRKeyLvl1(drkeyLvl1, util.TimeToSecs(time.Now()))
+				newKey, err := db.GetDRKeyLvl1(ctx, drkeyLvl1, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl1.Key)
 			})
@@ -73,10 +76,10 @@ func TestDRKeyLvl1(t *testing.T) {
 			Convey("Remove outdated drkeys", func() {
 				rows = db.GetLvl1Count()
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl1(util.TimeToSecs(time.Now().Add(-timeOffset * time.Second)))
+				rows, err = db.RemoveOutdatedDRKeyLvl1(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl1(util.TimeToSecs(time.Now().Add(2 * timeOffset * time.Second)))
+				rows, err = db.RemoveOutdatedDRKeyLvl1(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
 			})
@@ -85,6 +88,8 @@ func TestDRKeyLvl1(t *testing.T) {
 }
 
 func TestDRKeyLvl2(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
 	Convey("Initialize DB and derive DRKey", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
@@ -98,14 +103,14 @@ func TestDRKeyLvl2(t *testing.T) {
 		err := drkeyLvl2.SetKey(drkeyLvl1.Key)
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
-			rows, err := db.InsertDRKeyLvl2(drkeyLvl2)
+			rows, err := db.InsertDRKeyLvl2(ctx, drkeyLvl2)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 1)
-			rows, err = db.InsertDRKeyLvl2(drkeyLvl2)
+			rows, err = db.InsertDRKeyLvl2(ctx, drkeyLvl2)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetDRKeyLvl2(drkeyLvl2, util.TimeToSecs(time.Now()))
+				newKey, err := db.GetDRKeyLvl2(ctx, drkeyLvl2, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl2.Key)
 			})
@@ -113,10 +118,10 @@ func TestDRKeyLvl2(t *testing.T) {
 			Convey("Remove outdated drkeys", func() {
 				rows = db.GetLvl2Count()
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(-timeOffset * time.Second)))
+				rows, err = db.RemoveOutdatedDRKeyLvl2(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(2 * timeOffset * time.Second)))
+				rows, err = db.RemoveOutdatedDRKeyLvl2(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
 			})

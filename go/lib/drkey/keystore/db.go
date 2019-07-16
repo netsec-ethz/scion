@@ -99,16 +99,17 @@ const (
 	`
 )
 
+// DRKeyStore has all the functions dealing with storage/retrieval of DRKeys level 1 and 2
 type DRKeyStore interface {
 	Close() error
-	GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
-	InsertDRKeyLvl1(key *drkey.DRKeyLvl1) (int64, error)
-	InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
-	RemoveOutdatedDRKeyLvl1(cutoff uint32) (int64, error)
-	GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
-	InsertDRKeyLvl2(key *drkey.DRKeyLvl2) (int64, error)
-	InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error)
-	RemoveOutdatedDRKeyLvl2(cutoff uint32) (int64, error)
+	// Level 1 functions
+	GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
+	InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
+	RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error)
+	// Level 2
+	GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
+	InsertDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error)
+	RemoveOutdatedDRKeyLvl2(ctx context.Context, cutoff uint32) (int64, error)
 }
 
 // DB is a database containing first order and second order DRKeys, stored in JSON format.
@@ -177,12 +178,7 @@ func (db *DB) GetLvl1Count() int64 {
 
 // GetDRKeyLvl1 takes an pointer to a first level DRKey and a timestamp at which the DRKey should be
 // valid and returns the corresponding first level DRKey.
-func (db *DB) GetDRKeyLvl1(key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error) {
-	return db.GetDRKeyLvl1Ctx(context.Background(), key, valTime)
-}
-
-// GetDRKeyLvl1Ctx is the context-aware version of GetDRKeyLvl1.
-func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error) {
+func (db *DB) GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error) {
 	var epochBegin, epochEnd int
 	var bytes common.RawBytes
 	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
@@ -208,12 +204,7 @@ func (db *DB) GetDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1, valTime
 }
 
 // InsertDRKeyLvl1 inserts a first level DRKey and returns the number of affected rows.
-func (db *DB) InsertDRKeyLvl1(key *drkey.DRKeyLvl1) (int64, error) {
-	return db.InsertDRKeyLvl1Ctx(context.Background(), key)
-}
-
-// InsertDRKeyLvl1Ctx is the context-aware version of InsertDRKey.
-func (db *DB) InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error) {
+func (db *DB) InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error) {
 	res, err := db.insertDRKeyLvl1Stmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
 		key.DstIA.A, key.Epoch.Begin, key.Epoch.End, key.Key)
 	if err != nil {
@@ -224,12 +215,7 @@ func (db *DB) InsertDRKeyLvl1Ctx(ctx context.Context, key *drkey.DRKeyLvl1) (int
 
 // RemoveOutdatedDRKeyLvl1 removes all expired first level DRKeys. I.e. all the keys
 // which expiration time is strictly smaller than the cutoff
-func (db *DB) RemoveOutdatedDRKeyLvl1(cutoff uint32) (int64, error) {
-	return db.RemoveOutdatedDRKeyLvl1Ctx(context.Background(), cutoff)
-}
-
-// RemoveOutdatedDRKeyLvl1Ctx is the context-aware version of RemoveOutdatedDRKeyLvl1.
-func (db *DB) RemoveOutdatedDRKeyLvl1Ctx(ctx context.Context, cutoff uint32) (int64, error) {
+func (db *DB) RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error) {
 	res, err := db.removeOutdatedDRKeyLvl1Stmt.ExecContext(ctx, cutoff)
 	if err != nil {
 		return 0, err
@@ -248,12 +234,7 @@ func (db *DB) GetLvl2Count() int64 {
 // GetDRKeyLvl2 takes a source, destination and additional ISD-AS, a source, destination and
 // additional host, and a timestamp at which the DRKey should be valid and
 // returns a second level DRKey of the request type
-func (db *DB) GetDRKeyLvl2(key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error) {
-	return db.GetDRKeyLvl2Ctx(context.Background(), key, valTime)
-}
-
-// GetDRKeyLvl2Ctx is the context-aware version of GetDRKeyLvl2.
-func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error) {
+func (db *DB) GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error) {
 	var epochBegin int
 	var epochEnd int
 	var bytes common.RawBytes
@@ -288,12 +269,7 @@ func (db *DB) GetDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2, valTime
 }
 
 // InsertDRKeyLvl2 inserts a second-level DRKey.
-func (db *DB) InsertDRKeyLvl2(key *drkey.DRKeyLvl2) (int64, error) {
-	return db.InsertDRKeyLvl2Ctx(context.Background(), key)
-}
-
-// InsertDRKeyLvl2Ctx is the context-aware version of InsertDRKeyLvl2.
-func (db *DB) InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error) {
+func (db *DB) InsertDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error) {
 	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
 		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost,
 		key.Epoch.Begin, key.Epoch.End, key.Key)
@@ -305,12 +281,7 @@ func (db *DB) InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2) (int
 
 // RemoveOutdatedDRKeyLvl2 removes all expired second level DRKeys, I.e. those keys
 // which expiration time is strictly less than the cutoff
-func (db *DB) RemoveOutdatedDRKeyLvl2(cutoff uint32) (int64, error) {
-	return db.RemoveOutdatedDRKeyLvl2Ctx(context.Background(), cutoff)
-}
-
-// RemoveOutdatedDRKeyLvl2Ctx is the context-aware version of RemoveOutdatedDRKeyLvl2.
-func (db *DB) RemoveOutdatedDRKeyLvl2Ctx(ctx context.Context, cutoff uint32) (int64, error) {
+func (db *DB) RemoveOutdatedDRKeyLvl2(ctx context.Context, cutoff uint32) (int64, error) {
 	res, err := db.removeOutdatedDRKeyLvl2Stmt.ExecContext(ctx, cutoff)
 	if err != nil {
 		return 0, err
