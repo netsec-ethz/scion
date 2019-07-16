@@ -129,6 +129,64 @@ func TestDRKeyLvl2(t *testing.T) {
 	})
 }
 
+func TestGetMentionedASes(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	var err error
+	Convey("Insert many rows", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		pairsL1 := [][]interface{}{
+			{"1-ff00:0:111", "1-ff00:0:112", 1},
+			{"1-ff00:0:111", "1-ff00:0:110", 10},
+			{"2-ff00:0:211", "1-ff00:0:113", 1},
+		}
+		for _, p := range pairsL1 {
+			srcIA, _ := addr.IAFromString(p[0].(string))
+			dstIA, _ := addr.IAFromString(p[1].(string))
+			epoch := drkey.NewEpochFromDuration(0, int32(p[2].(int)))
+			key := drkey.NewDRKeyLvl1(*epoch, common.RawBytes{}, srcIA, dstIA)
+			_, err = db.InsertDRKeyLvl1(ctx, key)
+			SoMsg("err", err, ShouldBeNil)
+		}
+
+		Convey("Get all of them", func() {
+			list, err := db.GetValidL1SrcASes(ctx, 0)
+			SoMsg("err", err, ShouldBeNil)
+			expected := []addr.IA{
+				ia("1-ff00:0:111"),
+				ia("2-ff00:0:211"),
+			}
+			SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
+		})
+		Convey("Get about to expire", func() {
+			list, err := db.GetValidL1SrcASes(ctx, 3)
+			SoMsg("err", err, ShouldBeNil)
+			expected := []addr.IA{
+				ia("1-ff00:0:111"),
+			}
+			SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
+		})
+	})
+}
+
+func toMap(list []addr.IA) map[addr.IA]struct{} {
+	set := map[addr.IA]struct{}{}
+	for _, i := range list {
+		set[i] = struct{}{}
+	}
+	return set
+}
+
+func ia(iaStr string) addr.IA {
+	ia, err := addr.IAFromString(iaStr)
+	if err != nil {
+		panic("Invalid value")
+	}
+	return ia
+}
+
 func newDatabase(t *testing.T) (*DB, func()) {
 	file, err := ioutil.TempFile("", "db-test-")
 	if err != nil {

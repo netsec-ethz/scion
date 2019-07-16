@@ -20,6 +20,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 
@@ -71,6 +72,11 @@ const (
 )
 
 const (
+	GetValidL1SrcASes = `
+		SELECT SrcIsdID as I, SrcASID as A FROM DRKeyLvl1
+		WHERE EpochBegin <= ? AND ? < EpochEnd
+		GROUP BY I, A
+	`
 	getDRKeyLvl1 = `
 		SELECT EpochBegin, EpochEnd, Key FROM DRKeyLvl1
 		WHERE SrcIsdID=? AND SrcAsID=? AND DstIsdID=? AND DstAsID=?
@@ -102,11 +108,13 @@ const (
 // DRKeyStore has all the functions dealing with storage/retrieval of DRKeys level 1 and 2
 type DRKeyStore interface {
 	Close() error
-	// Level 1 functions
+	// GetValidL1SrcASes returns a list of distinct IAs that have a still valid L1 key
+	GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
+	// Level 1 specific functions
 	GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
 	InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
 	RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error)
-	// Level 2
+	// Level 2 specific
 	GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
 	InsertDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error)
 	RemoveOutdatedDRKeyLvl2(ctx context.Context, cutoff uint32) (int64, error)
@@ -118,6 +126,7 @@ type DRKeyStore interface {
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
 	db                          *sql.DB
+	GetValidL1SrcASesStmt       *sql.Stmt
 	getDRKeyLvl1Stmt            *sql.Stmt
 	insertDRKeyLvl1Stmt         *sql.Stmt
 	removeOutdatedDRKeyLvl1Stmt *sql.Stmt
@@ -142,6 +151,9 @@ func New(path string) (*DB, error) {
 			keystore.db.Close()
 		}
 	}()
+	if keystore.GetValidL1SrcASesStmt, err = keystore.db.Prepare(GetValidL1SrcASes); err != nil {
+		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+	}
 	if keystore.getDRKeyLvl1Stmt, err = keystore.db.Prepare(getDRKeyLvl1); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
@@ -166,6 +178,31 @@ func New(path string) (*DB, error) {
 // Close closes the database connection.
 func (db *DB) Close() error {
 	return db.db.Close()
+}
+
+// GetValidL1SrcASes returns a list of distinct src IAs seen in the L1 table
+// If the L1 key is still valid according to valTime, its src IA will be in the list
+func (db *DB) GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
+	rows, err := db.GetValidL1SrcASesStmt.QueryContext(ctx, valTime, valTime)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			err = common.NewBasicError(UnableToExecuteStmt, err)
+		}
+		return nil, err
+	}
+	ases := []addr.IA{}
+	for rows.Next() {
+		var I, A int
+		if err := rows.Scan(&I, &A); err != nil {
+			return nil, common.NewBasicError("Cannot copy from SQL to memory", err)
+		}
+		ia := addr.IA{
+			I: addr.ISD(I),
+			A: addr.AS(A),
+		}
+		ases = append(ases, ia)
+	}
+	return ases, nil
 }
 
 // GetLvl1Count returns the number of rows in the level 1 table

@@ -7,6 +7,7 @@ package mock_keystore
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	addr "github.com/scionproto/scion/go/lib/addr"
 	drkey "github.com/scionproto/scion/go/lib/drkey"
 	reflect "reflect"
 )
@@ -76,6 +77,21 @@ func (m *MockDRKeyStore) GetDRKeyLvl2(arg0 context.Context, arg1 *drkey.DRKeyLvl
 func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl2(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl2), arg0, arg1, arg2)
+}
+
+// GetValidL1SrcASes mocks base method
+func (m *MockDRKeyStore) GetValidL1SrcASes(arg0 context.Context, arg1 uint32) ([]addr.IA, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetValidL1SrcASes", arg0, arg1)
+	ret0, _ := ret[0].([]addr.IA)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetValidL1SrcASes indicates an expected call of GetValidL1SrcASes
+func (mr *MockDRKeyStoreMockRecorder) GetValidL1SrcASes(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValidL1SrcASes", reflect.TypeOf((*MockDRKeyStore)(nil).GetValidL1SrcASes), arg0, arg1)
 }
 
 // InsertDRKeyLvl1 mocks base method
