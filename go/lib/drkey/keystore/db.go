@@ -72,6 +72,10 @@ const (
 )
 
 const (
+	GetL1SrcASes = `
+		SELECT SrcIsdID as I, SrcASID as A FROM DRKeyLvl1
+		GROUP BY I, A
+	`
 	GetValidL1SrcASes = `
 		SELECT SrcIsdID as I, SrcASID as A FROM DRKeyLvl1
 		WHERE EpochBegin <= ? AND ? < EpochEnd
@@ -108,12 +112,14 @@ const (
 // DRKeyStore has all the functions dealing with storage/retrieval of DRKeys level 1 and 2
 type DRKeyStore interface {
 	Close() error
-	// GetValidL1SrcASes returns a list of distinct IAs that have a still valid L1 key
-	GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
 	// Level 1 specific functions
 	GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
 	InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
 	RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error)
+	// GetL1SrcASes returns a list of distinct ASes seen in the SRC of a L1 key
+	GetL1SrcASes(ctx context.Context) ([]addr.IA, error)
+	// GetValidL1SrcASes returns a list of distinct IAs that have a still valid L1 key
+	GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
 	// Level 2 specific
 	GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
 	InsertDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error)
@@ -126,6 +132,7 @@ type DRKeyStore interface {
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
 	db                          *sql.DB
+	GetL1SrcASesStmt            *sql.Stmt
 	GetValidL1SrcASesStmt       *sql.Stmt
 	getDRKeyLvl1Stmt            *sql.Stmt
 	insertDRKeyLvl1Stmt         *sql.Stmt
@@ -151,6 +158,9 @@ func New(path string) (*DB, error) {
 			keystore.db.Close()
 		}
 	}()
+	if keystore.GetL1SrcASesStmt, err = keystore.db.Prepare(GetL1SrcASes); err != nil {
+		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+	}
 	if keystore.GetValidL1SrcASesStmt, err = keystore.db.Prepare(GetValidL1SrcASes); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
@@ -178,6 +188,30 @@ func New(path string) (*DB, error) {
 // Close closes the database connection.
 func (db *DB) Close() error {
 	return db.db.Close()
+}
+
+// GetL1SrcASes returns a list of all distinct src IAs seen in the L1 table
+func (db *DB) GetL1SrcASes(ctx context.Context) ([]addr.IA, error) {
+	rows, err := db.GetL1SrcASesStmt.QueryContext(ctx)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			err = common.NewBasicError(UnableToExecuteStmt, err)
+		}
+		return nil, err
+	}
+	ases := []addr.IA{}
+	for rows.Next() {
+		var I, A int
+		if err := rows.Scan(&I, &A); err != nil {
+			return nil, common.NewBasicError("Cannot copy from SQL to memory", err)
+		}
+		ia := addr.IA{
+			I: addr.ISD(I),
+			A: addr.AS(A),
+		}
+		ases = append(ases, ia)
+	}
+	return ases, nil
 }
 
 // GetValidL1SrcASes returns a list of distinct src IAs seen in the L1 table

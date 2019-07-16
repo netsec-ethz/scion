@@ -152,7 +152,7 @@ func TestGetMentionedASes(t *testing.T) {
 		}
 
 		Convey("Get all of them", func() {
-			list, err := db.GetValidL1SrcASes(ctx, 0)
+			list, err := db.GetL1SrcASes(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			expected := []addr.IA{
 				ia("1-ff00:0:111"),
@@ -160,7 +160,7 @@ func TestGetMentionedASes(t *testing.T) {
 			}
 			SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
 		})
-		Convey("Get about to expire", func() {
+		Convey("Get valid ones", func() {
 			list, err := db.GetValidL1SrcASes(ctx, 3)
 			SoMsg("err", err, ShouldBeNil)
 			expected := []addr.IA{

@@ -79,6 +79,21 @@ func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl2(arg0, arg1, arg2 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl2), arg0, arg1, arg2)
 }
 
+// GetL1SrcASes mocks base method
+func (m *MockDRKeyStore) GetL1SrcASes(arg0 context.Context) ([]addr.IA, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetL1SrcASes", arg0)
+	ret0, _ := ret[0].([]addr.IA)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetL1SrcASes indicates an expected call of GetL1SrcASes
+func (mr *MockDRKeyStoreMockRecorder) GetL1SrcASes(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetL1SrcASes", reflect.TypeOf((*MockDRKeyStore)(nil).GetL1SrcASes), arg0)
+}
+
 // GetValidL1SrcASes mocks base method
 func (m *MockDRKeyStore) GetValidL1SrcASes(arg0 context.Context, arg1 uint32) ([]addr.IA, error) {
 	m.ctrl.T.Helper()
