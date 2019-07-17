@@ -48,6 +48,7 @@ var (
 	discRunners      idiscovery.Runners
 	corePusher       *periodic.Runner
 	drkeyStoreKeeper *periodic.Runner
+	drkeyRequester   *periodic.Runner
 	msgr             infra.Messenger
 	trustDB          trustdb.TrustDB
 )
@@ -158,11 +159,21 @@ func startReissRunner() {
 }
 
 func startDRKeyRunners() {
+	// TODO drkeytest: use configuration values instead of hardcoded values
 	drkeyStoreKeeper = periodic.StartPeriodicTask(
 		&drkey.StoreKeeper{
 			State: state,
 		},
 		periodic.NewTicker(5*time.Minute),
+		time.Minute,
+	)
+	drkeyRequester = periodic.StartPeriodicTask(
+		&drkey.Requester{
+			Msgr:  msgr,
+			State: state,
+			IA:    itopo.Get().ISD_AS,
+		},
+		periodic.NewTicker(1*time.Minute),
 		time.Minute,
 	)
 }

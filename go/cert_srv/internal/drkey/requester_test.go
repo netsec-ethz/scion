@@ -15,20 +15,18 @@
 package drkey
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 )
-
-func ia(iaStr string) addr.IA {
-	ia, err := addr.IAFromString(iaStr)
-	if err != nil {
-		panic("Unexpected bad IA")
-	}
-	return ia
-}
 
 func TestUnionSet(t *testing.T) {
 	Convey("Union", t, func() {
@@ -78,5 +76,55 @@ func TestUnionSet(t *testing.T) {
 }
 
 func TestUpdatePending(t *testing.T) {
-	//
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	Convey("From changes in DB", t, func() {
+		ctrl, _, store, requester := setupRequester(t)
+		defer ctrl.Finish()
+
+		SoMsg("pending ASes", len(requester.PendingASes.set), ShouldEqual, 0)
+		asList := []addr.IA{
+			ia("1-ff00:0:111"),
+			ia("1-ff00:0:112"),
+			ia("1-ff00:0:113"),
+		}
+		validAsList := []addr.IA{
+			ia("1-ff00:0:111"),
+		}
+		store.EXPECT().GetL1SrcASes(gomock.Any()).Return(asList, nil)
+		store.EXPECT().GetValidL1SrcASes(gomock.Any(), gomock.Any()).Return(validAsList, nil).Do(
+			func(ctx context.Context, argValidTime uint32) {
+				now := uint32(time.Now().Unix())
+				SoMsg("validTime", argValidTime, ShouldBeGreaterThanOrEqualTo, now)
+				// 60 is how far in the future the key has to be valid
+				SoMsg("validTime", argValidTime, ShouldBeLessThanOrEqualTo, now+uint32(60))
+			})
+		err := requester.UpdatePendingList(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		asList = []addr.IA{
+			ia("1-ff00:0:112"),
+			ia("1-ff00:0:113"),
+		}
+		SoMsg("pending ASes", requester.PendingASes.set, ShouldResemble, setFromList(asList))
+	})
+}
+
+func ia(iaStr string) addr.IA {
+	ia, err := addr.IAFromString(iaStr)
+	if err != nil {
+		panic("Unexpected bad IA")
+	}
+	return ia
+}
+
+func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger, *mock_keystore.MockDRKeyStore, *Requester) {
+	ctrl := gomock.NewController(t)
+	msger := mock_infra.NewMockMessenger(ctrl)
+	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
+	requester := &Requester{
+		State: &config.State{
+			DRKeyStore: drkeyStore,
+		},
+	}
+	return ctrl, msger, drkeyStore, requester
 }
