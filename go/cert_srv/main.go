@@ -160,20 +160,29 @@ func startReissRunner() {
 
 func startDRKeyRunners() {
 	// TODO drkeytest: use configuration values instead of hardcoded values
+	storeKeeperPeriod := 5 * time.Minute
+	requesterPeriod := 1 * time.Minute
+	if storeKeeperPeriod < 2*requesterPeriod {
+		// since the keeper removes keys, the requester must see them before removal at least once
+		fatal.Fatal(common.NewBasicError("DRKey start failed: the removal of expired keys happens "+
+			"too often compared to the request of new L1 keys", nil,
+			"removal period", storeKeeperPeriod, "requester period", requesterPeriod))
+	}
 	drkeyStoreKeeper = periodic.StartPeriodicTask(
 		&drkey.StoreKeeper{
 			State: state,
 		},
-		periodic.NewTicker(5*time.Minute),
+		periodic.NewTicker(storeKeeperPeriod),
 		time.Minute,
 	)
+	// TODO drkeytest: check the timeout value
 	drkeyRequester = periodic.StartPeriodicTask(
 		&drkey.Requester{
 			Msgr:  msgr,
 			State: state,
 			IA:    itopo.Get().ISD_AS,
 		},
-		periodic.NewTicker(1*time.Minute),
+		periodic.NewTicker(requesterPeriod),
 		time.Minute,
 	)
 }

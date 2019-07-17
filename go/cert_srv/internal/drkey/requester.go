@@ -22,9 +22,13 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey/keystore"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var _ periodic.Task = (*Requester)(nil)
@@ -40,9 +44,15 @@ type Requester struct {
 // Run requests L1 keys from other CSs
 func (r *Requester) Run(ctx context.Context) {
 	// update pending ASes list
-	r.UpdatePendingList(ctx)
+	err := r.UpdatePendingList(ctx)
+	if err != nil {
+		log.Error("[drkey.Run] Error updating pending L1 keys", "err", err)
+	}
 	// obtain L1 for each pending AS
-	r.ProcessPendingList(ctx)
+	err = r.ProcessPendingList(ctx)
+	if err != nil {
+		log.Error("[drkey.Run] Error requesting pending L1 keys", "err", err)
+	}
 }
 
 // UpdatePendingList returns the list of ASes we have to query for their L1 keys
@@ -67,8 +77,27 @@ func (r *Requester) UpdatePendingList(ctx context.Context) error {
 }
 
 // ProcessPendingList should request an L1 key for each one of the pending ASes
-func (r *Requester) ProcessPendingList(ctx context.Context) {
-	// TODO drkeytest:
+func (r *Requester) ProcessPendingList(ctx context.Context) error {
+	errors := []error{}
+	// get pending ASes
+	timePoint := uint32(time.Now().Unix()) // TODO drkeytest: this is not enough!
+	pending := r.PendingASes.Get()
+	for p := range pending {
+		// for each one, request their certificates
+		err := r.requestL1(ctx, p, timePoint)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	var err error
+	if len(errors) > 0 {
+		params := []interface{}{}
+		for _, e := range errors {
+			params = append(params, "err", e)
+		}
+		err = common.NewBasicError("Errors requesting L1 keys", nil, params...)
+	}
+	return err
 }
 
 // getL1SrcIAsFromKeystore returns a set of IAs seen as sources in L1 keys in the DB
@@ -88,6 +117,37 @@ func (r *Requester) getL1SrcIAsFromKSStillValid(ctx context.Context) (asSet, err
 		return nil, common.NewBasicError("Cannot obtain still valid DRKey L1 src IAs from DB", err)
 	}
 	return setFromList(list), nil
+}
+
+func (r *Requester) requestL1(ctx context.Context, pending addr.IA, valTime uint32) error {
+	csAddr := &snet.Addr{
+		IA:   pending,
+		Host: addr.NewSVCUDPAppAddr(addr.SvcCS),
+	}
+	req := drkey_mgmt.NewDRKeyLvl1Req(pending, valTime)
+	reply, err := r.Msgr.RequestDRKeyLvl1(ctx, req, csAddr, messenger.NextId())
+	if err != nil {
+		return err
+	}
+	// TODO drkeytest: we have a handler for L1 replies. Can we send the request and return ?
+	return r.processReply(ctx, reply, pending)
+}
+
+func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
+	// Get the newest certificate for the remote AS
+	dstIA := reply.DstIA()
+	chain, err := ObtainChain(ctx, dstIA, r.State.TrustDB, r.Msgr)
+	if err != nil {
+		return common.NewBasicError("Error obtaining cert. chain", err, "IA", dstIA)
+	}
+	privateKey := r.State.GetDecryptKey()
+	key, err := Level1KeyFromReply(reply, srcIA, chain.Leaf, privateKey)
+	if err != nil {
+		return common.NewBasicError("error processing reply", err, "srcIA", srcIA)
+	}
+	// now store key!
+	_, err = r.State.DRKeyStore.InsertDRKeyLvl1(ctx, key)
+	return err
 }
 
 type asSet map[addr.IA]struct{}

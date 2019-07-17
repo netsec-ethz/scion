@@ -204,7 +204,10 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		IA:    topo.ISD_AS,
 		Msger: msgr,
 	})
-	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Level1ReplyHandler{})
+	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Level1ReplyHandler{
+		State: state,
+		Msger: msgr,
+	})
 	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Level2ReqHandler{
 		State: state,
 		IA:    topo.ISD_AS,
