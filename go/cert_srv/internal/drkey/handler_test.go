@@ -31,8 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
-	"github.com/scionproto/scion/go/lib/keyconf"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -233,41 +231,19 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 	})
 }
 
-func getTestSV() *drkey.DRKeySV {
-	return &drkey.DRKeySV{
-		Epoch: drkey.Epoch{
-			Begin: 0,
-			End:   1,
-		},
-		Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	}
-}
+func setupHandler(t *testing.T, thisIA addr.IA, confDir string) (*gomock.Controller,
+	*mock_infra.MockMessenger, *mock_trustdb.MockTrustDB, *mock_keystore.MockDRKeyStore,
+	*Level2ReqHandler) {
 
-func loadCertsKeys(t *testing.T) (*cert.Certificate, common.RawBytes, *cert.Certificate, common.RawBytes) {
-	loadChain := func(filename string, t *testing.T) *cert.Chain {
-		chain, err := cert.ChainFromFile(filename, false)
-		if err != nil {
-			t.Fatalf("Error loading Certificate from '%s': %v", filename, err)
-		}
-		return chain
-	}
-	cert111 := loadChain("testdata/as111/certs/ISD1-ASff00_0_111-V1.crt", t).Leaf
-	privateKey111, _ := keyconf.LoadKey("testdata/as111/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
-	cert112 := loadChain("testdata/as112/certs/ISD1-ASff00_0_112-V1.crt", t).Leaf
-	privateKey112, _ := keyconf.LoadKey("testdata/as112/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
-	return cert111, privateKey111, cert112, privateKey112
-}
-
-func setupHandler(t *testing.T, thisIA addr.IA, confDir string) (*gomock.Controller, *mock_infra.MockMessenger, *mock_trustdb.MockTrustDB, *mock_keystore.MockDRKeyStore, *Level2ReqHandler) {
 	ctrl := gomock.NewController(t)
 	msger := mock_infra.NewMockMessenger(ctrl)
-	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
 	trustDB := mock_trustdb.NewMockTrustDB(ctrl)
+	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
 
 	handler := &Level2ReqHandler{
 		State: &config.State{
-			DRKeyStore: drkeyStore,
 			TrustDB:    trustDB,
+			DRKeyStore: drkeyStore,
 		},
 		IA:    thisIA,
 		Msger: msger,

@@ -135,6 +135,9 @@ func (r *Requester) requestL1(ctx context.Context, pending addr.IA, valTime uint
 
 func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
 	// Get the newest certificate for the remote AS
+	if reply == nil {
+		return common.NewBasicError("reply was empty (nil)", nil)
+	}
 	dstIA := reply.DstIA()
 	chain, err := ObtainChain(ctx, dstIA, r.State.TrustDB, r.Msgr)
 	if err != nil {

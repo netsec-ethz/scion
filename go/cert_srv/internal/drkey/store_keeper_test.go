@@ -27,17 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 )
 
-func setupStoreKeeper(t *testing.T) (*gomock.Controller, *mock_keystore.MockDRKeyStore, periodic.Task) {
-	ctrl := gomock.NewController(t)
-	store := mock_keystore.NewMockDRKeyStore(ctrl)
-	keeper := &StoreKeeper{
-		State: &config.State{
-			DRKeyStore: store,
-		},
-	}
-	return ctrl, store, keeper
-}
-
 func TestEmptyDB(t *testing.T) {
 	Convey("Test empty DB", t, func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
@@ -56,4 +45,15 @@ func TestEmptyDB(t *testing.T) {
 		_ = match
 		task.Run(ctx)
 	})
+}
+
+func setupStoreKeeper(t *testing.T) (*gomock.Controller, *mock_keystore.MockDRKeyStore, periodic.Task) {
+	ctrl := gomock.NewController(t)
+	store := mock_keystore.NewMockDRKeyStore(ctrl)
+	keeper := &StoreKeeper{
+		State: &config.State{
+			DRKeyStore: store,
+		},
+	}
+	return ctrl, store, keeper
 }

@@ -24,8 +24,12 @@ import (
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/xtest/matchers"
 )
 
 func TestUnionSet(t *testing.T) {
@@ -79,7 +83,8 @@ func TestUpdatePending(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	Convey("From changes in DB", t, func() {
-		ctrl, _, store, requester := setupRequester(t)
+		// TODO drkeytest: check that pending doesn't contain itself
+		ctrl, _, _, store, requester := setupRequester(t)
 		defer ctrl.Finish()
 
 		SoMsg("pending ASes", len(requester.PendingASes.set), ShouldEqual, 0)
@@ -109,22 +114,58 @@ func TestUpdatePending(t *testing.T) {
 	})
 }
 
-func ia(iaStr string) addr.IA {
-	ia, err := addr.IAFromString(iaStr)
-	if err != nil {
-		panic("Unexpected bad IA")
-	}
-	return ia
+func TestProcessPending(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelF()
+	Convey("Replies are on time", t, func() {
+		// TODO drkeytest: if we move the logic of processing the reply to the reply handler only, remove half of this test
+		ctrl, msger, trustDB, store, requester := setupRequester(t)
+		defer ctrl.Finish()
+
+		pending := []addr.IA{
+			ia("1-ff00:0:112"),
+			ia("1-ff00:0:113"),
+		}
+		requester.PendingASes.set = setFromList(pending)
+		_, privateKey111, cert112, _ := loadCertsKeys(t)
+		// use the same cert for both ASes (simplifies test):
+		trustDB.EXPECT().GetChainMaxVersion(gomock.Any(), gomock.Any()).Return(&cert.Chain{Leaf: cert112}, nil).Times(2)
+		newReply := func(srcIA addr.IA) *drkey_mgmt.DRKeyLvl1Rep {
+			dstIA := ia("1-ff00:0:111")
+			replyTo111, err := Level1KeyBuildReply(srcIA, dstIA, getTestSV(), cert112, privateKey111)
+			if err != nil {
+				panic("Logic error")
+			}
+			return replyTo111
+		}
+		// both replies are encrypted using the same cert:
+		msger.EXPECT().RequestDRKeyLvl1(gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(
+			pending[0]), gomock.Any()).Return(newReply(pending[0]), nil)
+		msger.EXPECT().RequestDRKeyLvl1(gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(
+			pending[1]), gomock.Any()).Return(newReply(pending[1]), nil)
+		store.EXPECT().InsertDRKeyLvl1(gomock.Any(), gomock.Any()).Times(2)
+		err := requester.ProcessPendingList(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		_ = store
+	})
+	Convey("On reply takes forever but doesn't block the rest", t, func() {
+		// TODO drkeytest: better if we don't have to do this but rely on the L1 handler
+	})
 }
 
-func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger, *mock_keystore.MockDRKeyStore, *Requester) {
+// setupRequester prepares the requester for ff00:0:111
+func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger, *mock_trustdb.MockTrustDB, *mock_keystore.MockDRKeyStore, *Requester) {
 	ctrl := gomock.NewController(t)
 	msger := mock_infra.NewMockMessenger(ctrl)
+	trustDB := mock_trustdb.NewMockTrustDB(ctrl)
 	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
 	requester := &Requester{
-		State: &config.State{
-			DRKeyStore: drkeyStore,
-		},
+		Msgr: msger,
 	}
-	return ctrl, msger, drkeyStore, requester
+	var err error
+	requester.State, err = config.LoadState("testdata/as111/", false, trustDB, nil, drkeyStore)
+	if err != nil {
+		t.Fatalf("Error loading state")
+	}
+	return ctrl, msger, trustDB, drkeyStore, requester
 }
