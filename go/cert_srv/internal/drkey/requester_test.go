@@ -76,3 +76,7 @@ func TestUnionSet(t *testing.T) {
 		SoMsg("difference", diff, ShouldResemble, asSet{})
 	})
 }
+
+func TestUpdatePending(t *testing.T) {
+	//
+}

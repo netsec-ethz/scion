@@ -17,9 +17,12 @@ package drkey
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/drkey/keystore"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
@@ -37,28 +40,54 @@ type Requester struct {
 // Run requests L1 keys from other CSs
 func (r *Requester) Run(ctx context.Context) {
 	// update pending ASes list
-	r.UpdatePendingList()
+	r.UpdatePendingList(ctx)
 	// obtain L1 for each pending AS
-	r.ProcessPendingList()
+	r.ProcessPendingList(ctx)
 }
 
 // UpdatePendingList returns the list of ASes we have to query for their L1 keys
-func (r *Requester) UpdatePendingList() {
+func (r *Requester) UpdatePendingList(ctx context.Context) error {
 	// get ASes from DRKey store
-	var asesFromDRKeyStore asSet // TODO drkeytest
+	asesFromDRKeyStore, err := r.getL1SrcIAsFromKeystore(ctx)
+	if err != nil {
+		return common.NewBasicError("[drkey.Requester] failed to get all IAs from DB", err)
+	}
 	// get ASes from the trustDB
-	var asesFromTrustDB asSet // TODO drkeytest: get all known ASes
+	var asesFromTrustDB asSet // TODO drkeytest: get all known ASes (from trust DB ?)
 	// unite the two sets
 	pendingASes := unionSet(asesFromDRKeyStore, asesFromTrustDB)
 	// up to date ASes from DRKey store
-	var asesOkFromDRKeyStore asSet // TODO drkeytest
+	asesOkFromDRKeyStore, err := r.getL1SrcIAsFromKSStillValid(ctx)
+	if err != nil {
+		return common.NewBasicError("[drkey.Requester] failed to get valid IAs from DB", err)
+	}
 	// difference of previous set with up to date L1s from DB
 	r.PendingASes.Set(unionDifference(pendingASes, asesOkFromDRKeyStore))
+	return nil
 }
 
 // ProcessPendingList should request an L1 key for each one of the pending ASes
-func (r *Requester) ProcessPendingList() {
+func (r *Requester) ProcessPendingList(ctx context.Context) {
 	// TODO drkeytest:
+}
+
+// getL1SrcIAsFromKeystore returns a set of IAs seen as sources in L1 keys in the DB
+func (r *Requester) getL1SrcIAsFromKeystore(ctx context.Context) (asSet, error) {
+	list, err := r.State.DRKeyStore.GetL1SrcASes(ctx)
+	if err != nil && err != keystore.ErrNoKeys {
+		return nil, common.NewBasicError("Cannot obtain DRKey L1 src IAs from DB", err)
+	}
+	return setFromList(list), nil
+}
+
+func (r *Requester) getL1SrcIAsFromKSStillValid(ctx context.Context) (asSet, error) {
+	// TODO drkeytest: that 60 should be a configuration parameter
+	futurePointInTime := uint32(time.Now().Unix()) + uint32(60)
+	list, err := r.State.DRKeyStore.GetValidL1SrcASes(ctx, futurePointInTime)
+	if err != nil && err != keystore.ErrNoKeys {
+		return nil, common.NewBasicError("Cannot obtain still valid DRKey L1 src IAs from DB", err)
+	}
+	return setFromList(list), nil
 }
 
 type asSet map[addr.IA]struct{}
@@ -111,4 +140,12 @@ func unionDifference(a, b asSet) asSet {
 		delete(diff, i)
 	}
 	return diff
+}
+
+func setFromList(l []addr.IA) asSet {
+	ret := asSet{}
+	for _, i := range l {
+		ret[i] = struct{}{}
+	}
+	return ret
 }
