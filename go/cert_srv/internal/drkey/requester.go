@@ -16,6 +16,7 @@ package drkey
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,8 +72,10 @@ func (r *Requester) UpdatePendingList(ctx context.Context) error {
 	if err != nil {
 		return common.NewBasicError("[drkey.Requester] failed to get valid IAs from DB", err)
 	}
+	// remove ourselves
+	delete(pendingASes, r.IA)
 	// difference of previous set with up to date L1s from DB
-	r.PendingASes.Set(unionDifference(pendingASes, asesOkFromDRKeyStore))
+	r.PendingASes.Set(differenceSet(pendingASes, asesOkFromDRKeyStore))
 	return nil
 }
 
@@ -155,6 +158,14 @@ func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl
 
 type asSet map[addr.IA]struct{}
 
+func (s *asSet) String() string {
+	ases := make([]string, len(*s))
+	for a := range *s {
+		ases = append(ases, a.String())
+	}
+	return strings.Join(ases, ", ")
+}
+
 // pendingL1 keeps the AS list for which we have to request their L1 DRKey
 type pendingL1 struct {
 	set     asSet
@@ -193,8 +204,8 @@ func unionSet(a, b asSet) asSet {
 	return union
 }
 
-// unionDifference computes the set difference A - B : elements of A not in B
-func unionDifference(a, b asSet) asSet {
+// differenceSet computes the set difference A - B : elements of A not in B
+func differenceSet(a, b asSet) asSet {
 	diff := make(asSet)
 	for i := range a {
 		diff[i] = struct{}{}

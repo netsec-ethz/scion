@@ -70,11 +70,11 @@ func TestUnionSet(t *testing.T) {
 		expected := asSet{
 			ia("1-ff00:0:112"): struct{}{},
 		}
-		diff := unionDifference(a, b)
+		diff := differenceSet(a, b)
 		SoMsg("difference", diff, ShouldResemble, expected)
-		diff = unionDifference(a, asSet{})
+		diff = differenceSet(a, asSet{})
 		SoMsg("difference", diff, ShouldResemble, a)
-		diff = unionDifference(asSet{}, a)
+		diff = differenceSet(asSet{}, a)
 		SoMsg("difference", diff, ShouldResemble, asSet{})
 	})
 }
@@ -83,7 +83,6 @@ func TestUpdatePending(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	Convey("From changes in DB", t, func() {
-		// TODO drkeytest: check that pending doesn't contain itself
 		ctrl, _, _, store, requester := setupRequester(t)
 		defer ctrl.Finish()
 
@@ -94,7 +93,7 @@ func TestUpdatePending(t *testing.T) {
 			ia("1-ff00:0:113"),
 		}
 		validAsList := []addr.IA{
-			ia("1-ff00:0:111"),
+			ia("1-ff00:0:112"),
 		}
 		store.EXPECT().GetL1SrcASes(gomock.Any()).Return(asList, nil)
 		store.EXPECT().GetValidL1SrcASes(gomock.Any(), gomock.Any()).Return(validAsList, nil).Do(
@@ -107,7 +106,6 @@ func TestUpdatePending(t *testing.T) {
 		err := requester.UpdatePendingList(ctx)
 		SoMsg("err", err, ShouldBeNil)
 		asList = []addr.IA{
-			ia("1-ff00:0:112"),
 			ia("1-ff00:0:113"),
 		}
 		SoMsg("pending ASes", requester.PendingASes.set, ShouldResemble, setFromList(asList))
@@ -161,6 +159,7 @@ func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger
 	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
 	requester := &Requester{
 		Msgr: msger,
+		IA:   ia("1-ff00:0:111"),
 	}
 	drkeyStore.EXPECT().SetMasterKey(gomock.Any())
 	var err error
