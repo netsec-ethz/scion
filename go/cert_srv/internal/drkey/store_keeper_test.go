@@ -34,9 +34,9 @@ func TestEmptyDB(t *testing.T) {
 		ctrl, store, task := setupStoreKeeper(t)
 		defer ctrl.Finish()
 		cutoff := uint32(time.Now().Unix())
-		tolerance := uint32(1)
+		tolerance := uint32((5 * time.Minute).Seconds())
 		match := func(ctx context.Context, cutoffArg uint32) {
-			SoMsg("cutoff", cutoffArg, ShouldBeGreaterThanOrEqualTo, cutoff-tolerance)
+			SoMsg("cutoff", cutoffArg, ShouldBeGreaterThanOrEqualTo, cutoff-1)
 			SoMsg("cutoff", cutoffArg, ShouldBeLessThanOrEqualTo, cutoff+tolerance)
 		}
 		store.EXPECT().RemoveOutdatedDRKeyLvl1(gomock.Any(), gomock.Any()).Do(match)

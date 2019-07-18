@@ -299,11 +299,12 @@ type DrKeyLvl2RequestHandler struct {
 func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
-	// TODO drkeytest: get a context with timeout?
 	logger := log.FromCtx(ctx)
 	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", pld.DRKeyLvl2Req)
+	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
+	defer workCancelF()
 	csAddress := &snet.Addr{IA: h.Topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	rep, err := h.Msger.RequestDRKeyLvl2(ctx, pld.DRKeyLvl2Req, csAddress, messenger.NextId())
+	rep, err := h.Msger.RequestDRKeyLvl2(workCtx, pld.DRKeyLvl2Req, csAddress, messenger.NextId())
 	if err != nil {
 		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)
 		return

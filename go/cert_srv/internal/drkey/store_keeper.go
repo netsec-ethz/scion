@@ -28,12 +28,12 @@ var _ periodic.Task = (*StoreKeeper)(nil)
 // StoreKeeper is in charge of keeping the DB clean of expired entries
 type StoreKeeper struct {
 	State *config.State
-	// TODO drkeytest: add a cutoff tolerance value in csconfig
 }
 
 // Run keeps the expired DRKeys out of the DB
 func (k *StoreKeeper) Run(ctx context.Context) {
-	cutoff := uint32(time.Now().Unix())
+	// add 5m to the current time to leave the keys expiring in the next 5 minutes in the DB
+	cutoff := uint32(time.Now().Add(5 * time.Minute).Unix())
 	log.Trace("[drkey.StoreKeeper] Runs now", "cutoff", cutoff)
 	log.Trace("[drkey.StoreKeeper] Calling RemoveOutDatedDRKeyL1 now")
 	count, err := k.State.DRKeyStore.RemoveOutdatedDRKeyLvl1(ctx, cutoff)

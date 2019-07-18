@@ -54,7 +54,6 @@ func TestDRKeyLvl1(t *testing.T) {
 		SoMsg("drkey", sv, ShouldNotBeNil)
 		err := sv.SetKey(asMasterPassword, *epoch)
 		SoMsg("drkey", err, ShouldBeNil)
-		// TODO: drkeytest: check the key itself?
 
 		drkeyLvl1 := drkey.NewDRKeyLvl1(*epoch, common.RawBytes{},
 			addr.IAFromRaw(rawSrcIA), addr.IAFromRaw(rawDstIA))

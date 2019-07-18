@@ -5,16 +5,14 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 
-# TODO drkeytest: review this:
 struct DRKeyLvl1Req {
-    # srcIa @0 :UInt64;     # Src ISD-AS of the requested DRKey
-    dstIa @0 :UInt64;     # Src ISD-AS of the requested DRKey
+    dstIa @0 :UInt64;     # Dst ISD-AS of the requested DRKey
     valTime @1 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
     timestamp @2 :UInt32; # Point in time when the request was created
 }
 
 struct DRKeyLvl1Rep {
-    dstIa @0 :UInt64;      # Src ISD-AS of the DRKey
+    dstIa @0 :UInt64;      # Dst ISD-AS of the DRKey
     epochBegin @1 :UInt32; # Begin of validity period of DRKey
     epochEnd @2 :UInt32;   # End of validity period of DRKey
     cipher @3 :Data;       # Encrypted DRKey

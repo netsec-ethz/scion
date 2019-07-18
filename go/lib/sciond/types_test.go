@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-// TODO drkeytest add UT for DRKey
 func TestNewPathInterface(t *testing.T) {
 	testCases := []struct {
 		Name  string

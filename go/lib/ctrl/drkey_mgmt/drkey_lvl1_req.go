@@ -29,8 +29,6 @@ var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
 
 // DRKeyLvl1Req represents a level 1 request between certificate servers
 type DRKeyLvl1Req struct {
-	// TODO drkeytest: why src IA instead of dst IA ?
-	// SrcIa     addr.IAInt
 	DstIa     addr.IAInt
 	ValTime   uint32
 	Timestamp uint32
