@@ -17,8 +17,10 @@ package config
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
@@ -32,7 +34,11 @@ func TestLoadState(t *testing.T) {
 	issSig, _ := keyconf.LoadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
 	online, _ := keyconf.LoadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
 	Convey("Load core state", t, func() {
-		state, err := LoadState("testdata", true, nil, nil, nil)
+		ctrl, drkeystore := setupState(t)
+		defer ctrl.Finish()
+
+		drkeystore.EXPECT().SetMasterKey(gomock.Any())
+		state, err := LoadState("testdata", true, nil, nil, drkeystore)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
@@ -44,7 +50,11 @@ func TestLoadState(t *testing.T) {
 	})
 
 	Convey("Load non-core state", t, func() {
-		state, err := LoadState("testdata", false, nil, nil, nil)
+		ctrl, drkeystore := setupState(t)
+		defer ctrl.Finish()
+
+		drkeystore.EXPECT().SetMasterKey(gomock.Any())
+		state, err := LoadState("testdata", false, nil, nil, drkeystore)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
@@ -54,4 +64,10 @@ func TestLoadState(t *testing.T) {
 		SoMsg("Online", state.keyConf.OnRootKey, ShouldBeZeroValue)
 		SoMsg("Offline", state.keyConf.OffRootKey, ShouldBeZeroValue)
 	})
+}
+
+func setupState(t *testing.T) (*gomock.Controller, *mock_keystore.MockDRKeyStore) {
+	ctrl := gomock.NewController(t)
+	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
+	return ctrl, drkeyStore
 }

@@ -38,6 +38,10 @@ const (
 	ReissReqRate = 10 * time.Second
 	// ReissueReqTimeout is the default timeout of a reissue request.
 	ReissueReqTimeout = 5 * time.Second
+	// DRKeyStoreDefaultLocation is where the drkey db file is located
+	DRKeyStoreDefaultLocation = "/var/lib/scion/spki/cs-1.drkey.store.db"
+	// DRKeyDefaultDuration is the default duration for the drkey SV and derived keys
+	DRKeyDefaultDuration = 24 * time.Hour
 
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorCustomers = "Unable to load Customers"
@@ -117,6 +121,8 @@ type CSConfig struct {
 	AutomaticRenewal bool
 	// Key store for DRKey
 	DRKeyStore string
+	// Duration of DRKey SV
+	DRKeyDuration util.DurWrap
 }
 
 func (cfg *CSConfig) InitDefaults() {
@@ -133,7 +139,10 @@ func (cfg *CSConfig) InitDefaults() {
 		cfg.ReissueTimeout.Duration = ReissueReqTimeout
 	}
 	if cfg.DRKeyStore == "" {
-		cfg.DRKeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
+		cfg.DRKeyStore = DRKeyStoreDefaultLocation
+	}
+	if cfg.DRKeyDuration.Duration == 0 {
+		cfg.DRKeyDuration.Duration = DRKeyDefaultDuration
 	}
 }
 

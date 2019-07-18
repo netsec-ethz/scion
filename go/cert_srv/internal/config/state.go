@@ -68,6 +68,7 @@ func (s *State) loadKeyConf(confDir string, isCore bool) error {
 	if err != nil {
 		return common.NewBasicError(ErrorKeyConf, err)
 	}
+	s.DRKeyStore.SetMasterKey(s.keyConf.Master.Key0)
 	return nil
 }
 

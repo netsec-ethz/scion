@@ -162,6 +162,7 @@ func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger
 	requester := &Requester{
 		Msgr: msger,
 	}
+	drkeyStore.EXPECT().SetMasterKey(gomock.Any())
 	var err error
 	requester.State, err = config.LoadState("testdata/as111/", false, trustDB, nil, drkeyStore)
 	if err != nil {

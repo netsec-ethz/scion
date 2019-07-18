@@ -17,6 +17,8 @@ package keystore
 import (
 	"context"
 	"database/sql"
+	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -109,16 +111,25 @@ const (
 	`
 )
 
+type SecretValueStore interface {
+	// Secret Value store
+	GetKeyDuration() time.Duration
+	SetKeyDuration(duration time.Duration) error
+	GetMasterKey() common.RawBytes
+	SetMasterKey(key common.RawBytes) error
+	SecretValue() (*drkey.DRKeySV, error)
+}
+
 // DRKeyStore has all the functions dealing with storage/retrieval of DRKeys level 1 and 2
 type DRKeyStore interface {
+	SecretValueStore
+	// General management
 	Close() error
 	// Level 1 specific functions
 	GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
 	InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
 	RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error)
-	// GetL1SrcASes returns a list of distinct ASes seen in the SRC of a L1 key
 	GetL1SrcASes(ctx context.Context) ([]addr.IA, error)
-	// GetValidL1SrcASes returns a list of distinct IAs that have a still valid L1 key
 	GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
 	// Level 2 specific
 	GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
@@ -126,11 +137,30 @@ type DRKeyStore interface {
 	RemoveOutdatedDRKeyLvl2(ctx context.Context, cutoff uint32) (int64, error)
 }
 
+// SecretValueSimpleStore stores the secret value
+type SecretValueSimpleStore struct {
+	timeNowFcn  func() time.Time
+	keyDuration time.Duration
+	masterKey   common.RawBytes
+	currMutex   sync.RWMutex
+	currIdx     int
+	currSV      *drkey.DRKeySV
+	nextSV      *drkey.DRKeySV
+}
+
+func (s *SecretValueSimpleStore) initDefaultValues() {
+	s.timeNowFcn = time.Now
+	s.keyDuration = 24 * time.Hour
+}
+
 // DB is a database containing first order and second order DRKeys, stored in JSON format.
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
+	// keyDuration                 time.Duration
+	// masterKey                   common.RawBytes
+	sv                          SecretValueSimpleStore
 	db                          *sql.DB
 	GetL1SrcASesStmt            *sql.Stmt
 	GetValidL1SrcASesStmt       *sql.Stmt
@@ -182,6 +212,7 @@ func New(path string) (*DB, error) {
 	if keystore.removeOutdatedDRKeyLvl2Stmt, err = keystore.db.Prepare(removeOutdatedDRKeyLvl2); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
+	keystore.sv.initDefaultValues()
 	return keystore, nil
 }
 
@@ -190,7 +221,82 @@ func (db *DB) Close() error {
 	return db.db.Close()
 }
 
-// GetL1SrcASes returns a list of all distinct src IAs seen in the L1 table
+func (db *DB) GetKeyDuration() time.Duration {
+	return db.sv.keyDuration
+}
+
+func (db *DB) SetKeyDuration(duration time.Duration) error {
+	db.sv.keyDuration = duration
+	return nil
+}
+
+func (db *DB) GetMasterKey() common.RawBytes {
+	return db.sv.masterKey
+}
+
+func (db *DB) SetMasterKey(key common.RawBytes) error {
+	// test this master key now
+	sv := drkey.DRKeySV{}
+	err := sv.SetKey(key, *drkey.NewEpoch(uint32(0), uint32(1)))
+	if err != nil {
+		return common.NewBasicError("Cannot use this master key as the secret for DRKey", err)
+	}
+	db.sv.masterKey = key
+	return nil
+}
+
+// SecretValue will return the DRKey secret value. It will check the cache and if not up to date,
+// will derive a new secret value and use it
+func (db *DB) SecretValue() (*drkey.DRKeySV, error) {
+	db.sv.currMutex.RLock()
+	// TODO drkeytest: check that there are no key duration conf. changes affecting emitted keys
+	now := db.sv.timeNowFcn().Unix()
+	duration := int64(db.sv.keyDuration / time.Second) // duration in seconds
+	idx := now / duration
+	updateCurrent := func() error {
+		db.sv.currMutex.Lock()
+		defer db.sv.currMutex.Unlock()
+		if db.sv.currIdx != int(idx) {
+			newSV := func(idx int64) (*drkey.DRKeySV, error) {
+				begin := uint32(idx * duration)
+				end := begin + uint32(duration)
+				epoch := drkey.NewEpoch(begin, end)
+				key := &drkey.DRKeySV{Epoch: *epoch}
+				err := key.SetKey(db.sv.masterKey, *epoch)
+				if err != nil {
+					return nil, common.NewBasicError("Cannot establish the DRKey secret value", err)
+				}
+				return key, nil
+			}
+			if db.sv.nextSV == nil {
+				k, err := newSV(idx)
+				if err != nil {
+					return err
+				}
+				db.sv.nextSV = k
+			}
+			db.sv.currSV = db.sv.nextSV
+			k, err := newSV(idx + 1)
+			if err != nil {
+				return err
+			}
+			db.sv.nextSV = k
+			db.sv.currIdx = int(idx)
+		}
+		return nil
+	}
+	if db.sv.currIdx != int(idx) {
+		db.sv.currMutex.RUnlock()
+		if err := updateCurrent(); err != nil {
+			return nil, err
+		}
+	} else {
+		defer db.sv.currMutex.RUnlock()
+	}
+	return db.sv.currSV, nil
+}
+
+// GetL1SrcASes returns a list of distinct ASes seen in the SRC of a L1 key
 func (db *DB) GetL1SrcASes(ctx context.Context) ([]addr.IA, error) {
 	rows, err := db.GetL1SrcASesStmt.QueryContext(ctx)
 	if err != nil {
@@ -214,7 +320,7 @@ func (db *DB) GetL1SrcASes(ctx context.Context) ([]addr.IA, error) {
 	return ases, nil
 }
 
-// GetValidL1SrcASes returns a list of distinct src IAs seen in the L1 table
+// GetValidL1SrcASes returns a list of distinct IAs that have a still valid L1 key
 // If the L1 key is still valid according to valTime, its src IA will be in the list
 func (db *DB) GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
 	rows, err := db.GetValidL1SrcASesStmt.QueryContext(ctx, valTime, valTime)

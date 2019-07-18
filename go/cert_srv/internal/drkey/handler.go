@@ -61,7 +61,11 @@ func (h *Level1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	dstIA := req.DstIa.IA()
 	log.Debug("[DRKeyLevel1ReqHandler] Received request", "srcIA", srcIA, "dstIA", dstIA)
 
-	sv := getSecretValue()
+	sv, err := h.State.DRKeyStore.SecretValue()
+	if err != nil {
+		log.Error("[DRKeyLevel1ReqHandler] Unable to get secret value", "err", err)
+		return infra.MetricsErrInternal
+	}
 	// Get the newest certificate for the remote AS
 	dstChain, err := ObtainChain(ctx, dstIA, h.State.TrustDB, h.Msger)
 	if err != nil {
@@ -150,13 +154,6 @@ func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.DRKeySV, cert *cert.Cer
 		CertVerDst: cert.Version,
 	}
 	return
-}
-
-func getSecretValue() *drkey.DRKeySV {
-	// TODO: drkeytest: add the SV to the configuration
-	return &drkey.DRKeySV{
-		Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	}
 }
 
 func validateReq(srcIA, dstIA addr.IA) error {
@@ -276,7 +273,11 @@ func (h *Level2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 
 	// TODO drkeytest: should we always send something, to signal e.g. sciond there was an error, and avoid the timeout?
 	// E.g. when we request an AS2Host key but leave the host addr empty, sciond waits until timeout
-	sv := getSecretValue()
+	sv, err := h.State.DRKeyStore.SecretValue()
+	if err != nil {
+		log.Error("[DRKeyLevel2ReqHandler] Unable to get secret value", "err", err)
+		return infra.MetricsErrInternal
+	}
 	reply, err := h.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 	if err != nil {
 		log.Error("[DRKeyLevel2ReqHandler] Could not build reply", "err", err)
@@ -365,10 +366,9 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 }
 
 func (h *Level2ReqHandler) getL1KeyFromOtherCS(ctx context.Context, srcIA, dstIA addr.IA, valTime uint32) (*drkey.DRKeyLvl1, error) {
-	// TODO drkeytest: use some cache in the state ?
-	chain, err := h.State.TrustDB.GetChainMaxVersion(ctx, srcIA)
+	chain, err := ObtainChain(ctx, srcIA, h.State.TrustDB, h.Msger)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to fetch certificate for remote AS", err)
+		return nil, common.NewBasicError("Unable to fetch certificate for remote host", err)
 	}
 	privateKey := h.State.GetDecryptKey()
 	// TODO drkeytest: move this to only request L1 from a requester (a la reiss.requester)

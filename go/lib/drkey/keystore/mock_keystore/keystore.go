@@ -8,8 +8,10 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
+	common "github.com/scionproto/scion/go/lib/common"
 	drkey "github.com/scionproto/scion/go/lib/drkey"
 	reflect "reflect"
+	time "time"
 )
 
 // MockDRKeyStore is a mock of DRKeyStore interface
@@ -79,6 +81,20 @@ func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl2(arg0, arg1, arg2 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).GetDRKeyLvl2), arg0, arg1, arg2)
 }
 
+// GetKeyDuration mocks base method
+func (m *MockDRKeyStore) GetKeyDuration() time.Duration {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetKeyDuration")
+	ret0, _ := ret[0].(time.Duration)
+	return ret0
+}
+
+// GetKeyDuration indicates an expected call of GetKeyDuration
+func (mr *MockDRKeyStoreMockRecorder) GetKeyDuration() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKeyDuration", reflect.TypeOf((*MockDRKeyStore)(nil).GetKeyDuration))
+}
+
 // GetL1SrcASes mocks base method
 func (m *MockDRKeyStore) GetL1SrcASes(arg0 context.Context) ([]addr.IA, error) {
 	m.ctrl.T.Helper()
@@ -92,6 +108,20 @@ func (m *MockDRKeyStore) GetL1SrcASes(arg0 context.Context) ([]addr.IA, error) {
 func (mr *MockDRKeyStoreMockRecorder) GetL1SrcASes(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetL1SrcASes", reflect.TypeOf((*MockDRKeyStore)(nil).GetL1SrcASes), arg0)
+}
+
+// GetMasterKey mocks base method
+func (m *MockDRKeyStore) GetMasterKey() common.RawBytes {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMasterKey")
+	ret0, _ := ret[0].(common.RawBytes)
+	return ret0
+}
+
+// GetMasterKey indicates an expected call of GetMasterKey
+func (mr *MockDRKeyStoreMockRecorder) GetMasterKey() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMasterKey", reflect.TypeOf((*MockDRKeyStore)(nil).GetMasterKey))
 }
 
 // GetValidL1SrcASes mocks base method
@@ -167,4 +197,47 @@ func (m *MockDRKeyStore) RemoveOutdatedDRKeyLvl2(arg0 context.Context, arg1 uint
 func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveOutdatedDRKeyLvl2", reflect.TypeOf((*MockDRKeyStore)(nil).RemoveOutdatedDRKeyLvl2), arg0, arg1)
+}
+
+// SecretValue mocks base method
+func (m *MockDRKeyStore) SecretValue() (*drkey.DRKeySV, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SecretValue")
+	ret0, _ := ret[0].(*drkey.DRKeySV)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SecretValue indicates an expected call of SecretValue
+func (mr *MockDRKeyStoreMockRecorder) SecretValue() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SecretValue", reflect.TypeOf((*MockDRKeyStore)(nil).SecretValue))
+}
+
+// SetKeyDuration mocks base method
+func (m *MockDRKeyStore) SetKeyDuration(arg0 time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetKeyDuration", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetKeyDuration indicates an expected call of SetKeyDuration
+func (mr *MockDRKeyStoreMockRecorder) SetKeyDuration(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKeyDuration", reflect.TypeOf((*MockDRKeyStore)(nil).SetKeyDuration), arg0)
+}
+
+// SetMasterKey mocks base method
+func (m *MockDRKeyStore) SetMasterKey(arg0 common.RawBytes) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetMasterKey", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetMasterKey indicates an expected call of SetMasterKey
+func (mr *MockDRKeyStoreMockRecorder) SetMasterKey(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMasterKey", reflect.TypeOf((*MockDRKeyStore)(nil).SetMasterKey), arg0)
 }

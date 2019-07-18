@@ -34,6 +34,9 @@ const (
 // SetKey creates the SV_A . The passed asSecret is typically the AS master password
 func (sv *DRKeySV) SetKey(asSecret common.RawBytes, epoch Epoch) error {
 	msLen := len(asSecret)
+	if msLen == 0 {
+		return errors.New("Invalid zero sized secret")
+	}
 	all := make(common.RawBytes, msLen+8)
 	_, err := asSecret.WritePld(all[:msLen])
 	if err != nil {

@@ -113,6 +113,8 @@ func reload() error {
 	// Restart the periodic reissue task to respect the fresh parameters.
 	stopReissRunner()
 	startReissRunner()
+	stopDRKeyRunners()
+	startDRKeyRunners()
 	return nil
 }
 
@@ -138,6 +140,7 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to initialize drkey key store", err)
 	}
+	drkeyStore.SetKeyDuration(cfg.CS.DRKeyDuration.Duration)
 	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore, drkeyStore)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)

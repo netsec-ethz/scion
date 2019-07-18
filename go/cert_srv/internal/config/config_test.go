@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -56,6 +57,7 @@ func TestConfig_InitDefaults(t *testing.T) {
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
 			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeTrue)
 			SoMsg("drkeystore", cfg.CS.DRKeyStore, ShouldEqual, "./cs1-ff00_0_123-1.drkey.trust.store.db")
+			SoMsg("DRKeyDuration", cfg.CS.DRKeyDuration, ShouldResemble, util.DurWrap{Duration: 33 * time.Hour})
 		})
 	})
 
@@ -72,6 +74,7 @@ func TestConfig_InitDefaults(t *testing.T) {
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
 			SoMsg("autoRenewal", cfg.CS.AutomaticRenewal, ShouldBeFalse)
 			SoMsg("drkeystore", cfg.CS.DRKeyStore, ShouldEqual, "/var/lib/scion/spki/cs-1.drkey.store.db")
+			SoMsg("drkeyduration", cfg.CS.DRKeyDuration, ShouldResemble, util.DurWrap{Duration: 24 * time.Hour})
 		})
 	})
 }

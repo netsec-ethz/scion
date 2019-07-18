@@ -249,6 +249,7 @@ func setupHandler(t *testing.T, thisIA addr.IA, confDir string) (*gomock.Control
 		Msger: msger,
 	}
 	if confDir != "" {
+		drkeyStore.EXPECT().SetMasterKey(gomock.Any())
 		var err error
 		handler.State, err = config.LoadState(confDir, false, trustDB, nil, drkeyStore)
 		if err != nil {

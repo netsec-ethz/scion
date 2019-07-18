@@ -60,6 +60,6 @@ func (c *DRKeyLvl2Rep) String() string {
 
 func (k *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2Type,
 	protocol string, srcHost, dstHost addr.HostAddr) *drkey.DRKeyLvl2 {
-	return drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(*drkey.NewEpochFromBeginEnd(k.EpochBegin, k.EpochEnd),
+	return drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(*drkey.NewEpoch(k.EpochBegin, k.EpochEnd),
 		k.DRKey, srcIA, dstIA), keyType, protocol, srcHost, dstHost)
 }

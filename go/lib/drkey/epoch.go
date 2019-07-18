@@ -31,7 +31,7 @@ func NewEpochFromDuration(begin uint32, duration int32) *Epoch {
 	return &Epoch{Begin: begin, End: uint32(int32(begin) + duration)}
 }
 
-func NewEpochFromBeginEnd(begin, end uint32) *Epoch {
+func NewEpoch(begin, end uint32) *Epoch {
 	return &Epoch{
 		Begin: begin,
 		End:   end,

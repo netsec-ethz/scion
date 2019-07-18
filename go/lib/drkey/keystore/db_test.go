@@ -171,6 +171,84 @@ func TestGetMentionedASes(t *testing.T) {
 	})
 }
 
+func TestSecretValue(t *testing.T) {
+	Convey("Initialization", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		SoMsg("currSV", db.sv.currSV, ShouldBeNil)
+		SoMsg("nextSV", db.sv.nextSV, ShouldBeNil)
+		var err error
+		// no duration or master secret:
+		_, err = db.SecretValue()
+		SoMsg("err", err, ShouldNotBeNil)
+
+		// no master secret yet
+		err = db.SetKeyDuration(10 * time.Second)
+		SoMsg("err", err, ShouldBeNil)
+		_, err = db.SecretValue()
+		SoMsg("err", err, ShouldNotBeNil)
+
+		err = db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
+		SoMsg("err", err, ShouldBeNil)
+		_, err = db.SecretValue()
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("currIdx", db.sv.currIdx, ShouldBeGreaterThan, 0)
+		SoMsg("currSV", db.sv.currSV, ShouldNotBeNil)
+		SoMsg("nextSV", db.sv.nextSV, ShouldNotBeNil)
+	})
+
+	Convey("Epoch", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		now := time.Unix(10, 0)
+		db.sv.timeNowFcn = func() time.Time { return now }
+
+		db.SetKeyDuration(10 * time.Second)
+		db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
+		k, _ := db.SecretValue()
+		SoMsg("begin", k.Epoch.Begin, ShouldEqual, 10)
+		SoMsg("end", k.Epoch.End, ShouldEqual, 20)
+		SoMsg("begin", db.sv.currSV.Epoch.Begin, ShouldEqual, 10)
+		SoMsg("end", db.sv.currSV.Epoch.End, ShouldEqual, 20)
+		SoMsg("next begin", db.sv.nextSV.Epoch.Begin, ShouldEqual, 20)
+		SoMsg("next end", db.sv.nextSV.Epoch.End, ShouldEqual, 30)
+	})
+
+	Convey("Key rotation", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		now := time.Unix(10, 0)
+		db.sv.timeNowFcn = func() time.Time { return now }
+
+		db.SetKeyDuration(10 * time.Second)
+		db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
+		db.SecretValue()
+		SoMsg("currSV", db.sv.currSV, ShouldNotBeNil)
+		SoMsg("nextSV", db.sv.nextSV, ShouldNotBeNil)
+		savedCurrIdx := db.sv.currIdx
+		savedCurrSV := db.sv.currSV
+		savedNextSV := db.sv.nextSV
+		// advance time 9 seconds
+		now = now.Add(9 * time.Second)
+		k, _ := db.SecretValue()
+		SoMsg("return value", k, ShouldEqual, savedCurrSV)
+		SoMsg("currIdx", db.sv.currIdx, ShouldEqual, savedCurrIdx)
+		SoMsg("currSV", db.sv.currSV, ShouldEqual, savedCurrSV)
+		SoMsg("nextSV", db.sv.nextSV, ShouldEqual, savedNextSV)
+		// advance it so we are in total 10 seconds in the future of the original clock
+		now = now.Add(time.Second)
+		k, _ = db.SecretValue()
+		SoMsg("return value", k, ShouldEqual, savedNextSV)
+		SoMsg("currIdx", db.sv.currIdx, ShouldEqual, savedCurrIdx+1)
+		SoMsg("currSV", db.sv.currSV, ShouldEqual, savedNextSV)
+		SoMsg("nextSV", db.sv.nextSV, ShouldNotBeNil)
+		SoMsg("epoch", k.Epoch.Begin, ShouldEqual, savedCurrSV.Epoch.End)
+	})
+}
+
 func toMap(list []addr.IA) map[addr.IA]struct{} {
 	set := map[addr.IA]struct{}{}
 	for _, i := range list {
