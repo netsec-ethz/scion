@@ -342,7 +342,6 @@ type Messenger interface {
 		id uint64) error
 	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
 	UpdateSigner(signer Signer, types []MessageType)
-	UpdateVerifier(verifier Verifier)
 	RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Req, a net.Addr,
 		id uint64) (*drkey_mgmt.DRKeyLvl1Rep, error)
 	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep, a net.Addr,
@@ -351,6 +350,7 @@ type Messenger interface {
 		id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error)
 	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr,
 		id uint64) error
+	UpdateVerifier(verifier Verifier)
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error

@@ -200,18 +200,18 @@ func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl2(arg0, arg1 interfa
 }
 
 // SecretValue mocks base method
-func (m *MockDRKeyStore) SecretValue() (*drkey.DRKeySV, error) {
+func (m *MockDRKeyStore) SecretValue(arg0 time.Time) (*drkey.DRKeySV, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SecretValue")
+	ret := m.ctrl.Call(m, "SecretValue", arg0)
 	ret0, _ := ret[0].(*drkey.DRKeySV)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SecretValue indicates an expected call of SecretValue
-func (mr *MockDRKeyStoreMockRecorder) SecretValue() *gomock.Call {
+func (mr *MockDRKeyStoreMockRecorder) SecretValue(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SecretValue", reflect.TypeOf((*MockDRKeyStore)(nil).SecretValue))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SecretValue", reflect.TypeOf((*MockDRKeyStore)(nil).SecretValue), arg0)
 }
 
 // SetKeyDuration mocks base method

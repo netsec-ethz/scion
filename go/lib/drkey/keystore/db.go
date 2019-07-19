@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ type SecretValueStore interface {
 	SetKeyDuration(duration time.Duration) error
 	GetMasterKey() common.RawBytes
 	SetMasterKey(key common.RawBytes) error
-	SecretValue() (*drkey.DRKeySV, error)
+	SecretValue(time.Time) (*drkey.DRKeySV, error)
 }
 
 // DRKeyStore has all the functions dealing with storage/retrieval of DRKeys level 1 and 2
@@ -139,18 +139,15 @@ type DRKeyStore interface {
 
 // SecretValueSimpleStore stores the secret value
 type SecretValueSimpleStore struct {
-	timeNowFcn  func() time.Time
 	keyDuration time.Duration
 	masterKey   common.RawBytes
-	currMutex   sync.RWMutex
-	currIdx     int
-	currSV      *drkey.DRKeySV
-	nextSV      *drkey.DRKeySV
+	keyCache    Cache
+	cacheMutex  sync.Mutex
 }
 
 func (s *SecretValueSimpleStore) initDefaultValues() {
-	s.timeNowFcn = time.Now
 	s.keyDuration = 24 * time.Hour
+	s.keyCache = NewCache(s.keyDuration)
 }
 
 // DB is a database containing first order and second order DRKeys, stored in JSON format.
@@ -158,8 +155,6 @@ func (s *SecretValueSimpleStore) initDefaultValues() {
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
-	// keyDuration                 time.Duration
-	// masterKey                   common.RawBytes
 	sv                          SecretValueSimpleStore
 	db                          *sql.DB
 	GetL1SrcASesStmt            *sql.Stmt
@@ -245,55 +240,27 @@ func (db *DB) SetMasterKey(key common.RawBytes) error {
 	return nil
 }
 
-// SecretValue will return the DRKey secret value. It will check the cache and if not up to date,
-// will derive a new secret value and use it
-func (db *DB) SecretValue() (*drkey.DRKeySV, error) {
-	db.sv.currMutex.RLock()
-	// TODO drkeytest: check that there are no key duration conf. changes affecting emitted keys
-	now := db.sv.timeNowFcn().Unix()
+// SecretValue derives or reuses the secret value for this time stamp
+func (db *DB) SecretValue(t time.Time) (*drkey.DRKeySV, error) {
+	db.sv.cacheMutex.Lock()
+	defer db.sv.cacheMutex.Unlock()
+
 	duration := int64(db.sv.keyDuration / time.Second) // duration in seconds
-	idx := now / duration
-	updateCurrent := func() error {
-		db.sv.currMutex.Lock()
-		defer db.sv.currMutex.Unlock()
-		if db.sv.currIdx != int(idx) {
-			newSV := func(idx int64) (*drkey.DRKeySV, error) {
-				begin := uint32(idx * duration)
-				end := begin + uint32(duration)
-				epoch := drkey.NewEpoch(begin, end)
-				key := &drkey.DRKeySV{Epoch: *epoch}
-				err := key.SetKey(db.sv.masterKey, *epoch)
-				if err != nil {
-					return nil, common.NewBasicError("Cannot establish the DRKey secret value", err)
-				}
-				return key, nil
-			}
-			if db.sv.nextSV == nil {
-				k, err := newSV(idx)
-				if err != nil {
-					return err
-				}
-				db.sv.nextSV = k
-			}
-			db.sv.currSV = db.sv.nextSV
-			k, err := newSV(idx + 1)
-			if err != nil {
-				return err
-			}
-			db.sv.nextSV = k
-			db.sv.currIdx = int(idx)
+	idx := t.Unix() / duration
+	k, found := db.sv.keyCache.Get(idx)
+	if !found {
+		begin := uint32(idx * duration)
+		end := begin + uint32(duration)
+		epoch := drkey.NewEpoch(begin, end)
+		key := &drkey.DRKeySV{Epoch: *epoch}
+		err := key.SetKey(db.sv.masterKey, *epoch)
+		if err != nil {
+			return nil, common.NewBasicError("Cannot establish the DRKey secret value", err)
 		}
-		return nil
+		k = (*drkey.DRKey)(key)
+		db.sv.keyCache.Set(idx, k)
 	}
-	if db.sv.currIdx != int(idx) {
-		db.sv.currMutex.RUnlock()
-		if err := updateCurrent(); err != nil {
-			return nil, err
-		}
-	} else {
-		defer db.sv.currMutex.RUnlock()
-	}
-	return db.sv.currSV, nil
+	return (*drkey.DRKeySV)(k), nil
 }
 
 // GetL1SrcASes returns a list of distinct ASes seen in the SRC of a L1 key

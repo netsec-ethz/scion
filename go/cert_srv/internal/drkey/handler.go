@@ -61,7 +61,7 @@ func (h *Level1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	dstIA := req.DstIa.IA()
 	log.Debug("[DRKeyLevel1ReqHandler] Received request", "srcIA", srcIA, "dstIA", dstIA)
 
-	sv, err := h.State.DRKeyStore.SecretValue()
+	sv, err := h.State.DRKeyStore.SecretValue(valToTime(req.ValTime))
 	if err != nil {
 		log.Error("[DRKeyLevel1ReqHandler] Unable to get secret value", "err", err)
 		return infra.MetricsErrInternal
@@ -273,7 +273,7 @@ func (h *Level2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 
 	// TODO drkeytest: should we always send something, to signal e.g. sciond there was an error, and avoid the timeout?
 	// E.g. when we request an AS2Host key but leave the host addr empty, sciond waits until timeout
-	sv, err := h.State.DRKeyStore.SecretValue()
+	sv, err := h.State.DRKeyStore.SecretValue(valToTime(req.ValTime))
 	if err != nil {
 		log.Error("[DRKeyLevel2ReqHandler] Unable to get secret value", "err", err)
 		return infra.MetricsErrInternal
@@ -447,4 +447,8 @@ func (h *Level2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drke
 		return common.NewBasicError("[DRKeyReqHandler] Unable to service request, no messenger found", nil)
 	}
 	return rw.SendDRKeyLvl2(ctx, rep)
+}
+
+func valToTime(v uint32) time.Time {
+	return time.Unix(int64(v), 0)
 }

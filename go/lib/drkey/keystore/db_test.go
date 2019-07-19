@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
@@ -175,26 +175,21 @@ func TestSecretValue(t *testing.T) {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		SoMsg("currSV", db.sv.currSV, ShouldBeNil)
-		SoMsg("nextSV", db.sv.nextSV, ShouldBeNil)
-		var err error
+		now := time.Unix(10, 0)
 		// no duration or master secret:
-		_, err = db.SecretValue()
+		_, err := db.SecretValue(now)
 		SoMsg("err", err, ShouldNotBeNil)
 
 		// no master secret yet
 		err = db.SetKeyDuration(10 * time.Second)
 		SoMsg("err", err, ShouldBeNil)
-		_, err = db.SecretValue()
+		_, err = db.SecretValue(now)
 		SoMsg("err", err, ShouldNotBeNil)
-
+		// with master secret and duration it should work
 		err = db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
 		SoMsg("err", err, ShouldBeNil)
-		_, err = db.SecretValue()
+		_, err = db.SecretValue(now)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("currIdx", db.sv.currIdx, ShouldBeGreaterThan, 0)
-		SoMsg("currSV", db.sv.currSV, ShouldNotBeNil)
-		SoMsg("nextSV", db.sv.nextSV, ShouldNotBeNil)
 	})
 
 	Convey("Epoch", t, func() {
@@ -202,17 +197,11 @@ func TestSecretValue(t *testing.T) {
 		defer cleanF()
 
 		now := time.Unix(10, 0)
-		db.sv.timeNowFcn = func() time.Time { return now }
-
 		db.SetKeyDuration(10 * time.Second)
 		db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
-		k, _ := db.SecretValue()
+		k, _ := db.SecretValue(now)
 		SoMsg("begin", k.Epoch.Begin, ShouldEqual, 10)
 		SoMsg("end", k.Epoch.End, ShouldEqual, 20)
-		SoMsg("begin", db.sv.currSV.Epoch.Begin, ShouldEqual, 10)
-		SoMsg("end", db.sv.currSV.Epoch.End, ShouldEqual, 20)
-		SoMsg("next begin", db.sv.nextSV.Epoch.Begin, ShouldEqual, 20)
-		SoMsg("next end", db.sv.nextSV.Epoch.End, ShouldEqual, 30)
 	})
 
 	Convey("Key rotation", t, func() {
@@ -220,30 +209,17 @@ func TestSecretValue(t *testing.T) {
 		defer cleanF()
 
 		now := time.Unix(10, 0)
-		db.sv.timeNowFcn = func() time.Time { return now }
-
 		db.SetKeyDuration(10 * time.Second)
 		db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
-		db.SecretValue()
-		SoMsg("currSV", db.sv.currSV, ShouldNotBeNil)
-		SoMsg("nextSV", db.sv.nextSV, ShouldNotBeNil)
-		savedCurrIdx := db.sv.currIdx
-		savedCurrSV := db.sv.currSV
-		savedNextSV := db.sv.nextSV
+		k, _ := db.SecretValue(now)
+		savedCurrSV := k
 		// advance time 9 seconds
 		now = now.Add(9 * time.Second)
-		k, _ := db.SecretValue()
+		k, _ = db.SecretValue(now)
 		SoMsg("return value", k, ShouldEqual, savedCurrSV)
-		SoMsg("currIdx", db.sv.currIdx, ShouldEqual, savedCurrIdx)
-		SoMsg("currSV", db.sv.currSV, ShouldEqual, savedCurrSV)
-		SoMsg("nextSV", db.sv.nextSV, ShouldEqual, savedNextSV)
 		// advance it so we are in total 10 seconds in the future of the original clock
 		now = now.Add(time.Second)
-		k, _ = db.SecretValue()
-		SoMsg("return value", k, ShouldEqual, savedNextSV)
-		SoMsg("currIdx", db.sv.currIdx, ShouldEqual, savedCurrIdx+1)
-		SoMsg("currSV", db.sv.currSV, ShouldEqual, savedNextSV)
-		SoMsg("nextSV", db.sv.nextSV, ShouldNotBeNil)
+		k, _ = db.SecretValue(now)
 		SoMsg("epoch", k.Epoch.Begin, ShouldEqual, savedCurrSV.Epoch.End)
 	})
 }
