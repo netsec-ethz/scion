@@ -27,25 +27,25 @@ import (
 
 var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
 
-// DRKeyLvl1Req represents a level 1 request between certificate servers
+// DRKeyLvl1Req represents a level 1 request between certificate servers.
 type DRKeyLvl1Req struct {
-	DstIa     addr.IAInt
-	ValTime   uint32
-	Timestamp uint32
+	DstIARaw     addr.IAInt `capnp:"dstIA"`
+	ValTimeRaw   uint32     `capnp:"valTime"`
+	TimestampRaw uint32     `capnp:"timestamp"`
 }
 
-// NewDRKeyLvl1Req creates a new L1 request struct
+// NewDRKeyLvl1Req creates a new L1 request struct.
 func NewDRKeyLvl1Req(dstIA addr.IA, valTime uint32) *DRKeyLvl1Req {
 	return &DRKeyLvl1Req{
-		DstIa:     dstIA.IAInt(),
-		ValTime:   valTime,
-		Timestamp: uint32(time.Now().Unix()),
+		DstIARaw:     dstIA.IAInt(),
+		ValTimeRaw:   valTime,
+		TimestampRaw: uint32(time.Now().Unix()),
 	}
 }
 
-// DstIA returns the source ISD-AS of the requested DRKey
+// DstIA returns the source ISD-AS of the requested DRKey.
 func (c *DRKeyLvl1Req) DstIA() addr.IA {
-	return c.DstIa.IA()
+	return c.DstIARaw.IA()
 }
 
 // ProtoId returns the proto ID
@@ -53,16 +53,16 @@ func (c *DRKeyLvl1Req) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl1Req_TypeID
 }
 
-// Time returns the validity time of the requested DRKey
-func (c *DRKeyLvl1Req) Time() time.Time {
-	return util.SecsToTime(c.ValTime)
+// ValTime returns the validity time of the requested DRKey.
+func (c *DRKeyLvl1Req) ValTime() time.Time {
+	return util.SecsToTime(c.ValTimeRaw)
 }
 
-// WhenCreated returns the time when this request was created
-func (c *DRKeyLvl1Req) WhenCreated() time.Time {
-	return util.SecsToTime(c.Timestamp)
+// Timestamp returns the time when this request was created.
+func (c *DRKeyLvl1Req) Timestamp() time.Time {
+	return util.SecsToTime(c.TimestampRaw)
 }
 
 func (c *DRKeyLvl1Req) String() string {
-	return fmt.Sprintf("DstIA: %s ValTime: %v", c.DstIA(), util.TimeToString(c.Time()))
+	return fmt.Sprintf("DstIA: %s ValTime: %v", c.DstIA(), util.TimeToString(c.ValTime()))
 }

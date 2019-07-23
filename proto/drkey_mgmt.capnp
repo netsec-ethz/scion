@@ -6,13 +6,13 @@ $Go.import("github.com/scionproto/scion/go/proto");
 
 
 struct DRKeyLvl1Req {
-    dstIa @0 :UInt64;     # Dst ISD-AS of the requested DRKey
+    dstIA @0 :UInt64;     # Dst ISD-AS of the requested DRKey
     valTime @1 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
     timestamp @2 :UInt32; # Point in time when the request was created
 }
 
 struct DRKeyLvl1Rep {
-    dstIa @0 :UInt64;      # Dst ISD-AS of the DRKey
+    dstIA @0 :UInt64;      # Dst ISD-AS of the DRKey
     epochBegin @1 :UInt32; # Begin of validity period of DRKey
     epochEnd @2 :UInt32;   # End of validity period of DRKey
     cipher @3 :Data;       # Encrypted DRKey
@@ -29,8 +29,8 @@ struct DRKeyLvl2Req {
     protocol @0 :Text;      # Protocol identifier
     reqType @1 :UInt8;      # Requested DRKeyProtoKeyType
     valTime @2 :UInt32;     # Point in time where requested DRKey is valid. Used to identify the epoch
-    srcIa @3 :UInt64;       # Src ISD-AS of the requested DRKey
-    dstIa @4 :UInt64;       # Dst ISD-AS of the requested DRKey
+    srcIA @3 :UInt64;       # Src ISD-AS of the requested DRKey
+    dstIA @4 :UInt64;       # Dst ISD-AS of the requested DRKey
     srcHost @5 :DRKeyHost;  # Src Host of the request DRKey (optional)
     dstHost @6 :DRKeyHost;  # Dst Host of the request DRKey (optional)
     misc @7 :Data;          # Additional information (optional)

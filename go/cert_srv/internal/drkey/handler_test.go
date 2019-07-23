@@ -144,11 +144,11 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 
 		sv := getTestSV()
 		req := &drkey_mgmt.DRKeyLvl2Req{
-			Protocol: "foo",
-			ReqType:  uint8(drkey.AS2AS),
-			ValTime:  0,
-			SrcHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
-			DstHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
+			Protocol:   "foo",
+			ReqType:    uint8(drkey.AS2AS),
+			ValTimeRaw: 0,
+			SrcHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
+			DstHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 		}
 		expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 		drkeyLvl2 := drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(sv.Epoch, expectedLvl2Key, srcIA, dstIA),
@@ -156,7 +156,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 		store.EXPECT().InsertDRKeyLvl2(ctx, drkeyLvl2).Return(int64(1), nil)
 		reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("lvl2Key", reply.DRKey, ShouldResemble, common.RawBytes(expectedLvl2Key))
+		SoMsg("lvl2Key", reply.DRKeyRaw, ShouldResemble, common.RawBytes(expectedLvl2Key))
 	})
 
 	Convey("Obtain a Level 2 DRKey with fast path in another AS", t, func() {
@@ -166,11 +166,11 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 
 		sv := getTestSV()
 		req := &drkey_mgmt.DRKeyLvl2Req{
-			Protocol: "foo",
-			ReqType:  uint8(drkey.AS2AS),
-			ValTime:  0,
-			SrcHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
-			DstHost:  *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
+			Protocol:   "foo",
+			ReqType:    uint8(drkey.AS2AS),
+			ValTimeRaw: 0,
+			SrcHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
+			DstHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 		}
 		drkeyLvl2 := drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(sv.Epoch, sv.Key, srcIA, dstIA),
 			drkey.AS2AS, "foo", addr.HostNone{}, addr.HostNone{})
@@ -191,7 +191,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 				})
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("reply.DRKey", reply.DRKey, ShouldResemble, sv.Key)
+			SoMsg("reply.DRKey", reply.DRKeyRaw, ShouldResemble, sv.Key)
 		})
 
 		Convey("key not in DB, L1 in DB, expect derivation", func() {
@@ -202,11 +202,11 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 			drkeyLvl2.DRKey.Key = expectedLvl2Key
 			drkeyStore.EXPECT().GetDRKeyLvl2(ctx, gomock.Any(), gomock.Any()).Return(nil, nil)
-			drkeyStore.EXPECT().GetDRKeyLvl1(ctx, &drkey.DRKeyLvl1{SrcIA: srcIA, DstIA: dstIA}, req.ValTime).Return(lvl1Key, nil)
+			drkeyStore.EXPECT().GetDRKeyLvl1(ctx, &drkey.DRKeyLvl1{SrcIA: srcIA, DstIA: dstIA}, req.ValTimeRaw).Return(lvl1Key, nil)
 			drkeyStore.EXPECT().InsertDRKeyLvl2(ctx, drkeyLvl2).Return(int64(1), nil)
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("reply.DRKey", reply.DRKey, ShouldResemble, common.RawBytes(expectedLvl2Key))
+			SoMsg("reply.DRKey", reply.DRKeyRaw, ShouldResemble, common.RawBytes(expectedLvl2Key))
 		})
 
 		Convey("key not in DB, relay on CS_{srcIA}", func() {
@@ -226,7 +226,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("reply.DRKey", reply.DRKey, ShouldResemble, common.RawBytes(expectedLvl2Key))
+			SoMsg("reply.DRKey", reply.DRKeyRaw, ShouldResemble, common.RawBytes(expectedLvl2Key))
 		})
 	})
 }

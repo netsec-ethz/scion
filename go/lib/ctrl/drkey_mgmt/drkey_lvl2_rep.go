@@ -27,39 +27,43 @@ import (
 
 var _ proto.Cerealizable = (*DRKeyLvl2Rep)(nil)
 
+// DRKeyLvl2Rep encodes the level 2 key response from a CS to an endhost.
 type DRKeyLvl2Rep struct {
-	Timestamp  uint32
-	DRKey      common.RawBytes `capnp:"drkey"`
-	EpochBegin uint32
-	EpochEnd   uint32
-	Misc       common.RawBytes
+	TimestampRaw uint32          `capnp:"timestamp"`
+	DRKeyRaw     common.RawBytes `capnp:"drkey"`
+	EpochBegin   uint32
+	EpochEnd     uint32
+	Misc         common.RawBytes
 }
 
+// NewDRKeyLvl2RepFromKeyRepresentation constructs a level 2 response from a standard level 2 key.
 func NewDRKeyLvl2RepFromKeyRepresentation(key *drkey.DRKeyLvl2, timestamp uint32) *DRKeyLvl2Rep {
 	return &DRKeyLvl2Rep{
-		Timestamp:  timestamp,
-		DRKey:      key.Key,
-		EpochBegin: key.Epoch.Begin,
-		EpochEnd:   key.Epoch.End,
+		TimestampRaw: timestamp,
+		DRKeyRaw:     key.Key,
+		EpochBegin:   key.Epoch.BeginAsSeconds(),
+		EpochEnd:     key.Epoch.EndAsSeconds(),
 	}
 }
 
+// ProtoId returns the proto ID.
 func (c *DRKeyLvl2Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Rep_TypeID
 }
 
-// Epoch returns the begin and end of the validity period of DRKey
-func (c *DRKeyLvl2Rep) Epoch() *drkey.Epoch {
-	return &drkey.Epoch{Begin: c.EpochBegin, End: c.EpochEnd}
+// Epoch returns the begin and end of the validity period of DRKey.
+func (c *DRKeyLvl2Rep) Epoch() drkey.Epoch {
+	return drkey.NewEpoch(c.EpochBegin, c.EpochEnd)
+}
+
+// ToKeyRepresentation returns a drkey Lvl2 built from these values.
+func (c *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2Type,
+	protocol string, srcHost, dstHost addr.HostAddr) *drkey.DRKeyLvl2 {
+	return drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(drkey.NewEpoch(c.EpochBegin, c.EpochEnd),
+		c.DRKeyRaw, srcIA, dstIA), keyType, protocol, srcHost, dstHost)
 }
 
 func (c *DRKeyLvl2Rep) String() string {
 	return fmt.Sprintf("Timestamp: %d EpochBegin: %d EpochEnd: %d Misc: %v",
-		c.Timestamp, c.EpochBegin, c.EpochEnd, c.Misc)
-}
-
-func (k *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2Type,
-	protocol string, srcHost, dstHost addr.HostAddr) *drkey.DRKeyLvl2 {
-	return drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(*drkey.NewEpoch(k.EpochBegin, k.EpochEnd),
-		k.DRKey, srcIA, dstIA), keyType, protocol, srcHost, dstHost)
+		c.TimestampRaw, c.EpochBegin, c.EpochEnd, c.Misc)
 }

@@ -27,9 +27,9 @@ import (
 
 var _ proto.Cerealizable = (*DRKeyLvl1Rep)(nil)
 
-// DRKeyLvl1Rep represents the lvel 1 reply from one CS to another
+// DRKeyLvl1Rep represents the lvel 1 reply from one CS to another.
 type DRKeyLvl1Rep struct {
-	DstIa      addr.IAInt
+	DstIARaw   addr.IAInt `capnp:"dstIA"`
 	EpochBegin uint32
 	EpochEnd   uint32
 	Cipher     common.RawBytes
@@ -37,19 +37,19 @@ type DRKeyLvl1Rep struct {
 	CertVerDst uint64
 }
 
-// DstIA returns the source ISD-AS of the DRKey
+// DstIA returns the source ISD-AS of the DRKey.
 func (c *DRKeyLvl1Rep) DstIA() addr.IA {
-	return c.DstIa.IA()
+	return c.DstIARaw.IA()
 }
 
-// ProtoId returns the proto ID
+// ProtoId returns the proto ID.
 func (c *DRKeyLvl1Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl1Rep_TypeID
 }
 
-// Epoch returns the begin and end of the validity period of DRKey
+// Epoch returns the begin and end of the validity period of DRKey.
 func (c *DRKeyLvl1Rep) Epoch() drkey.Epoch {
-	return drkey.Epoch{Begin: c.EpochBegin, End: c.EpochEnd}
+	return drkey.NewEpoch(c.EpochBegin, c.EpochEnd)
 }
 
 func (c *DRKeyLvl1Rep) String() string {
