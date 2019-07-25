@@ -390,11 +390,8 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 	}
 	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
 	key := drkey.DRKey{
-		Epoch: drkey.Epoch{
-			Begin: lvl2rep.EpochBegin,
-			End:   lvl2rep.EpochEnd,
-		},
-		Key: lvl2rep.DRKeyRaw,
+		Epoch: lvl2rep.Epoch(),
+		Key:   lvl2rep.DRKeyRaw,
 	}
 
 	return &key, nil

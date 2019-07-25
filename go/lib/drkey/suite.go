@@ -19,11 +19,11 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"golang.org/x/crypto/pbkdf2"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
@@ -42,8 +42,8 @@ func (sv *DRKeySV) SetKey(asSecret common.RawBytes, epoch Epoch) error {
 	if err != nil {
 		return err
 	}
-	binary.LittleEndian.PutUint32(all[msLen:], epoch.Begin)
-	binary.LittleEndian.PutUint32(all[msLen+4:], epoch.End)
+	binary.LittleEndian.PutUint32(all[msLen:], epoch.BeginAsSeconds())
+	binary.LittleEndian.PutUint32(all[msLen+4:], epoch.EndAsSeconds())
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	sv.Key = key
 	return nil

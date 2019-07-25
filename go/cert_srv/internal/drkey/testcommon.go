@@ -27,11 +27,8 @@ import (
 
 func getTestSV() *drkey.DRKeySV {
 	return &drkey.DRKeySV{
-		Epoch: drkey.Epoch{
-			Begin: 0,
-			End:   1,
-		},
-		Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Epoch: drkey.NewEpoch(0, 1),
+		Key:   common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	}
 }
 

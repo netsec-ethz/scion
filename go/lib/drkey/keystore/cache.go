@@ -77,9 +77,9 @@ func (c *MemCache) cleanExpired() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	now := uint32(c.timeNowFcn().Unix())
+	now := c.timeNowFcn()
 	for idx, value := range c.cache {
-		if now >= value.Epoch.End {
+		if !value.Epoch.Contains(now) {
 			delete(c.cache, idx)
 		}
 	}

@@ -232,7 +232,7 @@ func (db *DB) GetMasterKey() common.RawBytes {
 func (db *DB) SetMasterKey(key common.RawBytes) error {
 	// test this master key now
 	sv := drkey.DRKeySV{}
-	err := sv.SetKey(key, *drkey.NewEpoch(uint32(0), uint32(1)))
+	err := sv.SetKey(key, drkey.NewEpoch(uint32(0), uint32(1)))
 	if err != nil {
 		return common.NewBasicError("Cannot use this master key as the secret for DRKey", err)
 	}
@@ -252,8 +252,8 @@ func (db *DB) SecretValue(t time.Time) (*drkey.DRKeySV, error) {
 		begin := uint32(idx * duration)
 		end := begin + uint32(duration)
 		epoch := drkey.NewEpoch(begin, end)
-		key := &drkey.DRKeySV{Epoch: *epoch}
-		err := key.SetKey(db.sv.masterKey, *epoch)
+		key := &drkey.DRKeySV{Epoch: epoch}
+		err := key.SetKey(db.sv.masterKey, epoch)
 		if err != nil {
 			return nil, common.NewBasicError("Cannot establish the DRKey secret value", err)
 		}
@@ -335,11 +335,8 @@ func (db *DB) GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime ui
 	}
 	returningKey := &drkey.DRKeyLvl1{
 		DRKey: drkey.DRKey{
-			Epoch: drkey.Epoch{
-				Begin: uint32(epochBegin),
-				End:   uint32(epochEnd),
-			},
-			Key: bytes,
+			Epoch: drkey.NewEpoch(uint32(epochBegin), uint32(epochEnd)),
+			Key:   bytes,
 		},
 		SrcIA: key.SrcIA,
 		DstIA: key.DstIA,
@@ -395,11 +392,8 @@ func (db *DB) GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime ui
 	returningKey := &drkey.DRKeyLvl2{
 		DRKeyLvl1: drkey.DRKeyLvl1{
 			DRKey: drkey.DRKey{
-				Epoch: drkey.Epoch{
-					Begin: uint32(epochBegin),
-					End:   uint32(epochEnd),
-				},
-				Key: bytes,
+				Epoch: drkey.NewEpoch(uint32(epochBegin), uint32(epochEnd)),
+				Key:   bytes,
 			},
 			SrcIA: key.SrcIA,
 			DstIA: key.DstIA,

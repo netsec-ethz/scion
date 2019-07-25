@@ -16,46 +16,34 @@ package drkey
 
 import (
 	"time"
-
-	"github.com/scionproto/scion/go/lib/util"
 )
 
+// Epoch represents a validity period.
+// TODO use Validity Periods https://github.com/scionproto/scion/pull/2842/files
 type Epoch struct {
-	Begin uint32
-	End   uint32
+	Begin time.Time
+	End   time.Time
 }
 
-// NewEpochFromDuration builds and returns an Epoch given its starting point and its duration.
-// Both parameters in seconds.
-func NewEpochFromDuration(begin uint32, duration int32) *Epoch {
-	return &Epoch{Begin: begin, End: uint32(int32(begin) + duration)}
-}
-
-func NewEpoch(begin, end uint32) *Epoch {
-	return &Epoch{
-		Begin: begin,
-		End:   end,
+// NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
+func NewEpoch(begin, end uint32) Epoch {
+	return Epoch{
+		Begin: time.Unix(int64(begin), 0),
+		End:   time.Unix(int64(end), 0),
 	}
 }
 
-func (e *Epoch) Duration() uint32 {
-	return e.End - e.Begin
+// BeginAsSeconds returns the begin time of this epoch as seconds uint32 encoded.
+func (e *Epoch) BeginAsSeconds() uint32 {
+	return uint32(e.Begin.Unix())
 }
 
-func (e *Epoch) Nr(offset uint32) uint32 {
-	l := e.Duration()
-	t := util.TimeToSecs(time.Now())
-	nr := t / l
-	if t < (nr*l + offset) {
-		return nr - 1
-	}
-	return nr
+// EndAsSeconds returns the end time of this epoch as seconds uint32 encoded.
+func (e *Epoch) EndAsSeconds() uint32 {
+	return uint32(e.End.Unix())
 }
 
-func (e *Epoch) GetPreviousEpoch(duration uint32) *Epoch {
-	return &Epoch{Begin: e.Begin - duration, End: e.Begin}
-}
-
-func (e *Epoch) GetNextEpoch(duration uint32) *Epoch {
-	return &Epoch{Begin: e.End, End: e.End + duration}
+// Contains indicates whether the time point is inside this Epoch.
+func (e *Epoch) Contains(t time.Time) bool {
+	return t.After(e.Begin) && e.End.After(t)
 }

@@ -147,8 +147,8 @@ func Level1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.DRKeySV, cert *cert.Cer
 
 	reply = &drkey_mgmt.DRKeyLvl1Rep{
 		DstIARaw:   dstIA.IAInt(),
-		EpochBegin: sv.Epoch.Begin,
-		EpochEnd:   sv.Epoch.End,
+		EpochBegin: sv.Epoch.BeginAsSeconds(),
+		EpochEnd:   sv.Epoch.EndAsSeconds(),
 		Cipher:     cipher,
 		Nonce:      nonce,
 		CertVerDst: cert.Version,
