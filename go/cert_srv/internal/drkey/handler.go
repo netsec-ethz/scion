@@ -16,6 +16,7 @@ package drkey
 
 import (
 	"context"
+	"database/sql"
 	"net"
 	"time"
 
@@ -25,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/keystore"
+	"github.com/scionproto/scion/go/lib/drkeystore"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -317,7 +318,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 		// check DB for the L2 key
 		var stored drkey.Lvl2Key
 		stored, err = findLvl2KeyInDB(ctx, h.State.DRKeyStore, valTime, protocol, keyType, srcIA, dstIA, srcHost, dstHost)
-		if err != nil && err != keystore.ErrNoKeys {
+		if err != nil && err != sql.ErrNoRows {
 			return reply, common.NewBasicError("Cannot query the DRKey DB", err)
 		}
 		if err == nil {
@@ -327,7 +328,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 		}
 		// check DB for the L1 key
 		lvl1Key, err = findLvl1KeyInDB(ctx, h.State.DRKeyStore, valTime, srcIA, dstIA)
-		if err != nil && err != keystore.ErrNoKeys {
+		if err != nil && err != sql.ErrNoRows {
 			return reply, common.NewBasicError("Cannot query the DRKey DB", err)
 		}
 		if err == nil {
@@ -401,19 +402,19 @@ func deriveLvl2Key(lvl1Key drkey.Lvl1Key, keyType drkey.Lvl2KeyType, protocol st
 	return key, nil
 }
 
-func findLvl1KeyInDB(ctx context.Context, db keystore.DRKeyStore, valTime uint32, srcIA, dstIA addr.IA) (drkey.Lvl1Key, error) {
+func findLvl1KeyInDB(ctx context.Context, db drkeystore.Store, valTime uint32, srcIA, dstIA addr.IA) (drkey.Lvl1Key, error) {
 	meta := drkey.Lvl1Meta{
 		SrcIA: srcIA,
 		DstIA: dstIA,
 	}
 	stored, err := db.GetDRKeyLvl1(ctx, meta, valTime)
-	if err != nil && err != keystore.ErrNoKeys {
+	if err != nil && err != sql.ErrNoRows {
 		return drkey.Lvl1Key{}, common.NewBasicError("Cannot query DRKey Store [level1]", err)
 	}
 	return stored, err
 }
 
-func findLvl2KeyInDB(ctx context.Context, db keystore.DRKeyStore, valTime uint32, protocol string,
+func findLvl2KeyInDB(ctx context.Context, db drkeystore.Store, valTime uint32, protocol string,
 	keyType drkey.Lvl2KeyType, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (drkey.Lvl2Key, error) {
 
 	key := drkey.Lvl2Meta{
@@ -425,13 +426,13 @@ func findLvl2KeyInDB(ctx context.Context, db keystore.DRKeyStore, valTime uint32
 		DstHost:  dstHost,
 	}
 	stored, err := db.GetDRKeyLvl2(ctx, key, valTime)
-	if err != nil && err != keystore.ErrNoKeys {
+	if err != nil && err != sql.ErrNoRows {
 		return drkey.Lvl2Key{}, common.NewBasicError("Cannot query DRKey Store [level2]", err)
 	}
 	return stored, err
 }
 
-func storeLvl2KeyInDB(ctx context.Context, db keystore.DRKeyStore, key drkey.Lvl2Key) error {
+func storeLvl2KeyInDB(ctx context.Context, db drkeystore.Store, key drkey.Lvl2Key) error {
 	_, err := db.InsertDRKeyLvl2(ctx, key)
 	return err
 }

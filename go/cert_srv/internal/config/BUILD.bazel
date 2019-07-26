@@ -12,7 +12,7 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
-        "//go/lib/drkey/keystore:go_default_library",
+        "//go/lib/drkeystore:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/idiscovery:go_default_library",
@@ -34,7 +34,6 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/drkey/keystore/mock_keystore:go_default_library",
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
         "//go/lib/keyconf:go_default_library",

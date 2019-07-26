@@ -19,10 +19,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"runtime"
+	"sync"
+	"time"
 
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const drkeySalt = "Derive DRKey Key" // same as in Python
@@ -75,4 +79,77 @@ func NewSV(meta SVMeta, asSecret common.RawBytes) (SV, error) {
 		SVMeta: meta,
 		DRKey:  DRKey{key},
 	}, nil
+}
+
+// EpochToSV is an specifc Cache implementation.
+type EpochToSV struct {
+	cache map[int64]*SV
+	mutex sync.Mutex
+
+	keyDuration  time.Duration
+	stopCleaning chan bool
+	timeNowFcn   func() time.Time
+}
+
+// NewEpochToSV creates a new EpochToSV and initializes the cleaner
+func NewEpochToSV(keyDuration time.Duration) *EpochToSV {
+	m := &EpochToSV{
+		cache:        make(map[int64]*SV),
+		keyDuration:  keyDuration,
+		stopCleaning: make(chan bool),
+		timeNowFcn:   time.Now,
+	}
+	runtime.SetFinalizer(m, stopCleaner)
+	go func() {
+		defer log.LogPanicAndExit()
+		m.startCleaner()
+	}()
+	return m
+}
+
+// Get returns the element, and an indicator of its presence
+func (m *EpochToSV) Get(idx int64) (*SV, bool) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	k, found := m.cache[idx]
+	return k, found
+}
+
+// Set sets the key, and registers this element in this shard
+func (m *EpochToSV) Set(idx int64, key *SV) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.cache[idx] = key
+}
+
+// cleanExpired removes the current shard at once
+func (m *EpochToSV) cleanExpired() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	now := m.timeNowFcn()
+	for idx, value := range m.cache {
+		if !value.Epoch.Contains(now) {
+			delete(m.cache, idx)
+		}
+	}
+}
+
+func stopCleaner(m *EpochToSV) {
+	m.stopCleaning <- true
+}
+
+func (m *EpochToSV) startCleaner() {
+	ticker := time.NewTicker(2 * m.keyDuration)
+	for {
+		select {
+		case <-ticker.C:
+			m.cleanExpired()
+		case <-m.stopCleaning:
+			ticker.Stop()
+			return
+		}
+	}
 }

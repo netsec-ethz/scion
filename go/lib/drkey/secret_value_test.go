@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keystore
+package drkey
 
 import (
 	"testing"
@@ -21,17 +21,16 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/drkey"
 )
 
 func TestNew(t *testing.T) {
 	Convey("Initialize and ticker", t, func() {
 		dur := time.Millisecond
-		c := NewCache(dur)
+		c := NewEpochToSV(dur)
 		c.timeNowFcn = func() time.Time { return time.Unix(10, 0) }
 		_, found := c.Get(1)
 		SoMsg("found", found, ShouldBeFalse)
-		c.Set(1, &drkey.DRKey{Epoch: *drkey.NewEpoch(20, 21)})
+		c.Set(1, &SV{SVMeta: SVMeta{Epoch: NewEpoch(20, 21)}})
 		_, found = c.Get(1)
 		SoMsg("found", found, ShouldBeTrue)
 		// the ticker should remove the key:
@@ -43,15 +42,23 @@ func TestNew(t *testing.T) {
 
 	Convey("Key overlaps", t, func() {
 		dur := time.Hour
-		c := NewCache(dur)
-		k1 := &drkey.DRKey{Epoch: *drkey.NewEpoch(10, 12), Key: common.RawBytes{1, 2, 3}}
+		c := NewEpochToSV(dur)
+		k1 := &SV{
+			SVMeta: SVMeta{Epoch: NewEpoch(10, 12)},
+			DRKey:  DRKey{common.RawBytes{1, 2, 3}},
+		}
+		// k1 := &DRKey{Epoch: *NewEpoch(10, 12), Key: common.RawBytes{1, 2, 3}}
 		c.Set(1, k1)
 		k, found := c.Get(1)
 		SoMsg("found", found, ShouldBeTrue)
 		SoMsg("retrieved", *k, ShouldResemble, *k1)
 		SoMsg("contained", len(c.cache), ShouldEqual, 1)
 		time.Sleep(10 * time.Millisecond)
-		k2 := &drkey.DRKey{Epoch: *drkey.NewEpoch(11, 13), Key: common.RawBytes{2, 3, 4}}
+		k2 := &SV{
+			SVMeta: SVMeta{Epoch: NewEpoch(11, 13)},
+			DRKey:  DRKey{common.RawBytes{2, 3, 4}},
+		}
+		// k2 := &DRKey{Epoch: *NewEpoch(11, 13), Key: common.RawBytes{2, 3, 4}}
 		c.Set(2, k2)
 		SoMsg("contained", len(c.cache), ShouldEqual, 2)
 		c.timeNowFcn = func() time.Time { return time.Unix(12, 0).Add(-1 * time.Nanosecond) }

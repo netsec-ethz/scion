@@ -16,6 +16,7 @@ package drkey
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
-	"github.com/scionproto/scion/go/lib/drkey/keystore"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
@@ -106,7 +106,7 @@ func (r *Requester) ProcessPendingList(ctx context.Context) error {
 // getL1SrcIAsFromKeystore returns a set of IAs seen as sources in L1 keys in the DB
 func (r *Requester) getL1SrcIAsFromKeystore(ctx context.Context) (asSet, error) {
 	list, err := r.State.DRKeyStore.GetL1SrcASes(ctx)
-	if err != nil && err != keystore.ErrNoKeys {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, common.NewBasicError("Cannot obtain DRKey L1 src IAs from DB", err)
 	}
 	return setFromList(list), nil
@@ -116,7 +116,7 @@ func (r *Requester) getL1SrcIAsFromKSStillValid(ctx context.Context) (asSet, err
 	// TODO drkeytest: that 60 should be a configuration parameter
 	futurePointInTime := uint32(time.Now().Unix()) + uint32(60)
 	list, err := r.State.DRKeyStore.GetValidL1SrcASes(ctx, futurePointInTime)
-	if err != nil && err != keystore.ErrNoKeys {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, common.NewBasicError("Cannot obtain still valid DRKey L1 src IAs from DB", err)
 	}
 	return setFromList(list), nil

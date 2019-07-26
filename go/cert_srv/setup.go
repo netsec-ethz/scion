@@ -27,7 +27,8 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/drkey/keystore"
+	drkeylib "github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -136,10 +137,11 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	drkeyStore, err := keystore.New(cfg.CS.DRKeyStore)
+	drkeyDB, err := drkeydbsqlite.New(cfg.CS.DRKeyStore)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize drkey key store", err)
 	}
+	drkeyStore := drkeylib.NewStore(drkeyDB)
 	drkeyStore.SetKeyDuration(cfg.CS.DRKeyDuration.Duration)
 	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore, drkeyStore)
 	if err != nil {

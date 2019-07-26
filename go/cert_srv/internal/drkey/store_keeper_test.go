@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
-	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	// "github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
 

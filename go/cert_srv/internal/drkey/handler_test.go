@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	// "github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"

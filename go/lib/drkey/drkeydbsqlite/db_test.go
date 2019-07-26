@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keystore
+package drkeydbsqlite
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	// "github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -49,15 +49,15 @@ func TestDRKeyLvl1(t *testing.T) {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
-		sv := &drkey.SV{Epoch: *epoch}
+		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
+		sv, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
 		SoMsg("drkey", sv, ShouldNotBeNil)
-		err := sv.SetKey(asMasterPassword, *epoch)
 		SoMsg("drkey", err, ShouldBeNil)
 
-		drkeyLvl1 := drkey.NewDRKeyLvl1(*epoch, common.RawBytes{},
-			addr.IAFromRaw(rawSrcIA), addr.IAFromRaw(rawDstIA))
-		err = drkeyLvl1.SetKey(sv.Key)
+		drkeyLvl1, err := drkey.NewLvl1Key(drkey.Lvl1Meta{
+			Epoch: epoch,
+			SrcIA: addr.IAFromRaw(rawSrcIA),
+			DstIA: addr.IAFromRaw(rawDstIA)}, sv)
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
 			rows, err := db.InsertDRKeyLvl1(ctx, drkeyLvl1)
@@ -66,8 +66,10 @@ func TestDRKeyLvl1(t *testing.T) {
 			rows, err = db.InsertDRKeyLvl1(ctx, drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
+			rows = db.GetLvl1Count()
+
 			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetDRKeyLvl1(ctx, drkeyLvl1, util.TimeToSecs(time.Now()))
+				newKey, err := db.GetDRKeyLvl1(ctx, drkeyLvl1.Lvl1Meta, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl1.Key)
 			})
@@ -95,11 +97,26 @@ func TestDRKeyLvl2(t *testing.T) {
 
 		srcIA := addr.IAFromRaw(rawSrcIA)
 		dstIA := addr.IAFromRaw(rawDstIA)
-		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
-		drkeyLvl1 := drkey.NewDRKeyLvl1(*epoch, asMasterPassword, srcIA, dstIA)
-		drkeyLvl2 := drkey.NewDRKeyLvl2(*drkeyLvl1, drkey.Host2Host, "test",
-			addr.HostFromIP(SrcHostIP), addr.HostFromIP(DstHostIP))
-		err := drkeyLvl2.SetKey(drkeyLvl1.Key)
+		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
+		sv, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+		SoMsg("drkey", sv, ShouldNotBeNil)
+		SoMsg("drkey", err, ShouldBeNil)
+		drkeyLvl1, err := drkey.NewLvl1Key(drkey.Lvl1Meta{
+			Epoch: epoch,
+			SrcIA: srcIA,
+			DstIA: dstIA,
+		}, sv)
+		SoMsg("drkey", err, ShouldBeNil)
+		drkeyLvl2, err := drkey.NewLvl2Key(drkey.Lvl2Meta{
+			KeyType:  drkey.Host2Host,
+			Protocol: "test",
+			Epoch:    epoch,
+			SrcIA:    srcIA,
+			DstIA:    dstIA,
+			SrcHost:  addr.HostFromIP(SrcHostIP),
+			DstHost:  addr.HostFromIP(DstHostIP),
+		}, drkeyLvl1)
+
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
 			rows, err := db.InsertDRKeyLvl2(ctx, drkeyLvl2)
@@ -109,7 +126,7 @@ func TestDRKeyLvl2(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetDRKeyLvl2(ctx, drkeyLvl2, util.TimeToSecs(time.Now()))
+				newKey, err := db.GetDRKeyLvl2(ctx, drkeyLvl2.Lvl2Meta, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl2.Key)
 			})
@@ -131,7 +148,7 @@ func TestDRKeyLvl2(t *testing.T) {
 func TestGetMentionedASes(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	var err error
+
 	Convey("Insert many rows", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
@@ -144,8 +161,20 @@ func TestGetMentionedASes(t *testing.T) {
 		for _, p := range pairsL1 {
 			srcIA, _ := addr.IAFromString(p[0].(string))
 			dstIA, _ := addr.IAFromString(p[1].(string))
-			epoch := drkey.NewEpochFromDuration(0, int32(p[2].(int)))
-			key := drkey.NewDRKeyLvl1(*epoch, common.RawBytes{}, srcIA, dstIA)
+			begin := time.Unix(0, 0)
+			epoch := drkey.Epoch{
+				Begin: begin,
+				End:   begin.Add(time.Duration(p[2].(int)) * time.Second),
+			}
+			sv, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+			SoMsg("drkey", sv, ShouldNotBeNil)
+			SoMsg("drkey", err, ShouldBeNil)
+			key, err := drkey.NewLvl1Key(drkey.Lvl1Meta{
+				Epoch: epoch,
+				SrcIA: srcIA,
+				DstIA: dstIA,
+			}, sv)
+			SoMsg("drkey", err, ShouldBeNil)
 			_, err = db.InsertDRKeyLvl1(ctx, key)
 			SoMsg("err", err, ShouldBeNil)
 		}
@@ -170,60 +199,6 @@ func TestGetMentionedASes(t *testing.T) {
 	})
 }
 
-func TestSecretValue(t *testing.T) {
-	Convey("Initialization", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
-
-		now := time.Unix(10, 0)
-		// no duration or master secret:
-		_, err := db.SecretValue(now)
-		SoMsg("err", err, ShouldNotBeNil)
-
-		// no master secret yet
-		err = db.SetKeyDuration(10 * time.Second)
-		SoMsg("err", err, ShouldBeNil)
-		_, err = db.SecretValue(now)
-		SoMsg("err", err, ShouldNotBeNil)
-		// with master secret and duration it should work
-		err = db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
-		SoMsg("err", err, ShouldBeNil)
-		_, err = db.SecretValue(now)
-		SoMsg("err", err, ShouldBeNil)
-	})
-
-	Convey("Epoch", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
-
-		now := time.Unix(10, 0)
-		db.SetKeyDuration(10 * time.Second)
-		db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
-		k, _ := db.SecretValue(now)
-		SoMsg("begin", k.Epoch.Begin, ShouldEqual, 10)
-		SoMsg("end", k.Epoch.End, ShouldEqual, 20)
-	})
-
-	Convey("Key rotation", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
-
-		now := time.Unix(10, 0)
-		db.SetKeyDuration(10 * time.Second)
-		db.SetMasterKey(common.RawBytes{0, 1, 2, 3})
-		k, _ := db.SecretValue(now)
-		savedCurrSV := k
-		// advance time 9 seconds
-		now = now.Add(9 * time.Second)
-		k, _ = db.SecretValue(now)
-		SoMsg("return value", k, ShouldEqual, savedCurrSV)
-		// advance it so we are in total 10 seconds in the future of the original clock
-		now = now.Add(time.Second)
-		k, _ = db.SecretValue(now)
-		SoMsg("epoch", k.Epoch.Begin, ShouldEqual, savedCurrSV.Epoch.End)
-	})
-}
-
 func toMap(list []addr.IA) map[addr.IA]struct{} {
 	set := map[addr.IA]struct{}{}
 	for _, i := range list {
@@ -240,7 +215,7 @@ func ia(iaStr string) addr.IA {
 	return ia
 }
 
-func newDatabase(t *testing.T) (*DB, func()) {
+func newDatabase(t *testing.T) (*Backend, func()) {
 	file, err := ioutil.TempFile("", "db-test-")
 	if err != nil {
 		t.Fatalf("unable to create temp file")

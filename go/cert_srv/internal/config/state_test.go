@@ -20,7 +20,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	// "github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
