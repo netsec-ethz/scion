@@ -37,8 +37,8 @@ type DRKeyLvl2Rep struct {
 }
 
 // NewDRKeyLvl2RepFromKeyRepresentation constructs a level 2 response from a standard level 2 key.
-func NewDRKeyLvl2RepFromKeyRepresentation(key *drkey.DRKeyLvl2, timestamp uint32) *DRKeyLvl2Rep {
-	return &DRKeyLvl2Rep{
+func NewDRKeyLvl2RepFromKeyRepresentation(key drkey.Lvl2Key, timestamp uint32) DRKeyLvl2Rep {
+	return DRKeyLvl2Rep{
 		TimestampRaw: timestamp,
 		DRKeyRaw:     key.Key,
 		EpochBegin:   key.Epoch.BeginAsSeconds(),
@@ -57,10 +57,21 @@ func (c *DRKeyLvl2Rep) Epoch() drkey.Epoch {
 }
 
 // ToKeyRepresentation returns a drkey Lvl2 built from these values.
-func (c *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2Type,
-	protocol string, srcHost, dstHost addr.HostAddr) *drkey.DRKeyLvl2 {
-	return drkey.NewDRKeyLvl2(*drkey.NewDRKeyLvl1(drkey.NewEpoch(c.EpochBegin, c.EpochEnd),
-		c.DRKeyRaw, srcIA, dstIA), keyType, protocol, srcHost, dstHost)
+func (c *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
+	protocol string, srcHost, dstHost addr.HostAddr) drkey.Lvl2Key {
+
+	return drkey.Lvl2Key{
+		Lvl2Meta: drkey.Lvl2Meta{
+			Epoch:    drkey.NewEpoch(c.EpochBegin, c.EpochEnd),
+			SrcIA:    srcIA,
+			DstIA:    dstIA,
+			KeyType:  keyType,
+			Protocol: protocol,
+			SrcHost:  srcHost,
+			DstHost:  dstHost,
+		},
+		DRKey: drkey.DRKey{Key: c.DRKeyRaw},
+	}
 }
 
 func (c *DRKeyLvl2Rep) String() string {

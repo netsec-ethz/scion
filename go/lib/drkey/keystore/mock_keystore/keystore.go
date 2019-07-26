@@ -52,10 +52,10 @@ func (mr *MockDRKeyStoreMockRecorder) Close() *gomock.Call {
 }
 
 // GetDRKeyLvl1 mocks base method
-func (m *MockDRKeyStore) GetDRKeyLvl1(arg0 context.Context, arg1 *drkey.DRKeyLvl1, arg2 uint32) (*drkey.DRKeyLvl1, error) {
+func (m *MockDRKeyStore) GetDRKeyLvl1(arg0 context.Context, arg1 drkey.Lvl1Meta, arg2 uint32) (drkey.Lvl1Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDRKeyLvl1", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*drkey.DRKeyLvl1)
+	ret0, _ := ret[0].(drkey.Lvl1Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -67,10 +67,10 @@ func (mr *MockDRKeyStoreMockRecorder) GetDRKeyLvl1(arg0, arg1, arg2 interface{})
 }
 
 // GetDRKeyLvl2 mocks base method
-func (m *MockDRKeyStore) GetDRKeyLvl2(arg0 context.Context, arg1 *drkey.DRKeyLvl2, arg2 uint32) (*drkey.DRKeyLvl2, error) {
+func (m *MockDRKeyStore) GetDRKeyLvl2(arg0 context.Context, arg1 drkey.Lvl2Meta, arg2 uint32) (drkey.Lvl2Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDRKeyLvl2", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*drkey.DRKeyLvl2)
+	ret0, _ := ret[0].(drkey.Lvl2Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -140,7 +140,7 @@ func (mr *MockDRKeyStoreMockRecorder) GetValidL1SrcASes(arg0, arg1 interface{}) 
 }
 
 // InsertDRKeyLvl1 mocks base method
-func (m *MockDRKeyStore) InsertDRKeyLvl1(arg0 context.Context, arg1 *drkey.DRKeyLvl1) (int64, error) {
+func (m *MockDRKeyStore) InsertDRKeyLvl1(arg0 context.Context, arg1 drkey.Lvl1Key) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertDRKeyLvl1", arg0, arg1)
 	ret0, _ := ret[0].(int64)
@@ -155,7 +155,7 @@ func (mr *MockDRKeyStoreMockRecorder) InsertDRKeyLvl1(arg0, arg1 interface{}) *g
 }
 
 // InsertDRKeyLvl2 mocks base method
-func (m *MockDRKeyStore) InsertDRKeyLvl2(arg0 context.Context, arg1 *drkey.DRKeyLvl2) (int64, error) {
+func (m *MockDRKeyStore) InsertDRKeyLvl2(arg0 context.Context, arg1 drkey.Lvl2Key) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertDRKeyLvl2", arg0, arg1)
 	ret0, _ := ret[0].(int64)
@@ -200,10 +200,10 @@ func (mr *MockDRKeyStoreMockRecorder) RemoveOutdatedDRKeyLvl2(arg0, arg1 interfa
 }
 
 // SecretValue mocks base method
-func (m *MockDRKeyStore) SecretValue(arg0 time.Time) (*drkey.DRKeySV, error) {
+func (m *MockDRKeyStore) SecretValue(arg0 time.Time) (*drkey.SV, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SecretValue", arg0)
-	ret0, _ := ret[0].(*drkey.DRKeySV)
+	ret0, _ := ret[0].(*drkey.SV)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

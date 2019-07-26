@@ -100,7 +100,7 @@ func TestDeriveLvl2Key(t *testing.T) {
 		k, _ := hex.DecodeString("c584cad32613547c64823c756651b6f5") // just a level 1 key
 		sv := getTestSV()
 		sv.Key = k
-		lvl1Key := &drkey.DRKeyLvl1{
+		lvl1Key := &drkey.Lvl1Key{
 			DRKey: drkey.DRKey(*sv),
 			SrcIA: srcIA,
 			DstIA: dstIA,
@@ -180,7 +180,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			defer ctrl.Finish()
 			// mock a key in the DB
 			store.EXPECT().GetDRKeyLvl2(ctx, gomock.Any(), uint32(0)).Return(drkeyLvl2, nil).Do(
-				func(ctx context.Context, argKey *drkey.DRKeyLvl2, argValTime uint32) {
+				func(ctx context.Context, argKey *drkey.Lvl2Key, argValTime uint32) {
 					if argKey.DRKeyLvl1.SrcIA != srcIA ||
 						argKey.DRKeyLvl1.DstIA != dstIA ||
 						argKey.Protocol != "foo" || argKey.KeyType != drkey.AS2AS ||
@@ -202,7 +202,7 @@ func TestLevel2KeyBuildReply(t *testing.T) {
 			expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 			drkeyLvl2.DRKey.Key = expectedLvl2Key
 			drkeyStore.EXPECT().GetDRKeyLvl2(ctx, gomock.Any(), gomock.Any()).Return(nil, nil)
-			drkeyStore.EXPECT().GetDRKeyLvl1(ctx, &drkey.DRKeyLvl1{SrcIA: srcIA, DstIA: dstIA}, req.ValTimeRaw).Return(lvl1Key, nil)
+			drkeyStore.EXPECT().GetDRKeyLvl1(ctx, &drkey.Lvl1Key{SrcIA: srcIA, DstIA: dstIA}, req.ValTimeRaw).Return(lvl1Key, nil)
 			drkeyStore.EXPECT().InsertDRKeyLvl2(ctx, drkeyLvl2).Return(int64(1), nil)
 			reply, err := handler.level2KeyBuildReply(ctx, req, srcIA, dstIA, sv)
 			SoMsg("err", err, ShouldBeNil)

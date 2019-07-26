@@ -15,106 +15,13 @@
 package drkey
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
-	"errors"
-
-	"golang.org/x/crypto/pbkdf2"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-const (
-	drkeySalt   = "Derive DRKey Key" // same as in Python
-	drkeyLength = 16
-)
-
-// SetKey creates the SV_A . The passed asSecret is typically the AS master password
-func (sv *DRKeySV) SetKey(asSecret common.RawBytes, epoch Epoch) error {
-	msLen := len(asSecret)
-	if msLen == 0 {
-		return errors.New("Invalid zero sized secret")
-	}
-	all := make(common.RawBytes, msLen+8)
-	_, err := asSecret.WritePld(all[:msLen])
-	if err != nil {
-		return err
-	}
-	binary.LittleEndian.PutUint32(all[msLen:], epoch.BeginAsSeconds())
-	binary.LittleEndian.PutUint32(all[msLen+4:], epoch.EndAsSeconds())
-	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
-	sv.Key = key
-	return nil
-}
-
-func (k *DRKeyLvl1) SetKey(secret common.RawBytes) error {
-	mac, err := scrypto.InitMac(secret)
-	if err != nil {
-		return err
-	}
-	all := make(common.RawBytes, addr.IABytes)
-	k.DstIA.Write(all)
-	mac.Write(all)
-	tmp := make([]byte, 0, mac.Size())
-	k.Key = mac.Sum(tmp)
-	return nil
-}
-
-func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
-	h, err := scrypto.InitMac(secret)
-	if err != nil {
-		return err
-	}
-	p := []byte(k.Protocol)
-	pLen := len(p)
-	inputLen := 1 + pLen
-	switch k.KeyType {
-	case AS2AS:
-		break
-	case AS2Host:
-		it, err := InputTypeFromHostTypes(k.DstHost.Type(), addr.HostTypeNone)
-		if err != nil {
-			return err
-		}
-		if k.DstHost.Size() == 0 {
-			return errors.New("DRKey Level 2: Type requires a host address but empty")
-		}
-		inputLen += it.RequiredLength()
-	case Host2Host:
-		it, err := InputTypeFromHostTypes(k.SrcHost.Type(), k.DstHost.Type())
-		if err != nil {
-			return err
-		}
-		if k.DstHost.Size() == 0 || k.SrcHost.Size() == 0 {
-			return errors.New("DRKey Level 2: Type requires host address but at least one is empty")
-		}
-		inputLen += it.RequiredLength()
-	default:
-		return common.NewBasicError("Unknown DRKey type", nil)
-	}
-	// TODO drkeytest: this is different from the docs: all[0] is the protocol length
-	all := make(common.RawBytes, inputLen)
-	copy(all[:1], common.RawBytes{uint8(pLen)})
-	copy(all[1:], p)
-	switch k.KeyType {
-	case AS2AS:
-		break
-	case AS2Host:
-		copy(all[pLen+1:], k.DstHost.Pack())
-	case Host2Host:
-		copy(all[pLen+1:], k.SrcHost.Pack())
-		copy(all[pLen+1+k.SrcHost.Size():], k.DstHost.Pack())
-	default:
-		return common.NewBasicError("Unknown DRKey type", nil)
-	}
-	k.Key = h.Sum(all)
-	return nil
-}
-
 // EncryptDRKeyLvl1 does the encryption step in the first level key exchange
-func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey, privkey common.RawBytes) (common.RawBytes, error) {
+func EncryptDRKeyLvl1(drkey Lvl1Key, nonce, pubkey, privkey common.RawBytes) (common.RawBytes, error) {
 	keyLen := len(drkey.Key)
 	msg := make(common.RawBytes, addr.IABytes*2+keyLen)
 	drkey.SrcIA.Write(msg)
@@ -128,13 +35,19 @@ func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey, privkey common.RawBytes) 
 }
 
 // DecryptDRKeyLvl1 decrypts the cipher text received during the first level key exchange
-func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (*DRKeyLvl1, error) {
+func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (Lvl1Key, error) {
 	msg, err := scrypto.Decrypt(cipher, nonce, pubkey, privkey, scrypto.Curve25519xSalsa20Poly1305)
 	if err != nil {
-		return nil, err
+		return Lvl1Key{}, err
 	}
 	srcIA := addr.IAFromRaw(msg[:addr.IABytes])
 	dstIA := addr.IAFromRaw(msg[addr.IABytes : addr.IABytes*2])
 	key := msg[addr.IABytes*2:]
-	return NewDRKeyLvl1(Epoch{}, key, srcIA, dstIA), nil
+	return Lvl1Key{
+		Lvl1Meta: Lvl1Meta{
+			SrcIA: srcIA,
+			DstIA: dstIA,
+		},
+		DRKey: DRKey{key},
+	}, nil
 }

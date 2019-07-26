@@ -25,13 +25,13 @@ import (
 
 // Cache knows the functions to manipulate an expiring DRKey cache. Thread safe.
 type Cache interface {
-	Get(int64) (*drkey.DRKey, bool)
-	Set(idx int64, key *drkey.DRKey)
+	Get(int64) (*drkey.SV, bool)
+	Set(idx int64, key *drkey.SV)
 }
 
 // MemCache is an specifc Cache implementation.
 type MemCache struct {
-	cache map[int64]*drkey.DRKey
+	cache map[int64]*drkey.SV
 	mutex sync.Mutex
 
 	keyDuration  time.Duration
@@ -42,7 +42,7 @@ type MemCache struct {
 // NewCache creates a new MemCache and initializes the cleaner
 func NewCache(keyDuration time.Duration) *MemCache {
 	c := &MemCache{
-		cache:        make(map[int64]*drkey.DRKey),
+		cache:        make(map[int64]*drkey.SV),
 		keyDuration:  keyDuration,
 		stopCleaning: make(chan bool),
 		timeNowFcn:   time.Now,
@@ -56,7 +56,7 @@ func NewCache(keyDuration time.Duration) *MemCache {
 }
 
 // Get returns the element, and an indicator of its presence
-func (c *MemCache) Get(idx int64) (*drkey.DRKey, bool) {
+func (c *MemCache) Get(idx int64) (*drkey.SV, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -65,7 +65,7 @@ func (c *MemCache) Get(idx int64) (*drkey.DRKey, bool) {
 }
 
 // Set sets the key, and registers this element in this shard
-func (c *MemCache) Set(idx int64, key *drkey.DRKey) {
+func (c *MemCache) Set(idx int64, key *drkey.SV) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

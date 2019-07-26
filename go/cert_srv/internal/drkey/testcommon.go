@@ -25,10 +25,12 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 )
 
-func getTestSV() *drkey.DRKeySV {
-	return &drkey.DRKeySV{
-		Epoch: drkey.NewEpoch(0, 1),
-		Key:   common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+func getTestSV() drkey.SV {
+	return drkey.SV{
+		SVMeta: drkey.SVMeta{
+			Epoch: drkey.NewEpoch(0, 1),
+		},
+		DRKey: drkey.DRKey{Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 	}
 }
 

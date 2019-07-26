@@ -123,10 +123,10 @@ func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
 }
 
 // DRKeyGetLvl2Key mocks base method
-func (m *MockConnector) DRKeyGetLvl2Key(arg0 context.Context, arg1 byte, arg2 string, arg3 uint32, arg4, arg5 addr.IA, arg6, arg7 addr.HostAddr) (*drkey.DRKey, error) {
+func (m *MockConnector) DRKeyGetLvl2Key(arg0 context.Context, arg1 byte, arg2 string, arg3 uint32, arg4, arg5 addr.IA, arg6, arg7 addr.HostAddr) (drkey.Lvl2Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DRKeyGetLvl2Key", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
-	ret0, _ := ret[0].(*drkey.DRKey)
+	ret0, _ := ret[0].(drkey.Lvl2Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

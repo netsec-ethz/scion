@@ -117,7 +117,7 @@ type SecretValueStore interface {
 	SetKeyDuration(duration time.Duration) error
 	GetMasterKey() common.RawBytes
 	SetMasterKey(key common.RawBytes) error
-	SecretValue(time.Time) (*drkey.DRKeySV, error)
+	SecretValue(time.Time) (*drkey.SV, error)
 }
 
 // DRKeyStore has all the functions dealing with storage/retrieval of DRKeys level 1 and 2
@@ -126,14 +126,14 @@ type DRKeyStore interface {
 	// General management
 	Close() error
 	// Level 1 specific functions
-	GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error)
-	InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error)
+	GetDRKeyLvl1(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error)
+	InsertDRKeyLvl1(ctx context.Context, key drkey.Lvl1Key) (int64, error)
 	RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error)
 	GetL1SrcASes(ctx context.Context) ([]addr.IA, error)
 	GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
 	// Level 2 specific
-	GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error)
-	InsertDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error)
+	GetDRKeyLvl2(ctx context.Context, key drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error)
+	InsertDRKeyLvl2(ctx context.Context, key drkey.Lvl2Key) (int64, error)
 	RemoveOutdatedDRKeyLvl2(ctx context.Context, cutoff uint32) (int64, error)
 }
 
@@ -231,8 +231,7 @@ func (db *DB) GetMasterKey() common.RawBytes {
 
 func (db *DB) SetMasterKey(key common.RawBytes) error {
 	// test this master key now
-	sv := drkey.DRKeySV{}
-	err := sv.SetKey(key, drkey.NewEpoch(uint32(0), uint32(1)))
+	_, err := drkey.NewSV(drkey.SVMeta{}, key)
 	if err != nil {
 		return common.NewBasicError("Cannot use this master key as the secret for DRKey", err)
 	}
@@ -241,7 +240,7 @@ func (db *DB) SetMasterKey(key common.RawBytes) error {
 }
 
 // SecretValue derives or reuses the secret value for this time stamp
-func (db *DB) SecretValue(t time.Time) (*drkey.DRKeySV, error) {
+func (db *DB) SecretValue(t time.Time) (*drkey.SV, error) {
 	db.sv.cacheMutex.Lock()
 	defer db.sv.cacheMutex.Unlock()
 
@@ -252,15 +251,14 @@ func (db *DB) SecretValue(t time.Time) (*drkey.DRKeySV, error) {
 		begin := uint32(idx * duration)
 		end := begin + uint32(duration)
 		epoch := drkey.NewEpoch(begin, end)
-		key := &drkey.DRKeySV{Epoch: epoch}
-		err := key.SetKey(db.sv.masterKey, epoch)
+		key, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, db.sv.masterKey)
 		if err != nil {
 			return nil, common.NewBasicError("Cannot establish the DRKey secret value", err)
 		}
-		k = (*drkey.DRKey)(key)
+		k = &key
 		db.sv.keyCache.Set(idx, k)
 	}
-	return (*drkey.DRKeySV)(k), nil
+	return k, nil
 }
 
 // GetL1SrcASes returns a list of distinct ASes seen in the SRC of a L1 key
@@ -322,7 +320,7 @@ func (db *DB) GetLvl1Count() int64 {
 
 // GetDRKeyLvl1 takes an pointer to a first level DRKey and a timestamp at which the DRKey should be
 // valid and returns the corresponding first level DRKey.
-func (db *DB) GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime uint32) (*drkey.DRKeyLvl1, error) {
+func (db *DB) GetDRKeyLvl1(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error) {
 	var epochBegin, epochEnd int
 	var bytes common.RawBytes
 	err := db.getDRKeyLvl1Stmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
@@ -331,21 +329,21 @@ func (db *DB) GetDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1, valTime ui
 		if err != sql.ErrNoRows {
 			err = common.NewBasicError(UnableToExecuteStmt, err)
 		}
-		return nil, err
+		return drkey.Lvl1Key{}, err
 	}
-	returningKey := &drkey.DRKeyLvl1{
-		DRKey: drkey.DRKey{
+	returningKey := drkey.Lvl1Key{
+		Lvl1Meta: drkey.Lvl1Meta{
 			Epoch: drkey.NewEpoch(uint32(epochBegin), uint32(epochEnd)),
-			Key:   bytes,
+			SrcIA: key.SrcIA,
+			DstIA: key.DstIA,
 		},
-		SrcIA: key.SrcIA,
-		DstIA: key.DstIA,
+		DRKey: drkey.DRKey{Key: bytes},
 	}
 	return returningKey, nil
 }
 
 // InsertDRKeyLvl1 inserts a first level DRKey and returns the number of affected rows.
-func (db *DB) InsertDRKeyLvl1(ctx context.Context, key *drkey.DRKeyLvl1) (int64, error) {
+func (db *DB) InsertDRKeyLvl1(ctx context.Context, key drkey.Lvl1Key) (int64, error) {
 	res, err := db.insertDRKeyLvl1Stmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
 		key.DstIA.A, key.Epoch.Begin, key.Epoch.End, key.Key)
 	if err != nil {
@@ -375,7 +373,7 @@ func (db *DB) GetLvl2Count() int64 {
 // GetDRKeyLvl2 takes a source, destination and additional ISD-AS, a source, destination and
 // additional host, and a timestamp at which the DRKey should be valid and
 // returns a second level DRKey of the request type
-func (db *DB) GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime uint32) (*drkey.DRKeyLvl2, error) {
+func (db *DB) GetDRKeyLvl2(ctx context.Context, key drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error) {
 	var epochBegin int
 	var epochEnd int
 	var bytes common.RawBytes
@@ -387,27 +385,25 @@ func (db *DB) GetDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2, valTime ui
 		if err != sql.ErrNoRows {
 			err = common.NewBasicError(UnableToExecuteStmt, err)
 		}
-		return nil, err
+		return drkey.Lvl2Key{}, err
 	}
-	returningKey := &drkey.DRKeyLvl2{
-		DRKeyLvl1: drkey.DRKeyLvl1{
-			DRKey: drkey.DRKey{
-				Epoch: drkey.NewEpoch(uint32(epochBegin), uint32(epochEnd)),
-				Key:   bytes,
-			},
-			SrcIA: key.SrcIA,
-			DstIA: key.DstIA,
+	returningKey := drkey.Lvl2Key{
+		Lvl2Meta: drkey.Lvl2Meta{
+			KeyType:  key.KeyType,
+			Protocol: key.Protocol,
+			Epoch:    drkey.NewEpoch(uint32(epochBegin), uint32(epochEnd)),
+			SrcIA:    key.SrcIA,
+			DstIA:    key.DstIA,
+			SrcHost:  key.SrcHost,
+			DstHost:  key.DstHost,
 		},
-		KeyType:  key.KeyType,
-		Protocol: key.Protocol,
-		SrcHost:  key.SrcHost,
-		DstHost:  key.DstHost,
+		DRKey: drkey.DRKey{Key: bytes},
 	}
 	return returningKey, nil
 }
 
 // InsertDRKeyLvl2 inserts a second-level DRKey.
-func (db *DB) InsertDRKeyLvl2(ctx context.Context, key *drkey.DRKeyLvl2) (int64, error) {
+func (db *DB) InsertDRKeyLvl2(ctx context.Context, key drkey.Lvl2Key) (int64, error) {
 	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
 		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost,
 		key.Epoch.Begin, key.Epoch.End, key.Key)

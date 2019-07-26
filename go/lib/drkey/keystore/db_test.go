@@ -50,7 +50,7 @@ func TestDRKeyLvl1(t *testing.T) {
 		defer cleanF()
 
 		epoch := drkey.NewEpochFromDuration(util.TimeToSecs(time.Now()), timeOffset)
-		sv := &drkey.DRKeySV{Epoch: *epoch}
+		sv := &drkey.SV{Epoch: *epoch}
 		SoMsg("drkey", sv, ShouldNotBeNil)
 		err := sv.SetKey(asMasterPassword, *epoch)
 		SoMsg("drkey", err, ShouldBeNil)

@@ -130,7 +130,7 @@ type Connector interface {
 	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
 	// DRKey Level 2 request
 	DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32,
-		srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (*drkey.DRKey, error)
+		srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (drkey.Lvl2Key, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close(ctx context.Context) error
 }
@@ -358,7 +358,7 @@ func (c *connector) RevNotification(ctx context.Context,
 }
 
 func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string,
-	valTime uint32, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (*drkey.DRKey, error) {
+	valTime uint32, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (drkey.Lvl2Key, error) {
 
 	c.Lock()
 	defer c.Unlock()
@@ -382,19 +382,15 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 		nil,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
+		return drkey.Lvl2Key{}, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
 			"keyType", keyType, "protocol", protocol, "valTime", valTime,
 			"srcIA", srcIA, "srcHost", srcHost,
 			"dstIA", dstIA, "dstHost", dstHost,
 		)
 	}
 	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
-	key := drkey.DRKey{
-		Epoch: lvl2rep.Epoch(),
-		Key:   lvl2rep.DRKeyRaw,
-	}
-
-	return &key, nil
+	return lvl2rep.ToKeyRepresentation(srcIA, dstIA, drkey.Lvl2KeyType(keyType),
+		protocol, srcHost, dstHost), nil
 }
 
 func (c *connector) Close(ctx context.Context) error {
