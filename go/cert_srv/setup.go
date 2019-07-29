@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	drkeylib "github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -213,10 +214,13 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		State: state,
 		Msger: msgr,
 	})
+	protoMap := protocol.Map{}
+	protoMap.RegisterDefaultProtocol(protocol.StandardImpl)
 	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Level2ReqHandler{
-		State: state,
-		IA:    topo.ISD_AS,
-		Msger: msgr,
+		State:    state,
+		IA:       topo.ISD_AS,
+		Msger:    msgr,
+		ProtoMap: &protoMap,
 	})
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())

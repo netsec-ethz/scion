@@ -17,6 +17,7 @@ go_library(
         "//go/lib/ctrl/cert_mgmt:go_default_library",
         "//go/lib/ctrl/drkey_mgmt:go_default_library",
         "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/protocol:go_default_library",
         "//go/lib/drkeystorage:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/messenger:go_default_library",

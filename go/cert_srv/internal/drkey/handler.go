@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -256,10 +257,12 @@ func validateReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
 	return nil
 }
 
+// Level2ReqHandler contains the information necessary to handle a level 2 drkey request.
 type Level2ReqHandler struct {
-	State *config.State
-	IA    addr.IA
-	Msger infra.Messenger
+	State    *config.State
+	IA       addr.IA
+	Msger    infra.Messenger
+	ProtoMap *protocol.Map
 }
 
 // Handle handles the level 1 drkey requests
@@ -345,7 +348,7 @@ func (h *Level2ReqHandler) level2KeyBuildReply(ctx context.Context, req *drkey_m
 	log.Trace("[DRKeyLevel2BuildReply] Got level 1 key, about to derive L2")
 	// derive level 2
 	var lvl2key drkey.Lvl2Key
-	lvl2key, err = deriveLvl2Key(lvl1Key, keyType, protocol, srcHost, dstHost)
+	lvl2key, err = h.deriveLvl2Key(lvl1Key, keyType, protocol, srcHost, dstHost)
 	if err != nil {
 		return reply, common.NewBasicError("Cannot derive L2 from L1", err)
 	}
@@ -383,7 +386,7 @@ func (h *Level2ReqHandler) getL1KeyFromOtherCS(ctx context.Context, srcIA, dstIA
 }
 
 // deriveLvl2Key derives the level 2 DRKey
-func deriveLvl2Key(lvl1Key drkey.Lvl1Key, keyType drkey.Lvl2KeyType, protocol string,
+func (h *Level2ReqHandler) deriveLvl2Key(lvl1Key drkey.Lvl1Key, keyType drkey.Lvl2KeyType, protocol string,
 	srcHost, dstHost addr.HostAddr) (drkey.Lvl2Key, error) {
 
 	meta := drkey.Lvl2Meta{
@@ -395,7 +398,7 @@ func deriveLvl2Key(lvl1Key drkey.Lvl1Key, keyType drkey.Lvl2KeyType, protocol st
 		SrcHost:  srcHost,
 		DstHost:  dstHost,
 	}
-	key, err := drkey.NewLvl2Key(meta, lvl1Key)
+	key, err := h.ProtoMap.DeriveLvl2(meta, lvl1Key)
 	if err != nil {
 		return key, common.NewBasicError("Cannot derive Level 2 DRKey", err)
 	}

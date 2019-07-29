@@ -15,12 +15,9 @@
 package drkey
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 // Lvl2KeyType represents the different types of level 2 DRKeys (AS->AS, AS->host, host->host)
@@ -55,50 +52,4 @@ type Lvl2Key struct {
 
 func (k *Lvl2Key) String() string {
 	return fmt.Sprintf("%v %v", k.Lvl2Meta, k.DRKey)
-}
-
-// NewLvl2Key constructs a level 2 DRKey
-func NewLvl2Key(meta Lvl2Meta, lvl1 Lvl1Key) (Lvl2Key, error) {
-	h, err := scrypto.InitMac(lvl1.DRKey.Key)
-	if err != nil {
-		return Lvl2Key{}, err
-	}
-
-	pLen := 1
-	buffs := []common.RawBytes{}
-	switch meta.KeyType {
-	case Host2Host:
-		if meta.SrcHost.Size() == 0 {
-			return Lvl2Key{}, errors.New("Level 2 DRKey requires a src host, but it is empty")
-		}
-		b := meta.SrcHost.Pack()
-		buffs = []common.RawBytes{b}
-		pLen += len(b)
-		fallthrough
-	case AS2Host:
-		if meta.DstHost.Size() == 0 {
-			return Lvl2Key{}, errors.New("Level 2 DRKey requires a dst host, but it is empty")
-		}
-		b := meta.DstHost.Pack()
-		buffs = append(buffs, b)
-		pLen += len(b)
-		fallthrough
-	case AS2AS:
-		b := common.RawBytes(meta.Protocol)
-		buffs = append(buffs, b)
-		pLen += len(b)
-	default:
-		return Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
-	}
-	all := make(common.RawBytes, pLen)
-	copy(all[:1], common.RawBytes{byte(pLen)})
-	pLen = 1
-	for i := len(buffs) - 1; i >= 0; i-- {
-		copy(all[pLen:], buffs[i])
-		pLen += len(buffs[i])
-	}
-	return Lvl2Key{
-		Lvl2Meta: meta,
-		DRKey:    DRKey{h.Sum(all)},
-	}, nil
 }
