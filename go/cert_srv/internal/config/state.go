@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/drkeystore"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -44,11 +44,11 @@ type State struct {
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
 	// drykey stored keys
-	DRKeyStore drkeystore.Store
+	DRKeyStore drkeystorage.Store
 }
 
 func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
-	trustStore *trust.Store, drkeyStore drkeystore.Store) (*State, error) {
+	trustStore *trust.Store, drkeyStore drkeystorage.Store) (*State, error) {
 
 	s := &State{
 		Store:      trustStore,

@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkeystore"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -402,7 +402,7 @@ func deriveLvl2Key(lvl1Key drkey.Lvl1Key, keyType drkey.Lvl2KeyType, protocol st
 	return key, nil
 }
 
-func findLvl1KeyInDB(ctx context.Context, db drkeystore.Store, valTime uint32, srcIA, dstIA addr.IA) (drkey.Lvl1Key, error) {
+func findLvl1KeyInDB(ctx context.Context, db drkeystorage.Store, valTime uint32, srcIA, dstIA addr.IA) (drkey.Lvl1Key, error) {
 	meta := drkey.Lvl1Meta{
 		SrcIA: srcIA,
 		DstIA: dstIA,
@@ -414,7 +414,7 @@ func findLvl1KeyInDB(ctx context.Context, db drkeystore.Store, valTime uint32, s
 	return stored, err
 }
 
-func findLvl2KeyInDB(ctx context.Context, db drkeystore.Store, valTime uint32, protocol string,
+func findLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, valTime uint32, protocol string,
 	keyType drkey.Lvl2KeyType, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (drkey.Lvl2Key, error) {
 
 	key := drkey.Lvl2Meta{
@@ -432,7 +432,7 @@ func findLvl2KeyInDB(ctx context.Context, db drkeystore.Store, valTime uint32, p
 	return stored, err
 }
 
-func storeLvl2KeyInDB(ctx context.Context, db drkeystore.Store, key drkey.Lvl2Key) error {
+func storeLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, key drkey.Lvl2Key) error {
 	_, err := db.InsertDRKeyLvl2(ctx, key)
 	return err
 }
