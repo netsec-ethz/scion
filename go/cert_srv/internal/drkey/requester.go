@@ -64,7 +64,7 @@ func (r *Requester) UpdatePendingList(ctx context.Context) error {
 		return common.NewBasicError("[drkey.Requester] failed to get all IAs from DB", err)
 	}
 	// get ASes from the trustDB
-	var asesFromTrustDB asSet // TODO drkeytest: get all known ASes (from trust DB ?)
+	var asesFromTrustDB asSet // TODO(juagargi): get all known ASes (from trust DB ?)
 	// unite the two sets
 	pendingASes := unionSet(asesFromDRKeyStore, asesFromTrustDB)
 	// up to date ASes from DRKey store
@@ -83,7 +83,7 @@ func (r *Requester) UpdatePendingList(ctx context.Context) error {
 func (r *Requester) ProcessPendingList(ctx context.Context) error {
 	errors := []error{}
 	// get pending ASes
-	timePoint := uint32(time.Now().Unix()) // TODO drkeytest: this is not enough!
+	timePoint := uint32(time.Now().Unix()) // TODO(juagargi): this is not enough!
 	pending := r.PendingASes.Get()
 	for p := range pending {
 		// for each one, request their certificates
@@ -113,7 +113,7 @@ func (r *Requester) getLvl1SrcIAsFromKeystore(ctx context.Context) (asSet, error
 }
 
 func (r *Requester) getValidLvl1SrcIAsFromStore(ctx context.Context) (asSet, error) {
-	// TODO drkeytest: that 60 should be a configuration parameter
+	// TODO(juagargi): that 60 should be a configuration parameter
 	futurePointInTime := uint32(time.Now().Unix()) + uint32(60)
 	list, err := r.State.DRKeyStore.GetValidLvl1SrcASes(ctx, futurePointInTime)
 	if err != nil && err != sql.ErrNoRows {
@@ -132,7 +132,7 @@ func (r *Requester) requestLvl1(ctx context.Context, pending addr.IA, valTime ui
 	if err != nil {
 		return err
 	}
-	// TODO drkeytest: we have a handler for level 1 replies. Can we send the request and return ?
+	// TODO(juagargi): we have a handler for level 1 replies. Can we send the request and return ?
 	return r.processReply(ctx, reply, pending)
 }
 

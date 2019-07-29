@@ -157,10 +157,10 @@ func startReissRunner() {
 }
 
 func startDRKeyRunners() {
-	// TODO drkeytest: if there has been a change in the duration, we probably need to keep
+	// TODO(juagargi): if there has been a change in the duration, we probably need to keep
 	// the already sent keys (and their duration) as they were already handed to other entities
 	storeKeeperPeriod := 2 * cfg.CS.DRKeyDuration.Duration
-	// TODO drkeytest: the duration of the requester must depend on the present keys, not on our SV
+	// TODO(juagargi): the duration of the requester must depend on the present keys, not on our SV
 	requesterPeriod := cfg.CS.DRKeyDuration.Duration / 2
 	if storeKeeperPeriod < 2*requesterPeriod {
 		// since the keeper removes keys, the requester must see them before removal at least once
@@ -175,7 +175,7 @@ func startDRKeyRunners() {
 		periodic.NewTicker(storeKeeperPeriod),
 		time.Minute,
 	)
-	// TODO drkeytest: check the timeout value
+	// TODO(juagargi): check the timeout value
 	drkeyRequester = periodic.StartPeriodicTask(
 		&drkey.Requester{
 			Msgr:  msgr,

@@ -116,7 +116,7 @@ func TestProcessPending(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancelF()
 	Convey("Replies are on time", t, func() {
-		// TODO drkeytest: if we move the logic of processing the reply to the reply handler only, remove half of this test
+		// TODO(juagargi): if we move the logic of processing the reply to the reply handler only, remove half of this test
 		ctrl, msger, trustDB, store, requester := setupRequester(t)
 		defer ctrl.Finish()
 
@@ -147,7 +147,7 @@ func TestProcessPending(t *testing.T) {
 		_ = store
 	})
 	Convey("On reply takes forever but doesn't block the rest", t, func() {
-		// TODO drkeytest: better if we don't have to do this but rely on the L1 handler
+		// TODO(juagargi): better if we don't have to do this but rely on the L1 handler
 	})
 }
 

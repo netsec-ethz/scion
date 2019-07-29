@@ -97,7 +97,7 @@ func ObtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger
 	}
 	if chain == nil {
 		// we don't have it
-		// TODO drkeytest: plese review this request
+		// TODO(juagargi): plese review this request
 		chainReq := &cert_mgmt.ChainReq{
 			RawIA:     ia.IAInt(),
 			Version:   scrypto.LatestVer,
@@ -235,7 +235,7 @@ func Lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.
 	if err = validateReply(reply, srcIA); err != nil {
 		return lvl1Key, common.NewBasicError("Dropping DRKeyLvl1 reply", err)
 	}
-	// TODO drkeytest: match this reply with a request from this CS
+	// TODO(juagargi): match this reply with a request from this CS
 	lvl1Key, err = drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, cert.SubjectEncKey, privateKey)
 	if err != nil {
 		return lvl1Key, common.NewBasicError("Error decrypting the key from the reply", err)
@@ -275,7 +275,7 @@ func (h *Lvl2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	srcIA := req.SrcIA()
 	dstIA := req.DstIA()
 
-	// TODO drkeytest: should we always send something, to signal e.g. sciond there was an error, and avoid the timeout?
+	// TODO(juagargi): should we always send something, to signal e.g. sciond there was an error, and avoid the timeout?
 	// E.g. when we request an AS2Host key but leave the host addr empty, sciond waits until timeout
 	sv, err := h.State.DRKeyStore.SecretValue(valToTime(req.ValTimeRaw))
 	if err != nil {
@@ -371,7 +371,7 @@ func (h *Lvl2ReqHandler) getLvl1KeyFromOtherCS(ctx context.Context, srcIA, dstIA
 		return lvl1Key, common.NewBasicError("Unable to fetch certificate for remote host", err)
 	}
 	privateKey := h.State.GetDecryptKey()
-	// TODO drkeytest: move this to only request level 1 from a requester (a la reiss.requester)
+	// TODO(juagargi): move this to only request level 1 from a requester (a la reiss.requester)
 	csAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	lvl1Req := drkey_mgmt.NewDRKeyLvl1Req(dstIA, valTime)
 	lvl1Rep, err := h.Msger.RequestDRKeyLvl1(ctx, lvl1Req, csAddr, messenger.NextId())

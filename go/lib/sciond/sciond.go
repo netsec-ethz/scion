@@ -363,7 +363,7 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 	c.Lock()
 	defer c.Unlock()
 
-	// TODO drkeytest: use a cache here
+	// TODO(juagargi): use a store here
 	reply, err := c.dispatcher.Request(
 		ctx,
 		&Pld{
