@@ -43,8 +43,8 @@ type Lvl1Store interface {
 	GetDRKeyLvl1(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error)
 	InsertDRKeyLvl1(ctx context.Context, key drkey.Lvl1Key) (int64, error)
 	RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int64, error)
-	GetL1SrcASes(ctx context.Context) ([]addr.IA, error)
-	GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
+	GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
+	GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
 }
 
 // Lvl2Store has all the functions dealing with storage/retrieval of level 2 DRKeys.
@@ -54,7 +54,7 @@ type Lvl2Store interface {
 	RemoveOutdatedDRKeyLvl2(ctx context.Context, cutoff uint32) (int64, error)
 }
 
-// Store has access to SV, L1 and L2 DRKeys
+// Store has access to SV, level 1 and 2 DRKeys
 type Store interface {
 	SecretValueStore
 	Lvl1Store

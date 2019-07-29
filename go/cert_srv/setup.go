@@ -205,18 +205,18 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Level1ReqHandler{
+	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Lvl1ReqHandler{
 		State: state,
 		IA:    topo.ISD_AS,
 		Msger: msgr,
 	})
-	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Level1ReplyHandler{
+	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
 		State: state,
 		Msger: msgr,
 	})
 	protoMap := protocol.Map{}
 	protoMap.RegisterDefaultProtocol(protocol.StandardImpl)
-	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Level2ReqHandler{
+	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
 		State:    state,
 		IA:       topo.ISD_AS,
 		Msger:    msgr,

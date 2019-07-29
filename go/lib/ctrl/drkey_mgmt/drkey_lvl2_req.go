@@ -80,7 +80,7 @@ func (c *DRKeyLvl2Req) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Req_TypeID
 }
 
-// ValTime returns the validity time of the requested DRkey.
+// ValTime returns the validity time of the requested DRKey.
 func (c *DRKeyLvl2Req) ValTime() time.Time {
 	return util.SecsToTime(c.ValTimeRaw)
 }

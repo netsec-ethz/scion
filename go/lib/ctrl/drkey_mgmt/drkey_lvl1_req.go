@@ -34,7 +34,7 @@ type DRKeyLvl1Req struct {
 	TimestampRaw uint32     `capnp:"timestamp"`
 }
 
-// NewDRKeyLvl1Req creates a new L1 request struct.
+// NewDRKeyLvl1Req creates a new level 1 request struct.
 func NewDRKeyLvl1Req(dstIA addr.IA, valTime uint32) *DRKeyLvl1Req {
 	return &DRKeyLvl1Req{
 		DstIARaw:     dstIA.IAInt(),

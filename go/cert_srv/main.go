@@ -165,7 +165,7 @@ func startDRKeyRunners() {
 	if storeKeeperPeriod < 2*requesterPeriod {
 		// since the keeper removes keys, the requester must see them before removal at least once
 		fatal.Fatal(common.NewBasicError("DRKey start failed: the removal of expired keys happens "+
-			"too often compared to the request of new L1 keys", nil,
+			"too often compared to the request of new level 1 keys", nil,
 			"removal period", storeKeeperPeriod, "requester period", requesterPeriod))
 	}
 	drkeyStoreKeeper = periodic.StartPeriodicTask(

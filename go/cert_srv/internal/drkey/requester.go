@@ -34,32 +34,32 @@ import (
 
 var _ periodic.Task = (*Requester)(nil)
 
-// Requester is in charge of getting the L1 keys before they expire
+// Requester is in charge of getting the level 1 keys before they expire
 type Requester struct {
 	Msgr        infra.Messenger
 	State       *config.State
 	IA          addr.IA
-	PendingASes pendingL1
+	PendingASes pendingLvl1
 }
 
-// Run requests L1 keys from other CSs
+// Run requests level 1 keys from other CSs
 func (r *Requester) Run(ctx context.Context) {
 	// update pending ASes list
 	err := r.UpdatePendingList(ctx)
 	if err != nil {
-		log.Error("[drkey.Run] Error updating pending L1 keys", "err", err)
+		log.Error("[drkey.Run] Error updating pending level 1 keys", "err", err)
 	}
-	// obtain L1 for each pending AS
+	// obtain level 1 for each pending AS
 	err = r.ProcessPendingList(ctx)
 	if err != nil {
-		log.Error("[drkey.Run] Error requesting pending L1 keys", "err", err)
+		log.Error("[drkey.Run] Error requesting pending level 1 keys", "err", err)
 	}
 }
 
-// UpdatePendingList returns the list of ASes we have to query for their L1 keys
+// UpdatePendingList returns the list of ASes we have to query for their level 1 keys
 func (r *Requester) UpdatePendingList(ctx context.Context) error {
 	// get ASes from DRKey store
-	asesFromDRKeyStore, err := r.getL1SrcIAsFromKeystore(ctx)
+	asesFromDRKeyStore, err := r.getLvl1SrcIAsFromKeystore(ctx)
 	if err != nil {
 		return common.NewBasicError("[drkey.Requester] failed to get all IAs from DB", err)
 	}
@@ -68,18 +68,18 @@ func (r *Requester) UpdatePendingList(ctx context.Context) error {
 	// unite the two sets
 	pendingASes := unionSet(asesFromDRKeyStore, asesFromTrustDB)
 	// up to date ASes from DRKey store
-	asesOkFromDRKeyStore, err := r.getL1SrcIAsFromKSStillValid(ctx)
+	asesOkFromDRKeyStore, err := r.getValidLvl1SrcIAsFromStore(ctx)
 	if err != nil {
 		return common.NewBasicError("[drkey.Requester] failed to get valid IAs from DB", err)
 	}
 	// remove ourselves
 	delete(pendingASes, r.IA)
-	// difference of previous set with up to date L1s from DB
+	// difference of previous set with up to date level 1 keys from DB
 	r.PendingASes.Set(differenceSet(pendingASes, asesOkFromDRKeyStore))
 	return nil
 }
 
-// ProcessPendingList should request an L1 key for each one of the pending ASes
+// ProcessPendingList should request an level 1 key for each one of the pending ASes
 func (r *Requester) ProcessPendingList(ctx context.Context) error {
 	errors := []error{}
 	// get pending ASes
@@ -87,7 +87,7 @@ func (r *Requester) ProcessPendingList(ctx context.Context) error {
 	pending := r.PendingASes.Get()
 	for p := range pending {
 		// for each one, request their certificates
-		err := r.requestL1(ctx, p, timePoint)
+		err := r.requestLvl1(ctx, p, timePoint)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -98,31 +98,31 @@ func (r *Requester) ProcessPendingList(ctx context.Context) error {
 		for _, e := range errors {
 			params = append(params, "err", e)
 		}
-		err = common.NewBasicError("Errors requesting L1 keys", nil, params...)
+		err = common.NewBasicError("Errors requesting level 1 keys", nil, params...)
 	}
 	return err
 }
 
-// getL1SrcIAsFromKeystore returns a set of IAs seen as sources in L1 keys in the DB
-func (r *Requester) getL1SrcIAsFromKeystore(ctx context.Context) (asSet, error) {
-	list, err := r.State.DRKeyStore.GetL1SrcASes(ctx)
+// getLvl1SrcIAsFromKeystore returns a set of IAs seen as sources in level 1 keys in the DB
+func (r *Requester) getLvl1SrcIAsFromKeystore(ctx context.Context) (asSet, error) {
+	list, err := r.State.DRKeyStore.GetLvl1SrcASes(ctx)
 	if err != nil && err != sql.ErrNoRows {
-		return nil, common.NewBasicError("Cannot obtain DRKey L1 src IAs from DB", err)
+		return nil, common.NewBasicError("Cannot obtain DRKey level 1 src IAs from DB", err)
 	}
 	return setFromList(list), nil
 }
 
-func (r *Requester) getL1SrcIAsFromKSStillValid(ctx context.Context) (asSet, error) {
+func (r *Requester) getValidLvl1SrcIAsFromStore(ctx context.Context) (asSet, error) {
 	// TODO drkeytest: that 60 should be a configuration parameter
 	futurePointInTime := uint32(time.Now().Unix()) + uint32(60)
-	list, err := r.State.DRKeyStore.GetValidL1SrcASes(ctx, futurePointInTime)
+	list, err := r.State.DRKeyStore.GetValidLvl1SrcASes(ctx, futurePointInTime)
 	if err != nil && err != sql.ErrNoRows {
-		return nil, common.NewBasicError("Cannot obtain still valid DRKey L1 src IAs from DB", err)
+		return nil, common.NewBasicError("Cannot obtain still valid DRKey level 1 src IAs from DB", err)
 	}
 	return setFromList(list), nil
 }
 
-func (r *Requester) requestL1(ctx context.Context, pending addr.IA, valTime uint32) error {
+func (r *Requester) requestLvl1(ctx context.Context, pending addr.IA, valTime uint32) error {
 	csAddr := &snet.Addr{
 		IA:   pending,
 		Host: addr.NewSVCUDPAppAddr(addr.SvcCS),
@@ -132,7 +132,7 @@ func (r *Requester) requestL1(ctx context.Context, pending addr.IA, valTime uint
 	if err != nil {
 		return err
 	}
-	// TODO drkeytest: we have a handler for L1 replies. Can we send the request and return ?
+	// TODO drkeytest: we have a handler for level 1 replies. Can we send the request and return ?
 	return r.processReply(ctx, reply, pending)
 }
 
@@ -147,7 +147,7 @@ func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl
 		return common.NewBasicError("Error obtaining cert. chain", err, "IA", dstIA)
 	}
 	privateKey := r.State.GetDecryptKey()
-	key, err := Level1KeyFromReply(reply, srcIA, chain.Leaf, privateKey)
+	key, err := Lvl1KeyFromReply(reply, srcIA, chain.Leaf, privateKey)
 	if err != nil {
 		return common.NewBasicError("error processing reply", err, "srcIA", srcIA)
 	}
@@ -166,14 +166,14 @@ func (s *asSet) String() string {
 	return strings.Join(ases, ", ")
 }
 
-// pendingL1 keeps the AS list for which we have to request their L1 DRKey
-type pendingL1 struct {
+// pendingLvl1 keeps the AS list for which we have to request their level 1 DRKey
+type pendingLvl1 struct {
 	set     asSet
 	setLock sync.Mutex
 }
 
 // Set copies the argument as the pending set
-func (p *pendingL1) Set(pending asSet) {
+func (p *pendingLvl1) Set(pending asSet) {
 	p.setLock.Lock()
 	defer p.setLock.Unlock()
 	p.set = asSet{}
@@ -183,7 +183,7 @@ func (p *pendingL1) Set(pending asSet) {
 }
 
 // Get returns a copy of the pending ASes
-func (p *pendingL1) Get() asSet {
+func (p *pendingLvl1) Get() asSet {
 	p.setLock.Lock()
 	defer p.setLock.Unlock()
 	ret := make(asSet)

@@ -33,10 +33,11 @@ const (
 
 var _ drkey.DB = (*Backend)(nil)
 
+// Backend implements a drkey DB with sqlite.
 type Backend struct {
 	db                          *sql.DB
-	getL1SrcASesStmt            *sql.Stmt
-	getValidL1SrcASesStmt       *sql.Stmt
+	getLvl1SrcASesStmt          *sql.Stmt
+	getValidLvl1SrcASesStmt     *sql.Stmt
 	getDRKeyLvl1Stmt            *sql.Stmt
 	insertDRKeyLvl1Stmt         *sql.Stmt
 	removeOutdatedDRKeyLvl1Stmt *sql.Stmt
@@ -60,10 +61,10 @@ func New(path string) (*Backend, error) {
 			b.db.Close()
 		}
 	}()
-	if b.getL1SrcASesStmt, err = b.db.Prepare(getL1SrcASes); err != nil {
+	if b.getLvl1SrcASesStmt, err = b.db.Prepare(getLvl1SrcASes); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
-	if b.getValidL1SrcASesStmt, err = b.db.Prepare(getValidL1SrcASes); err != nil {
+	if b.getValidLvl1SrcASesStmt, err = b.db.Prepare(getValidLvl1SrcASes); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
 	if b.getDRKeyLvl1Stmt, err = b.db.Prepare(getDRKeyLvl1); err != nil {
@@ -92,14 +93,14 @@ func (b *Backend) Close() error {
 	return b.db.Close()
 }
 
-const getL1SrcASes = `
+const getLvl1SrcASes = `
 SELECT SrcIsdID as I, SrcASID as A FROM DRKeyLvl1
 GROUP BY I, A
 `
 
-// GetL1SrcASes returns a list of distinct ASes seen in the SRC of a L1 key
-func (b *Backend) GetL1SrcASes(ctx context.Context) ([]addr.IA, error) {
-	rows, err := b.getL1SrcASesStmt.QueryContext(ctx)
+// GetLvl1SrcASes returns a list of distinct ASes seen in the SRC of a level 1 key
+func (b *Backend) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
+	rows, err := b.getLvl1SrcASesStmt.QueryContext(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			err = common.NewBasicError(UnableToExecuteStmt, err)
@@ -121,16 +122,16 @@ func (b *Backend) GetL1SrcASes(ctx context.Context) ([]addr.IA, error) {
 	return ases, nil
 }
 
-const getValidL1SrcASes = `
+const getValidLvl1SrcASes = `
 SELECT SrcIsdID as I, SrcASID as A FROM DRKeyLvl1
 WHERE EpochBegin <= ? AND ? < EpochEnd
 GROUP BY I, A
 `
 
-// GetValidL1SrcASes returns a list of distinct IAs that have a still valid L1 key
-// If the L1 key is still valid according to valTime, its src IA will be in the list
-func (b *Backend) GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
-	rows, err := b.getValidL1SrcASesStmt.QueryContext(ctx, valTime, valTime)
+// GetValidLvl1SrcASes returns a list of distinct IAs that have a still valid level 1 key
+// If the level 1 key is still valid according to valTime, its src IA will be in the list
+func (b *Backend) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
+	rows, err := b.getValidLvl1SrcASesStmt.QueryContext(ctx, valTime, valTime)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			err = common.NewBasicError(UnableToExecuteStmt, err)

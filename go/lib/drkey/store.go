@@ -95,12 +95,12 @@ func (s *Store) RemoveOutdatedDRKeyLvl1(ctx context.Context, cutoff uint32) (int
 	return s.db.RemoveOutdatedDRKeyLvl1(ctx, cutoff)
 }
 
-func (s *Store) GetL1SrcASes(ctx context.Context) ([]addr.IA, error) {
-	return s.db.GetL1SrcASes(ctx)
+func (s *Store) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
+	return s.db.GetLvl1SrcASes(ctx)
 }
 
-func (s *Store) GetValidL1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
-	return s.db.GetValidL1SrcASes(ctx, valTime)
+func (s *Store) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
+	return s.db.GetValidLvl1SrcASes(ctx, valTime)
 }
 
 func (s *Store) GetDRKeyLvl2(ctx context.Context, key Lvl2Meta, valTime uint32) (Lvl2Key, error) {
