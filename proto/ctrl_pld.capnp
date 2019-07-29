@@ -14,7 +14,6 @@ using SIG = import "sig.capnp";
 using CtrlExtn = import "ctrl_extn.capnp";
 using Ack = import "ack.capnp";
 
-# TODO: drkeytest: on the DRKey docs SignedCtrlPld contains more fields
 
 struct SignedCtrlPld {
     blob @0 :Data;  # Raw CtrlPld

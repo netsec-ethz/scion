@@ -25,10 +25,16 @@ import (
 
 // SecretValueStore has the functionality to store secret values.
 type SecretValueStore interface {
+	// GetKeyDuration returns the duration set to secret values when first created.
 	GetKeyDuration() time.Duration
+	// SetKeyDuration establishes the duration of the secret value epochs when created.
 	SetKeyDuration(duration time.Duration) error
+	// GetMasterKey returns the master key set in this secret value store.
 	GetMasterKey() common.RawBytes
+	// SetMasterKey establishes the master key used to derive secret values in this store.
 	SetMasterKey(key common.RawBytes) error
+	// SecretValue returns the secret value given a point in time. The mapping returns the same
+	// secret value for time points within the same time window [t/Duration, t/Duration +1) .
 	SecretValue(time.Time) (*drkey.SV, error)
 }
 

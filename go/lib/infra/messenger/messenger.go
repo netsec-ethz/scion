@@ -30,14 +30,14 @@
 //  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
-//  infra.SignedRev              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
+//  infra.SignedRev           -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
 //  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
-//	infra.DRKeyLvl1Request	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Req
-//	infra.DRKeyLvl1Reply	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Rep
-//	infra.DRKeyLvl2Request	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Req
-//	infra.DRKeyLvl2Reply	  -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Rep
+//	infra.DRKeyLvl1Request    -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Req
+//	infra.DRKeyLvl1Reply      -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Rep
+//	infra.DRKeyLvl2Request    -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Req
+//	infra.DRKeyLvl2Reply      -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Rep
 //
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
