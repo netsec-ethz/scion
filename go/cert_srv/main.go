@@ -157,11 +157,14 @@ func startReissRunner() {
 }
 
 func startDRKeyRunners() {
+	if cfg.DRKeyConf.Enabled() == false {
+		return
+	}
 	// TODO(juagargi): if there has been a change in the duration, we probably need to keep
 	// the already sent keys (and their duration) as they were already handed to other entities
-	storeKeeperPeriod := 2 * cfg.CS.DRKeyDuration.Duration
+	storeKeeperPeriod := 2 * cfg.DRKeyConf.Duration()
 	// TODO(juagargi): the duration of the requester must depend on the present keys, not on our SV
-	requesterPeriod := cfg.CS.DRKeyDuration.Duration / 2
+	requesterPeriod := cfg.DRKeyConf.Duration() / 2
 	if storeKeeperPeriod < 2*requesterPeriod {
 		// since the keeper removes keys, the requester must see them before removal at least once
 		fatal.Fatal(common.NewBasicError("DRKey start failed: the removal of expired keys happens "+
@@ -208,6 +211,9 @@ func stopReissRunner() {
 func stopDRKeyRunners() {
 	if drkeyStoreKeeper != nil {
 		drkeyStoreKeeper.Stop()
+	}
+	if drkeyRequester != nil {
+		drkeyRequester.Stop()
 	}
 }
 

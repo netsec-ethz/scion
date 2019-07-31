@@ -34,10 +34,4 @@ ReissueTimeout = "5s"
 
 # Whether automatic reissuing is enabled. (default false)
 AutomaticRenewal = false
-
-# Location where the DRKey store can be found
-DRKeyStore = "/var/lib/scion/spki/cs-1.drkey.store.db"
-
-# Duration of the DRKey secret value (and thus of all derived keys)
-DRKeyDuration = "24h"
 `

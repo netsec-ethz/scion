@@ -218,7 +218,7 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 
 	key, err := Lvl1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
 	// because we received a reply, we probably want to keep a copy in our local DB:
-	_, err = h.State.DRKeyStore.InsertDRKeyLvl1(ctx, key)
+	err = h.State.DRKeyStore.InsertLvl1Key(ctx, key)
 	if err != nil {
 		log.Error("[Lvl1ReplyHandler] Could not insert the DR key in the DB", "err", err)
 		return infra.MetricsErrInternal
@@ -410,7 +410,7 @@ func findLvl1KeyInDB(ctx context.Context, db drkeystorage.Store, valTime uint32,
 		SrcIA: srcIA,
 		DstIA: dstIA,
 	}
-	stored, err := db.GetDRKeyLvl1(ctx, meta, valTime)
+	stored, err := db.GetLvl1Key(ctx, meta, valTime)
 	if err != nil && err != sql.ErrNoRows {
 		return drkey.Lvl1Key{}, common.NewBasicError("Cannot query DRKey Store [level 1]", err)
 	}
@@ -428,7 +428,7 @@ func findLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, valTime uint32,
 		SrcHost:  srcHost,
 		DstHost:  dstHost,
 	}
-	stored, err := db.GetDRKeyLvl2(ctx, key, valTime)
+	stored, err := db.GetLvl2Key(ctx, key, valTime)
 	if err != nil && err != sql.ErrNoRows {
 		return drkey.Lvl2Key{}, common.NewBasicError("Cannot query DRKey Store [level 2]", err)
 	}
@@ -436,7 +436,7 @@ func findLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, valTime uint32,
 }
 
 func storeLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, key drkey.Lvl2Key) error {
-	_, err := db.InsertDRKeyLvl2(ctx, key)
+	err := db.InsertLvl2Key(ctx, key)
 	return err
 }
 

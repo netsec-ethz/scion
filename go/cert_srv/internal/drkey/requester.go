@@ -152,7 +152,7 @@ func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl
 		return common.NewBasicError("error processing reply", err, "srcIA", srcIA)
 	}
 	// now store key!
-	_, err = r.State.DRKeyStore.InsertDRKeyLvl1(ctx, key)
+	err = r.State.DRKeyStore.InsertLvl1Key(ctx, key)
 	return err
 }
 

@@ -30,6 +30,7 @@ import (
 	drkeylib "github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
 	"github.com/scionproto/scion/go/lib/drkey/protocol"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -138,12 +139,17 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	drkeyDB, err := drkeydbsqlite.New(cfg.CS.DRKeyStore)
-	if err != nil {
-		return common.NewBasicError("Unable to initialize drkey key store", err)
+	var drkeyStore drkeystorage.Store
+	if cfg.DRKeyConf.Enabled() {
+		drkeyDB, err := drkeydbsqlite.New(cfg.DRKeyConf.Connection())
+		if err != nil {
+			return common.NewBasicError("Unable to initialize drkey key store", err)
+		}
+		drkeyStore = drkeylib.NewStore(drkeyDB)
+		drkeyStore.SetKeyDuration(cfg.DRKeyConf.Duration())
+	} else {
+		drkeyStore = drkeystorage.NewDisabledStore()
 	}
-	drkeyStore := drkeylib.NewStore(drkeyDB)
-	drkeyStore.SetKeyDuration(cfg.CS.DRKeyDuration.Duration)
 	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore, drkeyStore)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
@@ -205,23 +211,25 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Lvl1ReqHandler{
-		State: state,
-		IA:    topo.ISD_AS,
-		Msger: msgr,
-	})
-	msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
-		State: state,
-		Msger: msgr,
-	})
-	protoMap := protocol.Map{}
-	protoMap.RegisterDefaultProtocol(protocol.StandardImpl)
-	msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
-		State:    state,
-		IA:       topo.ISD_AS,
-		Msger:    msgr,
-		ProtoMap: &protoMap,
-	})
+	if cfg.DRKeyConf.Enabled() {
+		msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Lvl1ReqHandler{
+			State: state,
+			IA:    topo.ISD_AS,
+			Msger: msgr,
+		})
+		msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
+			State: state,
+			Msger: msgr,
+		})
+		protoMap := protocol.Map{}
+		protoMap.RegisterDefaultProtocol(protocol.StandardImpl)
+		msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
+			State:    state,
+			IA:       topo.ISD_AS,
+			Msger:    msgr,
+			ProtoMap: &protoMap,
+		})
+	}
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.

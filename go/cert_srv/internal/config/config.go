@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -38,10 +39,6 @@ const (
 	ReissReqRate = 10 * time.Second
 	// ReissueReqTimeout is the default timeout of a reissue request.
 	ReissueReqTimeout = 5 * time.Second
-	// DRKeyStoreDefaultLocation is where the drkey db file is located
-	DRKeyStoreDefaultLocation = "/var/lib/scion/spki/cs-1.drkey.store.db"
-	// DRKeyDefaultDuration is the default duration for the drkey SV and derived keys
-	DRKeyDefaultDuration = 24 * time.Hour
 
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorCustomers = "Unable to load Customers"
@@ -49,6 +46,7 @@ const (
 
 var _ config.Config = (*Config)(nil)
 
+// Config that contains all necessary parameters to run a CS.
 type Config struct {
 	General   env.General
 	Logging   env.Logging
@@ -58,9 +56,11 @@ type Config struct {
 	Sciond    env.SciondClient `toml:"sd_client"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
+	DRKeyConf drkeystorage.DRKeyDBConf `toml:"drkey"`
 	CS        CSConfig
 }
 
+// InitDefaults will initialize the configuration variables with their default values.
 func (cfg *Config) InitDefaults() {
 	config.InitAll(
 		&cfg.General,
@@ -70,10 +70,12 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Sciond,
 		&cfg.TrustDB,
 		&cfg.Discovery,
+		&cfg.DRKeyConf,
 		&cfg.CS,
 	)
 }
 
+// Validate will validate all configuration variables.
 func (cfg *Config) Validate() error {
 	return config.ValidateAll(
 		&cfg.General,
@@ -82,10 +84,12 @@ func (cfg *Config) Validate() error {
 		&cfg.Sciond,
 		&cfg.TrustDB,
 		&cfg.Discovery,
+		&cfg.DRKeyConf,
 		&cfg.CS,
 	)
 }
 
+// Sample writes a sample of the configuration.
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
 		&cfg.General,
@@ -96,16 +100,19 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.QUIC,
 		&cfg.TrustDB,
 		&cfg.Discovery,
+		&cfg.DRKeyConf,
 		&cfg.CS,
 	)
 }
 
+// ConfigName returns the configuration name for this block.
 func (cfg *Config) ConfigName() string {
 	return "cs_config"
 }
 
 var _ config.Config = (*CSConfig)(nil)
 
+// CSConfig holds the configuration values for a CS that don't have their own block.
 type CSConfig struct {
 	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
 	// the reissuance process starts.
@@ -119,10 +126,6 @@ type CSConfig struct {
 	ReissueTimeout util.DurWrap
 	// AutomaticRenewal whether automatic reissuing is enabled.
 	AutomaticRenewal bool
-	// Key store for DRKey
-	DRKeyStore string
-	// Duration of DRKey SV
-	DRKeyDuration util.DurWrap
 }
 
 func (cfg *CSConfig) InitDefaults() {
@@ -137,12 +140,6 @@ func (cfg *CSConfig) InitDefaults() {
 	}
 	if cfg.ReissueTimeout.Duration == 0 {
 		cfg.ReissueTimeout.Duration = ReissueReqTimeout
-	}
-	if cfg.DRKeyStore == "" {
-		cfg.DRKeyStore = DRKeyStoreDefaultLocation
-	}
-	if cfg.DRKeyDuration.Duration == 0 {
-		cfg.DRKeyDuration.Duration = DRKeyDefaultDuration
 	}
 }
 
