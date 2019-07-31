@@ -25,8 +25,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	// "github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -60,29 +60,25 @@ func TestDRKeyLvl1(t *testing.T) {
 			DstIA: addr.IAFromRaw(rawDstIA)}, sv)
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
-			rows, err := db.InsertDRKeyLvl1(ctx, drkeyLvl1)
+			err := db.InsertLvl1Key(ctx, drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("rows", rows, ShouldEqual, 1)
-			rows, err = db.InsertDRKeyLvl1(ctx, drkeyLvl1)
+			// same key again. It should be okay.
+			err = db.InsertLvl1Key(ctx, drkeyLvl1)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("rows", rows, ShouldEqual, 0)
-			rows = db.GetLvl1Count()
 
 			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetDRKeyLvl1(ctx, drkeyLvl1.Lvl1Meta, util.TimeToSecs(time.Now()))
+				newKey, err := db.GetLvl1Key(ctx, drkeyLvl1.Lvl1Meta, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl1.Key)
 			})
 
 			Convey("Remove outdated drkeys", func() {
-				rows = db.GetLvl1Count()
-				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl1(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
+				rows, err := db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl1(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
+				rows, err = db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
+				SoMsg("rows", rows, ShouldEqual, 1)
 			})
 		})
 	})
@@ -107,7 +103,8 @@ func TestDRKeyLvl2(t *testing.T) {
 			DstIA: dstIA,
 		}, sv)
 		SoMsg("drkey", err, ShouldBeNil)
-		drkeyLvl2, err := drkey.NewLvl2Key(drkey.Lvl2Meta{
+
+		drkeyLvl2, err := protocol.StandardImpl.DeriveLvl2(drkey.Lvl2Meta{
 			KeyType:  drkey.Host2Host,
 			Protocol: "test",
 			Epoch:    epoch,
@@ -119,25 +116,21 @@ func TestDRKeyLvl2(t *testing.T) {
 
 		SoMsg("drkey", err, ShouldBeNil)
 		Convey("Insert drkey into database", func() {
-			rows, err := db.InsertDRKeyLvl2(ctx, drkeyLvl2)
+			err := db.InsertLvl2Key(ctx, drkeyLvl2)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("rows", rows, ShouldEqual, 1)
-			rows, err = db.InsertDRKeyLvl2(ctx, drkeyLvl2)
+			err = db.InsertLvl2Key(ctx, drkeyLvl2)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetDRKeyLvl2(ctx, drkeyLvl2.Lvl2Meta, util.TimeToSecs(time.Now()))
+				newKey, err := db.GetLvl2Key(ctx, drkeyLvl2.Lvl2Meta, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl2.Key)
 			})
 
 			Convey("Remove outdated drkeys", func() {
-				rows = db.GetLvl2Count()
-				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl2(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
+				rows, err := db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedDRKeyLvl2(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
+				rows, err = db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
 			})
@@ -175,12 +168,12 @@ func TestGetMentionedASes(t *testing.T) {
 				DstIA: dstIA,
 			}, sv)
 			SoMsg("drkey", err, ShouldBeNil)
-			_, err = db.InsertDRKeyLvl1(ctx, key)
+			err = db.InsertLvl1Key(ctx, key)
 			SoMsg("err", err, ShouldBeNil)
 		}
 
 		Convey("Get all of them", func() {
-			list, err := db.GetL1SrcASes(ctx)
+			list, err := db.GetLvl1SrcASes(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			expected := []addr.IA{
 				ia("1-ff00:0:111"),
@@ -189,7 +182,7 @@ func TestGetMentionedASes(t *testing.T) {
 			SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
 		})
 		Convey("Get valid ones", func() {
-			list, err := db.GetValidL1SrcASes(ctx, 3)
+			list, err := db.GetValidLvl1SrcASes(ctx, 3)
 			SoMsg("err", err, ShouldBeNil)
 			expected := []addr.IA{
 				ia("1-ff00:0:111"),
