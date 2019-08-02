@@ -140,13 +140,13 @@ func initState(cfg *config.Config, router snet.Router) error {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
 	var drkeyStore drkeystorage.Store
-	if cfg.DRKeyConf.Enabled() {
-		drkeyDB, err := drkeydbsqlite.New(cfg.DRKeyConf.Connection())
+	if cfg.DRKey.Enabled() {
+		drkeyDB, err := drkeydbsqlite.New(cfg.DRKey.Connection)
 		if err != nil {
 			return common.NewBasicError("Unable to initialize drkey key store", err)
 		}
 		drkeyStore = drkeylib.NewStore(drkeyDB)
-		drkeyStore.SetKeyDuration(cfg.DRKeyConf.Duration())
+		drkeyStore.SetKeyDuration(cfg.DRKey.Duration.Duration)
 	} else {
 		drkeyStore = drkeystorage.NewDisabledStore()
 	}
@@ -211,7 +211,7 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	if cfg.DRKeyConf.Enabled() {
+	if cfg.DRKey.Enabled() {
 		msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Lvl1ReqHandler{
 			State: state,
 			IA:    topo.ISD_AS,
@@ -221,13 +221,16 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			State: state,
 			Msger: msgr,
 		})
-		protoMap := protocol.Map{}
-		protoMap.RegisterDefaultProtocol(protocol.StandardImpl)
+		protoMap, err := cfg.DRKey.ProtocolMap()
+		if err != nil {
+			return err
+		}
+		protoMap.RegisterDefaultImplementation(protocol.StandardName)
 		msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
 			State:    state,
 			IA:       topo.ISD_AS,
 			Msger:    msgr,
-			ProtoMap: &protoMap,
+			ProtoMap: protoMap,
 		})
 	}
 	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})

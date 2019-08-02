@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -37,160 +38,92 @@ const (
 	// BackendSqlite indicates an sqlite backend.
 	BackendSqlite Backend = "sqlite"
 	// DefaultDuration is the default duration for the drkey SV and derived keys
-	DefaultDuration = "24h"
+	DefaultDuration = 24 * time.Hour
 )
 
-const (
-	// BackendKey is the backend key in the config mapping.
-	BackendKey = "backend"
-	// ConnectionKey is the connection key in the config mapping.
-	ConnectionKey = "connection"
-	// MaxOpenConnsKey is the key for max open conns in the config mapping.
-	MaxOpenConnsKey = "maxopenconns"
-	// MaxIdleConnsKey is the key for max idle conns in the config mapping.
-	MaxIdleConnsKey = "maxidleconns"
-	// DurationKey is the key for the key duration.
-	DurationKey = "duration"
-)
+var _ (config.Config) = (*Config)(nil)
 
-var _ (config.Config) = (*DRKeyDBConf)(nil)
+// Config is the configuration for the connection to the trust database.
+type Config struct {
+	// enabled is set to true if we find all the required fields in the configuration
+	enabled bool
+	// Backend is the backend key in the config mapping.
+	Backend Backend
+	// Connection is the connection key in the config mapping.
+	Connection string
+	// MaxOpenConns is the key for max open conns in the config mapping.
+	MaxOpenConns string
+	// MaxIdleConns is the key for max idle conns in the config mapping.
+	MaxIdleConns string
+	// Duration is the key for the key duration.
+	Duration util.DurWrap
+	// Protocols is the map between protocol name and implementation.
+	Protocols map[string]string
+}
 
-// DRKeyDBConf is the configuration for the connection to the trust database.
-type DRKeyDBConf map[string]string
-
-// InitDefaults chooses the sqlite backend if no backend is set and sets all keys
-// to lower case.
-func (cfg *DRKeyDBConf) InitDefaults() {
-	if *cfg == nil {
-		*cfg = make(DRKeyDBConf)
+// InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
+func (cfg *Config) InitDefaults() {
+	cfg.enabled = true
+	if cfg.Backend == backendNone {
+		cfg.Backend = BackendSqlite
 	}
-	m := *cfg
-	util.LowerKeys(m)
-	if cfg.Backend() == backendNone {
-		m[BackendKey] = string(BackendSqlite)
+	if cfg.Duration.Duration == 0 {
+		cfg.enabled = false
+		cfg.Duration.Duration = DefaultDuration
 	}
-	if cfg.Duration() == 0 {
-		m[DurationKey] = DefaultDuration
+	if cfg.Connection == "" {
+		cfg.enabled = false
 	}
-}
-
-// Backend returns the database backend type.
-func (cfg *DRKeyDBConf) Backend() Backend {
-	return Backend((*cfg)[BackendKey])
-}
-
-// Connection returns the database connection information.
-func (cfg *DRKeyDBConf) Connection() string {
-	return (*cfg)[ConnectionKey]
-}
-
-// MaxOpenConns returns the limit for maximum open connections to the database.
-func (cfg *DRKeyDBConf) MaxOpenConns() (int, bool) {
-	val, ok, _ := cfg.parsedInt(MaxOpenConnsKey)
-	return val, ok
-}
-
-// MaxIdleConns returns the limit for maximum idle connections to the database.
-func (cfg *DRKeyDBConf) MaxIdleConns() (int, bool) {
-	val, ok, _ := cfg.parsedInt(MaxIdleConnsKey)
-	return val, ok
-}
-
-func (cfg *DRKeyDBConf) parsedInt(key string) (int, bool, error) {
-	val := (*cfg)[key]
-	if val == "" {
-		return 0, false, nil
-	}
-	i, err := strconv.Atoi(val)
-	return i, true, err
-}
-
-// Duration returns the duration configured for the DRKey store.
-func (cfg *DRKeyDBConf) Duration() time.Duration {
-	d, _ := cfg.parseDuration(DurationKey)
-	return d
-}
-
-func (cfg *DRKeyDBConf) parseDuration(key string) (time.Duration, error) {
-	s := (*cfg)[key]
-	dur, err := util.ParseDuration(s)
-	if err != nil {
-		return 0, common.NewBasicError("Not a duration", nil, "value", s)
-	}
-	return dur, nil
 }
 
 // Enabled returns true if DRKey is configured. False otherwise.
-func (cfg *DRKeyDBConf) Enabled() bool {
-	m := *cfg
-	_, found := m[BackendKey]
-	if !found {
-		return false
-	}
-	_, found = m[ConnectionKey]
-	if !found {
-		return false
-	}
-	_, found = m[DurationKey]
-	if !found {
-		return false
-	}
-	return true
+func (cfg *Config) Enabled() bool {
+	return cfg.enabled
 }
 
 // Validate validates that all values are parsable, and the backend is set.
-func (cfg *DRKeyDBConf) Validate() error {
+func (cfg *Config) Validate() error {
 	if !cfg.Enabled() {
 		return nil
 	}
-	if err := cfg.validateLimits(); err != nil {
-		return err
-	}
-	switch cfg.Backend() {
+	switch cfg.Backend {
 	case BackendSqlite:
 		break
 	case backendNone:
 		return common.NewBasicError("No backend set", nil)
 	default:
-		return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+		return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend)
 	}
-	if _, err := cfg.parseDuration(DurationKey); err != nil {
+	if _, _, err := parsedInt(cfg.MaxOpenConns); err != nil {
+		return err
+	}
+	if _, _, err := parsedInt(cfg.MaxIdleConns); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cfg *DRKeyDBConf) validateLimits() error {
-	if _, _, err := cfg.parsedInt(MaxOpenConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxOpenConns", nil, "value", (*cfg)[MaxOpenConnsKey])
-	}
-	if _, _, err := cfg.parsedInt(MaxIdleConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxIdleConns", nil, "value", (*cfg)[MaxIdleConnsKey])
-	}
-	return nil
-}
-
 // Sample writes a config sample to the writer.
-func (cfg *DRKeyDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+func (cfg *Config) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, fmt.Sprintf(drkeyDBSample, ctx[config.ID]))
 }
 
 // ConfigName is the key in the toml file.
-func (cfg *DRKeyDBConf) ConfigName() string {
+func (cfg *Config) ConfigName() string {
 	return "drkey"
 }
 
-// New creates a drkey.DB from the config.
-func (cfg *DRKeyDBConf) New() (drkey.DB, error) {
-	log.Info("Connecting DRKeyDB", "backend", cfg.Backend(), "connection", cfg.Connection())
+// NewDB creates a drkey.DB from the config.
+func (cfg *Config) NewDB() (drkey.DB, error) {
+	log.Info("Connecting DRKeyDB", "backend", cfg.Backend, "connection", cfg.Connection)
 	var err error
 	var db drkey.DB
 
-	switch cfg.Backend() {
+	switch cfg.Backend {
 	case BackendSqlite:
-		db, err = drkeydbsqlite.New(cfg.Connection())
+		db, err = drkeydbsqlite.New(cfg.Connection)
 	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend)
 	}
 	if err != nil {
 		return nil, err
@@ -200,19 +133,39 @@ func (cfg *DRKeyDBConf) New() (drkey.DB, error) {
 }
 
 // NewStore creates a new beacon store backed by the configured database.
-func (cfg *DRKeyDBConf) NewStore() (Store, error) {
-	db, err := cfg.New()
+func (cfg *Config) NewStore() (Store, error) {
+	db, err := cfg.NewDB()
 	if err != nil {
 		return nil, err
 	}
 	return drkey.NewStore(db), nil
 }
 
-func setConnLimits(cfg *DRKeyDBConf, db drkey.DB) {
-	if m, ok := cfg.MaxOpenConns(); ok {
-		db.SetMaxOpenConns(m)
+func setConnLimits(cfg *Config, db drkey.DB) {
+	if v, found, _ := parsedInt(cfg.MaxOpenConns); found {
+		db.SetMaxOpenConns(v)
 	}
-	if m, ok := cfg.MaxIdleConns(); ok {
-		db.SetMaxIdleConns(m)
+	if v, found, _ := parsedInt(cfg.MaxIdleConns); found {
+		db.SetMaxIdleConns(v)
 	}
+}
+
+// parsedInt returns the int value, flag indicating it was found, and the parsing error.
+func parsedInt(val string) (int, bool, error) {
+	if val == "" {
+		return 0, false, nil
+	}
+	i, err := strconv.Atoi(val)
+	return i, true, err
+}
+
+// ProtocolMap constructs a map that represents this configuration.
+func (cfg *Config) ProtocolMap() (*protocol.Map, error) {
+	m := protocol.Map{}
+	for protoName, implName := range cfg.Protocols {
+		if err := m.Register(protoName, implName); err != nil {
+			return nil, common.NewBasicError("Bad protocol configuration", err)
+		}
+	}
+	return &m, nil
 }

@@ -15,10 +15,10 @@
 package drkeystorage
 
 const drkeyDBSample = `
-# The type of trustdb backend. (default sqlite)
+# The type of drkeydb backend. (default sqlite)
 Backend = "sqlite"
 
-# Connection for the trust database.
+# Connection for the drkey database.
 Connection = "/var/lib/scion/drkeydb/%s.drkey.db"
 
 # The maximum number of open connections to the database. In case of the
@@ -29,6 +29,11 @@ MaxOpenConns = ""
 # empty string, the limit is not set and uses the go default. (default "")
 MaxIdleConns = ""
 
-# Duration of the DRKey secret value and of all derived keys
+# Duration of the DRKey secret value and of all derived keys. (default "24h")
 Duration = "24h"
+
+# protocol name to implementation map. "standard" and "delegated" exist already as implementations.
+[protocols]
+foo = "standard"
+bar = "delegated"
 `

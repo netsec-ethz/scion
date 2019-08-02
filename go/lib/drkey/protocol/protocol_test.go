@@ -31,6 +31,10 @@ func (n nopProtocol) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.L
 	return drkey.Lvl2Key{}, errorNop
 }
 
+func (n nopProtocol) Name() string {
+	return "nop"
+}
+
 func TestMap(t *testing.T) {
 	m := Map{}
 	p := m.DefaultProtocol()
@@ -53,7 +57,7 @@ func TestMap(t *testing.T) {
 	if err == nil {
 		t.Error("Expected unable to derive level 2 because no protocol registered")
 	}
-	m.Register("foo", StandardImpl)
+	m.Register("foo", StandardName)
 	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -63,15 +67,32 @@ func TestMap(t *testing.T) {
 	if err == nil {
 		t.Error("Expected unable to derive level 2 because no protocol registered")
 	}
-	m.RegisterDefaultProtocol(StandardImpl)
+	m.RegisterDefaultImplementation(StandardName)
 	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	nop := nopProtocol{}
-	m.Register("bar", nop)
+	nop := &nopProtocol{}
+	KnownImplementations[nop.Name()] = nop
+	defer func() {
+		delete(KnownImplementations, nop.Name())
+	}()
+	m.Register("bar", "nop")
 	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
 	if err != errorNop {
 		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestExistingImplementations(t *testing.T) {
+	// we test that we have the two implementations we know for now
+	if len(KnownImplementations) != 2 {
+		t.Errorf("Wrong number of implementations, expecting 2, got %d", len(KnownImplementations))
+	}
+	if _, found := KnownImplementations[StandardName]; !found {
+		t.Errorf("\"%s\" implementation not found", StandardName)
+	}
+	if _, found := KnownImplementations[DelegatedName]; !found {
+		t.Errorf("\"%s\" implementation not found", DelegatedName)
 	}
 }

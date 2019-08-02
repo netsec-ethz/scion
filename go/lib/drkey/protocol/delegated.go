@@ -22,30 +22,36 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// StandardName is the name of the DRKey standard derivation algorithm.
-const StandardName = "standard"
+// DelegatedName is the name of the level 2 derivation using a delegation secret.
+const DelegatedName = "delegated"
 
-// StandardImpl is the standard implementation of the level 2 drkey derivation, i.e. directly
+// DelegatedImpl is the standard implementation of the level 2 drkey derivation, i.e. directly
 // from level 1 derivation without DS.
-var standardImpl = Standard{}
+var delegatedImpl = Delegated{}
 
-// Standard implements the level 2 drkey derivation from level 1, without DS.
-type Standard struct {
+// Delegated implements the level 2 drkey derivation from level 1, without DS.
+type Delegated struct {
 }
 
 // Name of this protocol
-func (p Standard) Name() string {
-	return StandardName
+func (p Delegated) Name() string {
+	return DelegatedName
 }
 
 // DeriveLvl2 derives the level 2 DRKey without passing through a delegation secret.
-func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	h, err := scrypto.InitMac(key.DRKey.Key)
+func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
+	metaForDS := meta
+	meta.KeyType = drkey.AS2AS
+	ds, err := standardImpl.DeriveLvl2(metaForDS, key)
+	if err != nil {
+		return drkey.Lvl2Key{}, common.NewBasicError("Error deriving DS", err)
+	}
+	h, err := scrypto.InitMac(ds.DRKey.Key)
 	if err != nil {
 		return drkey.Lvl2Key{}, err
 	}
 
-	pLen := 0
+	pLen := 1
 	buffs := []common.RawBytes{}
 	switch meta.KeyType {
 	case drkey.Host2Host:
@@ -71,7 +77,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 	default:
 		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
 	}
-	all := make(common.RawBytes, pLen+1)
+	all := make(common.RawBytes, pLen)
 	copy(all[:1], common.RawBytes{byte(pLen)})
 	pLen = 1
 	for i := len(buffs) - 1; i >= 0; i-- {
@@ -85,5 +91,5 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 }
 
 func init() {
-	KnownImplementations[standardImpl.Name()] = &standardImpl
+	KnownImplementations[delegatedImpl.Name()] = &delegatedImpl
 }

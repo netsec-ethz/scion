@@ -20,58 +20,74 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/scionproto/scion/go/lib/util"
+
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 )
 
 func TestInitDefaults(t *testing.T) {
-	var cfg DRKeyDBConf
+	var cfg Config
 	cfg.InitDefaults()
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if string(cfg.Backend()) != "sqlite" {
-		t.Errorf("Unexpected configuration value: %v", cfg.Backend())
+	if string(cfg.Backend) != "sqlite" {
+		t.Errorf("Unexpected configuration value: %v", cfg.Backend)
 	}
-	if cfg.Connection() != "" {
-		t.Errorf("Unexpected configuration value: %v", cfg.Connection())
+	if cfg.Connection != "" {
+		t.Errorf("Unexpected configuration value: %v", cfg.Connection)
 	}
-	if cfg.Duration() != time.Hour*24 {
-		t.Errorf("Unexpected configuration value: %v", cfg.Duration())
+	if cfg.Duration.Duration != time.Hour*24 {
+		t.Errorf("Unexpected configuration value: %v", cfg.Duration)
 	}
 }
 
 func TestConfigSample(t *testing.T) {
 	var sample bytes.Buffer
-	var cfg DRKeyDBConf
+	var cfg Config
 	cfg.Sample(&sample, nil, nil)
 	meta, err := toml.Decode(sample.String(), &cfg)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	util.LowerKeys(cfg)
 	if len(meta.Undecoded()) != 0 {
 		t.Errorf("Meta should be empty: %v", meta.Undecoded())
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
+	if _, found := cfg.Protocols["foo"]; !found {
+		t.Errorf("Protocol not found")
+	}
 }
 
 func TestDisable(t *testing.T) {
-	var cfg = make(DRKeyDBConf)
+	var cfg = Config{}
 	if cfg.Enabled() == true {
 		t.Error("Unexpected enabled set")
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	cfg[DurationKey] = "10h"
-	cfg[ConnectionKey] = "a"
-	cfg[BackendKey] = "sqlite"
+	cfg.Duration.Duration = 10 * time.Hour
+	cfg.Connection = "a"
+	cfg.Backend = "sqlite"
+	cfg.InitDefaults()
 	if cfg.Enabled() != true {
 		t.Error("Unexpected enabled unset")
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestProtocols(t *testing.T) {
+	// init protocols
+	m := protocol.Map{}
+	// check the name of the two know implementations
+	if err := m.Register("p1", "standard"); err != nil {
+		t.Errorf("Standard implementation not found")
+	}
+	if err := m.Register("p2", "delegated"); err != nil {
+		t.Errorf("Delegated implementation not found")
 	}
 }

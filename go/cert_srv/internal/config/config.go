@@ -56,7 +56,7 @@ type Config struct {
 	Sciond    env.SciondClient `toml:"sd_client"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
-	DRKeyConf drkeystorage.DRKeyDBConf `toml:"drkey"`
+	DRKey     drkeystorage.Config
 	CS        CSConfig
 }
 
@@ -70,7 +70,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Sciond,
 		&cfg.TrustDB,
 		&cfg.Discovery,
-		&cfg.DRKeyConf,
+		&cfg.DRKey,
 		&cfg.CS,
 	)
 }
@@ -84,7 +84,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Sciond,
 		&cfg.TrustDB,
 		&cfg.Discovery,
-		&cfg.DRKeyConf,
+		&cfg.DRKey,
 		&cfg.CS,
 	)
 }
@@ -100,7 +100,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.QUIC,
 		&cfg.TrustDB,
 		&cfg.Discovery,
-		&cfg.DRKeyConf,
+		&cfg.DRKey,
 		&cfg.CS,
 	)
 }

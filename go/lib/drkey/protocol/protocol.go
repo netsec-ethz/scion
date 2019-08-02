@@ -24,8 +24,12 @@ import (
 
 // Protocol specifies the interface to implement for protocols with their own derivation method.
 type Protocol interface {
+	Name() string
 	DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error)
 }
+
+// KnownImplementations maps the protocol names to their implementations
+var KnownImplementations = make(map[string]Protocol)
 
 // Map maps the name of the protocol to the implementation. It also contains a possible
 // default implementation.
@@ -34,9 +38,14 @@ type Map struct {
 	defaultProtocol atomic.Value
 }
 
-// RegisterDefaultProtocol will set the default protocol.
-func (m *Map) RegisterDefaultProtocol(defaultProtocol Protocol) {
+// RegisterDefaultImplementation will set the default protocol.
+func (m *Map) RegisterDefaultImplementation(implementationName string) error {
+	defaultProtocol, found := KnownImplementations[implementationName]
+	if !found {
+		return fmt.Errorf("There is no DRKey implementation with name \"%s\"", implementationName)
+	}
 	m.defaultProtocol.Store(defaultProtocol)
+	return nil
 }
 
 // DefaultProtocol returns the default protocol.
@@ -45,8 +54,13 @@ func (m *Map) DefaultProtocol() Protocol {
 }
 
 // Register registers a protocol given its name and implementation.
-func (m *Map) Register(name string, proto Protocol) {
-	m.m.Store(name, proto)
+func (m *Map) Register(protocolName string, implementationName string) error {
+	proto, found := KnownImplementations[implementationName]
+	if !found {
+		return fmt.Errorf("There is no DRKey implementation with name \"%s\"", implementationName)
+	}
+	m.m.Store(protocolName, proto)
+	return nil
 }
 
 // Find returns the implementation associated with a protocol.
