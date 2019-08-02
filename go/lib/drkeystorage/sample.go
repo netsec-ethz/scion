@@ -31,9 +31,9 @@ MaxIdleConns = ""
 
 # Duration of the DRKey secret value and of all derived keys. (default "24h")
 Duration = "24h"
+`
 
-# protocol name to implementation map. "standard" and "delegated" exist already as implementations.
-[protocols]
+const drkeyProtocolsSample = `
 foo = "standard"
 bar = "delegated"
 `

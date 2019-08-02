@@ -104,7 +104,8 @@ func TestDRKeyLvl2(t *testing.T) {
 		}, sv)
 		SoMsg("drkey", err, ShouldBeNil)
 
-		drkeyLvl2, err := protocol.StandardImpl.DeriveLvl2(drkey.Lvl2Meta{
+		standardImpl := protocol.Standard{}
+		drkeyLvl2, err := standardImpl.DeriveLvl2(drkey.Lvl2Meta{
 			KeyType:  drkey.Host2Host,
 			Protocol: "test",
 			Epoch:    epoch,

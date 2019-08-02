@@ -141,6 +141,7 @@ func TestDeriveLvl2Key(t *testing.T) {
 }
 
 func TestLvl2KeyBuildReply(t *testing.T) {
+	standardImpl := protocol.Standard{}
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	Convey("Derive a Level 2 DRKey (this CS is in the src AS)", t, func() {
@@ -159,7 +160,7 @@ func TestLvl2KeyBuildReply(t *testing.T) {
 		}
 		// expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 		expectedLvl2Key, _ := hex.DecodeString("d03e93e69f72993b0e5613283e631017")
-		drkeyLvl2, err := protocol.StandardImpl.DeriveLvl2(drkey.Lvl2Meta{
+		drkeyLvl2, err := standardImpl.DeriveLvl2(drkey.Lvl2Meta{
 			Epoch:    sv.Epoch,
 			SrcIA:    srcIA,
 			DstIA:    dstIA,
@@ -195,7 +196,7 @@ func TestLvl2KeyBuildReply(t *testing.T) {
 			SrcHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 			DstHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
 		}
-		drkeyLvl2, err := protocol.StandardImpl.DeriveLvl2(drkey.Lvl2Meta{
+		drkeyLvl2, err := standardImpl.DeriveLvl2(drkey.Lvl2Meta{
 			Epoch:    sv.Epoch,
 			SrcIA:    srcIA,
 			DstIA:    dstIA,
@@ -277,7 +278,7 @@ func setupHandler(t *testing.T, thisIA addr.IA, confDir string) (*gomock.Control
 	trustDB := mock_trustdb.NewMockTrustDB(ctrl)
 	drkeyStore := mock_drkeystorage.NewMockStore(ctrl)
 	protocolMap := &protocol.Map{}
-	protocolMap.RegisterDefaultProtocol(protocol.StandardImpl)
+	protocolMap.RegisterDefaultImplementation(protocol.StandardName)
 
 	handler := &Lvl2ReqHandler{
 		State: &config.State{

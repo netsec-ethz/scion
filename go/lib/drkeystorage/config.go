@@ -58,7 +58,7 @@ type Config struct {
 	// Duration is the key for the key duration.
 	Duration util.DurWrap
 	// Protocols is the map between protocol name and implementation.
-	Protocols map[string]string
+	Protocols ProtocolMap
 }
 
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
@@ -106,6 +106,7 @@ func (cfg *Config) Validate() error {
 // Sample writes a config sample to the writer.
 func (cfg *Config) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, fmt.Sprintf(drkeyDBSample, ctx[config.ID]))
+	config.WriteSample(dst, path, ctx, &cfg.Protocols)
 }
 
 // ConfigName is the key in the toml file.
@@ -168,4 +169,17 @@ func (cfg *Config) ProtocolMap() (*protocol.Map, error) {
 		}
 	}
 	return &m, nil
+}
+
+// ProtocolMap is the protocol name to implementation configuration map.
+type ProtocolMap map[string]string
+
+// ConfigName returns the configuration name of this block.
+func (p *ProtocolMap) ConfigName() string {
+	return "protocols"
+}
+
+// Sample returns a valid sample for this configuration map.
+func (p *ProtocolMap) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, drkeyProtocolsSample)
 }

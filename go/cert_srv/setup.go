@@ -147,8 +147,10 @@ func initState(cfg *config.Config, router snet.Router) error {
 		}
 		drkeyStore = drkeylib.NewStore(drkeyDB)
 		drkeyStore.SetKeyDuration(cfg.DRKey.Duration.Duration)
+		log.Info("DRKey is enabled")
 	} else {
 		drkeyStore = drkeystorage.NewDisabledStore()
+		log.Warn("DRKey is DISABLED by configuration")
 	}
 	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore, drkeyStore)
 	if err != nil {
