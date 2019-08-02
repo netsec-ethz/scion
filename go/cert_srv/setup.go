@@ -213,7 +213,13 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
+	signingTypes := []infra.MessageType{}
 	if cfg.DRKey.Enabled() {
+		signingTypes = []infra.MessageType{
+			infra.DRKeyLvl1Request,
+			infra.DRKeyLvl1Reply,
+			infra.DRKeyLvl2Request,
+		}
 		msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Lvl1ReqHandler{
 			State: state,
 			IA:    topo.ISD_AS,
@@ -235,7 +241,8 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			ProtoMap: protoMap,
 		})
 	}
-	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
+	signingTypes = append(signingTypes, infra.ChainIssueRequest)
+	msgr.UpdateSigner(state.GetSigner(), signingTypes)
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.
 	if topo.Core {
