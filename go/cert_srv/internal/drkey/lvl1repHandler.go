@@ -1,0 +1,95 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package drkey
+
+import (
+	"context"
+
+	"github.com/scionproto/scion/go/cert_srv/internal/config"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/snet"
+)
+
+// Lvl1ReplyHandler handles first-level drkey replies.
+type Lvl1ReplyHandler struct {
+	State *config.State
+	Msger infra.Messenger
+}
+
+// Handle handles the a level drkey reply
+func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
+	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
+	defer cancelF()
+
+	saddr := r.Peer.(*snet.Addr)
+	reply := r.Message.(*drkey_mgmt.DRKeyLvl1Rep)
+	log.Trace("[Lvl1ReplyHandler] Received drkey lvl1 reply", "addr", saddr, "reply", reply)
+	if reply == nil {
+		log.Error("[Lvl1ReplyHandler] Reply is null after cast")
+		return infra.MetricsErrInternal
+	}
+	chain, err := ObtainChain(ctx, reply.DstIA(), h.State.TrustDB, h.Msger)
+	if err != nil {
+		log.Error("[Lvl1ReplyHandler] Unable to fetch certificate for remote host", "err", err)
+		return infra.MetricsErrInternal
+	}
+	privateKey := h.State.GetDecryptKey()
+
+	key, err := Lvl1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
+	// because we received a reply, we probably want to keep a copy in our local DB:
+	err = h.State.DRKeyStore.InsertLvl1Key(ctx, key)
+	if err != nil {
+		log.Error("[Lvl1ReplyHandler] Could not insert the DR key in the DB", "err", err)
+		return infra.MetricsErrInternal
+	}
+	return infra.MetricsResultOk
+}
+
+// Lvl1KeyFromReply validates a level 1 reply and returns the level 1 key embedded in it
+func Lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.Certificate,
+	privateKey common.RawBytes) (drkey.Lvl1Key, error) {
+
+	var lvl1Key drkey.Lvl1Key
+	var err error
+	if err = validateReply(reply, srcIA); err != nil {
+		return lvl1Key, common.NewBasicError("Dropping DRKeyLvl1 reply", err)
+	}
+	// TODO(juagargi): match this reply with a request from this CS
+	lvl1Key, err = drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, cert.SubjectEncKey, privateKey)
+	if err != nil {
+		return lvl1Key, common.NewBasicError("Error decrypting the key from the reply", err)
+	}
+	log.Trace("[Lvl1KeyFromReply] DRKey received")
+	lvl1Key.Epoch = reply.Epoch()
+	return lvl1Key, nil
+}
+
+func validateReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
+	if reply == nil {
+		return common.NewBasicError("Level 1 reply is NULL", nil)
+	}
+	// TODO(ben): validate reply (validity time, etc.)
+	// log.Debug("[Lvl1ReplyHandler] Validating drkey lvl1 reply", "reply", reply)
+	// if !srcIA.Equal(reply.SrcIa.IA()) {
+	// 	return common.NewBasicError(AddressMismatchError, nil, "expected", srcIA, "actual", reply.SrcIa.IA())
+	// }
+	return nil
+}
