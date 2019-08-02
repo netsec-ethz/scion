@@ -187,24 +187,6 @@ func storeLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, key drkey.Lvl2
 	return err
 }
 
-func findLvl2KeyInDB(ctx context.Context, db drkeystorage.Store, valTime uint32, protocol string,
-	keyType drkey.Lvl2KeyType, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (drkey.Lvl2Key, error) {
-
-	key := drkey.Lvl2Meta{
-		KeyType:  keyType,
-		Protocol: protocol,
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost:  srcHost,
-		DstHost:  dstHost,
-	}
-	stored, err := db.GetLvl2Key(ctx, key, valTime)
-	if err != nil && err != sql.ErrNoRows {
-		return drkey.Lvl2Key{}, common.NewBasicError("Cannot query DRKey Store [level 2]", err)
-	}
-	return stored, err
-}
-
 func (h *Lvl2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl2Rep, id uint64) error {
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
