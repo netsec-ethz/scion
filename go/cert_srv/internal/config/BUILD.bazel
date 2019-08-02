@@ -34,6 +34,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//go/lib/drkeystorage/mock_drkeystorage:go_default_library",
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
         "//go/lib/keyconf:go_default_library",

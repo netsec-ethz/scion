@@ -46,6 +46,8 @@ go_test(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/drkey_mgmt:go_default_library",
         "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/protocol:go_default_library",
+        "//go/lib/drkeystorage/mock_drkeystorage:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/infra/modules/trust/trustdb/mock_trustdb:go_default_library",
         "//go/lib/periodic:go_default_library",

@@ -20,7 +20,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	// "github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	"github.com/scionproto/scion/go/lib/drkeystorage/mock_drkeystorage"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
@@ -66,8 +66,8 @@ func TestLoadState(t *testing.T) {
 	})
 }
 
-func setupState(t *testing.T) (*gomock.Controller, *mock_keystore.MockDRKeyStore) {
+func setupState(t *testing.T) (*gomock.Controller, *mock_drkeystorage.MockStore) {
 	ctrl := gomock.NewController(t)
-	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
+	drkeyStore := mock_drkeystorage.NewMockStore(ctrl)
 	return ctrl, drkeyStore
 }

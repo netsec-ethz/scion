@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
-	// "github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	"github.com/scionproto/scion/go/lib/drkeystorage/mock_drkeystorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
 
@@ -39,17 +39,18 @@ func TestEmptyDB(t *testing.T) {
 			SoMsg("cutoff", cutoffArg, ShouldBeGreaterThanOrEqualTo, cutoff-1)
 			SoMsg("cutoff", cutoffArg, ShouldBeLessThanOrEqualTo, cutoff+tolerance)
 		}
-		store.EXPECT().RemoveOutdatedDRKeyLvl1(gomock.Any(), gomock.Any()).Do(match)
-		store.EXPECT().RemoveOutdatedDRKeyLvl2(gomock.Any(), gomock.Any()).Do(match)
+		store.EXPECT().RemoveOutdatedLvl1Keys(gomock.Any(), gomock.Any()).Do(match)
+		store.EXPECT().RemoveOutdatedLvl2Keys(gomock.Any(), gomock.Any()).Do(match)
 		_ = store
 		_ = match
 		task.Run(ctx)
 	})
 }
 
-func setupStoreKeeper(t *testing.T) (*gomock.Controller, *mock_keystore.MockDRKeyStore, periodic.Task) {
+func setupStoreKeeper(t *testing.T) (*gomock.Controller, *mock_drkeystorage.MockStore,
+	periodic.Task) {
 	ctrl := gomock.NewController(t)
-	store := mock_keystore.NewMockDRKeyStore(ctrl)
+	store := mock_drkeystorage.NewMockStore(ctrl)
 	keeper := &StoreKeeper{
 		State: &config.State{
 			DRKeyStore: store,

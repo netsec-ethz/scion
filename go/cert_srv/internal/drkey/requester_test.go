@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
-	// "github.com/scionproto/scion/go/lib/drkey/keystore/mock_keystore"
+	"github.com/scionproto/scion/go/lib/drkeystorage/mock_drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -95,8 +95,8 @@ func TestUpdatePending(t *testing.T) {
 		validAsList := []addr.IA{
 			ia("1-ff00:0:112"),
 		}
-		store.EXPECT().GetL1SrcASes(gomock.Any()).Return(asList, nil)
-		store.EXPECT().GetValidL1SrcASes(gomock.Any(), gomock.Any()).Return(validAsList, nil).Do(
+		store.EXPECT().GetLvl1SrcASes(gomock.Any()).Return(asList, nil)
+		store.EXPECT().GetValidLvl1SrcASes(gomock.Any(), gomock.Any()).Return(validAsList, nil).Do(
 			func(ctx context.Context, argValidTime uint32) {
 				now := uint32(time.Now().Unix())
 				SoMsg("validTime", argValidTime, ShouldBeGreaterThanOrEqualTo, now)
@@ -120,6 +120,7 @@ func TestProcessPending(t *testing.T) {
 		ctrl, msger, trustDB, store, requester := setupRequester(t)
 		defer ctrl.Finish()
 
+		sv := getTestSV()
 		pending := []addr.IA{
 			ia("1-ff00:0:112"),
 			ia("1-ff00:0:113"),
@@ -130,7 +131,7 @@ func TestProcessPending(t *testing.T) {
 		trustDB.EXPECT().GetChainMaxVersion(gomock.Any(), gomock.Any()).Return(&cert.Chain{Leaf: cert112}, nil).Times(2)
 		newReply := func(srcIA addr.IA) *drkey_mgmt.DRKeyLvl1Rep {
 			dstIA := ia("1-ff00:0:111")
-			replyTo111, err := Level1KeyBuildReply(srcIA, dstIA, getTestSV(), cert112, privateKey111)
+			replyTo111, err := Lvl1KeyBuildReply(srcIA, dstIA, &sv, cert112, privateKey111)
 			if err != nil {
 				panic("Logic error")
 			}
@@ -141,7 +142,7 @@ func TestProcessPending(t *testing.T) {
 			pending[0]), gomock.Any()).Return(newReply(pending[0]), nil)
 		msger.EXPECT().RequestDRKeyLvl1(gomock.Any(), gomock.Any(), matchers.IsSnetAddrWithIA(
 			pending[1]), gomock.Any()).Return(newReply(pending[1]), nil)
-		store.EXPECT().InsertDRKeyLvl1(gomock.Any(), gomock.Any()).Times(2)
+		store.EXPECT().InsertLvl1Key(gomock.Any(), gomock.Any()).Times(2)
 		err := requester.ProcessPendingList(ctx)
 		SoMsg("err", err, ShouldBeNil)
 		_ = store
@@ -152,11 +153,12 @@ func TestProcessPending(t *testing.T) {
 }
 
 // setupRequester prepares the requester for ff00:0:111
-func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger, *mock_trustdb.MockTrustDB, *mock_keystore.MockDRKeyStore, *Requester) {
+func setupRequester(t *testing.T) (*gomock.Controller, *mock_infra.MockMessenger,
+	*mock_trustdb.MockTrustDB, *mock_drkeystorage.MockStore, *Requester) {
 	ctrl := gomock.NewController(t)
 	msger := mock_infra.NewMockMessenger(ctrl)
 	trustDB := mock_trustdb.NewMockTrustDB(ctrl)
-	drkeyStore := mock_keystore.NewMockDRKeyStore(ctrl)
+	drkeyStore := mock_drkeystorage.NewMockStore(ctrl)
 	requester := &Requester{
 		Msgr: msger,
 		IA:   ia("1-ff00:0:111"),

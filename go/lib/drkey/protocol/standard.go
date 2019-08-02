@@ -37,7 +37,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 		return drkey.Lvl2Key{}, err
 	}
 
-	pLen := 1
+	pLen := 0
 	buffs := []common.RawBytes{}
 	switch meta.KeyType {
 	case drkey.Host2Host:
@@ -63,7 +63,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 	default:
 		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
 	}
-	all := make(common.RawBytes, pLen)
+	all := make(common.RawBytes, pLen+1)
 	copy(all[:1], common.RawBytes{byte(pLen)})
 	pLen = 1
 	for i := len(buffs) - 1; i >= 0; i-- {

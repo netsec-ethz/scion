@@ -318,17 +318,6 @@ func (h *Lvl2ReqHandler) lvl2KeyBuildReply(ctx context.Context, req *drkey_mgmt.
 		}
 	} else {
 		log.Trace("[DRKeyLvl2BuildReply] this AS in the slow path")
-		// check DB for the L2 key
-		var stored drkey.Lvl2Key
-		stored, err = findLvl2KeyInDB(ctx, h.State.DRKeyStore, valTime, protocol, keyType, srcIA, dstIA, srcHost, dstHost)
-		if err != nil && err != sql.ErrNoRows {
-			return reply, common.NewBasicError("Cannot query the DRKey DB", err)
-		}
-		if err == nil {
-			// found the L2 key in the DB
-			log.Trace("[DRKeyLvl2BuildReply] found L2 key in DB, returning it")
-			return drkey_mgmt.NewDRKeyLvl2RepFromKeyRepresentation(stored, uint32(time.Now().Unix())), nil
-		}
 		// check DB for the level 1 key
 		lvl1Key, err = findLvl1KeyInDB(ctx, h.State.DRKeyStore, valTime, srcIA, dstIA)
 		if err != nil && err != sql.ErrNoRows {
