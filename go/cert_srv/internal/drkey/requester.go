@@ -34,15 +34,15 @@ import (
 
 var _ periodic.Task = (*Requester)(nil)
 
-// Requester is in charge of getting the level 1 keys before they expire
+// Requester is in charge of getting the level 1 keys before they expire.
 type Requester struct {
 	Msgr        infra.Messenger
 	State       *config.State
 	IA          addr.IA
-	PendingASes pendingLvl1
+	PendingASes pendingASes
 }
 
-// Run requests level 1 keys from other CSs
+// Run requests the level 1 keys to other CSs.
 func (r *Requester) Run(ctx context.Context) {
 	// update pending ASes list
 	err := r.UpdatePendingList(ctx)
@@ -56,7 +56,7 @@ func (r *Requester) Run(ctx context.Context) {
 	}
 }
 
-// UpdatePendingList returns the list of ASes we have to query for their level 1 keys
+// UpdatePendingList returns the list of ASes we have to query for their level 1 keys.
 func (r *Requester) UpdatePendingList(ctx context.Context) error {
 	// get ASes from DRKey store
 	asesFromDRKeyStore, err := r.getLvl1SrcIAsFromKeystore(ctx)
@@ -79,7 +79,7 @@ func (r *Requester) UpdatePendingList(ctx context.Context) error {
 	return nil
 }
 
-// ProcessPendingList should request an level 1 key for each one of the pending ASes
+// ProcessPendingList should request an level 1 key for each one of the pending ASes.
 func (r *Requester) ProcessPendingList(ctx context.Context) error {
 	errors := []error{}
 	// get pending ASes
@@ -103,7 +103,7 @@ func (r *Requester) ProcessPendingList(ctx context.Context) error {
 	return err
 }
 
-// getLvl1SrcIAsFromKeystore returns a set of IAs seen as sources in level 1 keys in the DB
+// getLvl1SrcIAsFromKeystore returns a set of IAs seen as sources in level 1 keys in the DB.
 func (r *Requester) getLvl1SrcIAsFromKeystore(ctx context.Context) (asSet, error) {
 	list, err := r.State.DRKeyStore.GetLvl1SrcASes(ctx)
 	if err != nil && err != sql.ErrNoRows {
@@ -112,6 +112,7 @@ func (r *Requester) getLvl1SrcIAsFromKeystore(ctx context.Context) (asSet, error
 	return setFromList(list), nil
 }
 
+// getValidLvl1SrcIAsFromStore returns the set of IAs seen in the store that are still valid.
 func (r *Requester) getValidLvl1SrcIAsFromStore(ctx context.Context) (asSet, error) {
 	// TODO(juagargi): that 60 should be a configuration parameter
 	futurePointInTime := uint32(time.Now().Unix()) + uint32(60)
@@ -122,6 +123,7 @@ func (r *Requester) getValidLvl1SrcIAsFromStore(ctx context.Context) (asSet, err
 	return setFromList(list), nil
 }
 
+// requestLvl1 will obtain a level 1 key from another CS.
 func (r *Requester) requestLvl1(ctx context.Context, pending addr.IA, valTime uint32) error {
 	csAddr := &snet.Addr{
 		IA:   pending,
@@ -136,6 +138,7 @@ func (r *Requester) requestLvl1(ctx context.Context, pending addr.IA, valTime ui
 	return r.processReply(ctx, reply, pending)
 }
 
+// processReply decrypts the reply and extracts the level 1 key in it.
 func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.Lvl1Rep, srcIA addr.IA) error {
 	// Get the newest certificate for the remote AS
 	if reply == nil {
@@ -156,6 +159,7 @@ func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.Lvl1Rep,
 	return err
 }
 
+// asSet is a set of ASes. In this structure, an AS can be included, or not, in the set.
 type asSet map[addr.IA]struct{}
 
 func (s *asSet) String() string {
@@ -166,14 +170,14 @@ func (s *asSet) String() string {
 	return strings.Join(ases, ", ")
 }
 
-// pendingLvl1 keeps the AS list for which we have to request their level 1 DRKey
-type pendingLvl1 struct {
+// pendingASes keeps the AS list for which we have to request their level 1 DRKey.
+type pendingASes struct {
 	set     asSet
 	setLock sync.Mutex
 }
 
-// Set copies the argument as the pending set
-func (p *pendingLvl1) Set(pending asSet) {
+// Set copies the argument as the pending set.
+func (p *pendingASes) Set(pending asSet) {
 	p.setLock.Lock()
 	defer p.setLock.Unlock()
 	p.set = asSet{}
@@ -182,8 +186,8 @@ func (p *pendingLvl1) Set(pending asSet) {
 	}
 }
 
-// Get returns a copy of the pending ASes
-func (p *pendingLvl1) Get() asSet {
+// Get returns a copy of the pending ASes.
+func (p *pendingASes) Get() asSet {
 	p.setLock.Lock()
 	defer p.setLock.Unlock()
 	ret := make(asSet)
@@ -193,6 +197,7 @@ func (p *pendingLvl1) Get() asSet {
 	return ret
 }
 
+// unionSet returns the union of the two sets.
 func unionSet(a, b asSet) asSet {
 	union := make(asSet)
 	for i := range a {
@@ -204,7 +209,7 @@ func unionSet(a, b asSet) asSet {
 	return union
 }
 
-// differenceSet computes the set difference A - B : elements of A not in B
+// differenceSet computes the set difference A - B : elements of A not in B .
 func differenceSet(a, b asSet) asSet {
 	diff := make(asSet)
 	for i := range a {
@@ -216,6 +221,7 @@ func differenceSet(a, b asSet) asSet {
 	return diff
 }
 
+// setFromList returns a set built from a slice.
 func setFromList(l []addr.IA) asSet {
 	ret := asSet{}
 	for _, i := range l {

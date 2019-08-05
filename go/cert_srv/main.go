@@ -157,7 +157,7 @@ func startReissRunner() {
 }
 
 func startDRKeyRunners() {
-	if cfg.DRKey.Enabled() == false {
+	if !cfg.DRKey.Enabled() {
 		return
 	}
 	// TODO(juagargi): if there has been a change in the duration, we probably need to keep
