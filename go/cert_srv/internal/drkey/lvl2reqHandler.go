@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -172,7 +173,7 @@ func (h *Lvl2ReqHandler) getLvl1KeyFromOtherCS(ctx context.Context, srcIA, dstIA
 	valTime uint32) (drkey.Lvl1Key, error) {
 
 	var lvl1Key drkey.Lvl1Key
-	chain, err := obtainChain(ctx, srcIA, h.State.TrustDB, h.Msger)
+	chain, err := obtainChain(ctx, srcIA, scrypto.LatestVer, h.State.TrustDB, h.Msger)
 	if err != nil {
 		return lvl1Key, common.NewBasicError("Unable to fetch certificate for remote host", err)
 	}

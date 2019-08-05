@@ -29,8 +29,11 @@ MaxOpenConns = ""
 # empty string, the limit is not set and uses the go default. (default "")
 MaxIdleConns = ""
 
-# Duration of the DRKey secret value and of all derived keys. (default "24h")
-Duration = "24h"
+# EpochDuration of the DRKey secret value and of all derived keys. (default "24h")
+EpochDuration = "24h"
+
+# MaxReplyAge is the age limit for a lvl 1 reply to be accepted. Older are rejected. (default "2s")
+MaxReplyAge = "2s"
 `
 
 const drkeyProtocolsSample = `

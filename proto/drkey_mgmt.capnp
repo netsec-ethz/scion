@@ -18,6 +18,7 @@ struct DRKeyLvl1Rep {
     cipher @3 :Data;       # Encrypted DRKey
     nonce @4 :Data;        # Nonce used for encryption
     certVerDst @5 :UInt64; # Version of cert of public key used to encrypt
+    timestamp @6 :UInt32;  # Creation time of this reply
 }
 
 struct DRKeyHost {

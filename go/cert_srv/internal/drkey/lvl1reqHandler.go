@@ -62,7 +62,7 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	// Get the newest certificate for the remote AS
-	dstChain, err := obtainChain(ctx, dstIA, h.State.TrustDB, h.Msger)
+	dstChain, err := obtainChain(ctx, dstIA, scrypto.LatestVer, h.State.TrustDB, h.Msger)
 	if err != nil {
 		log.Error("[DRKeyLvl1ReqHandler] Unable to fetch certificate for remote AS", "err", err)
 		return infra.MetricsErrInternal
@@ -81,19 +81,25 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-// obtainChain gets the certificate chain for the AS from DB, or queries that remote CS.
-func obtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger infra.Messenger) (*cert.Chain, error) {
-	chain, err := trustDB.GetChainMaxVersion(ctx, ia)
+// obtainChain gets the certificate chain for the AS from DB, or queries that remote CS. It can
+// be called with version=scrypto.LatestVer to get the latest version.
+func obtainChain(ctx context.Context, ia addr.IA, version uint64, trustDB trustdb.TrustDB, msger infra.Messenger) (*cert.Chain, error) {
+	var chain *cert.Chain
+	var err error
+	if version == scrypto.LatestVer {
+		chain, err = trustDB.GetChainMaxVersion(ctx, ia)
+	} else {
+		chain, err = trustDB.GetChainVersion(ctx, ia, version)
+	}
 	if err != nil {
 		return nil, common.NewBasicError("Error getting certificate for AS", err)
 
 	}
 	if chain == nil {
 		// we don't have it
-		// TODO(juagargi): plese review this request
 		chainReq := &cert_mgmt.ChainReq{
 			RawIA:     ia.IAInt(),
-			Version:   scrypto.LatestVer,
+			Version:   version,
 			CacheOnly: true,
 		}
 		csAddr := &snet.Addr{IA: ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
@@ -138,12 +144,13 @@ func (h *Lvl1ReqHandler) lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.SV, ce
 	}
 
 	reply := drkey_mgmt.Lvl1Rep{
-		DstIARaw:   dstIA.IAInt(),
-		EpochBegin: sv.Epoch.BeginAsSeconds(),
-		EpochEnd:   sv.Epoch.EndAsSeconds(),
-		Cipher:     cipher,
-		Nonce:      nonce,
-		CertVerDst: cert.Version,
+		DstIARaw:     dstIA.IAInt(),
+		EpochBegin:   sv.Epoch.BeginAsSeconds(),
+		EpochEnd:     sv.Epoch.EndAsSeconds(),
+		Cipher:       cipher,
+		Nonce:        nonce,
+		CertVerDst:   cert.Version,
+		TimestampRaw: uint32(time.Now().Unix()),
 	}
 	return reply, nil
 }

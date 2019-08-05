@@ -37,8 +37,10 @@ const (
 	backendNone Backend = ""
 	// BackendSqlite indicates an sqlite backend.
 	BackendSqlite Backend = "sqlite"
-	// DefaultDuration is the default duration for the drkey SV and derived keys
-	DefaultDuration = 24 * time.Hour
+	// DefaultEpochDuration is the default duration for the drkey SV and derived keys
+	DefaultEpochDuration = 24 * time.Hour
+	// DefaultMaxReplyAge is the default allowed age for replies.
+	DefaultMaxReplyAge = 2 * time.Second
 )
 
 var _ (config.Config) = (*Config)(nil)
@@ -55,10 +57,12 @@ type Config struct {
 	MaxOpenConns string
 	// MaxIdleConns is the key for max idle conns in the config mapping.
 	MaxIdleConns string
-	// Duration is the key for the key duration.
-	Duration util.DurWrap
+	// EpochDuration is the duration of the keys in this CS.
+	EpochDuration util.DurWrap
 	// Protocols is the map between protocol name and implementation.
 	Protocols ProtocolMap
+	// MaxReplyAge is the age limit for a level 1 reply to be accepted. Older are rejected.
+	MaxReplyAge util.DurWrap
 }
 
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
@@ -67,9 +71,12 @@ func (cfg *Config) InitDefaults() {
 	if cfg.Backend == backendNone {
 		cfg.Backend = BackendSqlite
 	}
-	if cfg.Duration.Duration == 0 {
+	if cfg.EpochDuration.Duration == 0 {
 		cfg.enabled = false
-		cfg.Duration.Duration = DefaultDuration
+		cfg.EpochDuration.Duration = DefaultEpochDuration
+	}
+	if cfg.MaxReplyAge.Duration == 0 {
+		cfg.MaxReplyAge.Duration = DefaultMaxReplyAge
 	}
 	if cfg.Connection == "" {
 		cfg.enabled = false
@@ -78,6 +85,7 @@ func (cfg *Config) InitDefaults() {
 
 // Enabled returns true if DRKey is configured. False otherwise.
 func (cfg *Config) Enabled() bool {
+	// TODO(juagargi): check that disabled CSs can receive DRKey queries from sciond (mine crashes)
 	return cfg.enabled
 }
 

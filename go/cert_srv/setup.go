@@ -146,7 +146,7 @@ func initState(cfg *config.Config, router snet.Router) error {
 			return common.NewBasicError("Unable to initialize drkey key store", err)
 		}
 		drkeyStore = drkeylib.NewStore(drkeyDB)
-		drkeyStore.SetKeyDuration(cfg.DRKey.Duration.Duration)
+		drkeyStore.SetKeyDuration(cfg.DRKey.EpochDuration.Duration)
 		log.Info("DRKey is enabled")
 	} else {
 		drkeyStore = drkeystorage.NewDisabledStore()
@@ -226,8 +226,9 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			Msger: msgr,
 		})
 		msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
-			State: state,
-			Msger: msgr,
+			State:       state,
+			Msger:       msgr,
+			MaxReplyAge: cfg.DRKey.MaxReplyAge.Duration,
 		})
 		protoMap, err := cfg.DRKey.ProtocolMap()
 		if err != nil {

@@ -36,8 +36,11 @@ func TestInitDefaults(t *testing.T) {
 	if cfg.Connection != "" {
 		t.Errorf("Unexpected configuration value: %v", cfg.Connection)
 	}
-	if cfg.Duration.Duration != time.Hour*24 {
-		t.Errorf("Unexpected configuration value: %v", cfg.Duration)
+	if cfg.EpochDuration.Duration != 24*time.Hour {
+		t.Errorf("Unexpected configuration value: %v", cfg.EpochDuration)
+	}
+	if cfg.MaxReplyAge.Duration != 2*time.Second {
+		t.Errorf("Unexpected configuration value: %v", cfg.EpochDuration)
 	}
 }
 
@@ -55,6 +58,12 @@ func TestConfigSample(t *testing.T) {
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
+	if cfg.EpochDuration.Duration != DefaultEpochDuration {
+		t.Errorf("Unexpected config value: %v", cfg.EpochDuration)
+	}
+	if cfg.MaxReplyAge.Duration != DefaultMaxReplyAge {
+		t.Errorf("Unexpected config value: %v", cfg.MaxReplyAge)
+	}
 	if _, found := cfg.Protocols["foo"]; !found {
 		t.Errorf("Protocol not found")
 	}
@@ -68,7 +77,8 @@ func TestDisable(t *testing.T) {
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	cfg.Duration.Duration = 10 * time.Hour
+	cfg.EpochDuration.Duration = 10 * time.Hour
+	cfg.MaxReplyAge.Duration = 10 * time.Hour
 	cfg.Connection = "a"
 	cfg.Backend = "sqlite"
 	cfg.InitDefaults()
@@ -77,6 +87,12 @@ func TestDisable(t *testing.T) {
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
+	}
+	if cfg.EpochDuration.Duration != 10*time.Hour {
+		t.Errorf("Unexpected config value: %v", cfg.EpochDuration)
+	}
+	if cfg.MaxReplyAge.Duration != 10*time.Hour {
+		t.Errorf("Unexpected config value: %v", cfg.MaxReplyAge)
 	}
 }
 

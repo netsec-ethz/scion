@@ -18,10 +18,12 @@ package drkey_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -29,12 +31,13 @@ var _ proto.Cerealizable = (*Lvl1Rep)(nil)
 
 // Lvl1Rep represents the lvel 1 reply from one CS to another.
 type Lvl1Rep struct {
-	DstIARaw   addr.IAInt `capnp:"dstIA"`
-	EpochBegin uint32
-	EpochEnd   uint32
-	Cipher     common.RawBytes
-	Nonce      common.RawBytes
-	CertVerDst uint64
+	DstIARaw     addr.IAInt `capnp:"dstIA"`
+	EpochBegin   uint32
+	EpochEnd     uint32
+	Cipher       common.RawBytes
+	Nonce        common.RawBytes
+	CertVerDst   uint64
+	TimestampRaw uint32 `capnp:"timestamp"`
 }
 
 // DstIA returns the source ISD-AS of the DRKey.
@@ -52,7 +55,12 @@ func (c *Lvl1Rep) Epoch() drkey.Epoch {
 	return drkey.NewEpoch(c.EpochBegin, c.EpochEnd)
 }
 
+// Timestamp returns the time when this reply was created.
+func (c *Lvl1Rep) Timestamp() time.Time {
+	return util.SecsToTime(c.TimestampRaw)
+}
+
 func (c *Lvl1Rep) String() string {
-	return fmt.Sprintf("DstIA: %v EpochBegin: %d EpochEnd: %d CertVerEnc: %d",
-		c.DstIA(), c.EpochBegin, c.EpochEnd, c.CertVerDst)
+	return fmt.Sprintf("Timestamp: %v DstIA: %v EpochBegin: %d EpochEnd: %d CertVerEnc: %d",
+		c.Timestamp(), c.DstIA(), c.EpochBegin, c.EpochEnd, c.CertVerDst)
 }
