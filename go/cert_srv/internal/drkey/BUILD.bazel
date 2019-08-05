@@ -3,9 +3,9 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "lvl1repHandler.go",
-        "lvl1reqHandler.go",
-        "lvl2reqHandler.go",
+        "lvl1rephandler.go",
+        "lvl1reqhandler.go",
+        "lvl2reqhandler.go",
         "requester.go",
         "store_keeper.go",
         "testcommon.go",
