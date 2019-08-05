@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	// DRKeyHandlerTimeout represents the timeout for the three drkey handlers.
 	DRKeyHandlerTimeout = 5 * time.Second
 )
 
@@ -45,7 +46,7 @@ type Lvl1ReqHandler struct {
 	Msger infra.Messenger
 }
 
-// Handle handles the level 1 drkey requests
+// Handle handles the level 1 drkey requests.
 func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
@@ -61,28 +62,27 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	// Get the newest certificate for the remote AS
-	dstChain, err := ObtainChain(ctx, dstIA, h.State.TrustDB, h.Msger)
+	dstChain, err := obtainChain(ctx, dstIA, h.State.TrustDB, h.Msger)
 	if err != nil {
 		log.Error("[DRKeyLvl1ReqHandler] Unable to fetch certificate for remote AS", "err", err)
 		return infra.MetricsErrInternal
 	}
 
 	privateKey := h.State.GetDecryptKey()
-	reply, err := lvl1KeyBuildReply(srcIA, dstIA, sv, dstChain.Leaf, privateKey)
+	reply, err := h.lvl1KeyBuildReply(srcIA, dstIA, sv, *dstChain.Leaf, privateKey)
 	if err != nil {
 		log.Error("[DRKeyLvl1ReqHandler]", "err", err)
 		return infra.MetricsErrInternal
 	}
-
-	if err := h.sendRep(ctx, saddr, reply, r.ID); err != nil {
+	if err := h.sendRep(ctx, saddr, &reply, r.ID); err != nil {
 		log.Error("[DRKeyLvl1ReqHandler] Unable to send drkey reply", "err", err)
 		return infra.MetricsErrInternal
 	}
 	return infra.MetricsResultOk
 }
 
-// ObtainChain gets the certificate chain for the AS from DB, or queries that remote CS
-func ObtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger infra.Messenger) (*cert.Chain, error) {
+// obtainChain gets the certificate chain for the AS from DB, or queries that remote CS.
+func obtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger infra.Messenger) (*cert.Chain, error) {
 	chain, err := trustDB.GetChainMaxVersion(ctx, ia)
 	if err != nil {
 		return nil, common.NewBasicError("Error getting certificate for AS", err)
@@ -112,31 +112,32 @@ func ObtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger
 	return chain, nil
 }
 
-// lvl1KeyBuildReply constructs the level 1 key exchange reply message
+// lvl1KeyBuildReply constructs the level 1 key exchange reply message:
 // cipher = {A | B | K_{A->B}}_PK_B
 // nonce = nonce
-// Epoch comes from the secret value (configuration)
-func lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.SV, cert *cert.Certificate, privateKey common.RawBytes) (*drkey_mgmt.DRKeyLvl1Rep, error) {
-	var err error
-	if err = validateReq(srcIA, dstIA); err != nil {
-		return nil, common.NewBasicError("Dropping DRKeyLvl1 request, validation error", err)
-	}
+// Epoch comes from the secret value (configuration).
+func (h *Lvl1ReqHandler) lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.SV, cert cert.Certificate,
+	privateKey common.RawBytes) (drkey_mgmt.DRKeyLvl1Rep, error) {
 
+	if err := h.validateReq(srcIA, dstIA); err != nil {
+		return drkey_mgmt.DRKeyLvl1Rep{},
+			common.NewBasicError("Dropping DRKeyLvl1 request, validation error", err)
+	}
 	key, err := deriveLvl1Key(srcIA, dstIA, sv)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to derive drkey", err)
+		return drkey_mgmt.DRKeyLvl1Rep{}, common.NewBasicError("Unable to derive drkey", err)
 	}
-
 	nonce, err := scrypto.Nonce(24)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to get random nonce drkey", err)
+		return drkey_mgmt.DRKeyLvl1Rep{},
+			common.NewBasicError("Unable to get random nonce drkey", err)
 	}
 	cipher, err := drkey.EncryptDRKeyLvl1(key, nonce, cert.SubjectEncKey, privateKey)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to encrypt drkey", err)
+		return drkey_mgmt.DRKeyLvl1Rep{}, common.NewBasicError("Unable to encrypt drkey", err)
 	}
 
-	reply := &drkey_mgmt.DRKeyLvl1Rep{
+	reply := drkey_mgmt.DRKeyLvl1Rep{
 		DstIARaw:   dstIA.IAInt(),
 		EpochBegin: sv.Epoch.BeginAsSeconds(),
 		EpochEnd:   sv.Epoch.EndAsSeconds(),
@@ -147,7 +148,8 @@ func lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.SV, cert *cert.Certificat
 	return reply, nil
 }
 
-func validateReq(srcIA, dstIA addr.IA) error {
+// validateReq returns an error if the level 1 drkey request is not valid.
+func (h *Lvl1ReqHandler) validateReq(srcIA, dstIA addr.IA) error {
 	// TODO(ben): validate request (validity time, etc.)
 	// TODO(ben): remove
 	log.Trace("[DRKeyReqHandler] Validating drkey lvl1 request", "src", srcIA, "dst", dstIA)
@@ -158,20 +160,22 @@ func validateReq(srcIA, dstIA addr.IA) error {
 	return nil
 }
 
-func deriveLvl1Key(srcIA, dstIA addr.IA, sv *drkey.SV) (drkey.Lvl1Key, error) {
+// deriveLvl1Key will derive the level 1 key.
+func deriveLvl1Key(srcIA, dstIA addr.IA, sv drkey.SV) (drkey.Lvl1Key, error) {
 	log.Trace("[DRKeyReqHandler] Deriving drkey for lvl1", "srcIA", srcIA, "dstIA", dstIA)
 	meta := drkey.Lvl1Meta{
 		Epoch: sv.Epoch,
 		SrcIA: srcIA,
 		DstIA: dstIA,
 	}
-	key, err := drkey.NewLvl1Key(meta, *sv)
+	key, err := drkey.NewLvl1Key(meta, sv)
 	if err != nil {
 		return drkey.Lvl1Key{}, err
 	}
 	return key, nil
 }
 
+// sendRep sends a level 1 reply to the requesting source.
 func (h *Lvl1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep, id uint64) error {
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {

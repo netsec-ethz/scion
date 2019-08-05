@@ -53,7 +53,7 @@ func (NoDRKey) SetMasterKey(key common.RawBytes) error {
 }
 
 // SecretValue not implemented.
-func (NoDRKey) SecretValue(time.Time) (*drkey.SV, error) {
+func (NoDRKey) SecretValue(time.Time) (drkey.SV, error) {
 	panic("Not implemented")
 }
 

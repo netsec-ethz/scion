@@ -142,7 +142,7 @@ func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl
 		return common.NewBasicError("reply was empty (nil)", nil)
 	}
 	dstIA := reply.DstIA()
-	chain, err := ObtainChain(ctx, dstIA, r.State.TrustDB, r.Msgr)
+	chain, err := obtainChain(ctx, dstIA, r.State.TrustDB, r.Msgr)
 	if err != nil {
 		return common.NewBasicError("Error obtaining cert. chain", err, "IA", dstIA)
 	}

@@ -46,7 +46,7 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 		log.Error("[Lvl1ReplyHandler] Reply is null after cast")
 		return infra.MetricsErrInternal
 	}
-	chain, err := ObtainChain(ctx, reply.DstIA(), h.State.TrustDB, h.Msger)
+	chain, err := obtainChain(ctx, reply.DstIA(), h.State.TrustDB, h.Msger)
 	if err != nil {
 		log.Error("[Lvl1ReplyHandler] Unable to fetch certificate for remote host", "err", err)
 		return infra.MetricsErrInternal

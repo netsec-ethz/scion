@@ -71,7 +71,7 @@ func (s *Store) SetMasterKey(key common.RawBytes) error {
 }
 
 // SecretValue derives or reuses the secret value for this time stamp.
-func (s *Store) SecretValue(t time.Time) (*SV, error) {
+func (s *Store) SecretValue(t time.Time) (SV, error) {
 	s.sv.mapMutex.Lock()
 	defer s.sv.mapMutex.Unlock()
 
@@ -84,12 +84,12 @@ func (s *Store) SecretValue(t time.Time) (*SV, error) {
 		epoch := NewEpoch(begin, end)
 		key, err := NewSV(SVMeta{Epoch: epoch}, s.sv.masterKey)
 		if err != nil {
-			return nil, common.NewBasicError("Cannot establish the DRKey secret value", err)
+			return SV{}, common.NewBasicError("Cannot establish the DRKey secret value", err)
 		}
 		k = &key
 		s.sv.keyMap.Set(idx, k)
 	}
-	return k, nil
+	return *k, nil
 }
 
 // GetLvl1Key returns the level 1 drkey for that meta info and valid time.

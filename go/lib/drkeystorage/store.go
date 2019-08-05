@@ -35,7 +35,7 @@ type SecretValueStore interface {
 	SetMasterKey(key common.RawBytes) error
 	// SecretValue returns the secret value given a point in time. The mapping returns the same
 	// secret value for time points within the same time window [t/Duration, t/Duration +1) .
-	SecretValue(time.Time) (*drkey.SV, error)
+	SecretValue(time.Time) (drkey.SV, error)
 }
 
 // Lvl1Store has all the functions dealing with storage/retrieval of level 1 DRKeys.
