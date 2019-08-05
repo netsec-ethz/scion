@@ -64,5 +64,6 @@ func (c *Lvl1Req) Timestamp() time.Time {
 }
 
 func (c *Lvl1Req) String() string {
-	return fmt.Sprintf("DstIA: %s ValTime: %v", c.DstIA(), util.TimeToString(c.ValTime()))
+	return fmt.Sprintf("Timestamp: %v DstIA: %s ValTime: %v",
+		util.TimeToCompact(c.Timestamp()), c.DstIA(), util.TimeToCompact(c.ValTime()))
 }

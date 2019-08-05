@@ -88,5 +88,5 @@ func (c *Lvl2Req) ValTime() time.Time {
 
 func (c *Lvl2Req) String() string {
 	return fmt.Sprintf("KeyType: %v Protocol: %s SrcIA: %s DstIA: %s ValTime: %v",
-		c.ReqType, c.Protocol, c.SrcIA(), c.DstIA(), util.TimeToString(c.ValTime()))
+		c.ReqType, c.Protocol, c.SrcIA(), c.DstIA(), util.TimeToCompact(c.ValTime()))
 }

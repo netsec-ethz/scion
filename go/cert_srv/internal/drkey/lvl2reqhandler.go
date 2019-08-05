@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Lvl2ReqHandler contains the information necessary to handle a level 2 drkey request.
@@ -55,7 +56,7 @@ func (h *Lvl2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	// TODO(juagargi): should we always send something, to signal e.g. sciond there was an error,
 	// and avoid the timeout? E.g. when we request an AS2Host key but leave the host addr empty,
 	// sciond waits until timeout
-	sv, err := h.State.DRKeyStore.SecretValue(time.Unix(int64(req.ValTimeRaw), 0))
+	sv, err := h.State.DRKeyStore.SecretValue(util.SecsToTime(req.ValTimeRaw))
 	if err != nil {
 		log.Error("[DRKeyLvl2ReqHandler] Unable to get secret value", "err", err)
 		return infra.MetricsErrInternal

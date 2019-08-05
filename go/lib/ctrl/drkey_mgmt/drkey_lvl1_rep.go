@@ -62,5 +62,5 @@ func (c *Lvl1Rep) Timestamp() time.Time {
 
 func (c *Lvl1Rep) String() string {
 	return fmt.Sprintf("Timestamp: %v DstIA: %v EpochBegin: %d EpochEnd: %d CertVerEnc: %d",
-		c.Timestamp(), c.DstIA(), c.EpochBegin, c.EpochEnd, c.CertVerDst)
+		util.TimeToCompact(c.Timestamp()), c.DstIA(), c.EpochBegin, c.EpochEnd, c.CertVerDst)
 }

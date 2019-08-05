@@ -18,10 +18,12 @@ package drkey_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -62,7 +64,7 @@ func (c *Lvl2Rep) ToKey(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
 
 	return drkey.Lvl2Key{
 		Lvl2Meta: drkey.Lvl2Meta{
-			Epoch:    drkey.NewEpoch(c.EpochBegin, c.EpochEnd),
+			Epoch:    c.Epoch(),
 			SrcIA:    srcIA,
 			DstIA:    dstIA,
 			KeyType:  keyType,
@@ -74,7 +76,12 @@ func (c *Lvl2Rep) ToKey(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
 	}
 }
 
+// Timestamp returns the time when this reply was created.
+func (c *Lvl2Rep) Timestamp() time.Time {
+	return util.SecsToTime(c.TimestampRaw)
+}
+
 func (c *Lvl2Rep) String() string {
-	return fmt.Sprintf("Timestamp: %d EpochBegin: %d EpochEnd: %d Misc: %v",
-		c.TimestampRaw, c.EpochBegin, c.EpochEnd, c.Misc)
+	return fmt.Sprintf("Timestamp: %v EpochBegin: %d EpochEnd: %d Misc: %v",
+		util.TimeToCompact(c.Timestamp()), c.EpochBegin, c.EpochEnd, c.Misc)
 }

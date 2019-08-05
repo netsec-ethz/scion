@@ -16,6 +16,8 @@ package drkey
 
 import (
 	"time"
+
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Epoch represents a validity period.
@@ -28,8 +30,8 @@ type Epoch struct {
 // NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
 func NewEpoch(begin, end uint32) Epoch {
 	return Epoch{
-		Begin: time.Unix(int64(begin), 0),
-		End:   time.Unix(int64(end), 0),
+		Begin: util.SecsToTime(begin),
+		End:   util.SecsToTime(end),
 	}
 }
 
