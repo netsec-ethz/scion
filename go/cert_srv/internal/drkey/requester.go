@@ -222,9 +222,9 @@ func differenceSet(a, b asSet) asSet {
 }
 
 // setFromList returns a set built from a slice.
-func setFromList(l []addr.IA) asSet {
-	ret := asSet{}
-	for _, i := range l {
+func setFromList(ias []addr.IA) asSet {
+	ret := make(asSet, len(ias))
+	for _, i := range ias {
 		ret[i] = struct{}{}
 	}
 	return ret
