@@ -317,7 +317,7 @@ func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketCon
 	if err := sendReply(replyToSend, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)
 	} else {
-		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.DRKeyLvl2Rep{})
+		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.Lvl2Rep{})
 	}
 }
 

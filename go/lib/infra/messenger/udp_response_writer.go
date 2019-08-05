@@ -61,9 +61,9 @@ func (rw *UDPResponseWriter) SendIfStateInfoReply(ctx context.Context,
 	return rw.Messenger.SendIfStateInfos(ctx, msg, rw.Remote, rw.ID)
 }
 
-func (rw *UDPResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error {
+func (rw *UDPResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep) error {
 	return rw.Messenger.SendDRKeyLvl1(ctx, msg, rw.Remote, rw.ID)
 }
-func (rw *UDPResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error {
+func (rw *UDPResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep) error {
 	return rw.Messenger.SendDRKeyLvl2(ctx, msg, rw.Remote, rw.ID)
 }

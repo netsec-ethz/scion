@@ -46,7 +46,7 @@ func (h *Lvl2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
 	saddr := r.Peer.(*snet.Addr)
-	req := r.Message.(*drkey_mgmt.DRKeyLvl2Req)
+	req := r.Message.(*drkey_mgmt.Lvl2Req)
 	log.Debug("[DRKeyLvl2ReqHandler] Received request", "req", req)
 	srcIA := req.SrcIA()
 	dstIA := req.DstIA()
@@ -74,8 +74,8 @@ func (h *Lvl2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 // lvl2KeyBuildReply returns the level 2 drkey reply message
 // Needs the level 1 key K_{A->B} in order to derive the level 2 if src AS is us.
 // If src AS is not us, will ask the appropriate CS.
-func (h *Lvl2ReqHandler) lvl2KeyBuildReply(ctx context.Context, req drkey_mgmt.DRKeyLvl2Req,
-	srcIA, dstIA addr.IA, sv drkey.SV) (drkey_mgmt.DRKeyLvl2Rep, error) {
+func (h *Lvl2ReqHandler) lvl2KeyBuildReply(ctx context.Context, req drkey_mgmt.Lvl2Req,
+	srcIA, dstIA addr.IA, sv drkey.SV) (drkey_mgmt.Lvl2Rep, error) {
 
 	srcHost := req.SrcHost.ToHostAddr()
 	dstHost := req.DstHost.ToHostAddr()
@@ -84,18 +84,18 @@ func (h *Lvl2ReqHandler) lvl2KeyBuildReply(ctx context.Context, req drkey_mgmt.D
 	protocol := req.Protocol
 	lvl1Key, err := h.getLvl1Key(ctx, srcIA, dstIA, sv, valTime)
 	if err != nil {
-		return drkey_mgmt.DRKeyLvl2Rep{}, common.NewBasicError("Cannot get level 1 key", err)
+		return drkey_mgmt.Lvl2Rep{}, common.NewBasicError("Cannot get level 1 key", err)
 	}
 	log.Trace("[DRKeyLvl2BuildReply] Got level 1 key, about to derive L2")
 	// derive level 2
 	var lvl2key drkey.Lvl2Key
 	lvl2key, err = h.deriveLvl2Key(lvl1Key, keyType, protocol, srcHost, dstHost)
 	if err != nil {
-		return drkey_mgmt.DRKeyLvl2Rep{},
+		return drkey_mgmt.Lvl2Rep{},
 			common.NewBasicError("Cannot derive level 2 drkey from level 1", err)
 	}
 	log.Trace("[DRKeyLvl2BuildReply] about to save key in DB")
-	reply := drkey_mgmt.NewDRKeyLvl2RepFromKeyRepresentation(lvl2key, uint32(time.Now().Unix()))
+	reply := drkey_mgmt.NewLvl2RepFromKey(lvl2key, uint32(time.Now().Unix()))
 	return reply, nil
 }
 
@@ -179,8 +179,8 @@ func (h *Lvl2ReqHandler) getLvl1KeyFromOtherCS(ctx context.Context, srcIA, dstIA
 	privateKey := h.State.GetDecryptKey()
 	// TODO(juagargi): move this to only request level 1 from a requester (a la reiss.requester)
 	csAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	lvl1Req := drkey_mgmt.NewDRKeyLvl1Req(dstIA, valTime)
-	lvl1Rep, err := h.Msger.RequestDRKeyLvl1(ctx, lvl1Req, csAddr, messenger.NextId())
+	lvl1Req := drkey_mgmt.NewLvl1Req(dstIA, valTime)
+	lvl1Rep, err := h.Msger.RequestDRKeyLvl1(ctx, &lvl1Req, csAddr, messenger.NextId())
 	if err != nil {
 		return lvl1Key, err
 	}
@@ -192,12 +192,10 @@ func (h *Lvl2ReqHandler) getLvl1KeyFromOtherCS(ctx context.Context, srcIA, dstIA
 }
 
 // sendRep takes a level 2 drkey reply and sends it.
-func (h *Lvl2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl2Rep, id uint64) error {
+func (h *Lvl2ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.Lvl2Rep, id uint64) error {
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		return common.NewBasicError("[DRKeyReqHandler] Unable to service request, no messenger found", nil)
 	}
 	return rw.SendDRKeyLvl2(ctx, rep)
 }
-
-// TODO change drkey_mgmt class names (remove the DRKey)

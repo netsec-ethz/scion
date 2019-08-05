@@ -127,8 +127,8 @@ func (r *Requester) requestLvl1(ctx context.Context, pending addr.IA, valTime ui
 		IA:   pending,
 		Host: addr.NewSVCUDPAppAddr(addr.SvcCS),
 	}
-	req := drkey_mgmt.NewDRKeyLvl1Req(pending, valTime)
-	reply, err := r.Msgr.RequestDRKeyLvl1(ctx, req, csAddr, messenger.NextId())
+	req := drkey_mgmt.NewLvl1Req(pending, valTime)
+	reply, err := r.Msgr.RequestDRKeyLvl1(ctx, &req, csAddr, messenger.NextId())
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (r *Requester) requestLvl1(ctx context.Context, pending addr.IA, valTime ui
 	return r.processReply(ctx, reply, pending)
 }
 
-func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
+func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.Lvl1Rep, srcIA addr.IA) error {
 	// Get the newest certificate for the remote AS
 	if reply == nil {
 		return common.NewBasicError("reply was empty (nil)", nil)

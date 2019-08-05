@@ -369,14 +369,14 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_drkeyLvl2Req,
-			DRKeyLvl2Req: &drkey_mgmt.DRKeyLvl2Req{
+			DRKeyLvl2Req: &drkey_mgmt.Lvl2Req{
 				Protocol:   protocol,
 				ReqType:    keyType,
 				ValTimeRaw: valTime,
 				SrcIARaw:   srcIA.IAInt(),
 				DstIARaw:   dstIA.IAInt(),
-				SrcHost:    *drkey_mgmt.NewDRKeyHost(srcHost),
-				DstHost:    *drkey_mgmt.NewDRKeyHost(dstHost),
+				SrcHost:    drkey_mgmt.NewHost(srcHost),
+				DstHost:    drkey_mgmt.NewHost(dstHost),
 			},
 		},
 		nil,
@@ -389,7 +389,7 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 		)
 	}
 	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
-	return lvl2rep.ToKeyRepresentation(srcIA, dstIA, drkey.Lvl2KeyType(keyType),
+	return lvl2rep.ToKey(srcIA, dstIA, drkey.Lvl2KeyType(keyType),
 		protocol, srcHost, dstHost), nil
 }
 

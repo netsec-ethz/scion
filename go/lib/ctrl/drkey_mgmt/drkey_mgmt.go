@@ -23,27 +23,27 @@ import (
 )
 
 type union struct {
-	Which        proto.DRKeyMgmt_Which
-	DRKeyLvl1Req *DRKeyLvl1Req `capnp:"drkeyLvl1Req"`
-	DRKeyLvl1Rep *DRKeyLvl1Rep `capnp:"drkeyLvl1Rep"`
-	DRKeyLvl2Req *DRKeyLvl2Req `capnp:"drkeyLvl2Req"`
-	DRKeyLvl2Rep *DRKeyLvl2Rep `capnp:"drkeyLvl2Rep"`
+	Which   proto.DRKeyMgmt_Which
+	Lvl1Req *Lvl1Req `capnp:"drkeyLvl1Req"`
+	Lvl1Rep *Lvl1Rep `capnp:"drkeyLvl1Rep"`
+	Lvl2Req *Lvl2Req `capnp:"drkeyLvl2Req"`
+	Lvl2Rep *Lvl2Rep `capnp:"drkeyLvl2Rep"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
 	switch p := c.(type) {
-	case *DRKeyLvl1Req:
+	case *Lvl1Req:
 		u.Which = proto.DRKeyMgmt_Which_drkeyLvl1Req
-		u.DRKeyLvl1Req = p
-	case *DRKeyLvl1Rep:
+		u.Lvl1Req = p
+	case *Lvl1Rep:
 		u.Which = proto.DRKeyMgmt_Which_drkeyLvl1Rep
-		u.DRKeyLvl1Rep = p
-	case *DRKeyLvl2Req:
+		u.Lvl1Rep = p
+	case *Lvl2Req:
 		u.Which = proto.DRKeyMgmt_Which_drkeyLvl2Req
-		u.DRKeyLvl2Req = p
-	case *DRKeyLvl2Rep:
+		u.Lvl2Req = p
+	case *Lvl2Rep:
 		u.Which = proto.DRKeyMgmt_Which_drkeyLvl2Rep
-		u.DRKeyLvl2Rep = p
+		u.Lvl2Rep = p
 	default:
 		return common.NewBasicError("Unsupported drkey mgmt union type (set)",
 			nil, "type", common.TypeOf(c))
@@ -54,13 +54,13 @@ func (u *union) set(c proto.Cerealizable) error {
 func (u *union) get() (proto.Cerealizable, error) {
 	switch u.Which {
 	case proto.DRKeyMgmt_Which_drkeyLvl1Req:
-		return u.DRKeyLvl1Req, nil
+		return u.Lvl1Req, nil
 	case proto.DRKeyMgmt_Which_drkeyLvl1Rep:
-		return u.DRKeyLvl1Rep, nil
+		return u.Lvl1Rep, nil
 	case proto.DRKeyMgmt_Which_drkeyLvl2Req:
-		return u.DRKeyLvl2Req, nil
+		return u.Lvl2Req, nil
 	case proto.DRKeyMgmt_Which_drkeyLvl2Rep:
-		return u.DRKeyLvl2Rep, nil
+		return u.Lvl2Rep, nil
 	}
 	return nil, common.NewBasicError("Unsupported drkey mgmt union type (get)",
 		nil, "type", u.Which)

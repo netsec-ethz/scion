@@ -342,13 +342,14 @@ type Messenger interface {
 		id uint64) error
 	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
 	UpdateSigner(signer Signer, types []MessageType)
-	RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Req, a net.Addr,
-		id uint64) (*drkey_mgmt.DRKeyLvl1Rep, error)
-	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep, a net.Addr,
+	// TODO(juagargi) rename these functions:
+	RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Req, a net.Addr,
+		id uint64) (*drkey_mgmt.Lvl1Rep, error)
+	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep, a net.Addr,
 		id uint64) error
-	RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr,
-		id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error)
-	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr,
+	RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Req, a net.Addr,
+		id uint64) (*drkey_mgmt.Lvl2Rep, error)
+	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep, a net.Addr,
 		id uint64) error
 	UpdateVerifier(verifier Verifier)
 	AddHandler(msgType MessageType, h Handler)
@@ -363,8 +364,9 @@ type ResponseWriter interface {
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep) error
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error
 	SendIfStateInfoReply(ctx context.Context, msg *path_mgmt.IFStateInfos) error
-	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error
-	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error
+	// TODO(juagargi) rename these functions:
+	SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep) error
+	SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep) error
 }
 
 func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {

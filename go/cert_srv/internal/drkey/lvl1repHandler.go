@@ -40,7 +40,7 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	defer cancelF()
 
 	saddr := r.Peer.(*snet.Addr)
-	reply := r.Message.(*drkey_mgmt.DRKeyLvl1Rep)
+	reply := r.Message.(*drkey_mgmt.Lvl1Rep)
 	log.Trace("[Lvl1ReplyHandler] Received drkey lvl1 reply", "addr", saddr, "reply", reply)
 	if reply == nil {
 		log.Error("[Lvl1ReplyHandler] Reply is null after cast")
@@ -64,7 +64,7 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 }
 
 // lvl1KeyFromReply validates a level 1 reply and returns the level 1 key embedded in it
-func lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.Certificate,
+func lvl1KeyFromReply(reply *drkey_mgmt.Lvl1Rep, srcIA addr.IA, cert *cert.Certificate,
 	privateKey common.RawBytes) (drkey.Lvl1Key, error) {
 
 	var lvl1Key drkey.Lvl1Key
@@ -82,7 +82,7 @@ func lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.
 	return lvl1Key, nil
 }
 
-func validateReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA) error {
+func validateReply(reply *drkey_mgmt.Lvl1Rep, srcIA addr.IA) error {
 	if reply == nil {
 		return common.NewBasicError("Level 1 reply is NULL", nil)
 	}

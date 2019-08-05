@@ -155,8 +155,8 @@ func TestLvl2KeyBuildReply(t *testing.T) {
 			Protocol:   "foo",
 			ReqType:    uint8(drkey.AS2AS),
 			ValTimeRaw: 0,
-			SrcHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
-			DstHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
+			SrcHost:    drkey_mgmt.NewHost(addr.HostNone{}),
+			DstHost:    drkey_mgmt.NewHost(addr.HostNone{}),
 		}
 		// expectedLvl2Key, _ := hex.DecodeString("03666f6fd03e93e69f72993b0e5613283e631017")
 		expectedLvl2Key, _ := hex.DecodeString("d03e93e69f72993b0e5613283e631017")
@@ -193,8 +193,8 @@ func TestLvl2KeyBuildReply(t *testing.T) {
 			Protocol:   "foo",
 			ReqType:    uint8(drkey.AS2AS),
 			ValTimeRaw: 0,
-			SrcHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
-			DstHost:    *drkey_mgmt.NewDRKeyHost(addr.HostNone{}),
+			SrcHost:    drkey_mgmt.NewHost(addr.HostNone{}),
+			DstHost:    drkey_mgmt.NewHost(addr.HostNone{}),
 		}
 		drkeyLvl2, err := standardImpl.DeriveLvl2(drkey.Lvl2Meta{
 			Epoch:    sv.Epoch,

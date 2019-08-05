@@ -218,9 +218,9 @@ func (m *MessengerWithMetrics) SendBeacon(ctx context.Context, msg *seg.Beacon, 
 	})
 }
 
-func (m *MessengerWithMetrics) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Req, a net.Addr,
-	id uint64) (*drkey_mgmt.DRKeyLvl1Rep, error) {
-	var req *drkey_mgmt.DRKeyLvl1Rep
+func (m *MessengerWithMetrics) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Req, a net.Addr,
+	id uint64) (*drkey_mgmt.Lvl1Rep, error) {
+	var req *drkey_mgmt.Lvl1Rep
 	return req, observe(ctx, infra.DRKeyLvl1Request, func(ctx context.Context) error {
 		var err error
 		req, err = m.messenger.RequestDRKeyLvl1(ctx, msg, a, id)
@@ -228,14 +228,14 @@ func (m *MessengerWithMetrics) RequestDRKeyLvl1(ctx context.Context, msg *drkey_
 	})
 }
 
-func (m *MessengerWithMetrics) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep, a net.Addr, id uint64) error {
+func (m *MessengerWithMetrics) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep, a net.Addr, id uint64) error {
 	return observe(ctx, infra.DRKeyLvl1Reply, func(ctx context.Context) error {
 		return m.messenger.SendDRKeyLvl1(ctx, msg, a, id)
 	})
 }
 
-func (m *MessengerWithMetrics) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr, id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error) {
-	var req *drkey_mgmt.DRKeyLvl2Rep
+func (m *MessengerWithMetrics) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Req, a net.Addr, id uint64) (*drkey_mgmt.Lvl2Rep, error) {
+	var req *drkey_mgmt.Lvl2Rep
 	return req, observe(ctx, infra.DRKeyLvl2Request, func(ctx context.Context) error {
 		var err error
 		req, err = m.messenger.RequestDRKeyLvl2(ctx, msg, a, id)
@@ -243,7 +243,7 @@ func (m *MessengerWithMetrics) RequestDRKeyLvl2(ctx context.Context, msg *drkey_
 	})
 }
 
-func (m *MessengerWithMetrics) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr, id uint64) error {
+func (m *MessengerWithMetrics) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep, a net.Addr, id uint64) error {
 	return observe(ctx, infra.DRKeyLvl2Reply, func(ctx context.Context) error {
 		return m.messenger.SendDRKeyLvl2(ctx, msg, a, id)
 	})

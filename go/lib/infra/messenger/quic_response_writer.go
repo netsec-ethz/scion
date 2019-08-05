@@ -110,7 +110,7 @@ func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
 	return common.NewBasicError("IFStateInfos responses not supported in QUIC", nil)
 }
 
-func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep) error {
+func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep) error {
 	go func() {
 		defer log.LogPanicAndExit()
 		<-ctx.Done()
@@ -122,7 +122,7 @@ func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt
 	}
 	return rw.sendMessage(ctrlPld)
 }
-func (rw *QUICResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep) error {
+func (rw *QUICResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep) error {
 	go func() {
 		defer log.LogPanicAndExit()
 		<-ctx.Done()

@@ -34,10 +34,10 @@
 //  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
-//	infra.DRKeyLvl1Request    -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Req
-//	infra.DRKeyLvl1Reply      -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl1Rep
-//	infra.DRKeyLvl2Request    -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Req
-//	infra.DRKeyLvl2Reply      -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.DRKeyLvl2Rep
+//	infra.DRKeyLvl1Request    -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.Lvl1Req
+//	infra.DRKeyLvl1Reply      -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.Lvl1Rep
+//	infra.DRKeyLvl2Request    -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.Lvl2Req
+//	infra.DRKeyLvl2Reply      -> ctrl.SignedPld/ctrl.Pld/drkey_mgmt.Lvl2Rep
 //
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
@@ -624,8 +624,8 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 	return err
 }
 
-func (m *Messenger) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Req, a net.Addr,
-	id uint64) (*drkey_mgmt.DRKeyLvl1Rep, error) {
+func (m *Messenger) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Req, a net.Addr,
+	id uint64) (*drkey_mgmt.Lvl1Rep, error) {
 
 	debug_id := util.GetDebugID()
 	logger := m.log.New("debug_id", debug_id)
@@ -645,9 +645,9 @@ func (m *Messenger) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyL
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
 			"debug_id", debug_id)
 	}
-	reply, ok := replyMsg.(*drkey_mgmt.DRKeyLvl1Rep)
+	reply, ok := replyMsg.(*drkey_mgmt.Lvl1Rep)
 	if !ok {
-		err := newTypeAssertErr("*drkey_mgmt.DRKeyLvl1Rep", replyMsg)
+		err := newTypeAssertErr("*drkey_mgmt.Lvl1Rep", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
@@ -655,7 +655,7 @@ func (m *Messenger) RequestDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyL
 	return reply, nil
 }
 
-func (m *Messenger) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1Rep, a net.Addr,
+func (m *Messenger) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep, a net.Addr,
 	id uint64) error {
 
 	pld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -666,8 +666,8 @@ func (m *Messenger) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.DRKeyLvl1
 	return m.getFallbackRequester(infra.DRKeyLvl1Request).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Req, a net.Addr,
-	id uint64) (*drkey_mgmt.DRKeyLvl2Rep, error) {
+func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Req, a net.Addr,
+	id uint64) (*drkey_mgmt.Lvl2Rep, error) {
 
 	debug_id := util.GetDebugID()
 	logger := m.log.New("debug_id", debug_id)
@@ -687,9 +687,9 @@ func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyL
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
 			"debug_id", debug_id)
 	}
-	reply, ok := replyMsg.(*drkey_mgmt.DRKeyLvl2Rep)
+	reply, ok := replyMsg.(*drkey_mgmt.Lvl2Rep)
 	if !ok {
-		err := newTypeAssertErr("*drkey_mgmt.DRKeyLvl2Rep", replyMsg)
+		err := newTypeAssertErr("*drkey_mgmt.Lvl2Rep", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
@@ -697,7 +697,7 @@ func (m *Messenger) RequestDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyL
 	return reply, nil
 }
 
-func (m *Messenger) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.DRKeyLvl2Rep, a net.Addr,
+func (m *Messenger) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep, a net.Addr,
 	id uint64) error {
 
 	pld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -1097,13 +1097,13 @@ func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	case proto.CtrlPld_Which_drkeyMgmt:
 		switch pld.DRKeyMgmt.Which {
 		case proto.DRKeyMgmt_Which_drkeyLvl1Req:
-			return infra.DRKeyLvl1Request, pld.DRKeyMgmt.DRKeyLvl1Req, nil
+			return infra.DRKeyLvl1Request, pld.DRKeyMgmt.Lvl1Req, nil
 		case proto.DRKeyMgmt_Which_drkeyLvl1Rep:
-			return infra.DRKeyLvl1Reply, pld.DRKeyMgmt.DRKeyLvl1Rep, nil
+			return infra.DRKeyLvl1Reply, pld.DRKeyMgmt.Lvl1Rep, nil
 		case proto.DRKeyMgmt_Which_drkeyLvl2Req:
-			return infra.DRKeyLvl2Request, pld.DRKeyMgmt.DRKeyLvl2Req, nil
+			return infra.DRKeyLvl2Request, pld.DRKeyMgmt.Lvl2Req, nil
 		case proto.DRKeyMgmt_Which_drkeyLvl2Rep:
-			return infra.DRKeyLvl2Reply, pld.DRKeyMgmt.DRKeyLvl2Rep, nil
+			return infra.DRKeyLvl2Reply, pld.DRKeyMgmt.Lvl2Rep, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.DRKeyMgmt.Xxx message type",

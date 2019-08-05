@@ -75,8 +75,8 @@ type Pld struct {
 	IfInfoReply        *IFInfoReply
 	ServiceInfoRequest *ServiceInfoRequest
 	ServiceInfoReply   *ServiceInfoReply
-	DRKeyLvl2Req       *drkey_mgmt.DRKeyLvl2Req `capnp:"drkeyLvl2Req"`
-	DRKeyLvl2Rep       *drkey_mgmt.DRKeyLvl2Rep `capnp:"drkeyLvl2Rep"`
+	DRKeyLvl2Req       *drkey_mgmt.Lvl2Req `capnp:"drkeyLvl2Req"`
+	DRKeyLvl2Rep       *drkey_mgmt.Lvl2Rep `capnp:"drkeyLvl2Rep"`
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {

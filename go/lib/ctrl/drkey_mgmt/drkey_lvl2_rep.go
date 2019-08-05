@@ -25,10 +25,10 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*DRKeyLvl2Rep)(nil)
+var _ proto.Cerealizable = (*Lvl2Rep)(nil)
 
-// DRKeyLvl2Rep encodes the level 2 key response from a CS to an endhost.
-type DRKeyLvl2Rep struct {
+// Lvl2Rep encodes the level 2 key response from a CS to an endhost.
+type Lvl2Rep struct {
 	TimestampRaw uint32          `capnp:"timestamp"`
 	DRKeyRaw     common.RawBytes `capnp:"drkey"`
 	EpochBegin   uint32
@@ -36,9 +36,9 @@ type DRKeyLvl2Rep struct {
 	Misc         common.RawBytes
 }
 
-// NewDRKeyLvl2RepFromKeyRepresentation constructs a level 2 response from a standard level 2 key.
-func NewDRKeyLvl2RepFromKeyRepresentation(key drkey.Lvl2Key, timestamp uint32) DRKeyLvl2Rep {
-	return DRKeyLvl2Rep{
+// NewLvl2RepFromKey constructs a level 2 response from a standard level 2 key.
+func NewLvl2RepFromKey(key drkey.Lvl2Key, timestamp uint32) Lvl2Rep {
+	return Lvl2Rep{
 		TimestampRaw: timestamp,
 		DRKeyRaw:     key.Key,
 		EpochBegin:   key.Epoch.BeginAsSeconds(),
@@ -47,17 +47,17 @@ func NewDRKeyLvl2RepFromKeyRepresentation(key drkey.Lvl2Key, timestamp uint32) D
 }
 
 // ProtoId returns the proto ID.
-func (c *DRKeyLvl2Rep) ProtoId() proto.ProtoIdType {
+func (c *Lvl2Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Rep_TypeID
 }
 
 // Epoch returns the begin and end of the validity period of DRKey.
-func (c *DRKeyLvl2Rep) Epoch() drkey.Epoch {
+func (c *Lvl2Rep) Epoch() drkey.Epoch {
 	return drkey.NewEpoch(c.EpochBegin, c.EpochEnd)
 }
 
-// ToKeyRepresentation returns a drkey Lvl2 built from these values.
-func (c *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
+// ToKey returns a drkey Lvl2 built from these values.
+func (c *Lvl2Rep) ToKey(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
 	protocol string, srcHost, dstHost addr.HostAddr) drkey.Lvl2Key {
 
 	return drkey.Lvl2Key{
@@ -74,7 +74,7 @@ func (c *DRKeyLvl2Rep) ToKeyRepresentation(srcIA, dstIA addr.IA, keyType drkey.L
 	}
 }
 
-func (c *DRKeyLvl2Rep) String() string {
+func (c *Lvl2Rep) String() string {
 	return fmt.Sprintf("Timestamp: %d EpochBegin: %d EpochEnd: %d Misc: %v",
 		c.TimestampRaw, c.EpochBegin, c.EpochEnd, c.Misc)
 }

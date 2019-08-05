@@ -25,10 +25,10 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*DRKeyLvl1Rep)(nil)
+var _ proto.Cerealizable = (*Lvl1Rep)(nil)
 
-// DRKeyLvl1Rep represents the lvel 1 reply from one CS to another.
-type DRKeyLvl1Rep struct {
+// Lvl1Rep represents the lvel 1 reply from one CS to another.
+type Lvl1Rep struct {
 	DstIARaw   addr.IAInt `capnp:"dstIA"`
 	EpochBegin uint32
 	EpochEnd   uint32
@@ -38,21 +38,21 @@ type DRKeyLvl1Rep struct {
 }
 
 // DstIA returns the source ISD-AS of the DRKey.
-func (c *DRKeyLvl1Rep) DstIA() addr.IA {
+func (c *Lvl1Rep) DstIA() addr.IA {
 	return c.DstIARaw.IA()
 }
 
 // ProtoId returns the proto ID.
-func (c *DRKeyLvl1Rep) ProtoId() proto.ProtoIdType {
+func (c *Lvl1Rep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl1Rep_TypeID
 }
 
 // Epoch returns the begin and end of the validity period of DRKey.
-func (c *DRKeyLvl1Rep) Epoch() drkey.Epoch {
+func (c *Lvl1Rep) Epoch() drkey.Epoch {
 	return drkey.NewEpoch(c.EpochBegin, c.EpochEnd)
 }
 
-func (c *DRKeyLvl1Rep) String() string {
+func (c *Lvl1Rep) String() string {
 	return fmt.Sprintf("DstIA: %v EpochBegin: %d EpochEnd: %d CertVerEnc: %d",
 		c.DstIA(), c.EpochBegin, c.EpochEnd, c.CertVerDst)
 }

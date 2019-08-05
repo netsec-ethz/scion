@@ -51,7 +51,7 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	ctx, cancelF := context.WithTimeout(r.Context(), DRKeyHandlerTimeout)
 	defer cancelF()
 	saddr := r.Peer.(*snet.Addr)
-	req := r.Message.(*drkey_mgmt.DRKeyLvl1Req)
+	req := r.Message.(*drkey_mgmt.Lvl1Req)
 	srcIA := h.IA // always us
 	dstIA := req.DstIA()
 	log.Trace("[DRKeyLvl1ReqHandler] Received request", "srcIA", srcIA, "dstIA", dstIA)
@@ -117,27 +117,27 @@ func obtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger
 // nonce = nonce
 // Epoch comes from the secret value (configuration).
 func (h *Lvl1ReqHandler) lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.SV, cert cert.Certificate,
-	privateKey common.RawBytes) (drkey_mgmt.DRKeyLvl1Rep, error) {
+	privateKey common.RawBytes) (drkey_mgmt.Lvl1Rep, error) {
 
 	if err := h.validateReq(srcIA, dstIA); err != nil {
-		return drkey_mgmt.DRKeyLvl1Rep{},
+		return drkey_mgmt.Lvl1Rep{},
 			common.NewBasicError("Dropping DRKeyLvl1 request, validation error", err)
 	}
 	key, err := deriveLvl1Key(srcIA, dstIA, sv)
 	if err != nil {
-		return drkey_mgmt.DRKeyLvl1Rep{}, common.NewBasicError("Unable to derive drkey", err)
+		return drkey_mgmt.Lvl1Rep{}, common.NewBasicError("Unable to derive drkey", err)
 	}
 	nonce, err := scrypto.Nonce(24)
 	if err != nil {
-		return drkey_mgmt.DRKeyLvl1Rep{},
+		return drkey_mgmt.Lvl1Rep{},
 			common.NewBasicError("Unable to get random nonce drkey", err)
 	}
 	cipher, err := drkey.EncryptDRKeyLvl1(key, nonce, cert.SubjectEncKey, privateKey)
 	if err != nil {
-		return drkey_mgmt.DRKeyLvl1Rep{}, common.NewBasicError("Unable to encrypt drkey", err)
+		return drkey_mgmt.Lvl1Rep{}, common.NewBasicError("Unable to encrypt drkey", err)
 	}
 
-	reply := drkey_mgmt.DRKeyLvl1Rep{
+	reply := drkey_mgmt.Lvl1Rep{
 		DstIARaw:   dstIA.IAInt(),
 		EpochBegin: sv.Epoch.BeginAsSeconds(),
 		EpochEnd:   sv.Epoch.EndAsSeconds(),
@@ -176,7 +176,7 @@ func deriveLvl1Key(srcIA, dstIA addr.IA, sv drkey.SV) (drkey.Lvl1Key, error) {
 }
 
 // sendRep sends a level 1 reply to the requesting source.
-func (h *Lvl1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.DRKeyLvl1Rep, id uint64) error {
+func (h *Lvl1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.Lvl1Rep, id uint64) error {
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
 		return common.NewBasicError(
