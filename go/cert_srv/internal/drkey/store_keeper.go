@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 )
 
+// TODO(juagargi): replace all this with a cleaner (look at sciond.main)
+
 var _ periodic.Task = (*StoreKeeper)(nil)
 
 // StoreKeeper is in charge of keeping the DB clean of expired entries
@@ -41,12 +43,4 @@ func (k *StoreKeeper) Run(ctx context.Context) {
 	if err != nil {
 		log.Error("[drkey.StoreKeeper] Unable to remove outdated L1 keys", "err", err)
 	}
-
-	log.Trace("[drkey.StoreKeeper] Calling RemoveOutDatedDRKeyL2 now")
-	count, err = k.State.DRKeyStore.RemoveOutdatedLvl2Keys(ctx, cutoff)
-	log.Trace("[drkey.StoreKeeper] RemoveOutDatedDRKeyL2 finished", "count", count, "err", err)
-	if err != nil {
-		log.Error("[drkey.StoreKeeper] Unable to remove outdated L2 keys", "err", err)
-	}
-	log.Trace("[drkey.StoreKeeper] Done", "run time", uint32(time.Now().Unix())-cutoff)
 }

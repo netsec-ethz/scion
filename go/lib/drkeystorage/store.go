@@ -54,9 +54,8 @@ type Lvl2Store interface {
 	RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
 }
 
-// Store has access to SV, level 1 and 2 DRKeys
+// Store has access to SV and level 1 DRKeys.
 type Store interface {
 	SecretValueStore
 	Lvl1Store
-	Lvl2Store
 }
