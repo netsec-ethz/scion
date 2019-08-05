@@ -147,7 +147,7 @@ func (r *Requester) processReply(ctx context.Context, reply *drkey_mgmt.DRKeyLvl
 		return common.NewBasicError("Error obtaining cert. chain", err, "IA", dstIA)
 	}
 	privateKey := r.State.GetDecryptKey()
-	key, err := Lvl1KeyFromReply(reply, srcIA, chain.Leaf, privateKey)
+	key, err := lvl1KeyFromReply(reply, srcIA, chain.Leaf, privateKey)
 	if err != nil {
 		return common.NewBasicError("error processing reply", err, "srcIA", srcIA)
 	}

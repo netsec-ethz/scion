@@ -68,7 +68,7 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	}
 
 	privateKey := h.State.GetDecryptKey()
-	reply, err := Lvl1KeyBuildReply(srcIA, dstIA, sv, dstChain.Leaf, privateKey)
+	reply, err := lvl1KeyBuildReply(srcIA, dstIA, sv, dstChain.Leaf, privateKey)
 	if err != nil {
 		log.Error("[DRKeyLvl1ReqHandler]", "err", err)
 		return infra.MetricsErrInternal
@@ -112,34 +112,31 @@ func ObtainChain(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB, msger
 	return chain, nil
 }
 
-// Lvl1KeyBuildReply constructs the level 1 key exchange reply message
+// lvl1KeyBuildReply constructs the level 1 key exchange reply message
 // cipher = {A | B | K_{A->B}}_PK_B
 // nonce = nonce
 // Epoch comes from the secret value (configuration)
-func Lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.SV, cert *cert.Certificate, privateKey common.RawBytes) (reply *drkey_mgmt.DRKeyLvl1Rep, err error) {
+func lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.SV, cert *cert.Certificate, privateKey common.RawBytes) (*drkey_mgmt.DRKeyLvl1Rep, error) {
+	var err error
 	if err = validateReq(srcIA, dstIA); err != nil {
-		err = common.NewBasicError("Dropping DRKeyLvl1 request, validation error", err)
-		return
+		return nil, common.NewBasicError("Dropping DRKeyLvl1 request, validation error", err)
 	}
 
 	key, err := deriveLvl1Key(srcIA, dstIA, sv)
 	if err != nil {
-		err = common.NewBasicError("Unable to derive drkey", err)
-		return
+		return nil, common.NewBasicError("Unable to derive drkey", err)
 	}
 
 	nonce, err := scrypto.Nonce(24)
 	if err != nil {
-		err = common.NewBasicError("Unable to get random nonce drkey", err)
-		return
+		return nil, common.NewBasicError("Unable to get random nonce drkey", err)
 	}
 	cipher, err := drkey.EncryptDRKeyLvl1(key, nonce, cert.SubjectEncKey, privateKey)
 	if err != nil {
-		err = common.NewBasicError("Unable to encrypt drkey", err)
-		return
+		return nil, common.NewBasicError("Unable to encrypt drkey", err)
 	}
 
-	reply = &drkey_mgmt.DRKeyLvl1Rep{
+	reply := &drkey_mgmt.DRKeyLvl1Rep{
 		DstIARaw:   dstIA.IAInt(),
 		EpochBegin: sv.Epoch.BeginAsSeconds(),
 		EpochEnd:   sv.Epoch.EndAsSeconds(),
@@ -147,7 +144,7 @@ func Lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv *drkey.SV, cert *cert.Certificat
 		Nonce:      nonce,
 		CertVerDst: cert.Version,
 	}
-	return
+	return reply, nil
 }
 
 func validateReq(srcIA, dstIA addr.IA) error {

@@ -131,7 +131,7 @@ func TestProcessPending(t *testing.T) {
 		trustDB.EXPECT().GetChainMaxVersion(gomock.Any(), gomock.Any()).Return(&cert.Chain{Leaf: cert112}, nil).Times(2)
 		newReply := func(srcIA addr.IA) *drkey_mgmt.DRKeyLvl1Rep {
 			dstIA := ia("1-ff00:0:111")
-			replyTo111, err := Lvl1KeyBuildReply(srcIA, dstIA, &sv, cert112, privateKey111)
+			replyTo111, err := lvl1KeyBuildReply(srcIA, dstIA, &sv, cert112, privateKey111)
 			if err != nil {
 				panic("Logic error")
 			}

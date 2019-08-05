@@ -53,7 +53,7 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	}
 	privateKey := h.State.GetDecryptKey()
 
-	key, err := Lvl1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
+	key, err := lvl1KeyFromReply(reply, saddr.IA, chain.Leaf, privateKey)
 	// because we received a reply, we probably want to keep a copy in our local DB:
 	err = h.State.DRKeyStore.InsertLvl1Key(ctx, key)
 	if err != nil {
@@ -63,8 +63,8 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-// Lvl1KeyFromReply validates a level 1 reply and returns the level 1 key embedded in it
-func Lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.Certificate,
+// lvl1KeyFromReply validates a level 1 reply and returns the level 1 key embedded in it
+func lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.Certificate,
 	privateKey common.RawBytes) (drkey.Lvl1Key, error) {
 
 	var lvl1Key drkey.Lvl1Key
@@ -77,7 +77,7 @@ func Lvl1KeyFromReply(reply *drkey_mgmt.DRKeyLvl1Rep, srcIA addr.IA, cert *cert.
 	if err != nil {
 		return lvl1Key, common.NewBasicError("Error decrypting the key from the reply", err)
 	}
-	log.Trace("[Lvl1KeyFromReply] DRKey received")
+	log.Trace("[lvl1KeyFromReply] DRKey received")
 	lvl1Key.Epoch = reply.Epoch()
 	return lvl1Key, nil
 }

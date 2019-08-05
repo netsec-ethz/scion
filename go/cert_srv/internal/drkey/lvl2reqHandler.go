@@ -143,7 +143,7 @@ func (h *Lvl2ReqHandler) getLvl1KeyFromOtherCS(ctx context.Context, srcIA, dstIA
 	if err != nil {
 		return lvl1Key, err
 	}
-	lvl1Key, err = Lvl1KeyFromReply(lvl1Rep, srcIA, chain.Leaf, privateKey)
+	lvl1Key, err = lvl1KeyFromReply(lvl1Rep, srcIA, chain.Leaf, privateKey)
 	if err != nil {
 		return lvl1Key, common.NewBasicError("Cannot obtain level 1 key from reply", err)
 	}
