@@ -53,11 +53,6 @@ func (s *Store) SetKeyDuration(duration time.Duration) error {
 	return nil
 }
 
-// GetMasterKey returns a copy of the master key from the store.
-func (s *Store) GetMasterKey() common.RawBytes {
-	return s.sv.masterKey
-}
-
 // SetMasterKey copies the master key to this store. It is used to derive the secret value.
 func (s *Store) SetMasterKey(key common.RawBytes) error {
 	// test this master key now

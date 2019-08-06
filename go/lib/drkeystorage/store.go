@@ -29,8 +29,6 @@ type SecretValueStore interface {
 	GetKeyDuration() time.Duration
 	// SetKeyDuration establishes the duration of the secret value epochs when created.
 	SetKeyDuration(duration time.Duration) error
-	// GetMasterKey returns the master key set in this secret value store.
-	GetMasterKey() common.RawBytes
 	// SetMasterKey establishes the master key used to derive secret values in this store.
 	SetMasterKey(key common.RawBytes) error
 	// SecretValue returns the secret value given a point in time. The mapping returns the same

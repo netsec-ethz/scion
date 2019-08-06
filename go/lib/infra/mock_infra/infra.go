@@ -343,10 +343,10 @@ func (mr *MockMessengerMockRecorder) RequestChainIssue(arg0, arg1, arg2, arg3 in
 }
 
 // RequestDRKeyLvl1 mocks base method
-func (m *MockMessenger) RequestDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.DRKeyLvl1Req, arg2 net.Addr, arg3 uint64) (*drkey_mgmt.DRKeyLvl1Rep, error) {
+func (m *MockMessenger) RequestDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Req, arg2 net.Addr, arg3 uint64) (*drkey_mgmt.Lvl1Rep, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RequestDRKeyLvl1", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*drkey_mgmt.DRKeyLvl1Rep)
+	ret0, _ := ret[0].(*drkey_mgmt.Lvl1Rep)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -358,10 +358,10 @@ func (mr *MockMessengerMockRecorder) RequestDRKeyLvl1(arg0, arg1, arg2, arg3 int
 }
 
 // RequestDRKeyLvl2 mocks base method
-func (m *MockMessenger) RequestDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.DRKeyLvl2Req, arg2 net.Addr, arg3 uint64) (*drkey_mgmt.DRKeyLvl2Rep, error) {
+func (m *MockMessenger) RequestDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Req, arg2 net.Addr, arg3 uint64) (*drkey_mgmt.Lvl2Rep, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RequestDRKeyLvl2", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*drkey_mgmt.DRKeyLvl2Rep)
+	ret0, _ := ret[0].(*drkey_mgmt.Lvl2Rep)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -429,7 +429,7 @@ func (mr *MockMessengerMockRecorder) SendChainIssueReply(arg0, arg1, arg2, arg3 
 }
 
 // SendDRKeyLvl1 mocks base method
-func (m *MockMessenger) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.DRKeyLvl1Rep, arg2 net.Addr, arg3 uint64) error {
+func (m *MockMessenger) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Rep, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl1", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
@@ -443,7 +443,7 @@ func (mr *MockMessengerMockRecorder) SendDRKeyLvl1(arg0, arg1, arg2, arg3 interf
 }
 
 // SendDRKeyLvl2 mocks base method
-func (m *MockMessenger) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.DRKeyLvl2Rep, arg2 net.Addr, arg3 uint64) error {
+func (m *MockMessenger) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Rep, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl2", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
@@ -672,7 +672,7 @@ func (mr *MockResponseWriterMockRecorder) SendChainIssueReply(arg0, arg1 interfa
 }
 
 // SendDRKeyLvl1 mocks base method
-func (m *MockResponseWriter) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.DRKeyLvl1Rep) error {
+func (m *MockResponseWriter) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Rep) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl1", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -686,7 +686,7 @@ func (mr *MockResponseWriterMockRecorder) SendDRKeyLvl1(arg0, arg1 interface{}) 
 }
 
 // SendDRKeyLvl2 mocks base method
-func (m *MockResponseWriter) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.DRKeyLvl2Rep) error {
+func (m *MockResponseWriter) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Rep) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl2", arg0, arg1)
 	ret0, _ := ret[0].(error)

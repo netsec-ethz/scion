@@ -42,11 +42,6 @@ func (NoDRKey) SetKeyDuration(duration time.Duration) error {
 	return nil
 }
 
-// GetMasterKey not implemented.
-func (NoDRKey) GetMasterKey() common.RawBytes {
-	panic("Not implemented")
-}
-
 // SetMasterKey does not set it, but returns no error.
 func (NoDRKey) SetMasterKey(key common.RawBytes) error {
 	return nil
