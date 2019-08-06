@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "db.go",
+        "drkey.go",
         "epoch.go",
         "level1.go",
         "level2.go",

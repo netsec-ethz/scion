@@ -175,7 +175,7 @@ func deriveLvl1Key(srcIA, dstIA addr.IA, sv drkey.SV) (drkey.Lvl1Key, error) {
 		SrcIA: srcIA,
 		DstIA: dstIA,
 	}
-	key, err := drkey.NewLvl1Key(meta, sv)
+	key, err := drkey.DeriveLvl1(meta, sv)
 	if err != nil {
 		return drkey.Lvl1Key{}, err
 	}

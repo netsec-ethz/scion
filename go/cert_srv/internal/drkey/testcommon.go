@@ -30,7 +30,7 @@ func getTestSV() drkey.SV {
 		SVMeta: drkey.SVMeta{
 			Epoch: drkey.NewEpoch(0, 1),
 		},
-		DRKey: drkey.DRKey{Key: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+		DRKey: drkey.DRKey{RawBytes: common.RawBytes{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 	}
 }
 

@@ -42,7 +42,7 @@ type Lvl2Rep struct {
 func NewLvl2RepFromKey(key drkey.Lvl2Key, timestamp uint32) Lvl2Rep {
 	return Lvl2Rep{
 		TimestampRaw: timestamp,
-		DRKeyRaw:     key.Key,
+		DRKeyRaw:     key.DRKey.RawBytes,
 		EpochBegin:   key.Epoch.BeginAsSeconds(),
 		EpochEnd:     key.Epoch.EndAsSeconds(),
 	}
@@ -72,7 +72,7 @@ func (c *Lvl2Rep) ToKey(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
 			SrcHost:  srcHost,
 			DstHost:  dstHost,
 		},
-		DRKey: drkey.DRKey{Key: c.DRKeyRaw},
+		DRKey: drkey.DRKey{RawBytes: c.DRKeyRaw},
 	}
 }
 

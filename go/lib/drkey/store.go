@@ -61,7 +61,7 @@ func (s *Store) GetMasterKey() common.RawBytes {
 // SetMasterKey copies the master key to this store. It is used to derive the secret value.
 func (s *Store) SetMasterKey(key common.RawBytes) error {
 	// test this master key now
-	_, err := NewSV(SVMeta{}, key)
+	_, err := DeriveSV(SVMeta{}, key)
 	if err != nil {
 		return common.NewBasicError("Cannot use this master key as the secret for DRKey", err)
 	}
@@ -82,14 +82,14 @@ func (s *Store) SecretValue(t time.Time) (SV, error) {
 		begin := uint32(idx * duration)
 		end := begin + uint32(duration)
 		epoch := NewEpoch(begin, end)
-		key, err := NewSV(SVMeta{Epoch: epoch}, s.sv.masterKey)
+		var err error
+		k, err = DeriveSV(SVMeta{Epoch: epoch}, s.sv.masterKey)
 		if err != nil {
 			return SV{}, common.NewBasicError("Cannot establish the DRKey secret value", err)
 		}
-		k = &key
 		s.sv.keyMap.Set(idx, k)
 	}
-	return *k, nil
+	return k, nil
 }
 
 // GetLvl1Key returns the level 1 drkey for that meta info and valid time.

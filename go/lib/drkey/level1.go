@@ -22,30 +22,26 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// Lvl1Meta represents the information about a level 1 DRKey other than the key itself
+// Lvl1Meta represents the information about a level 1 DRKey other than the key itself.
 type Lvl1Meta struct {
 	Epoch Epoch
 	SrcIA addr.IA
 	DstIA addr.IA
 }
 
-func (k *Lvl1Meta) String() string {
-	return fmt.Sprintf("Epoch: %v SrcIA: %v DstIA: %v", k.Epoch, k.SrcIA, k.DstIA)
-}
-
-// Lvl1Key represents a level 1 DRKey
+// Lvl1Key represents a level 1 DRKey.
 type Lvl1Key struct {
 	Lvl1Meta
 	DRKey
 }
 
-func (k *Lvl1Key) String() string {
-	return fmt.Sprintf("%v %v", k.Lvl1Meta, k.DRKey)
+func (k Lvl1Key) String() string {
+	return fmt.Sprintf("%+v %+v", k.Lvl1Meta, k.DRKey)
 }
 
-// NewLvl1Key constructs a new level 1 DRKey
-func NewLvl1Key(meta Lvl1Meta, sv SV) (Lvl1Key, error) {
-	mac, err := scrypto.InitMac(common.RawBytes(sv.DRKey.Key))
+// DeriveLvl1 constructs a new level 1 DRKey.
+func DeriveLvl1(meta Lvl1Meta, sv SV) (Lvl1Key, error) {
+	mac, err := scrypto.InitMac(sv.DRKey.RawBytes)
 	if err != nil {
 		return Lvl1Key{}, err
 	}

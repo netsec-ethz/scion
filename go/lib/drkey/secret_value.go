@@ -27,53 +27,37 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const drkeySalt = "Derive DRKey Key" // same as in Python
 
-// DRKey represents a raw binary key
-type DRKey struct {
-	Key common.RawBytes
-}
-
-// type DRKey common.RawBytes
-
-func (k *DRKey) String() string {
-	return fmt.Sprintf("%v", "[redacted key]")
-}
-
-// SVMeta represents the information about a DRKey secret value
+// SVMeta represents the information about a DRKey secret value.
 type SVMeta struct {
 	Epoch Epoch
 }
 
-func (k *SVMeta) String() string {
-	return fmt.Sprintf("%v", k.Epoch)
-}
-
-// SV represents a DRKey secret value
+// SV represents a DRKey secret value.
 type SV struct {
 	SVMeta
 	DRKey
 }
 
-func (k *SV) String() string {
-	return fmt.Sprintf("%v %v", k.SVMeta, k.DRKey)
+func (sv SV) String() string {
+	return fmt.Sprintf("%+v %+v", sv.SVMeta, sv.DRKey)
 }
 
-// NewSV constructs a valid SV. asSecret is typically the AS master secret
-func NewSV(meta SVMeta, asSecret common.RawBytes) (SV, error) {
+// DeriveSV constructs a valid SV. asSecret is typically the AS master secret.
+func DeriveSV(meta SVMeta, asSecret common.RawBytes) (SV, error) {
 	msLen := len(asSecret)
 	if msLen == 0 {
 		return SV{}, errors.New("Invalid zero sized secret")
 	}
 	all := make(common.RawBytes, msLen+8)
-	_, err := asSecret.WritePld(all[:msLen])
-	if err != nil {
-		return SV{}, err
-	}
-	binary.LittleEndian.PutUint32(all[msLen:], meta.Epoch.BeginAsSeconds())
-	binary.LittleEndian.PutUint32(all[msLen+4:], meta.Epoch.EndAsSeconds())
+	copy(all, asSecret)
+	binary.LittleEndian.PutUint32(all[msLen:], util.TimeToSecs(meta.Epoch.Begin))
+	binary.LittleEndian.PutUint32(all[msLen+4:], util.TimeToSecs(meta.Epoch.End))
+
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	return SV{
 		SVMeta: meta,
@@ -81,9 +65,9 @@ func NewSV(meta SVMeta, asSecret common.RawBytes) (SV, error) {
 	}, nil
 }
 
-// EpochToSV is an specifc Cache implementation.
+// EpochToSV keeps the current and next secret values and removes the expired ones.
 type EpochToSV struct {
-	cache map[int64]*SV
+	cache map[int64]SV
 	mutex sync.Mutex
 
 	keyDuration  time.Duration
@@ -91,10 +75,10 @@ type EpochToSV struct {
 	timeNowFcn   func() time.Time
 }
 
-// NewEpochToSV creates a new EpochToSV and initializes the cleaner
+// NewEpochToSV creates a new EpochToSV and initializes the cleaner.
 func NewEpochToSV(keyDuration time.Duration) *EpochToSV {
 	m := &EpochToSV{
-		cache:        make(map[int64]*SV),
+		cache:        make(map[int64]SV),
 		keyDuration:  keyDuration,
 		stopCleaning: make(chan bool),
 		timeNowFcn:   time.Now,
@@ -107,8 +91,8 @@ func NewEpochToSV(keyDuration time.Duration) *EpochToSV {
 	return m
 }
 
-// Get returns the element, and an indicator of its presence
-func (m *EpochToSV) Get(idx int64) (*SV, bool) {
+// Get returns the element, and an indicator of its presence.
+func (m *EpochToSV) Get(idx int64) (SV, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -116,15 +100,15 @@ func (m *EpochToSV) Get(idx int64) (*SV, bool) {
 	return k, found
 }
 
-// Set sets the key, and registers this element in this shard
-func (m *EpochToSV) Set(idx int64, key *SV) {
+// Set sets the key, and registers this element in this shard.
+func (m *EpochToSV) Set(idx int64, key SV) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	m.cache[idx] = key
 }
 
-// cleanExpired removes the current shard at once
+// cleanExpired removes the current shard at once.
 func (m *EpochToSV) cleanExpired() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

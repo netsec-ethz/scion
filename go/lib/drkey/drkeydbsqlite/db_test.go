@@ -50,11 +50,11 @@ func TestDRKeyLvl1(t *testing.T) {
 		defer cleanF()
 
 		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
-		sv, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
 		SoMsg("drkey", sv, ShouldNotBeNil)
 		SoMsg("drkey", err, ShouldBeNil)
 
-		drkeyLvl1, err := drkey.NewLvl1Key(drkey.Lvl1Meta{
+		drkeyLvl1, err := drkey.DeriveLvl1(drkey.Lvl1Meta{
 			Epoch: epoch,
 			SrcIA: addr.IAFromRaw(rawSrcIA),
 			DstIA: addr.IAFromRaw(rawDstIA)}, sv)
@@ -94,10 +94,10 @@ func TestDRKeyLvl2(t *testing.T) {
 		srcIA := addr.IAFromRaw(rawSrcIA)
 		dstIA := addr.IAFromRaw(rawDstIA)
 		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
-		sv, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
 		SoMsg("drkey", sv, ShouldNotBeNil)
 		SoMsg("drkey", err, ShouldBeNil)
-		drkeyLvl1, err := drkey.NewLvl1Key(drkey.Lvl1Meta{
+		drkeyLvl1, err := drkey.DeriveLvl1(drkey.Lvl1Meta{
 			Epoch: epoch,
 			SrcIA: srcIA,
 			DstIA: dstIA,
@@ -160,10 +160,10 @@ func TestGetMentionedASes(t *testing.T) {
 				Begin: begin,
 				End:   begin.Add(time.Duration(p[2].(int)) * time.Second),
 			}
-			sv, err := drkey.NewSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+			sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
 			SoMsg("drkey", sv, ShouldNotBeNil)
 			SoMsg("drkey", err, ShouldBeNil)
-			key, err := drkey.NewLvl1Key(drkey.Lvl1Meta{
+			key, err := drkey.DeriveLvl1(drkey.Lvl1Meta{
 				Epoch: epoch,
 				SrcIA: srcIA,
 				DstIA: dstIA,

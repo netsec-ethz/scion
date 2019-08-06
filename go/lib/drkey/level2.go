@@ -20,7 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 )
 
-// Lvl2KeyType represents the different types of level 2 DRKeys (AS->AS, AS->host, host->host)
+// Lvl2KeyType represents the different types of level 2 DRKeys (AS->AS, AS->host, host->host).
 type Lvl2KeyType uint8
 
 const (
@@ -29,7 +29,7 @@ const (
 	Host2Host
 )
 
-// Lvl2Meta represents the information about a level 2 DRKey, without the key itself
+// Lvl2Meta represents the information about a level 2 DRKey, without the key itself.
 type Lvl2Meta struct {
 	KeyType  Lvl2KeyType
 	Protocol string
@@ -40,16 +40,12 @@ type Lvl2Meta struct {
 	DstHost  addr.HostAddr
 }
 
-func (k *Lvl2Meta) String() string {
-	return fmt.Sprintf("%v %v %v %v %v %v %v", k.KeyType, k.Protocol, k.Epoch, k.SrcIA, k.DstIA, k.SrcHost, k.DstHost)
-}
-
-// Lvl2Key represents a level 2 DRKey
+// Lvl2Key represents a level 2 DRKey.
 type Lvl2Key struct {
 	Lvl2Meta
 	DRKey
 }
 
-func (k *Lvl2Key) String() string {
-	return fmt.Sprintf("%v %v", k.Lvl2Meta, k.DRKey)
+func (k Lvl2Key) String() string {
+	return fmt.Sprintf("%+v %+v", k.Lvl2Meta, k.DRKey)
 }
