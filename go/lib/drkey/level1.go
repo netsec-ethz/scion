@@ -15,8 +15,6 @@
 package drkey
 
 import (
-	"fmt"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -32,16 +30,12 @@ type Lvl1Meta struct {
 // Lvl1Key represents a level 1 DRKey.
 type Lvl1Key struct {
 	Lvl1Meta
-	DRKey
-}
-
-func (k Lvl1Key) String() string {
-	return fmt.Sprintf("%+v %+v", k.Lvl1Meta, k.DRKey)
+	Key DRKey
 }
 
 // DeriveLvl1 constructs a new level 1 DRKey.
 func DeriveLvl1(meta Lvl1Meta, sv SV) (Lvl1Key, error) {
-	mac, err := scrypto.InitMac(sv.DRKey.RawBytes)
+	mac, err := scrypto.InitMac(common.RawBytes(sv.Key))
 	if err != nil {
 		return Lvl1Key{}, err
 	}
@@ -51,6 +45,6 @@ func DeriveLvl1(meta Lvl1Meta, sv SV) (Lvl1Key, error) {
 	tmp := make([]byte, 0, mac.Size())
 	return Lvl1Key{
 		Lvl1Meta: meta,
-		DRKey:    DRKey{mac.Sum(tmp)},
+		Key:      DRKey(mac.Sum(tmp)),
 	}, nil
 }

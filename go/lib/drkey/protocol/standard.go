@@ -40,7 +40,7 @@ func (p Standard) Name() string {
 
 // DeriveLvl2 derives the level 2 DRKey without passing through a delegation secret.
 func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	h, err := scrypto.InitMac(key.DRKey.RawBytes)
+	h, err := scrypto.InitMac(common.RawBytes(key.Key))
 	if err != nil {
 		return drkey.Lvl2Key{}, err
 	}
@@ -80,7 +80,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 	}
 	return drkey.Lvl2Key{
 		Lvl2Meta: meta,
-		DRKey:    drkey.DRKey{RawBytes: h.Sum(all)},
+		Key:      drkey.DRKey(h.Sum(all)),
 	}, nil
 }
 

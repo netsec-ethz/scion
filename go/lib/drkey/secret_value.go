@@ -18,7 +18,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"runtime"
 	"sync"
 	"time"
@@ -40,11 +39,7 @@ type SVMeta struct {
 // SV represents a DRKey secret value.
 type SV struct {
 	SVMeta
-	DRKey
-}
-
-func (sv SV) String() string {
-	return fmt.Sprintf("%+v %+v", sv.SVMeta, sv.DRKey)
+	Key DRKey
 }
 
 // DeriveSV constructs a valid SV. asSecret is typically the AS master secret.
@@ -61,7 +56,7 @@ func DeriveSV(meta SVMeta, asSecret common.RawBytes) (SV, error) {
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	return SV{
 		SVMeta: meta,
-		DRKey:  DRKey{key},
+		Key:    DRKey(key),
 	}, nil
 }
 

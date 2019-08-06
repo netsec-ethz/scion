@@ -188,7 +188,7 @@ func (b *Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta, valTime ui
 			SrcIA: key.SrcIA,
 			DstIA: key.DstIA,
 		},
-		DRKey: drkey.DRKey{RawBytes: bytes},
+		Key: drkey.DRKey(bytes),
 	}
 	return returningKey, nil
 }
@@ -201,7 +201,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 // InsertLvl1Key inserts a first level DRKey and returns the number of affected rows.
 func (b *Backend) InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error {
 	_, err := b.insertLvl1KeyStmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
-		key.DstIA.A, uint32(key.Epoch.Begin.Unix()), uint32(key.Epoch.End.Unix()), key.DRKey)
+		key.DstIA.A, uint32(key.Epoch.Begin.Unix()), uint32(key.Epoch.End.Unix()), key.Key)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (b *Backend) GetLvl2Key(ctx context.Context, key drkey.Lvl2Meta, valTime ui
 			SrcHost:  key.SrcHost,
 			DstHost:  key.DstHost,
 		},
-		DRKey: drkey.DRKey{RawBytes: bytes},
+		Key: drkey.DRKey(bytes),
 	}
 	return returningKey, nil
 }
@@ -271,7 +271,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 func (b *Backend) InsertLvl2Key(ctx context.Context, key drkey.Lvl2Key) error {
 	_, err := b.insertLvl2KeyStmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
 		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost,
-		uint32(key.Epoch.Begin.Unix()), uint32(key.Epoch.End.Unix()), key.DRKey)
+		uint32(key.Epoch.Begin.Unix()), uint32(key.Epoch.End.Unix()), key.Key)
 	if err != nil {
 		return err
 	}

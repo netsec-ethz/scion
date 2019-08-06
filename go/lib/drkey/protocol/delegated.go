@@ -46,7 +46,7 @@ func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl
 	if err != nil {
 		return drkey.Lvl2Key{}, common.NewBasicError("Error deriving DS", err)
 	}
-	h, err := scrypto.InitMac(ds.DRKey.RawBytes)
+	h, err := scrypto.InitMac(common.RawBytes(ds.Key))
 	if err != nil {
 		return drkey.Lvl2Key{}, err
 	}
@@ -86,7 +86,7 @@ func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl
 	}
 	return drkey.Lvl2Key{
 		Lvl2Meta: meta,
-		DRKey:    drkey.DRKey{RawBytes: h.Sum(all)},
+		Key:      drkey.DRKey(h.Sum(all)),
 	}, nil
 }
 

@@ -15,8 +15,6 @@
 package drkey
 
 import (
-	"fmt"
-
 	"github.com/scionproto/scion/go/lib/addr"
 )
 
@@ -43,9 +41,5 @@ type Lvl2Meta struct {
 // Lvl2Key represents a level 2 DRKey.
 type Lvl2Key struct {
 	Lvl2Meta
-	DRKey
-}
-
-func (k Lvl2Key) String() string {
-	return fmt.Sprintf("%+v %+v", k.Lvl2Meta, k.DRKey)
+	Key DRKey
 }

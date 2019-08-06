@@ -22,11 +22,11 @@ import (
 
 // EncryptDRKeyLvl1 does the encryption step in the first level key exchange
 func EncryptDRKeyLvl1(drkey Lvl1Key, nonce, pubkey, privkey common.RawBytes) (common.RawBytes, error) {
-	keyLen := len(drkey.DRKey.RawBytes)
+	keyLen := len(drkey.Key)
 	msg := make(common.RawBytes, addr.IABytes*2+keyLen)
 	drkey.SrcIA.Write(msg)
 	drkey.DstIA.Write(msg[addr.IABytes:])
-	drkey.DRKey.WritePld(msg[addr.IABytes*2:])
+	copy(msg[addr.IABytes*2:], drkey.Key)
 	cipher, err := scrypto.Encrypt(msg, nonce, pubkey, privkey, scrypto.Curve25519xSalsa20Poly1305)
 	if err != nil {
 		return nil, err
@@ -48,6 +48,6 @@ func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (Lvl1Key, 
 			SrcIA: srcIA,
 			DstIA: dstIA,
 		},
-		DRKey: DRKey{key},
+		Key: DRKey(key),
 	}, nil
 }

@@ -19,9 +19,7 @@ import (
 )
 
 // DRKey represents a raw binary key
-type DRKey struct {
-	common.RawBytes
-}
+type DRKey common.RawBytes
 
 func (k DRKey) String() string {
 	return "[redacted key]"
