@@ -23,17 +23,17 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
-// SecretValueStore has the functionality to store secret values.
-type SecretValueStore interface {
+// SecretValueFactory has the functionality to store secret values.
+type SecretValueFactory interface {
 	// GetKeyDuration returns the duration set to secret values when first created.
 	GetKeyDuration() time.Duration
 	// SetKeyDuration establishes the duration of the secret value epochs when created.
 	SetKeyDuration(duration time.Duration) error
 	// SetMasterKey establishes the master key used to derive secret values in this store.
 	SetMasterKey(key common.RawBytes) error
-	// SecretValue returns the secret value given a point in time. The mapping returns the same
+	// GetSecretValue returns the secret value given a point in time. The mapping returns the same
 	// secret value for time points within the same time window [t/Duration, t/Duration +1) .
-	SecretValue(time.Time) (drkey.SV, error)
+	GetSecretValue(time.Time) (drkey.SV, error)
 }
 
 // Lvl1Store has all the functions dealing with storage/retrieval of level 1 DRKeys.
@@ -52,8 +52,7 @@ type Lvl2Store interface {
 	RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
 }
 
-// Store has access to SV and level 1 DRKeys.
+// Store has access to level 1 DRKeys.
 type Store interface {
-	SecretValueStore
 	Lvl1Store
 }

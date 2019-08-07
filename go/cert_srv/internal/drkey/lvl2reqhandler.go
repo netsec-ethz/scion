@@ -56,7 +56,7 @@ func (h *Lvl2ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	// TODO(juagargi): should we always send something, to signal e.g. sciond there was an error,
 	// and avoid the timeout? E.g. when we request an AS2Host key but leave the host addr empty,
 	// sciond waits until timeout
-	sv, err := h.State.DRKeyStore.SecretValue(util.SecsToTime(req.ValTimeRaw))
+	sv, err := h.State.SecretValues.GetSecretValue(util.SecsToTime(req.ValTimeRaw))
 	if err != nil {
 		log.Error("[DRKeyLvl2ReqHandler] Unable to get secret value", "err", err)
 		return infra.MetricsErrInternal

@@ -23,39 +23,38 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// Store keeps track of the drkey entries at different levels, from SV to level 2. It is backed
-// by a drkey.DB .
-type Store struct {
-	sv secretValueSimpleStore
-	db DB
+// SecretValueFactory stores the secret value
+type SecretValueFactory struct {
+	keyDuration time.Duration
+	masterKey   common.RawBytes
+	keyMap      *EpochToSV
+	mapMutex    sync.Mutex
 }
 
-// NewStore constructs a DRKey Store.
-func NewStore(db DB) *Store {
-	s := &Store{
-		sv: secretValueSimpleStore{},
-		db: db,
-	}
-	s.sv.initDefaultValues()
+// NewSecretValueFactory return a default initialized SecretValueFactory.
+func NewSecretValueFactory() *SecretValueFactory {
+	s := &SecretValueFactory{}
+	s.keyDuration = 24 * time.Hour
+	s.keyMap = NewEpochToSV(s.keyDuration)
 	return s
 }
 
 // GetKeyDuration returns the max duration of all keys.
-func (s *Store) GetKeyDuration() time.Duration {
-	return s.sv.keyDuration
+func (s *SecretValueFactory) GetKeyDuration() time.Duration {
+	return s.keyDuration
 }
 
 // SetKeyDuration sets the duration of all keys. The duration will not be in effect until this and
 // next epochs expire.
-func (s *Store) SetKeyDuration(duration time.Duration) error {
+func (s *SecretValueFactory) SetKeyDuration(duration time.Duration) error {
 	// TODO(juagargi): enforce keeping the duration for this and next epochs.
-	s.sv.keyDuration = duration
+	s.keyDuration = duration
 	return nil
 }
 
 // SetMasterKey copies the master key to this store. It is used to derive the secret value.
-func (s *Store) SetMasterKey(key common.RawBytes) error {
-	s.sv.masterKey = key
+func (s *SecretValueFactory) SetMasterKey(key common.RawBytes) error {
+	s.masterKey = key
 	// test this master key now
 	_, err := DeriveSV(SVMeta{}, key)
 	if err != nil {
@@ -66,25 +65,38 @@ func (s *Store) SetMasterKey(key common.RawBytes) error {
 }
 
 // SecretValue derives or reuses the secret value for this time stamp.
-func (s *Store) SecretValue(t time.Time) (SV, error) {
-	s.sv.mapMutex.Lock()
-	defer s.sv.mapMutex.Unlock()
+func (s *SecretValueFactory) GetSecretValue(t time.Time) (SV, error) {
+	s.mapMutex.Lock()
+	defer s.mapMutex.Unlock()
 
-	duration := int64(s.sv.keyDuration / time.Second) // duration in seconds
+	duration := int64(s.keyDuration / time.Second) // duration in seconds
 	idx := t.Unix() / duration
-	k, found := s.sv.keyMap.Get(idx)
+	k, found := s.keyMap.Get(idx)
 	if !found {
 		begin := uint32(idx * duration)
 		end := begin + uint32(duration)
 		epoch := NewEpoch(begin, end)
 		var err error
-		k, err = DeriveSV(SVMeta{Epoch: epoch}, s.sv.masterKey)
+		k, err = DeriveSV(SVMeta{Epoch: epoch}, s.masterKey)
 		if err != nil {
 			return SV{}, common.NewBasicError("Cannot establish the DRKey secret value", err)
 		}
-		s.sv.keyMap.Set(idx, k)
+		s.keyMap.Set(idx, k)
 	}
 	return k, nil
+}
+
+// Store keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
+type Store struct {
+	db DB
+}
+
+// NewStore constructs a DRKey Store.
+func NewStore(db DB) *Store {
+	s := &Store{
+		db: db,
+	}
+	return s
 }
 
 // GetLvl1Key returns the level 1 drkey for that meta info and valid time.
@@ -126,17 +138,4 @@ func (s *Store) InsertLvl2Key(ctx context.Context, key Lvl2Key) error {
 // RemoveOutdatedLvl2Keys removes all level 2 drkeys that expire after the cutoff.
 func (s *Store) RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error) {
 	return s.db.RemoveOutdatedLvl2Keys(ctx, cutoff)
-}
-
-// secretValueSimpleStore stores the secret value
-type secretValueSimpleStore struct {
-	keyDuration time.Duration
-	masterKey   common.RawBytes
-	keyMap      *EpochToSV
-	mapMutex    sync.Mutex
-}
-
-func (s *secretValueSimpleStore) initDefaultValues() {
-	s.keyDuration = 24 * time.Hour
-	s.keyMap = NewEpochToSV(s.keyDuration)
 }

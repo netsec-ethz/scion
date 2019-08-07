@@ -43,17 +43,20 @@ type State struct {
 	verifier infra.Verifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
+	// drkey secret value factory.
+	SecretValues drkeystorage.SecretValueFactory
 	// drykey stored keys
 	DRKeyStore drkeystorage.Store
 }
 
-func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
-	trustStore *trust.Store, drkeyStore drkeystorage.Store) (*State, error) {
+func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB, trustStore *trust.Store,
+	svFact drkeystorage.SecretValueFactory, drkeyStore drkeystorage.Store) (*State, error) {
 
 	s := &State{
-		Store:      trustStore,
-		TrustDB:    trustDB,
-		DRKeyStore: drkeyStore,
+		Store:        trustStore,
+		TrustDB:      trustDB,
+		SecretValues: svFact,
+		DRKeyStore:   drkeyStore,
 	}
 	if err := s.loadKeyConf(confDir, isCore); err != nil {
 		return nil, err
@@ -68,7 +71,7 @@ func (s *State) loadKeyConf(confDir string, isCore bool) error {
 	if err != nil {
 		return common.NewBasicError(ErrorKeyConf, err)
 	}
-	s.DRKeyStore.SetMasterKey(s.keyConf.Master.Key0)
+	s.SecretValues.SetMasterKey(s.keyConf.Master.Key0)
 	return nil
 }
 

@@ -56,7 +56,7 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	dstIA := req.DstIA()
 	log.Trace("[DRKeyLvl1ReqHandler] Received request", "srcIA", srcIA, "dstIA", dstIA)
 
-	sv, err := h.State.DRKeyStore.SecretValue(req.ValTime())
+	sv, err := h.State.SecretValues.GetSecretValue(req.ValTime())
 	if err != nil {
 		log.Error("[DRKeyLvl1ReqHandler] Unable to get secret value", "err", err)
 		return infra.MetricsErrInternal
