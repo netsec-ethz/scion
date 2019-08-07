@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	drkeylib "github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
 	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
@@ -139,26 +138,25 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
+	keyConf, err := config.LoadKeyConf(cfg.General.ConfigDir, topo.Core)
+	if err != nil {
+		return common.NewBasicError("Unable to load the keys", err)
+	}
 	var drkeyStore drkeystorage.Store
 	var svFactory drkeystorage.SecretValueFactory
 	if cfg.DRKey.Enabled() {
-		drkeyDB, err := drkeydbsqlite.New(cfg.DRKey.Connection)
+		drkeyStore, err = cfg.DRKey.NewStore()
 		if err != nil {
-			return common.NewBasicError("Unable to initialize drkey key store", err)
+			return common.NewBasicError("Unable to initialize drkey store", err)
 		}
-		drkeyStore = drkeylib.NewStore(drkeyDB)
-		svFactory = drkeylib.NewSecretValueFactory()
-		svFactory.SetKeyDuration(cfg.DRKey.EpochDuration.Duration)
+		svFactory = drkeylib.NewSecretValueFactory(
+			keyConf.Master.Key0, cfg.DRKey.EpochDuration.Duration)
 		log.Info("DRKey is enabled")
 	} else {
 		drkeyStore = drkeystorage.NewDisabledStore()
 		log.Warn("DRKey is DISABLED by configuration")
 	}
-	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore,
-		svFactory, drkeyStore)
-	if err != nil {
-		return common.NewBasicError("Unable to load CS state", err)
-	}
+	state = config.NewState(keyConf, trustDB, trustStore, svFactory, drkeyStore)
 	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
 	}

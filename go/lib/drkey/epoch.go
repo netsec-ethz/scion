@@ -35,16 +35,6 @@ func NewEpoch(begin, end uint32) Epoch {
 	}
 }
 
-// BeginAsSeconds returns the begin time of this epoch as seconds uint32 encoded.
-func (e *Epoch) BeginAsSeconds() uint32 {
-	return uint32(e.Begin.Unix())
-}
-
-// EndAsSeconds returns the end time of this epoch as seconds uint32 encoded.
-func (e *Epoch) EndAsSeconds() uint32 {
-	return uint32(e.End.Unix())
-}
-
 // Contains indicates whether the time point is inside this Epoch.
 func (e *Epoch) Contains(t time.Time) bool {
 	return t.After(e.Begin) && e.End.After(t)

@@ -32,9 +32,13 @@ type SecretValueFactory struct {
 }
 
 // NewSecretValueFactory return a default initialized SecretValueFactory.
-func NewSecretValueFactory() *SecretValueFactory {
-	s := &SecretValueFactory{}
-	s.keyDuration = 24 * time.Hour
+func NewSecretValueFactory(masterKey common.RawBytes,
+	keyDuration time.Duration) *SecretValueFactory {
+
+	s := &SecretValueFactory{
+		masterKey:   masterKey,
+		keyDuration: keyDuration,
+	}
 	s.keyMap = NewEpochToSV(s.keyDuration)
 	return s
 }
@@ -42,26 +46,6 @@ func NewSecretValueFactory() *SecretValueFactory {
 // GetKeyDuration returns the max duration of all keys.
 func (s *SecretValueFactory) GetKeyDuration() time.Duration {
 	return s.keyDuration
-}
-
-// SetKeyDuration sets the duration of all keys. The duration will not be in effect until this and
-// next epochs expire.
-func (s *SecretValueFactory) SetKeyDuration(duration time.Duration) error {
-	// TODO(juagargi): enforce keeping the duration for this and next epochs.
-	s.keyDuration = duration
-	return nil
-}
-
-// SetMasterKey copies the master key to this store. It is used to derive the secret value.
-func (s *SecretValueFactory) SetMasterKey(key common.RawBytes) error {
-	s.masterKey = key
-	// test this master key now
-	_, err := DeriveSV(SVMeta{}, key)
-	if err != nil {
-		return common.NewBasicError("Cannot use this master key as the secret for DRKey", err)
-	}
-	// TODO(juagargi): invalidate (remove) existing secret values ?
-	return nil
 }
 
 // SecretValue derives or reuses the secret value for this time stamp.

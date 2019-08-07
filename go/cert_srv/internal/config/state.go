@@ -49,30 +49,26 @@ type State struct {
 	DRKeyStore drkeystorage.Store
 }
 
-func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB, trustStore *trust.Store,
-	svFact drkeystorage.SecretValueFactory, drkeyStore drkeystorage.Store) (*State, error) {
+func NewState(keyConf *keyconf.Conf, trustDB trustdb.TrustDB, trustStore *trust.Store,
+	svFact drkeystorage.SecretValueFactory, drkeyStore drkeystorage.Store) *State {
 
-	s := &State{
+	return &State{
+		keyConf:      keyConf,
 		Store:        trustStore,
 		TrustDB:      trustDB,
 		SecretValues: svFact,
 		DRKeyStore:   drkeyStore,
 	}
-	if err := s.loadKeyConf(confDir, isCore); err != nil {
-		return nil, err
-	}
-	return s, nil
 }
 
-// loadKeyConf loads the key configuration.
-func (s *State) loadKeyConf(confDir string, isCore bool) error {
-	var err error
-	s.keyConf, err = keyconf.Load(filepath.Join(confDir, "keys"), isCore, isCore, false, true)
+// LoadKeyConf loads the key configuration.
+func LoadKeyConf(confDir string, isCore bool) (*keyconf.Conf, error) {
+
+	keyConf, err := keyconf.Load(filepath.Join(confDir, "keys"), isCore, isCore, false, true)
 	if err != nil {
-		return common.NewBasicError(ErrorKeyConf, err)
+		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
-	s.SecretValues.SetMasterKey(s.keyConf.Master.Key0)
-	return nil
+	return keyConf, nil
 }
 
 // GetSigningKey returns the signing key of the current key configuration.

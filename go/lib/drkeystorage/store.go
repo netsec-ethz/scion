@@ -19,18 +19,14 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/infra"
 )
 
 // SecretValueFactory has the functionality to store secret values.
 type SecretValueFactory interface {
 	// GetKeyDuration returns the duration set to secret values when first created.
 	GetKeyDuration() time.Duration
-	// SetKeyDuration establishes the duration of the secret value epochs when created.
-	SetKeyDuration(duration time.Duration) error
-	// SetMasterKey establishes the master key used to derive secret values in this store.
-	SetMasterKey(key common.RawBytes) error
 	// GetSecretValue returns the secret value given a point in time. The mapping returns the same
 	// secret value for time points within the same time window [t/Duration, t/Duration +1) .
 	GetSecretValue(time.Time) (drkey.SV, error)
@@ -55,4 +51,23 @@ type Lvl2Store interface {
 // Store has access to level 1 DRKeys.
 type Store interface {
 	Lvl1Store
+}
+
+// ----------------------------------------------------------------------------------------------------------- intentionally long, remove
+
+// Lvl1StoreNew is the level 1 drkey store, used by the CS.
+// It will keep a cache of those keys that were retrieved from the network.
+// It automatically removes expired keys.
+type Lvl1StoreNew interface {
+	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
+	GetAllLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
+	GetValidLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
+	SetMessenger(msger infra.Messenger)
+	MsgVerificationFactory
+}
+
+type MsgVerificationFactory interface {
+	// TODO(juagargi)
+	// NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
+	// NewVerifier() Verifier
 }

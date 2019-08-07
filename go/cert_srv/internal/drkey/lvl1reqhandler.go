@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -145,8 +146,8 @@ func (h *Lvl1ReqHandler) lvl1KeyBuildReply(srcIA, dstIA addr.IA, sv drkey.SV, ce
 
 	reply := drkey_mgmt.Lvl1Rep{
 		DstIARaw:     dstIA.IAInt(),
-		EpochBegin:   sv.Epoch.BeginAsSeconds(),
-		EpochEnd:     sv.Epoch.EndAsSeconds(),
+		EpochBegin:   util.TimeToSecs(sv.Epoch.Begin),
+		EpochEnd:     util.TimeToSecs(sv.Epoch.End),
 		Cipher:       cipher,
 		Nonce:        nonce,
 		CertVerDst:   cert.Version,
