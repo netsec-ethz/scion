@@ -62,7 +62,7 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	// Get the newest certificate for the remote AS
-	dstChain, err := obtainChain(ctx, dstIA, scrypto.LatestVer, h.State.TrustDB, h.Msger)
+	dstChain, err := getCertChain(ctx, dstIA, scrypto.LatestVer, h.State.TrustDB, h.Msger)
 	if err != nil {
 		log.Error("[DRKeyLvl1ReqHandler] Unable to fetch certificate for remote AS", "err", err)
 		return infra.MetricsErrInternal
@@ -81,9 +81,9 @@ func (h *Lvl1ReqHandler) Handle(r *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-// obtainChain gets the certificate chain for the AS from DB, or queries that remote CS. It can
+// getCertChain gets the certificate chain for the AS from DB, or queries that remote CS. It can
 // be called with version=scrypto.LatestVer to get the latest version.
-func obtainChain(ctx context.Context, ia addr.IA, version uint64, trustDB trustdb.TrustDB, msger infra.Messenger) (*cert.Chain, error) {
+func getCertChain(ctx context.Context, ia addr.IA, version uint64, trustDB trustdb.TrustDB, msger infra.Messenger) (*cert.Chain, error) {
 	var chain *cert.Chain
 	var err error
 	if version == scrypto.LatestVer {

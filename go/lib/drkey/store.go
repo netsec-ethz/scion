@@ -55,12 +55,12 @@ func (s *Store) SetKeyDuration(duration time.Duration) error {
 
 // SetMasterKey copies the master key to this store. It is used to derive the secret value.
 func (s *Store) SetMasterKey(key common.RawBytes) error {
+	s.sv.masterKey = key
 	// test this master key now
 	_, err := DeriveSV(SVMeta{}, key)
 	if err != nil {
 		return common.NewBasicError("Cannot use this master key as the secret for DRKey", err)
 	}
-	s.sv.masterKey = key
 	// TODO(juagargi): invalidate (remove) existing secret values ?
 	return nil
 }

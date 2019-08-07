@@ -54,7 +54,7 @@ func (h *Lvl1ReplyHandler) Handle(r *infra.Request) *infra.HandlerResult {
 		log.Error("[Lvl1ReplyHandler] Reply validation failed", "err", err)
 		return infra.MetricsErrInternal
 	}
-	chain, err := obtainChain(ctx, reply.DstIA(), reply.CertVerDst, h.State.TrustDB, h.Msger)
+	chain, err := getCertChain(ctx, reply.DstIA(), reply.CertVerDst, h.State.TrustDB, h.Msger)
 	if err != nil {
 		log.Error("[Lvl1ReplyHandler] Unable to fetch certificate for remote host", "err", err)
 		return infra.MetricsErrInternal
