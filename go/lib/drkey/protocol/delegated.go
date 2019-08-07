@@ -91,5 +91,5 @@ func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl
 }
 
 func init() {
-	KnownImplementations[delegatedImpl.Name()] = &delegatedImpl
+	KnownDerivations[delegatedImpl.Name()] = &delegatedImpl
 }

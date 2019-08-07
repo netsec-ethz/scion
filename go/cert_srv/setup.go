@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	drkeylib "github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -235,7 +234,6 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 		if err != nil {
 			return err
 		}
-		protoMap.RegisterDefaultImplementation(protocol.StandardName)
 		msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
 			State:    state,
 			IA:       topo.ISD_AS,

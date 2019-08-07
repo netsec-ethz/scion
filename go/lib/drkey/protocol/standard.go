@@ -85,5 +85,5 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 }
 
 func init() {
-	KnownImplementations[standardImpl.Name()] = &standardImpl
+	KnownDerivations[standardImpl.Name()] = &standardImpl
 }
