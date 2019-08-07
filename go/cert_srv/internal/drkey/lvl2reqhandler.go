@@ -37,10 +37,10 @@ import (
 
 // Lvl2ReqHandler contains the information necessary to handle a level 2 drkey request.
 type Lvl2ReqHandler struct {
-	State    *config.State
-	IA       addr.IA
-	Msger    infra.Messenger
-	ProtoMap *protocol.Map
+	State         *config.State
+	IA            addr.IA
+	Msger         infra.Messenger
+	ProtoRegistry *protocol.Registry
 }
 
 // Handle handles the level 2 drkey requests.
@@ -149,7 +149,7 @@ func (h *Lvl2ReqHandler) deriveLvl2Key(lvl1Key drkey.Lvl1Key, keyType drkey.Lvl2
 		SrcHost:  srcHost,
 		DstHost:  dstHost,
 	}
-	key, err := h.ProtoMap.DeriveLvl2(meta, lvl1Key)
+	key, err := h.ProtoRegistry.DeriveLvl2(meta, lvl1Key)
 	if err != nil {
 		return key, common.NewBasicError("Cannot derive Level 2 DRKey", err)
 	}

@@ -15,9 +15,6 @@
 package protocol
 
 import (
-	"fmt"
-	"sync"
-
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
@@ -29,39 +26,3 @@ type Derivation interface {
 
 // KnownDerivations maps the derivation names to their implementations.
 var KnownDerivations = make(map[string]Derivation)
-
-// Map maps the name of the protocol to the derivation the protocol uses. Many different protocols
-// can use the same derivation.
-type Map struct {
-	m sync.Map
-}
-
-// Register registers a protocol with a derivation.
-func (m *Map) Register(protocolName string, derivationName string) error {
-	proto, found := KnownDerivations[derivationName]
-	if !found {
-		return fmt.Errorf("There is no DRKey derivation with name \"%s\"", derivationName)
-	}
-	m.m.Store(protocolName, proto)
-	return nil
-}
-
-// Find returns the derivation associated with a protocol.
-func (m *Map) Find(name string) Derivation {
-	p, _ := m.m.Load(name)
-	if p == nil {
-		return nil
-	}
-	return p.(Derivation)
-}
-
-// DeriveLvl2 will find the derivation associated with the key's protocol and use it to
-// derive the level 2 drkey.
-func (m *Map) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	p := m.Find(meta.Protocol)
-	if p == nil {
-		return drkey.Lvl2Key{},
-			fmt.Errorf("Cannot find derivation for protocol %s", meta.Protocol)
-	}
-	return p.DeriveLvl2(meta, key)
-}

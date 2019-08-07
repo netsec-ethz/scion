@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "delegated.go",
         "protocol.go",
+        "registry.go",
         "standard.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/drkey/protocol",

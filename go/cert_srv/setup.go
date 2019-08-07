@@ -230,15 +230,15 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			Msger:       msgr,
 			MaxReplyAge: cfg.DRKey.MaxReplyAge.Duration,
 		})
-		protoMap, err := cfg.DRKey.ProtocolMap()
+		protoRegistry, err := cfg.DRKey.ProtocolRegistry()
 		if err != nil {
 			return err
 		}
 		msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
-			State:    state,
-			IA:       topo.ISD_AS,
-			Msger:    msgr,
-			ProtoMap: protoMap,
+			State:         state,
+			IA:            topo.ISD_AS,
+			Msger:         msgr,
+			ProtoRegistry: protoRegistry,
 		})
 	}
 	signingTypes = append(signingTypes, infra.ChainIssueRequest)

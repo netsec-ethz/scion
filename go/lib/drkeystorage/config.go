@@ -59,7 +59,7 @@ type Config struct {
 	MaxIdleConns string
 	// EpochDuration is the duration of the keys in this CS.
 	EpochDuration util.DurWrap
-	// Protocols is the map between protocol name and implementation.
+	// Protocols is the map between protocol name and derivation.
 	Protocols ProtocolMap
 	// MaxReplyAge is the age limit for a level 1 reply to be accepted. Older are rejected.
 	MaxReplyAge util.DurWrap
@@ -168,9 +168,9 @@ func parsedInt(val string) (int, bool, error) {
 	return i, true, err
 }
 
-// ProtocolMap constructs a map that represents this configuration.
-func (cfg *Config) ProtocolMap() (*protocol.Map, error) {
-	m := protocol.Map{}
+// ProtocolRegistry constructs a registry that represents this configuration.
+func (cfg *Config) ProtocolRegistry() (*protocol.Registry, error) {
+	m := protocol.Registry{}
 	for protoName, implName := range cfg.Protocols {
 		if err := m.Register(protoName, implName); err != nil {
 			return nil, common.NewBasicError("Bad protocol configuration", err)
