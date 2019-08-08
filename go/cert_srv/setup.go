@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	drkeylib "github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -144,11 +143,11 @@ func initState(cfg *config.Config, router snet.Router) error {
 	var drkeyStore drkeystorage.Store
 	var svFactory drkeystorage.SecretValueFactory
 	if cfg.DRKey.Enabled() {
-		drkeyStore, err = cfg.DRKey.NewStore()
+		drkeyStore, err = drkey.NewOldStore(cfg.DRKey)
 		if err != nil {
 			return common.NewBasicError("Unable to initialize drkey store", err)
 		}
-		svFactory = drkeylib.NewSecretValueFactory(
+		svFactory = drkey.NewSecretValueFactory(
 			keyConf.Master.Key0, cfg.DRKey.EpochDuration.Duration)
 		log.Info("DRKey is enabled")
 	} else {

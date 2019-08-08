@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package drkeystorage
+package config
 
 import (
 	"fmt"
@@ -43,10 +43,10 @@ const (
 	DefaultMaxReplyAge = 2 * time.Second
 )
 
-var _ (config.Config) = (*Config)(nil)
+var _ (config.Config) = (*DRKeyConfig)(nil)
 
-// Config is the configuration for the connection to the trust database.
-type Config struct {
+// DRKeyConfig is the configuration for the connection to the trust database.
+type DRKeyConfig struct {
 	// enabled is set to true if we find all the required fields in the configuration
 	enabled bool
 	// Backend is the backend key in the config mapping.
@@ -66,7 +66,7 @@ type Config struct {
 }
 
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
-func (cfg *Config) InitDefaults() {
+func (cfg *DRKeyConfig) InitDefaults() {
 	cfg.enabled = true
 	if cfg.Backend == backendNone {
 		cfg.Backend = BackendSqlite
@@ -84,13 +84,13 @@ func (cfg *Config) InitDefaults() {
 }
 
 // Enabled returns true if DRKey is configured. False otherwise.
-func (cfg *Config) Enabled() bool {
+func (cfg *DRKeyConfig) Enabled() bool {
 	// TODO(juagargi): check that disabled CSs can receive DRKey queries from sciond (mine crashes)
 	return cfg.enabled
 }
 
 // Validate validates that all values are parsable, and the backend is set.
-func (cfg *Config) Validate() error {
+func (cfg *DRKeyConfig) Validate() error {
 	if !cfg.Enabled() {
 		return nil
 	}
@@ -112,18 +112,18 @@ func (cfg *Config) Validate() error {
 }
 
 // Sample writes a config sample to the writer.
-func (cfg *Config) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+func (cfg *DRKeyConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, fmt.Sprintf(drkeyDBSample, ctx[config.ID]))
 	config.WriteSample(dst, path, ctx, &cfg.Protocols)
 }
 
 // ConfigName is the key in the toml file.
-func (cfg *Config) ConfigName() string {
+func (cfg *DRKeyConfig) ConfigName() string {
 	return "drkey"
 }
 
 // NewDB creates a drkey.DB from the config.
-func (cfg *Config) NewDB() (drkey.DB, error) {
+func (cfg *DRKeyConfig) NewDB() (drkey.DB, error) {
 	log.Info("Connecting DRKeyDB", "backend", cfg.Backend, "connection", cfg.Connection)
 	var err error
 	var db drkey.DB
@@ -141,16 +141,7 @@ func (cfg *Config) NewDB() (drkey.DB, error) {
 	return db, nil
 }
 
-// NewStore creates a new beacon store backed by the configured database.
-func (cfg *Config) NewStore() (Store, error) {
-	db, err := cfg.NewDB()
-	if err != nil {
-		return nil, err
-	}
-	return drkey.NewStore(db), nil
-}
-
-func setConnLimits(cfg *Config, db drkey.DB) {
+func setConnLimits(cfg *DRKeyConfig, db drkey.DB) {
 	if v, found, _ := parsedInt(cfg.MaxOpenConns); found {
 		db.SetMaxOpenConns(v)
 	}
@@ -169,7 +160,7 @@ func parsedInt(val string) (int, bool, error) {
 }
 
 // ProtocolRegistry constructs a registry that represents this configuration.
-func (cfg *Config) ProtocolRegistry() (*protocol.Registry, error) {
+func (cfg *DRKeyConfig) ProtocolRegistry() (*protocol.Registry, error) {
 	m := protocol.Registry{}
 	for protoName, implName := range cfg.Protocols {
 		if err := m.Register(protoName, implName); err != nil {

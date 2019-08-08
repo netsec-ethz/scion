@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -56,7 +55,7 @@ type Config struct {
 	Sciond    env.SciondClient `toml:"sd_client"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
-	DRKey     drkeystorage.Config
+	DRKey     DRKeyConfig
 	CS        CSConfig
 }
 

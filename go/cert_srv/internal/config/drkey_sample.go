@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package drkeystorage
+package config
 
 const drkeyDBSample = `
 # The type of drkeydb backend. (default sqlite)
