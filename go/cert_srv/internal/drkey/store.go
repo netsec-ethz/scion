@@ -17,15 +17,31 @@ package drkey
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
-	// "github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
+)
+
+const (
+	// HandlerTimeout is the level 1 request handler lifetime.
+	HandlerTimeout = 3 * time.Second
 )
 
 // SecretValueFactory stores the secret value
@@ -141,33 +157,41 @@ func (s *OldStore) RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (i
 
 // Store keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
 type Store struct {
-	ia addr.IA
-	db drkey.DB
-	// msger infra.Messenger
+	ia           addr.IA
+	db           drkey.DB
+	secretValues drkeystorage.SecretValueFactory
+	trustDB      trustdb.TrustDB
+	asDecryptKey common.RawBytes
+	asSigningKey common.RawBytes
+	msger        infra.Messenger
 }
 
+var _ drkeystorage.Lvl1StoreNew = &Store{}
+
 // NewStore constructs a DRKey Store.
-func NewStore(db drkey.DB, local addr.IA) *Store {
+func NewStore(local addr.IA, asDecryptKey common.RawBytes, asSigningKey common.RawBytes,
+	db drkey.DB, trustDB trustdb.TrustDB, svFactory drkeystorage.SecretValueFactory,
+	msger infra.Messenger) *Store {
+
 	s := &Store{
-		db: db,
-		ia: local,
+		ia:           local,
+		asDecryptKey: asDecryptKey,
+		asSigningKey: asSigningKey,
+		db:           db,
+		secretValues: svFactory,
+		trustDB:      trustDB,
+		msger:        msger,
 	}
 	return s
 }
 
-// func (s *Store) SetMessenger(msger infra.Messenger) {
-// 	if s.msger != nil {
-// 		panic("messenger already set")
-// 	}
-// 	s.msger = msger
-// }
-
+// GetLvl1Key returns the level 1 drkey from the local DB or if not found, by asking any CS in
+// the source AS of the key.
 func (s *Store) GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta,
 	valTime time.Time) (drkey.Lvl1Key, error) {
 
 	if meta.SrcIA == s.ia {
-		return drkey.Lvl1Key{}, common.NewBasicError("Logic error: cannot query the store for a "+
-			"level 1 key when the local AS is the source of the key", nil)
+		return s.deriveLvl1(meta.DstIA, valTime)
 	}
 	// look in the DB
 	k, err := s.db.GetLvl1Key(ctx, meta, util.TimeToSecs(valTime))
@@ -175,8 +199,218 @@ func (s *Store) GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta,
 		return k, err
 	}
 	if err != sql.ErrNoRows {
-		return drkey.Lvl1Key{}, common.NewBasicError("Problem retrieving key from DB", err)
+		return drkey.Lvl1Key{}, common.NewBasicError("Cannot retrieve key from DB", err)
 	}
 	// get it from another server
+	k, err = s.getLvl1FromOtherCS(ctx, meta.SrcIA, meta.DstIA, valTime)
+	if err != nil {
+		return drkey.Lvl1Key{}, common.NewBasicError("Cannot obtain level 1 key from CS", err)
+	}
+	// keep it in our DB
+	err = s.db.InsertLvl1Key(ctx, k)
+	if err != nil {
+		return drkey.Lvl1Key{}, common.NewBasicError("Cannot store obtained key in DB", err)
+	}
 	return k, nil
+}
+
+// DeleteExpiredKeys will remove any expired keys.
+func (s *Store) DeleteExpiredKeys(ctx context.Context) (int, error) {
+	i, err := s.db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now()))
+	return int(i), err
+}
+
+// NewLvl1ReqHandler returns an infra.Handler for TRC requests coming from a
+// peer, backed by the trust store. If recurse is set to true, the handler is
+// allowed to issue new TRC requests over the network.  This method should only
+// be used when servicing requests coming from remote nodes.
+func (s *Store) NewLvl1ReqHandler(recurse bool) infra.Handler {
+	f := func(r *infra.Request) *infra.HandlerResult {
+		handler := &lvl1ReqHandler{
+			request: r,
+			store:   s,
+			recurse: recurse,
+		}
+		return handler.Handle()
+	}
+	return infra.HandlerFunc(f)
+}
+
+func (s *Store) deriveLvl1(dstIA addr.IA, valTime time.Time) (drkey.Lvl1Key, error) {
+	log.Trace("[DRKey Store] deriving level 1", "dstIA", dstIA)
+	sv, err := s.secretValues.GetSecretValue(valTime)
+	if err != nil {
+		return drkey.Lvl1Key{}, common.NewBasicError("Unable to get secret value", err)
+	}
+	meta := drkey.Lvl1Meta{
+		Epoch: sv.Epoch,
+		SrcIA: s.ia,
+		DstIA: dstIA,
+	}
+	key, err := drkey.DeriveLvl1(meta, sv)
+	if err != nil {
+		return drkey.Lvl1Key{}, common.NewBasicError("Unable to derive level 1 key", err)
+	}
+	return key, nil
+}
+
+// getLvl1FromOtherCS queries a CS for a level 1 key.
+func (s *Store) getLvl1FromOtherCS(ctx context.Context, srcIA, dstIA addr.IA,
+	valTime time.Time) (drkey.Lvl1Key, error) {
+
+	remoteChain, err := s.getCertChain(ctx, srcIA, scrypto.LatestVer)
+	if err != nil {
+		return drkey.Lvl1Key{},
+			common.NewBasicError("Unable to fetch certificate for remote host", err)
+	}
+	csAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	lvl1Req := drkey_mgmt.NewLvl1Req(dstIA, util.TimeToSecs(valTime))
+	lvl1Rep, err := s.msger.RequestDRKeyLvl1(ctx, &lvl1Req, csAddr, messenger.NextId())
+	if err != nil {
+		return drkey.Lvl1Key{}, common.NewBasicError("Error requesting level 1 key to CS", err,
+			"cs addr", csAddr)
+	}
+	lvl1Key, err := getLvl1KeyFromReply(lvl1Rep, srcIA, remoteChain.Leaf, s.asDecryptKey)
+	if err != nil {
+		return drkey.Lvl1Key{}, common.NewBasicError("Cannot obtain level 1 key from reply", err)
+	}
+	return lvl1Key, nil
+}
+
+// getCertChain gets the certificate chain for the AS from DB, or queries that remote CS. It can
+// be called with version=scrypto.LatestVer to get the latest version.
+func (s *Store) getCertChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error) {
+	var chain *cert.Chain
+	var err error
+	if version == scrypto.LatestVer {
+		chain, err = s.trustDB.GetChainMaxVersion(ctx, ia)
+	} else {
+		chain, err = s.trustDB.GetChainVersion(ctx, ia, version)
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Error in trust DB while getting certificate for AS", err)
+	}
+	if chain != nil {
+		return chain, nil
+	}
+	chainReq := &cert_mgmt.ChainReq{
+		RawIA:     ia.IAInt(),
+		Version:   version,
+		CacheOnly: true,
+	}
+	csAddr := &snet.Addr{IA: ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	reply, err := s.msger.GetCertChain(ctx, chainReq, csAddr, messenger.NextId())
+	if err != nil {
+		return nil, common.NewBasicError("Could not query CS for certificate", err, "remote CS", csAddr)
+	}
+	chain, err = reply.Chain()
+	if err != nil {
+		return nil, common.NewBasicError("could not unpack the certificate reply response", err)
+	}
+	if chain == nil {
+		return nil, common.NewBasicError("The certificate chain is null", nil, "remote CS", csAddr)
+	}
+	return chain, nil
+}
+
+// getLvl1KeyFromReply decrypts and extracts the level 1 drkey from the reply.
+func getLvl1KeyFromReply(reply *drkey_mgmt.Lvl1Rep, srcIA addr.IA, cert *cert.Certificate,
+	privateKey common.RawBytes) (drkey.Lvl1Key, error) {
+
+	lvl1Key, err := drkey.DecryptDRKeyLvl1(reply.Cipher, reply.Nonce, cert.SubjectEncKey, privateKey)
+	if err != nil {
+		return lvl1Key, common.NewBasicError("Error decrypting the key from the reply", err)
+	}
+	log.Trace("[DRKey Store] DRKey received")
+	lvl1Key.Epoch = reply.Epoch()
+	return lvl1Key, nil
+}
+
+type lvl1ReqHandler struct {
+	request *infra.Request
+	store   *Store
+	recurse bool
+}
+
+func (h *lvl1ReqHandler) Handle() *infra.HandlerResult {
+	logger := log.FromCtx(h.request.Context())
+	logger.Trace("[DRKey Store.lvl1ReqHandler] got request")
+	ctx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+
+	if err := h.validate(); err != nil {
+		logger.Error("[DRKey Store.lvl1ReqHandler] Error validating request", "err", err)
+		return infra.MetricsErrInvalid
+	}
+	saddr := h.request.Peer.(*snet.Addr)
+	req := h.request.Message.(*drkey_mgmt.Lvl1Req)
+	dstIA := req.DstIA()
+	logger.Trace("[DRKey Store.lvl1ReqHandler] Received request", "dstIA", dstIA)
+	lvl1Key, err := h.store.deriveLvl1(dstIA, req.ValTime())
+	if err != nil {
+		logger.Error("[DRKey Store.lvl1ReqHandler] Error deriving level 1 key", "err", err)
+		return infra.MetricsErrInternal
+	}
+	// Get the newest certificate for the remote AS
+	dstChain, err := h.store.getCertChain(ctx, dstIA, scrypto.LatestVer)
+	if err != nil {
+		logger.Error("[DRKey Store.lvl1ReqHandler] Unable to fetch certificate for remote AS",
+			"err", err)
+		return infra.MetricsErrTrustStore(err)
+	}
+
+	reply, err := h.buildReply(lvl1Key, dstChain.Leaf)
+	if err != nil {
+		logger.Error("[DRKey Store.lvl1ReqHandler] Error building reply", "err", err)
+		return infra.MetricsErrInternal
+	}
+	if err := h.sendRep(ctx, saddr, &reply); err != nil {
+		logger.Error("[DRKey Store.lvl1ReqHandler] Unable to send drkey reply", "err", err)
+		return infra.MetricsErrInternal
+	}
+	return infra.MetricsResultOk
+}
+
+func (h *lvl1ReqHandler) validate() error {
+	req := h.request.Message.(*drkey_mgmt.Lvl1Req)
+	if req == nil {
+		return common.NewBasicError("Request is NULL", nil,
+			"type(req)", fmt.Sprintf("%T", h.request.Message))
+	}
+	// TODO(juagargi) validate requester address is ok
+	return nil
+}
+
+// buildReply constructs the level 1 key exchange reply message:
+// cipher = {A | B | K_{A->B}}_PK_B
+func (h *lvl1ReqHandler) buildReply(key drkey.Lvl1Key, remoteCert *cert.Certificate) (drkey_mgmt.Lvl1Rep, error) {
+	nonce, err := scrypto.Nonce(24)
+	if err != nil {
+		return drkey_mgmt.Lvl1Rep{},
+			common.NewBasicError("Unable to get random nonce", err)
+	}
+	cipher, err := drkey.EncryptDRKeyLvl1(key, nonce, remoteCert.SubjectEncKey, h.store.asSigningKey)
+	if err != nil {
+		return drkey_mgmt.Lvl1Rep{}, common.NewBasicError("Unable to encrypt drkey", err)
+	}
+	reply := drkey_mgmt.Lvl1Rep{
+		DstIARaw:     key.DstIA.IAInt(),
+		EpochBegin:   util.TimeToSecs(key.Epoch.Begin),
+		EpochEnd:     util.TimeToSecs(key.Epoch.End),
+		Cipher:       cipher,
+		Nonce:        nonce,
+		CertVerDst:   remoteCert.Version,
+		TimestampRaw: uint32(time.Now().Unix()),
+	}
+	return reply, nil
+}
+
+// sendRep sends a level 1 reply to the requesting source.
+func (h *lvl1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_mgmt.Lvl1Rep) error {
+	rw, ok := infra.ResponseWriterFromContext(ctx)
+	if !ok {
+		return common.NewBasicError(
+			"[DRKeyReqHandler] Unable to service request, no messenger found", nil)
+	}
+	return rw.SendDRKeyLvl1(ctx, rep)
 }

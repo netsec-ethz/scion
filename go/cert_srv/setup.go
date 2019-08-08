@@ -224,11 +224,11 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			IA:    topo.ISD_AS,
 			Msger: msgr,
 		})
-		msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
-			State:       state,
-			Msger:       msgr,
-			MaxReplyAge: cfg.DRKey.MaxReplyAge.Duration,
-		})
+		// msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
+		// 	State:       state,
+		// 	Msger:       msgr,
+		// 	MaxReplyAge: cfg.DRKey.MaxReplyAge.Duration,
+		// })
 		protoRegistry, err := cfg.DRKey.ProtocolRegistry()
 		if err != nil {
 			return err

@@ -94,7 +94,6 @@ func getCertChain(ctx context.Context, ia addr.IA, version uint64, trustDB trust
 	}
 	if err != nil {
 		return nil, common.NewBasicError("Error getting certificate for AS", err)
-
 	}
 	if chain == nil {
 		// we don't have it

@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
 
 // SecretValueFactory has the functionality to store secret values.
@@ -60,9 +61,11 @@ type Store interface {
 // It automatically removes expired keys.
 type Lvl1StoreNew interface {
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
-	GetAllLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
-	GetValidLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
-	SetMessenger(msger infra.Messenger)
+	// GetAllLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
+	// GetValidLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
+	DeleteExpiredKeys(ctx context.Context) (int, error)
+	NewLvl1ReqHandler(recurseAllowed bool) infra.Handler
+	// NewLvl2ReqHandler(recurseAllowed bool) infra.Handler
 	MsgVerificationFactory
 }
 
@@ -70,4 +73,11 @@ type MsgVerificationFactory interface {
 	// TODO(juagargi)
 	// NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
 	// NewVerifier() Verifier
+}
+
+// NewLvl1Cleaner creates a Cleaner task that removes expired level 1 drkeys.
+func NewLvl1Cleaner(s Lvl1StoreNew) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		return s.DeleteExpiredKeys(ctx)
+	}, "lvl1Keys")
 }
