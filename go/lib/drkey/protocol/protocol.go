@@ -15,7 +15,10 @@
 package protocol
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 // Derivation specifies the interface to implement for a derivation method.
@@ -32,3 +35,19 @@ type DelegatedDerivation interface {
 
 // KnownDerivations maps the derivation names to their implementations.
 var KnownDerivations = make(map[string]Derivation)
+
+// DeriveLvl1 constructs a new level 1 DRKey.
+func DeriveLvl1(meta drkey.Lvl1Meta, sv drkey.SV) (drkey.Lvl1Key, error) {
+	mac, err := scrypto.InitMac(common.RawBytes(sv.Key))
+	if err != nil {
+		return drkey.Lvl1Key{}, err
+	}
+	all := make(common.RawBytes, addr.IABytes)
+	meta.DstIA.Write(all)
+	mac.Write(all)
+	tmp := make([]byte, 0, mac.Size())
+	return drkey.Lvl1Key{
+		Lvl1Meta: meta,
+		Key:      drkey.DRKey(mac.Sum(tmp)),
+	}, nil
+}

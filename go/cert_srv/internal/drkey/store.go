@@ -264,7 +264,7 @@ func (s *ServiceStore) deriveLvl1(dstIA addr.IA, valTime time.Time) (drkey.Lvl1K
 		SrcIA: s.ia,
 		DstIA: dstIA,
 	}
-	key, err := drkey.DeriveLvl1(meta, sv)
+	key, err := protocol.DeriveLvl1(meta, sv)
 	if err != nil {
 		return drkey.Lvl1Key{}, common.NewBasicError("Unable to derive level 1 key", err)
 	}

@@ -16,8 +16,6 @@ package drkey
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 // Lvl1Meta represents the information about a level 1 DRKey other than the key itself.
@@ -31,20 +29,4 @@ type Lvl1Meta struct {
 type Lvl1Key struct {
 	Lvl1Meta
 	Key DRKey
-}
-
-// DeriveLvl1 constructs a new level 1 DRKey.
-func DeriveLvl1(meta Lvl1Meta, sv SV) (Lvl1Key, error) {
-	mac, err := scrypto.InitMac(common.RawBytes(sv.Key))
-	if err != nil {
-		return Lvl1Key{}, err
-	}
-	all := make(common.RawBytes, addr.IABytes)
-	meta.DstIA.Write(all)
-	mac.Write(all)
-	tmp := make([]byte, 0, mac.Size())
-	return Lvl1Key{
-		Lvl1Meta: meta,
-		Key:      DRKey(mac.Sum(tmp)),
-	}, nil
 }
