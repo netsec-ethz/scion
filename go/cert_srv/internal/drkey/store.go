@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -92,74 +91,10 @@ func (s *SecretValueFactory) GetSecretValue(t time.Time) (drkey.SV, error) {
 	return k, nil
 }
 
-// OldStore keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
-type OldStore struct {
-	db drkey.DB
-}
-
-// NewOldStore creates a new beacon store backed by the configured database.
-func NewOldStore(cfg config.DRKeyConfig) (*OldStore, error) {
-	db, err := cfg.NewDB()
-	if err != nil {
-		return nil, err
-	}
-	s := &OldStore{
-		db: db,
-	}
-	return s, nil
-}
-
-// GetLvl1Key returns the level 1 drkey for that meta info and valid time.
-func (s *OldStore) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta,
-	valTime uint32) (drkey.Lvl1Key, error) {
-
-	return s.db.GetLvl1Key(ctx, key, valTime)
-}
-
-// InsertLvl1Key stores the key in the store.
-func (s *OldStore) InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error {
-	return s.db.InsertLvl1Key(ctx, key)
-}
-
-// RemoveOutdatedLvl1Keys removes all level 1 drkeys that expire after the cutoff.
-func (s *OldStore) RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error) {
-	return s.db.RemoveOutdatedLvl1Keys(ctx, cutoff)
-}
-
-// GetLvl1SrcASes returns a slice of the source IAs appearing in the level 1 key entries.
-func (s *OldStore) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
-	return s.db.GetLvl1SrcASes(ctx)
-}
-
-// GetValidLvl1SrcASes returns a slice of the source IAs appearing in all level 1 key entries that
-// are not expired at the given time point.
-func (s *OldStore) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
-	return s.db.GetValidLvl1SrcASes(ctx, valTime)
-}
-
-// GetLvl2Key returns the level 2 drkey for that meta info and valid time.
-func (s *OldStore) GetLvl2Key(ctx context.Context, key drkey.Lvl2Meta,
-	valTime uint32) (drkey.Lvl2Key, error) {
-
-	return s.db.GetLvl2Key(ctx, key, valTime)
-}
-
-// InsertLvl2Key stores the key in the store.
-func (s *OldStore) InsertLvl2Key(ctx context.Context, key drkey.Lvl2Key) error {
-	return s.db.InsertLvl2Key(ctx, key)
-}
-
-// RemoveOutdatedLvl2Keys removes all level 2 drkeys that expire after the cutoff.
-func (s *OldStore) RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error) {
-	return s.db.RemoveOutdatedLvl2Keys(ctx, cutoff)
-}
-
-// ----------------------------------------------------------------------------------------------------------- intentionally long, remove
-
 // ServiceStore keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
 type ServiceStore struct {
 	ia           addr.IA
-	db           drkey.DB
+	db           drkey.Lvl1DB
 	secretValues drkeystorage.SecretValueFactory
 	trustDB      trustdb.TrustDB
 	asDecryptKey common.RawBytes
@@ -170,7 +105,7 @@ var _ drkeystorage.ServiceStore = &ServiceStore{}
 
 // NewServiceStore constructs a DRKey ServiceStore.
 func NewServiceStore(local addr.IA, asDecryptKey common.RawBytes,
-	db drkey.DB, trustDB trustdb.TrustDB, svFactory drkeystorage.SecretValueFactory) *ServiceStore {
+	db drkey.Lvl1DB, trustDB trustdb.TrustDB, svFactory drkeystorage.SecretValueFactory) *ServiceStore {
 
 	return &ServiceStore{
 		ia:           local,

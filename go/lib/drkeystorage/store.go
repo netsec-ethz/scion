@@ -26,10 +26,7 @@ import (
 
 // SecretValueFactory has the functionality to store secret values.
 type SecretValueFactory interface {
-	// GetKeyDuration returns the duration set to secret values when first created.
 	GetKeyDuration() time.Duration
-	// GetSecretValue returns the secret value given a point in time. The mapping returns the same
-	// secret value for time points within the same time window [t/Duration, t/Duration +1) .
 	GetSecretValue(time.Time) (drkey.SV, error)
 }
 
@@ -38,8 +35,6 @@ type SecretValueFactory interface {
 // It automatically removes expired keys.
 type ServiceStore interface {
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
-	// GetAllLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
-	// GetValidLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
 	DeleteExpiredKeys(ctx context.Context) (int, error)
 	NewLvl1ReqHandler() infra.Handler
 	NewLvl2ReqHandler(registry protocol.Registry) infra.Handler

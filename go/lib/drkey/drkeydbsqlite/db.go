@@ -31,7 +31,7 @@ const (
 	UnableToExecuteStmt = "Unable to execute stmt"
 )
 
-var _ drkey.DB = (*Backend)(nil)
+var _ drkey.Lvl1DB = (*Backend)(nil)
 
 // Backend implements a drkey DB with sqlite.
 type Backend struct {

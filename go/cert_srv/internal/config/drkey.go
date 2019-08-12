@@ -123,10 +123,10 @@ func (cfg *DRKeyConfig) ConfigName() string {
 }
 
 // NewDB creates a drkey.DB from the config.
-func (cfg *DRKeyConfig) NewDB() (drkey.DB, error) {
+func (cfg *DRKeyConfig) NewDB() (drkey.Lvl1DB, error) {
 	log.Info("Connecting DRKeyDB", "backend", cfg.Backend, "connection", cfg.Connection)
 	var err error
-	var db drkey.DB
+	var db drkey.Lvl1DB
 
 	switch cfg.Backend {
 	case BackendSqlite:
@@ -141,7 +141,7 @@ func (cfg *DRKeyConfig) NewDB() (drkey.DB, error) {
 	return db, nil
 }
 
-func setConnLimits(cfg *DRKeyConfig, db drkey.DB) {
+func setConnLimits(cfg *DRKeyConfig, db drkey.Lvl1DB) {
 	if v, found, _ := parsedInt(cfg.MaxOpenConns); found {
 		db.SetMaxOpenConns(v)
 	}

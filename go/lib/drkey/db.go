@@ -23,7 +23,7 @@ import (
 )
 
 // DB is the DRKey database interface for leve 1 and 2 keys
-type DB interface {
+type Lvl1DB interface {
 	io.Closer
 	db.LimitSetter
 	GetLvl1Key(ctx context.Context, key Lvl1Meta, valTime uint32) (Lvl1Key, error)
@@ -31,7 +31,7 @@ type DB interface {
 	RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error)
 	GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
 	GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
-	GetLvl2Key(ctx context.Context, key Lvl2Meta, valTime uint32) (Lvl2Key, error)
-	InsertLvl2Key(ctx context.Context, key Lvl2Key) error
-	RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
+	// GetLvl2Key(ctx context.Context, key Lvl2Meta, valTime uint32) (Lvl2Key, error)
+	// InsertLvl2Key(ctx context.Context, key Lvl2Key) error
+	// RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
 }
