@@ -130,7 +130,7 @@ func (cfg *DRKeyConfig) NewDB() (drkey.Lvl1DB, error) {
 
 	switch cfg.Backend {
 	case BackendSqlite:
-		db, err = drkeydbsqlite.New(cfg.Connection)
+		db, err = drkeydbsqlite.NewLvl1Backend(cfg.Connection)
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend)
 	}

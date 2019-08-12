@@ -27,32 +27,29 @@ import (
 )
 
 const (
-	UnableToPrepareStmt = "Unable to prepare stmt"
-	UnableToExecuteStmt = "Unable to execute stmt"
+	unableToPrepareStmt = "Unable to prepare stmt"
+	unableToExecuteStmt = "Unable to execute stmt"
 )
 
-var _ drkey.Lvl1DB = (*Backend)(nil)
+var _ drkey.Lvl1DB = (*Lvl1Backend)(nil)
 
-// Backend implements a drkey DB with sqlite.
-type Backend struct {
+// Lvl1Backend implements a level 1 drkey DB with sqlite.
+type Lvl1Backend struct {
 	db                         *sql.DB
 	getLvl1SrcASesStmt         *sql.Stmt
 	getValidLvl1SrcASesStmt    *sql.Stmt
 	getLvl1KeyStmt             *sql.Stmt
 	insertLvl1KeyStmt          *sql.Stmt
 	removeOutdatedLvl1KeysStmt *sql.Stmt
-	getLvl2KeyStmt             *sql.Stmt
-	insertLvl2KeyStmt          *sql.Stmt
-	removeOutdatedLvl2KeysStmt *sql.Stmt
 }
 
-// New creates a database and prepares all statements.
-func New(path string) (*Backend, error) {
-	db, err := db.NewSqlite(path, Schema, SchemaVersion)
+// NewLvl1Backend creates a database and prepares all statements.
+func NewLvl1Backend(path string) (*Lvl1Backend, error) {
+	db, err := db.NewSqlite(path, Lvl1Schema, Lvl1SchemaVersion)
 	if err != nil {
 		return nil, err
 	}
-	b := &Backend{
+	b := &Lvl1Backend{
 		db: db,
 	}
 	// On future errors, close the sql database before exiting
@@ -62,44 +59,35 @@ func New(path string) (*Backend, error) {
 		}
 	}()
 	if b.getLvl1SrcASesStmt, err = b.db.Prepare(getLvl1SrcASes); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+		return nil, common.NewBasicError(unableToPrepareStmt, err)
 	}
 	if b.getValidLvl1SrcASesStmt, err = b.db.Prepare(getValidLvl1SrcASes); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+		return nil, common.NewBasicError(unableToPrepareStmt, err)
 	}
 	if b.getLvl1KeyStmt, err = b.db.Prepare(getLvl1Key); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+		return nil, common.NewBasicError(unableToPrepareStmt, err)
 	}
 	if b.insertLvl1KeyStmt, err = b.db.Prepare(insertLvl1Key); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+		return nil, common.NewBasicError(unableToPrepareStmt, err)
 	}
 	if b.removeOutdatedLvl1KeysStmt, err = b.db.Prepare(removeOutdatedLvl1Keys); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
-	}
-	if b.getLvl2KeyStmt, err = b.db.Prepare(getLvl2Key); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
-	}
-	if b.insertLvl2KeyStmt, err = b.db.Prepare(insertLvl2Key); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
-	}
-	if b.removeOutdatedLvl2KeysStmt, err = b.db.Prepare(removeOutdatedLvl2Keys); err != nil {
-		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+		return nil, common.NewBasicError(unableToPrepareStmt, err)
 	}
 	return b, nil
 }
 
 // Close closes the database connection.
-func (b *Backend) Close() error {
+func (b *Lvl1Backend) Close() error {
 	return b.db.Close()
 }
 
 // SetMaxOpenConns sets the maximum number of open connections.
-func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
+func (b *Lvl1Backend) SetMaxOpenConns(maxOpenConns int) {
 	b.db.SetMaxOpenConns(maxOpenConns)
 }
 
 // SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
+func (b *Lvl1Backend) SetMaxIdleConns(maxIdleConns int) {
 	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
@@ -109,11 +97,11 @@ GROUP BY I, A
 `
 
 // GetLvl1SrcASes returns a list of distinct ASes seen in the SRC of a level 1 key
-func (b *Backend) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
+func (b *Lvl1Backend) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
 	rows, err := b.getLvl1SrcASesStmt.QueryContext(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(UnableToExecuteStmt, err)
+			err = common.NewBasicError(unableToExecuteStmt, err)
 		}
 		return nil, err
 	}
@@ -140,11 +128,11 @@ GROUP BY I, A
 
 // GetValidLvl1SrcASes returns a list of distinct IAs that have a still valid level 1 key
 // If the level 1 key is still valid according to valTime, its src IA will be in the list
-func (b *Backend) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
+func (b *Lvl1Backend) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error) {
 	rows, err := b.getValidLvl1SrcASesStmt.QueryContext(ctx, valTime, valTime)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(UnableToExecuteStmt, err)
+			err = common.NewBasicError(unableToExecuteStmt, err)
 		}
 		return nil, err
 	}
@@ -171,14 +159,14 @@ AND EpochBegin<=? AND ?<EpochEnd
 
 // GetLvl1Key takes an pointer to a first level DRKey and a timestamp at which the DRKey should be
 // valid and returns the corresponding first level DRKey.
-func (b *Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error) {
+func (b *Lvl1Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error) {
 	var epochBegin, epochEnd int
 	var bytes common.RawBytes
 	err := b.getLvl1KeyStmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
 		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(UnableToExecuteStmt, err)
+			err = common.NewBasicError(unableToExecuteStmt, err)
 		}
 		return drkey.Lvl1Key{}, err
 	}
@@ -199,7 +187,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 // InsertLvl1Key inserts a first level DRKey and returns the number of affected rows.
-func (b *Backend) InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error {
+func (b *Lvl1Backend) InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error {
 	_, err := b.insertLvl1KeyStmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
 		key.DstIA.A, uint32(key.Epoch.Begin.Unix()), uint32(key.Epoch.End.Unix()), key.Key)
 	if err != nil {
@@ -214,78 +202,8 @@ DELETE FROM DRKeyLvl1 WHERE ? >= EpochEnd
 
 // RemoveOutdatedLvl1Keys removes all expired first level DRKeys. I.e. all the keys
 // which expiration time is strictly smaller than the cutoff
-func (b *Backend) RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error) {
+func (b *Lvl1Backend) RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error) {
 	res, err := b.removeOutdatedLvl1KeysStmt.ExecContext(ctx, cutoff)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
-}
-
-const getLvl2Key = `
-SELECT EpochBegin, EpochEnd, Key
-FROM DRKeyLvl2 WHERE Protocol=? AND Type=? AND SrcIsdID=? AND SrcAsID=? AND
-DstIsdID=? AND DstAsID=? AND SrcHostIP=? AND DstHostIP=?
-AND EpochBegin<=? AND ?<EpochEnd
-`
-
-// GetLvl2Key takes a source, destination and additional ISD-AS, a source, destination and
-// additional host, and a timestamp at which the DRKey should be valid and
-// returns a second level DRKey of the request type
-func (b *Backend) GetLvl2Key(ctx context.Context, key drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error) {
-	var epochBegin int
-	var epochEnd int
-	var bytes common.RawBytes
-
-	err := b.getLvl2KeyStmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
-		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost, valTime,
-		valTime).Scan(&epochBegin, &epochEnd, &bytes)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			err = common.NewBasicError(UnableToExecuteStmt, err)
-		}
-		return drkey.Lvl2Key{}, err
-	}
-	returningKey := drkey.Lvl2Key{
-		Lvl2Meta: drkey.Lvl2Meta{
-			KeyType:  key.KeyType,
-			Protocol: key.Protocol,
-			Epoch:    drkey.NewEpoch(uint32(epochBegin), uint32(epochEnd)),
-			SrcIA:    key.SrcIA,
-			DstIA:    key.DstIA,
-			SrcHost:  key.SrcHost,
-			DstHost:  key.DstHost,
-		},
-		Key: drkey.DRKey(bytes),
-	}
-	return returningKey, nil
-}
-
-const insertLvl2Key = `
-INSERT OR IGNORE INTO DRKeyLvl2 (Protocol, Type, SrcIsdID, SrcAsID, DstIsdID, DstAsID,
-SrcHostIP, DstHostIP, EpochBegin, EpochEnd, Key)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`
-
-// InsertLvl2Key inserts a second-level DRKey.
-func (b *Backend) InsertLvl2Key(ctx context.Context, key drkey.Lvl2Key) error {
-	_, err := b.insertLvl2KeyStmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
-		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost,
-		uint32(key.Epoch.Begin.Unix()), uint32(key.Epoch.End.Unix()), key.Key)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-const removeOutdatedLvl2Keys = `
-DELETE FROM DRKeyLvl2 WHERE ? >= EpochEnd
-`
-
-// RemoveOutdatedLvl2Keys removes all expired second level DRKeys, I.e. those keys
-// which expiration time is strictly less than the cutoff
-func (b *Backend) RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error) {
-	res, err := b.removeOutdatedLvl2KeysStmt.ExecContext(ctx, cutoff)
 	if err != nil {
 		return 0, err
 	}

@@ -18,9 +18,9 @@ const (
 	// SchemaVersion is the version of the SQLite schema understood by this backend.
 	// Whenever changes to the schema are made, this version number should be increased
 	// to prevent data corruption between incompatible database schemas.
-	SchemaVersion = 1
+	Lvl1SchemaVersion = 1
 	// Schema is the SQLite database layout.
-	Schema = `
+	Lvl1Schema = `
 	CREATE TABLE DRKeyLvl1 (
 		SrcIsdID 	INTEGER NOT NULL,
 		SrcAsID 	INTEGER NOT NULL,
@@ -30,8 +30,14 @@ const (
 		EpochEnd 	INTEGER NOT NULL,
 		Key 		TEXT NOT NULL,
 		PRIMARY KEY (SrcIsdID, SrcAsID, DstIsdID, DstAsID, EpochBegin)
-	);
+	);`
 
+	// SchemaVersion is the version of the SQLite schema understood by this backend.
+	// Whenever changes to the schema are made, this version number should be increased
+	// to prevent data corruption between incompatible database schemas.
+	Lvl2SchemaVersion = 1
+	// Schema is the SQLite database layout.
+	Lvl2Schema = `
 	CREATE TABLE DRKeyLvl2 (
 		Protocol	TEXT NOT NULL,
 		Type		INTEGER NOT NULL,
