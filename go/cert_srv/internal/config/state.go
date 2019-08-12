@@ -45,12 +45,12 @@ type State struct {
 	verifierLock sync.RWMutex
 	// drkey secret value factory.
 	SecretValues drkeystorage.SecretValueFactory
-	// drykey stored keys
-	DRKeyStore drkeystorage.Store
+	// DRKeyStore is the drykey store with level 1 keys.
+	DRKeyStore drkeystorage.ServiceStore
 }
 
 func NewState(keyConf *keyconf.Conf, trustDB trustdb.TrustDB, trustStore *trust.Store,
-	svFact drkeystorage.SecretValueFactory, drkeyStore drkeystorage.Store) *State {
+	svFact drkeystorage.SecretValueFactory, drkeyStore drkeystorage.ServiceStore) *State {
 
 	return &State{
 		keyConf:      keyConf,

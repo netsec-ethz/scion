@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
@@ -33,39 +33,17 @@ type SecretValueFactory interface {
 	GetSecretValue(time.Time) (drkey.SV, error)
 }
 
-// Lvl1Store has all the functions dealing with storage/retrieval of level 1 DRKeys.
-type Lvl1Store interface {
-	GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error)
-	InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error
-	RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error)
-	GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
-	GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
-}
-
-// Lvl2Store has all the functions dealing with storage/retrieval of level 2 DRKeys.
-type Lvl2Store interface {
-	GetLvl2Key(ctx context.Context, key drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error)
-	InsertLvl2Key(ctx context.Context, key drkey.Lvl2Key) error
-	RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
-}
-
-// Store has access to level 1 DRKeys.
-type Store interface {
-	Lvl1Store
-}
-
-// ----------------------------------------------------------------------------------------------------------- intentionally long, remove
-
-// Lvl1StoreNew is the level 1 drkey store, used by the CS.
+// ServiceStore is the level 1 drkey store, used by the CS.
 // It will keep a cache of those keys that were retrieved from the network.
 // It automatically removes expired keys.
-type Lvl1StoreNew interface {
+type ServiceStore interface {
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
 	// GetAllLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
 	// GetValidLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
 	DeleteExpiredKeys(ctx context.Context) (int, error)
-	NewLvl1ReqHandler(recurseAllowed bool) infra.Handler
-	// NewLvl2ReqHandler(recurseAllowed bool) infra.Handler
+	NewLvl1ReqHandler() infra.Handler
+	NewLvl2ReqHandler(registry *protocol.Registry) infra.Handler
+	SetMessenger(msger infra.Messenger)
 	MsgVerificationFactory
 }
 
@@ -75,8 +53,8 @@ type MsgVerificationFactory interface {
 	// NewVerifier() Verifier
 }
 
-// NewLvl1Cleaner creates a Cleaner task that removes expired level 1 drkeys.
-func NewLvl1Cleaner(s Lvl1StoreNew) *cleaner.Cleaner {
+// NewServiceStoreCleaner creates a Cleaner task that removes expired level 1 drkeys.
+func NewServiceStoreCleaner(s ServiceStore) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredKeys(ctx)
 	}, "lvl1Keys")

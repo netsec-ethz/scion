@@ -93,6 +93,9 @@ func setup() error {
 	if err := setMessenger(&cfg, router); err != nil {
 		return common.NewBasicError("Unable to set messenger", err)
 	}
+	if err := addHandlers(); err != nil {
+		return common.NewBasicError("Unable to add handlers", err)
+	}
 	return nil
 }
 
@@ -140,18 +143,19 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load the keys", err)
 	}
-	var drkeyStore drkeystorage.Store
+	var drkeyStore drkeystorage.ServiceStore
 	var svFactory drkeystorage.SecretValueFactory
 	if cfg.DRKey.Enabled() {
-		drkeyStore, err = drkey.NewOldStore(cfg.DRKey)
-		if err != nil {
-			return common.NewBasicError("Unable to initialize drkey store", err)
-		}
 		svFactory = drkey.NewSecretValueFactory(
 			keyConf.Master.Key0, cfg.DRKey.EpochDuration.Duration)
+		drkeyDB, err := cfg.DRKey.NewDB()
+		if err != nil {
+			return common.NewBasicError("Unable to initialize DRKey DB", err)
+		}
+		drkeyStore = drkey.NewServiceStore(topo.ISD_AS, keyConf.DecryptKey,
+			drkeyDB, trustDB, svFactory)
 		log.Info("DRKey is enabled")
 	} else {
-		drkeyStore = drkeystorage.NewDisabledStore()
 		log.Warn("DRKey is DISABLED by configuration")
 	}
 	state = config.NewState(keyConf, trustDB, trustStore, svFactory, drkeyStore)
@@ -208,6 +212,14 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to initialize SCION Messenger", err)
 	}
+	if cfg.DRKey.Enabled() {
+		state.DRKeyStore.SetMessenger(msgr)
+	}
+	return nil
+}
+
+func addHandlers() error {
+	topo := itopo.Get()
 	msgr.AddHandler(infra.ChainRequest, state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
@@ -219,26 +231,12 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 			infra.DRKeyLvl1Reply,
 			infra.DRKeyLvl2Request,
 		}
-		msgr.AddHandler(infra.DRKeyLvl1Request, &drkey.Lvl1ReqHandler{
-			State: state,
-			IA:    topo.ISD_AS,
-			Msger: msgr,
-		})
-		// msgr.AddHandler(infra.DRKeyLvl1Reply, &drkey.Lvl1ReplyHandler{
-		// 	State:       state,
-		// 	Msger:       msgr,
-		// 	MaxReplyAge: cfg.DRKey.MaxReplyAge.Duration,
-		// })
 		protoRegistry, err := cfg.DRKey.ProtocolRegistry()
 		if err != nil {
 			return err
 		}
-		msgr.AddHandler(infra.DRKeyLvl2Request, &drkey.Lvl2ReqHandler{
-			State:         state,
-			IA:            topo.ISD_AS,
-			Msger:         msgr,
-			ProtoRegistry: protoRegistry,
-		})
+		msgr.AddHandler(infra.DRKeyLvl1Request, state.DRKeyStore.NewLvl1ReqHandler())
+		msgr.AddHandler(infra.DRKeyLvl2Request, state.DRKeyStore.NewLvl2ReqHandler(protoRegistry))
 	}
 	signingTypes = append(signingTypes, infra.ChainIssueRequest)
 	msgr.UpdateSigner(state.GetSigner(), signingTypes)

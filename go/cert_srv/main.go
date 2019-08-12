@@ -25,10 +25,10 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
-	"github.com/scionproto/scion/go/cert_srv/internal/drkey"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -40,15 +40,14 @@ import (
 )
 
 var (
-	cfg              config.Config
-	state            *config.State
-	reissRunner      *periodic.Runner
-	discRunners      idiscovery.Runners
-	corePusher       *periodic.Runner
-	drkeyStoreKeeper *periodic.Runner
-	drkeyRequester   *periodic.Runner
-	msgr             infra.Messenger
-	trustDB          trustdb.TrustDB
+	cfg               config.Config
+	state             *config.State
+	reissRunner       *periodic.Runner
+	discRunners       idiscovery.Runners
+	corePusher        *periodic.Runner
+	msgr              infra.Messenger
+	trustDB           trustdb.TrustDB
+	drkeyStoreCleaner *periodic.Runner
 )
 
 func init() {
@@ -162,32 +161,29 @@ func startDRKeyRunners() {
 	}
 	// TODO(juagargi): if there has been a change in the duration, we probably need to keep
 	// the already sent keys (and their duration) as they were already handed to other entities
-	storeKeeperPeriod := 2 * cfg.DRKey.EpochDuration.Duration
-	// TODO(juagargi): the duration of the requester must depend on the present keys, not on our SV
-	requesterPeriod := cfg.DRKey.EpochDuration.Duration / 2
-	if storeKeeperPeriod < 2*requesterPeriod {
-		// since the keeper removes keys, the requester must see them before removal at least once
-		fatal.Fatal(common.NewBasicError("DRKey start failed: the removal of expired keys happens "+
-			"too often compared to the request of new level 1 keys", nil,
-			"removal period", storeKeeperPeriod, "requester period", requesterPeriod))
-	}
-	drkeyStoreKeeper = periodic.StartPeriodicTask(
-		&drkey.StoreKeeper{
-			State: state,
-		},
-		periodic.NewTicker(storeKeeperPeriod),
-		time.Minute,
-	)
-	// TODO(juagargi): check the timeout value
-	drkeyRequester = periodic.StartPeriodicTask(
-		&drkey.Requester{
-			Msgr:  msgr,
-			State: state,
-			IA:    itopo.Get().ISD_AS,
-		},
-		periodic.NewTicker(requesterPeriod),
-		time.Minute,
-	)
+	cleanerPeriod := 2 * cfg.DRKey.EpochDuration.Duration
+	// // TODO(juagargi): the duration of the requester must depend on the present keys, not on our SV
+	// requesterPeriod := cfg.DRKey.EpochDuration.Duration / 2
+	// if cleanerPeriod < 2*requesterPeriod {
+	// 	// since the keeper removes keys, the requester must see them before removal at least once
+	// 	fatal.Fatal(common.NewBasicError("DRKey start failed: the removal of expired keys happens "+
+	// 		"too often compared to the request of new level 1 keys", nil,
+	// 		"removal period", cleanerPeriod, "requester period", requesterPeriod))
+	// }
+	// // TODO(juagargi): check the timeout value
+	// drkeyRequester = periodic.StartPeriodicTask(
+	// 	&drkey.Requester{
+	// 		Msgr:  msgr,
+	// 		State: state,
+	// 		IA:    itopo.Get().ISD_AS,
+	// 	},
+	// 	periodic.NewTicker(requesterPeriod),
+	// 	time.Minute,
+	// )
+
+	drkeyStoreCleaner = periodic.StartPeriodicTask(
+		drkeystorage.NewServiceStoreCleaner(state.DRKeyStore),
+		periodic.NewTicker(cleanerPeriod), cleanerPeriod)
 }
 
 func startDiscovery() {
@@ -209,11 +205,11 @@ func stopReissRunner() {
 }
 
 func stopDRKeyRunners() {
-	if drkeyStoreKeeper != nil {
-		drkeyStoreKeeper.Stop()
-	}
-	if drkeyRequester != nil {
-		drkeyRequester.Stop()
+	// if drkeyRequester != nil {
+	// 	drkeyRequester.Stop()
+	// }
+	if drkeyStoreCleaner != nil {
+		drkeyStoreCleaner.Stop()
 	}
 }
 
