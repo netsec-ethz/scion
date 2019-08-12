@@ -43,3 +43,12 @@ type Lvl2Key struct {
 	Lvl2Meta
 	Key DRKey
 }
+
+// DelegationSecret is similar to a level 2 key, type AS to AS.
+type DelegationSecret struct {
+	Protocol string
+	Epoch    Epoch
+	SrcIA    addr.IA
+	DstIA    addr.IA
+	Key      DRKey
+}

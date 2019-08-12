@@ -42,7 +42,7 @@ type ServiceStore interface {
 	// GetValidLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
 	DeleteExpiredKeys(ctx context.Context) (int, error)
 	NewLvl1ReqHandler() infra.Handler
-	NewLvl2ReqHandler(registry *protocol.Registry) infra.Handler
+	NewLvl2ReqHandler(registry protocol.Registry) infra.Handler
 	SetMessenger(msger infra.Messenger)
 	MsgVerificationFactory
 }

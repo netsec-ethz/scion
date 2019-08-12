@@ -18,17 +18,22 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
-// Derivation specifies the interface to implement for a derivation method.
-type Derivation interface {
-	Name() string
-	DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error)
+var _ Derivation = scmp{}
+
+// scmp implements the derivation for the SCMP protocol.
+type scmp struct{}
+
+// Name returns scmp.
+func (scmp) Name() string {
+	return "scmp"
 }
 
-// DelegatedDerivation extends a Derivation with a derivation from a DS.
-type DelegatedDerivation interface {
-	Derivation
-	DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecret) (drkey.Lvl2Key, error)
+// DeriveLvl2 uses the standard derivation.
+func (scmp) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
+	return standardImpl.DeriveLvl2(meta, key)
 }
 
-// KnownDerivations maps the derivation names to their implementations.
-var KnownDerivations = make(map[string]Derivation)
+func init() {
+	s := scmp{}
+	KnownDerivations[s.Name()] = s
+}

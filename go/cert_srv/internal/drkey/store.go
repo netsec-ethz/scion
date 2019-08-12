@@ -241,7 +241,7 @@ func (s *ServiceStore) NewLvl1ReqHandler() infra.Handler {
 // NewLvl2ReqHandler returns an infra.Handler for level 1 drkey requests coming from a
 // peer, backed by the trust store. This method should only be used when servicing
 // requests coming from remote nodes.
-func (s *ServiceStore) NewLvl2ReqHandler(registry *protocol.Registry) infra.Handler {
+func (s *ServiceStore) NewLvl2ReqHandler(registry protocol.Registry) infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &lvl2ReqHandler{
 			request:  r,
@@ -445,7 +445,7 @@ func (h *lvl1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_
 type lvl2ReqHandler struct {
 	request  *infra.Request
 	store    *ServiceStore
-	registry *protocol.Registry
+	registry protocol.Registry
 }
 
 // Handle receives a level 2 drkey request and sends a reply using the messenger in its store.

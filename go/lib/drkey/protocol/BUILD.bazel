@@ -4,8 +4,10 @@ go_library(
     name = "go_default_library",
     srcs = [
         "delegated.go",
+        "piskes.go",
         "protocol.go",
         "registry.go",
+        "scmp.go",
         "standard.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/drkey/protocol",

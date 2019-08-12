@@ -29,7 +29,8 @@ const DelegatedName = "delegated"
 // from level 1 derivation without DS.
 var delegatedImpl = Delegated{}
 
-// Delegated implements the level 2 drkey derivation from level 1, without DS.
+// Delegated implements the level 2 drkey derivation from level 1, without DS. It relies on the
+// Standard implementation to derive the DS from the level 1 key.
 type Delegated struct {
 }
 
@@ -42,16 +43,30 @@ func (p Delegated) Name() string {
 func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
 	metaForDS := meta
 	meta.KeyType = drkey.AS2AS
-	ds, err := standardImpl.DeriveLvl2(metaForDS, key)
+	dsKey, err := standardImpl.DeriveLvl2(metaForDS, key)
 	if err != nil {
 		return drkey.Lvl2Key{}, common.NewBasicError("Error deriving DS", err)
 	}
+	ds := drkey.DelegationSecret{
+		Protocol: meta.Protocol,
+		Epoch:    meta.Epoch,
+		SrcIA:    meta.SrcIA,
+		DstIA:    meta.DstIA,
+		Key:      dsKey.Key,
+	}
+	return p.DeriveLvl2FromDS(meta, ds)
+}
+
+// DeriveLvl2FromDS will derive the level 2 key from a delegation secret.
+func (p Delegated) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecret) (
+	drkey.Lvl2Key, error) {
+
 	h, err := scrypto.InitMac(common.RawBytes(ds.Key))
 	if err != nil {
 		return drkey.Lvl2Key{}, err
 	}
 
-	pLen := 1
+	pLen := 0
 	buffs := []common.RawBytes{}
 	switch meta.KeyType {
 	case drkey.Host2Host:
@@ -71,22 +86,25 @@ func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl
 		pLen += len(b)
 		fallthrough
 	case drkey.AS2AS:
-		b := common.RawBytes(meta.Protocol)
-		buffs = append(buffs, b)
-		pLen += len(b)
 	default:
 		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
 	}
-	all := make(common.RawBytes, pLen)
-	copy(all[:1], common.RawBytes{byte(pLen)})
-	pLen = 1
-	for i := len(buffs) - 1; i >= 0; i-- {
-		copy(all[pLen:], buffs[i])
-		pLen += len(buffs[i])
+	var key drkey.DRKey
+	if len(buffs) > 0 {
+		all := make(common.RawBytes, pLen+1)
+		copy(all[:1], common.RawBytes{byte(pLen)})
+		pLen = 1
+		for i := len(buffs) - 1; i >= 0; i-- {
+			copy(all[pLen:], buffs[i])
+			pLen += len(buffs[i])
+		}
+		key = drkey.DRKey(h.Sum(all))
+	} else {
+		key = ds.Key
 	}
 	return drkey.Lvl2Key{
 		Lvl2Meta: meta,
-		Key:      drkey.DRKey(h.Sum(all)),
+		Key:      key,
 	}, nil
 }
 

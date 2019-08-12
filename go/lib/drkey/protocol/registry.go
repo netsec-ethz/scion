@@ -16,30 +16,60 @@ package protocol
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
-// Registry maps the name of the protocol to the derivation the protocol uses. Many different protocols
-// can use the same derivation.
-type Registry struct {
+// defaultRegistrations is the map of the already present protocol derivations.
+var defaultRegistrations = map[string]Derivation{
+	scmp{}.Name():   scmp{},
+	piskes{}.Name(): piskes{},
+}
+
+// Registry maps the name of the protocol to the derivation the protocol uses.
+// Many different protocols can use the same derivation.
+type Registry interface {
+	Register(protocolName, derivationName string) error
+	Find(name string) Derivation
+	DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error)
+}
+
+type registry struct {
+	// m is a sync Map between the protocol name and the Derivation.
 	m sync.Map
 }
 
+// NewRegistry creates and initializes a new Registry with the default registrations.
+func NewRegistry() Registry {
+	r := &registry{}
+	for k, v := range defaultRegistrations {
+		r.m.Store(k, v)
+	}
+	return r
+}
+
 // Register registers a protocol with a derivation.
-func (m *Registry) Register(protocolName string, derivationName string) error {
-	proto, found := KnownDerivations[derivationName]
+func (r *registry) Register(protocolName string, derivationName string) error {
+	der, found := KnownDerivations[derivationName]
 	if !found {
 		return fmt.Errorf("There is no DRKey derivation with name \"%s\"", derivationName)
 	}
-	m.m.Store(protocolName, proto)
+	// check if this protocol was already registered to a different derivation
+	if p := r.Find(protocolName); p != nil && reflect.TypeOf(p) != reflect.TypeOf(der) {
+		return fmt.Errorf("Protocol \"%s\" already register to \"%s\" [\"%s\" in registry]\n"+
+			"Existing: %T(%p) ; New: %T(%p)",
+			protocolName, der.Name(), p.Name(),
+			p, p, der, der)
+	}
+	r.m.Store(protocolName, der)
 	return nil
 }
 
 // Find returns the derivation associated with a protocol.
-func (m *Registry) Find(name string) Derivation {
-	p, _ := m.m.Load(name)
+func (r *registry) Find(name string) Derivation {
+	p, _ := r.m.Load(name)
 	if p == nil {
 		return nil
 	}
@@ -48,8 +78,8 @@ func (m *Registry) Find(name string) Derivation {
 
 // DeriveLvl2 will find the derivation associated with the key's protocol and use it to
 // derive the level 2 drkey.
-func (m *Registry) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	p := m.Find(meta.Protocol)
+func (r *registry) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
+	p := r.Find(meta.Protocol)
 	if p == nil {
 		return drkey.Lvl2Key{},
 			fmt.Errorf("Cannot find derivation for protocol %s", meta.Protocol)

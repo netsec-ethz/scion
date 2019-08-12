@@ -160,14 +160,14 @@ func parsedInt(val string) (int, bool, error) {
 }
 
 // ProtocolRegistry constructs a registry that represents this configuration.
-func (cfg *DRKeyConfig) ProtocolRegistry() (*protocol.Registry, error) {
-	m := protocol.Registry{}
+func (cfg *DRKeyConfig) ProtocolRegistry() (protocol.Registry, error) {
+	m := protocol.NewRegistry()
 	for protoName, implName := range cfg.Protocols {
 		if err := m.Register(protoName, implName); err != nil {
 			return nil, common.NewBasicError("Bad protocol configuration", err)
 		}
 	}
-	return &m, nil
+	return m, nil
 }
 
 // ProtocolMap is the protocol name to implementation configuration map.
