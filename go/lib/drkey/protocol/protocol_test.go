@@ -35,8 +35,8 @@ func TestDerive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SV failed")
 	}
-	if hex.EncodeToString(sv.Key) != "0f6f810ca0b7f33f3f4e975196e0acc2" {
-		t.Fatalf("Unexpected key: %s", hex.EncodeToString(sv.Key))
+	if hex.EncodeToString(sv.Key) != "47bfbb7d94706dc9e79825e5a837b006" {
+		t.Fatalf("Unexpected sv: %s", hex.EncodeToString(sv.Key))
 	}
 	lvl1, err := DeriveLvl1(drkey.Lvl1Meta{
 		Epoch: epoch,
@@ -46,14 +46,14 @@ func TestDerive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lvl1 failed")
 	}
-	if hex.EncodeToString(lvl1.Key) != "dd05f7d9fd85a3ff5597b41723e67499" {
-		t.Fatalf("Unexpected key: %s", hex.EncodeToString(lvl1.Key))
+	if hex.EncodeToString(lvl1.Key) != "51663adbc06e55f40a9ad899cf0775e5" {
+		t.Fatalf("Unexpected lvl1 key: %s", hex.EncodeToString(lvl1.Key))
 	}
 
 	protoToKey := map[string]string{
-		"foo":  "a992befcb7ec02cfc7ba69e7bfce2f02",
-		"bar":  "97f051b6d9cce55a599ef54440668b52",
-		"fooo": "62b9b381c6f556ee2b1c1b2d3c68a14e",
+		"foo":  "def3aa32ce47d4374469148b5c04fac5",
+		"bar":  "8ada021cabf2b14765f468f3c8995edb",
+		"fooo": "7f8e507aecf38c09e4cb10a0ff0cc497",
 	}
 	for proto, key := range protoToKey {
 		meta := drkey.Lvl2Meta{
@@ -68,7 +68,7 @@ func TestDerive(t *testing.T) {
 		}
 		hexKey := hex.EncodeToString(lvl2.Key)
 		if hexKey != key {
-			t.Fatalf("Wrong key: %s", hexKey)
+			t.Fatalf("Unexpected lvl2 key for protocol [%s]: %s", proto, hexKey)
 		}
 	}
 }

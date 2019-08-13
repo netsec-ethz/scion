@@ -46,6 +46,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 	}
 
 	pLen := 0
+	// add to buffs in reverse order:
 	buffs := []common.RawBytes{}
 	switch meta.KeyType {
 	case drkey.Host2Host:
@@ -53,27 +54,34 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 			return drkey.Lvl2Key{}, errors.New("Level 2 DRKey requires a src host, but it is empty")
 		}
 		b := meta.SrcHost.Pack()
-		buffs = []common.RawBytes{b}
-		pLen += len(b)
+		buffs = []common.RawBytes{
+			b,
+			common.RawBytes{byte(len(b))},
+		}
+		pLen += len(b) + 1
 		fallthrough
 	case drkey.AS2Host:
 		if meta.DstHost.Size() == 0 {
 			return drkey.Lvl2Key{}, errors.New("Level 2 DRKey requires a dst host, but it is empty")
 		}
 		b := meta.DstHost.Pack()
-		buffs = append(buffs, b)
-		pLen += len(b)
+		buffs = append(buffs,
+			b,
+			common.RawBytes{byte(len(b))})
+		pLen += len(b) + 1
 		fallthrough
 	case drkey.AS2AS:
 		b := common.RawBytes(meta.Protocol)
-		buffs = append(buffs, b)
-		pLen += len(b)
+		buffs = append(buffs,
+			common.RawBytes{byte(meta.KeyType)},
+			b,
+			common.RawBytes{byte(len(b))})
+		pLen += len(b) + 2
 	default:
 		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
 	}
-	all := make(common.RawBytes, pLen+1)
-	copy(all[:1], common.RawBytes{byte(len(meta.Protocol))})
-	pLen = 1
+	all := make(common.RawBytes, pLen)
+	pLen = 0
 	for i := len(buffs) - 1; i >= 0; i-- {
 		copy(all[pLen:], buffs[i])
 		pLen += len(buffs[i])

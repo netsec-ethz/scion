@@ -48,10 +48,11 @@ func DeriveSV(meta SVMeta, asSecret common.RawBytes) (SV, error) {
 	if msLen == 0 {
 		return SV{}, errors.New("Invalid zero sized secret")
 	}
-	all := make(common.RawBytes, msLen+8)
-	copy(all, asSecret)
-	binary.LittleEndian.PutUint32(all[msLen:], util.TimeToSecs(meta.Epoch.Begin))
-	binary.LittleEndian.PutUint32(all[msLen+4:], util.TimeToSecs(meta.Epoch.End))
+	all := make(common.RawBytes, 1+msLen+8)
+	copy(all, []byte{byte(msLen)})
+	copy(all[1:], asSecret)
+	binary.LittleEndian.PutUint32(all[msLen+1:], util.TimeToSecs(meta.Epoch.Begin))
+	binary.LittleEndian.PutUint32(all[msLen+5:], util.TimeToSecs(meta.Epoch.End))
 
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	return SV{
