@@ -45,9 +45,8 @@ func DeriveLvl1(meta drkey.Lvl1Meta, sv drkey.SV) (drkey.Lvl1Key, error) {
 	all := make(common.RawBytes, addr.IABytes)
 	meta.DstIA.Write(all)
 	mac.Write(all)
-	tmp := make([]byte, 0, mac.Size())
 	return drkey.Lvl1Key{
 		Lvl1Meta: meta,
-		Key:      drkey.DRKey(mac.Sum(tmp)),
+		Key:      drkey.DRKey(mac.Sum(nil)),
 	}, nil
 }

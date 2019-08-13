@@ -15,15 +15,65 @@
 package protocol
 
 import (
+	"encoding/hex"
 	"errors"
 	"testing"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
-type nopProtocol struct {
+func TestDerive(t *testing.T) {
+	master0 := common.RawBytes{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	epoch := drkey.NewEpoch(0, 1)
+	srcIA, _ := addr.IAFromString("1-ff00:0:111")
+	dstIA, _ := addr.IAFromString("1-ff00:0:112")
+	sv, err := drkey.DeriveSV(drkey.SVMeta{
+		Epoch: epoch,
+	}, master0)
+	if err != nil {
+		t.Fatalf("SV failed")
+	}
+	if hex.EncodeToString(sv.Key) != "0f6f810ca0b7f33f3f4e975196e0acc2" {
+		t.Fatalf("Unexpected key: %s", hex.EncodeToString(sv.Key))
+	}
+	lvl1, err := DeriveLvl1(drkey.Lvl1Meta{
+		Epoch: epoch,
+		SrcIA: srcIA,
+		DstIA: dstIA,
+	}, sv)
+	if err != nil {
+		t.Fatalf("Lvl1 failed")
+	}
+	if hex.EncodeToString(lvl1.Key) != "dd05f7d9fd85a3ff5597b41723e67499" {
+		t.Fatalf("Unexpected key: %s", hex.EncodeToString(lvl1.Key))
+	}
+
+	protoToKey := map[string]string{
+		"foo":  "a992befcb7ec02cfc7ba69e7bfce2f02",
+		"bar":  "97f051b6d9cce55a599ef54440668b52",
+		"fooo": "62b9b381c6f556ee2b1c1b2d3c68a14e",
+	}
+	for proto, key := range protoToKey {
+		meta := drkey.Lvl2Meta{
+			Protocol: proto,
+			KeyType:  drkey.AS2AS,
+			SrcIA:    srcIA,
+			DstIA:    dstIA,
+		}
+		lvl2, err := standardImpl.DeriveLvl2(meta, lvl1)
+		if err != nil {
+			t.Fatalf("Lvl2 failed")
+		}
+		hexKey := hex.EncodeToString(lvl2.Key)
+		if hexKey != key {
+			t.Fatalf("Wrong key: %s", hexKey)
+		}
+	}
 }
+
+type nopProtocol struct{}
 
 var errorNop = errors.New("Not implemented")
 
@@ -35,12 +85,8 @@ func (n nopProtocol) Name() string {
 	return "nop"
 }
 
-func TestMap(t *testing.T) {
-	m := Map{}
-	p := m.DefaultProtocol()
-	if p != nil {
-		t.Error("Default implementation expected empty")
-	}
+func TestRegistry(t *testing.T) {
+	m := NewRegistry()
 	lvl2Meta := drkey.Lvl2Meta{
 		Protocol: "foo",
 		KeyType:  drkey.AS2AS,
@@ -49,9 +95,7 @@ func TestMap(t *testing.T) {
 		Lvl1Meta: drkey.Lvl1Meta{
 			Epoch: drkey.NewEpoch(0, 1),
 		},
-		DRKey: drkey.DRKey{
-			Key: common.RawBytes{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5},
-		},
+		Key: drkey.DRKey{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5},
 	}
 	_, err := m.DeriveLvl2(lvl2Meta, lvl1Key)
 	if err == nil {
@@ -62,22 +106,13 @@ func TestMap(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	lvl2Meta.Protocol = "bar"
-	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
-	if err == nil {
-		t.Error("Expected unable to derive level 2 because no protocol registered")
-	}
-	m.RegisterDefaultImplementation(StandardName)
-	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
 	nop := &nopProtocol{}
-	KnownImplementations[nop.Name()] = nop
+	KnownDerivations[nop.Name()] = nop
 	defer func() {
-		delete(KnownImplementations, nop.Name())
+		delete(KnownDerivations, nop.Name())
 	}()
 	m.Register("bar", "nop")
+	lvl2Meta.Protocol = "bar"
 	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
 	if err != errorNop {
 		t.Errorf("Unexpected error: %v", err)
@@ -85,14 +120,20 @@ func TestMap(t *testing.T) {
 }
 
 func TestExistingImplementations(t *testing.T) {
-	// we test that we have the two implementations we know for now
-	if len(KnownImplementations) != 2 {
-		t.Errorf("Wrong number of implementations, expecting 2, got %d", len(KnownImplementations))
+	// we test that we have the four implementations we know for now (standard,deleg,scmp,piskes)
+	if len(KnownDerivations) != 4 {
+		t.Errorf("Wrong number of implementations, expecting 4, got %d", len(KnownDerivations))
 	}
-	if _, found := KnownImplementations[StandardName]; !found {
+	if _, found := KnownDerivations[StandardName]; !found {
 		t.Errorf("\"%s\" implementation not found", StandardName)
 	}
-	if _, found := KnownImplementations[DelegatedName]; !found {
+	if _, found := KnownDerivations[DelegatedName]; !found {
 		t.Errorf("\"%s\" implementation not found", DelegatedName)
+	}
+	if _, found := KnownDerivations["scmp"]; !found {
+		t.Errorf("\"scmp\" implementation not found")
+	}
+	if _, found := KnownDerivations["piskes"]; !found {
+		t.Errorf("\"piskes\" implementation not found")
 	}
 }

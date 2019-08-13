@@ -91,14 +91,14 @@ func (p Delegated) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecr
 	}
 	var key drkey.DRKey
 	if len(buffs) > 0 {
-		all := make(common.RawBytes, pLen+1)
-		copy(all[:1], common.RawBytes{byte(pLen)})
-		pLen = 1
+		all := make(common.RawBytes, pLen)
+		pLen = 0
 		for i := len(buffs) - 1; i >= 0; i-- {
 			copy(all[pLen:], buffs[i])
 			pLen += len(buffs[i])
 		}
-		key = drkey.DRKey(h.Sum(all))
+		h.Write(all)
+		key = drkey.DRKey(h.Sum(nil))
 	} else {
 		key = ds.Key
 	}

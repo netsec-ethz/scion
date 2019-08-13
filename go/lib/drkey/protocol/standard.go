@@ -72,15 +72,16 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
 	}
 	all := make(common.RawBytes, pLen+1)
-	copy(all[:1], common.RawBytes{byte(pLen)})
+	copy(all[:1], common.RawBytes{byte(len(meta.Protocol))})
 	pLen = 1
 	for i := len(buffs) - 1; i >= 0; i-- {
 		copy(all[pLen:], buffs[i])
 		pLen += len(buffs[i])
 	}
+	h.Write(all)
 	return drkey.Lvl2Key{
 		Lvl2Meta: meta,
-		Key:      drkey.DRKey(h.Sum(all)),
+		Key:      drkey.DRKey(h.Sum(nil)),
 	}, nil
 }
 
