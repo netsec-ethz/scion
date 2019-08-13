@@ -23,19 +23,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
-)
-
-const (
-	unableToPrepareStmt = "Unable to prepare stmt"
-	unableToExecuteStmt = "Unable to execute stmt"
 )
 
 var _ drkey.Lvl1DB = (*Lvl1Backend)(nil)
 
 // Lvl1Backend implements a level 1 drkey DB with sqlite.
 type Lvl1Backend struct {
-	db                         *sql.DB
+	dbBaseBackend
 	getLvl1SrcASesStmt         *sql.Stmt
 	getValidLvl1SrcASesStmt    *sql.Stmt
 	getLvl1KeyStmt             *sql.Stmt
@@ -45,50 +39,24 @@ type Lvl1Backend struct {
 
 // NewLvl1Backend creates a database and prepares all statements.
 func NewLvl1Backend(path string) (*Lvl1Backend, error) {
-	db, err := db.NewSqlite(path, Lvl1Schema, Lvl1SchemaVersion)
+	base, err := newBaseBackend(path, Lvl1Schema, Lvl1SchemaVersion)
 	if err != nil {
 		return nil, err
 	}
 	b := &Lvl1Backend{
-		db: db,
+		dbBaseBackend: *base,
 	}
-	// On future errors, close the sql database before exiting
-	defer func() {
-		if err != nil {
-			b.db.Close()
-		}
-	}()
-	if b.getLvl1SrcASesStmt, err = b.db.Prepare(getLvl1SrcASes); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
+	stmts := preparedStmts{
+		getLvl1SrcASes:         &b.getLvl1SrcASesStmt,
+		getValidLvl1SrcASes:    &b.getValidLvl1SrcASesStmt,
+		getLvl1Key:             &b.getLvl1KeyStmt,
+		insertLvl1Key:          &b.insertLvl1KeyStmt,
+		removeOutdatedLvl1Keys: &b.removeOutdatedLvl1KeysStmt,
 	}
-	if b.getValidLvl1SrcASesStmt, err = b.db.Prepare(getValidLvl1SrcASes); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
-	}
-	if b.getLvl1KeyStmt, err = b.db.Prepare(getLvl1Key); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
-	}
-	if b.insertLvl1KeyStmt, err = b.db.Prepare(insertLvl1Key); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
-	}
-	if b.removeOutdatedLvl1KeysStmt, err = b.db.Prepare(removeOutdatedLvl1Keys); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
+	if err := base.prepareAll(stmts); err != nil {
+		return nil, err
 	}
 	return b, nil
-}
-
-// Close closes the database connection.
-func (b *Lvl1Backend) Close() error {
-	return b.db.Close()
-}
-
-// SetMaxOpenConns sets the maximum number of open connections.
-func (b *Lvl1Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Lvl1Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
 const getLvl1SrcASes = `

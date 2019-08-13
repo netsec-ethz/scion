@@ -22,14 +22,13 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
 var _ drkey.Lvl2DB = (*Lvl2Backend)(nil)
 
 // Lvl2Backend implements a level 2 drkey DB with sqlite.
 type Lvl2Backend struct {
-	db                         *sql.DB
+	dbBaseBackend
 	getLvl2KeyStmt             *sql.Stmt
 	insertLvl2KeyStmt          *sql.Stmt
 	removeOutdatedLvl2KeysStmt *sql.Stmt
@@ -37,44 +36,22 @@ type Lvl2Backend struct {
 
 // NewLvl2Backend creates a database and prepares all statements.
 func NewLvl2Backend(path string) (*Lvl2Backend, error) {
-	db, err := db.NewSqlite(path, Lvl2Schema, Lvl2SchemaVersion)
+	base, err := newBaseBackend(path, Lvl2Schema, Lvl2SchemaVersion)
 	if err != nil {
 		return nil, err
 	}
 	b := &Lvl2Backend{
-		db: db,
+		dbBaseBackend: *base,
 	}
-	// On future errors, close the sql database before exiting
-	defer func() {
-		if err != nil {
-			b.db.Close()
-		}
-	}()
-	if b.getLvl2KeyStmt, err = b.db.Prepare(getLvl2Key); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
+	stmts := preparedStmts{
+		getLvl2Key:             &b.getLvl2KeyStmt,
+		insertLvl2Key:          &b.insertLvl2KeyStmt,
+		removeOutdatedLvl2Keys: &b.removeOutdatedLvl2KeysStmt,
 	}
-	if b.insertLvl2KeyStmt, err = b.db.Prepare(insertLvl2Key); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
-	}
-	if b.removeOutdatedLvl2KeysStmt, err = b.db.Prepare(removeOutdatedLvl2Keys); err != nil {
-		return nil, common.NewBasicError(unableToPrepareStmt, err)
+	if err := base.prepareAll(stmts); err != nil {
+		return nil, err
 	}
 	return b, nil
-}
-
-// Close closes the database connection.
-func (b *Lvl2Backend) Close() error {
-	return b.db.Close()
-}
-
-// SetMaxOpenConns sets the maximum number of open connections.
-func (b *Lvl2Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Lvl2Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
 const getLvl2Key = `
