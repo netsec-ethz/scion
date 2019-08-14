@@ -15,6 +15,7 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"testing"
@@ -24,7 +25,78 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
-func TestDerive(t *testing.T) {
+func TestDeriveStandard(t *testing.T) {
+	lvl1 := getLvl1(t)
+	protoToKey := map[string]string{
+		"foo":  "def3aa32ce47d4374469148b5c04fac5",
+		"bar":  "8ada021cabf2b14765f468f3c8995edb",
+		"fooo": "7f8e507aecf38c09e4cb10a0ff0cc497",
+	}
+	for proto, key := range protoToKey {
+		meta := drkey.Lvl2Meta{
+			Protocol: proto,
+			KeyType:  drkey.AS2AS,
+			SrcIA:    lvl1.SrcIA,
+			DstIA:    lvl1.DstIA,
+		}
+		lvl2, err := standardImpl.DeriveLvl2(meta, lvl1)
+		if err != nil {
+			t.Fatalf("Lvl2 failed")
+		}
+		hexKey := hex.EncodeToString(lvl2.Key)
+		if hexKey != key {
+			t.Fatalf("Unexpected lvl2 key for protocol [%s]: %s", proto, hexKey)
+		}
+	}
+	// TODO(juagargi): test as2host and host2host. Get the key values from an authorative source.
+}
+
+func TestDeriveDelegated(t *testing.T) {
+	lvl1 := getLvl1(t)
+	for _, proto := range []string{"foo", "bar", "fooo"} {
+		meta := drkey.Lvl2Meta{
+			Protocol: proto,
+			KeyType:  drkey.AS2AS,
+			SrcIA:    lvl1.SrcIA,
+			DstIA:    lvl1.DstIA,
+		}
+		lvl2standard, err := delegatedImpl.DeriveLvl2(meta, lvl1)
+		if err != nil {
+			t.Fatalf("Lvl2 standard failed")
+		}
+		lvl2deleg, err := delegatedImpl.DeriveLvl2(meta, lvl1)
+		if err != nil {
+			t.Fatalf("Lvl2 delegated failed")
+		}
+		if !bytes.Equal(lvl2deleg.Key, lvl2standard.Key) {
+			t.Fatalf("Keys must be equal for AS2AS")
+		}
+	}
+	protoToLvl2 := map[string]string{
+		"foo":  "84e628f7c9318d6831ff4f85827f7af3",
+		"bar":  "f51fa0769a6e3d2b9570eefb788a92c0",
+		"fooo": "d88513be2ff73b11615053540146e960",
+	}
+	for proto, key := range protoToLvl2 {
+		meta := drkey.Lvl2Meta{
+			Protocol: proto,
+			KeyType:  drkey.AS2Host,
+			SrcIA:    lvl1.SrcIA,
+			DstIA:    lvl1.DstIA,
+			DstHost:  addr.HostFromIPStr("127.0.0.1"),
+		}
+		lvl2, err := delegatedImpl.DeriveLvl2(meta, lvl1)
+		if err != nil {
+			t.Fatalf("Lvl2 failed")
+		}
+		hexKey := hex.EncodeToString(lvl2.Key)
+		if hexKey != key {
+			t.Fatalf("Unexpected lvl2 key for protocol [%s]: %s", proto, hexKey)
+		}
+	}
+}
+
+func getLvl1(t *testing.T) drkey.Lvl1Key {
 	master0 := common.RawBytes{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
 	epoch := drkey.NewEpoch(0, 1)
 	srcIA, _ := addr.IAFromString("1-ff00:0:111")
@@ -49,28 +121,7 @@ func TestDerive(t *testing.T) {
 	if hex.EncodeToString(lvl1.Key) != "51663adbc06e55f40a9ad899cf0775e5" {
 		t.Fatalf("Unexpected lvl1 key: %s", hex.EncodeToString(lvl1.Key))
 	}
-
-	protoToKey := map[string]string{
-		"foo":  "def3aa32ce47d4374469148b5c04fac5",
-		"bar":  "8ada021cabf2b14765f468f3c8995edb",
-		"fooo": "7f8e507aecf38c09e4cb10a0ff0cc497",
-	}
-	for proto, key := range protoToKey {
-		meta := drkey.Lvl2Meta{
-			Protocol: proto,
-			KeyType:  drkey.AS2AS,
-			SrcIA:    srcIA,
-			DstIA:    dstIA,
-		}
-		lvl2, err := standardImpl.DeriveLvl2(meta, lvl1)
-		if err != nil {
-			t.Fatalf("Lvl2 failed")
-		}
-		hexKey := hex.EncodeToString(lvl2.Key)
-		if hexKey != key {
-			t.Fatalf("Unexpected lvl2 key for protocol [%s]: %s", proto, hexKey)
-		}
-	}
+	return lvl1
 }
 
 type nopProtocol struct{}

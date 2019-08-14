@@ -31,8 +31,7 @@ var delegatedImpl = Delegated{}
 
 // Delegated implements the level 2 drkey derivation from level 1, without DS. It relies on the
 // Standard implementation to derive the DS from the level 1 key.
-type Delegated struct {
-}
+type Delegated struct{}
 
 // Name of this protocol
 func (p Delegated) Name() string {
@@ -68,43 +67,46 @@ func (p Delegated) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecr
 
 	pLen := 0
 	buffs := []common.RawBytes{}
+	// add to buffs in reverse order:
 	switch meta.KeyType {
 	case drkey.Host2Host:
 		if meta.SrcHost.Size() == 0 {
 			return drkey.Lvl2Key{}, errors.New("Level 2 DRKey requires a src host, but it is empty")
 		}
 		b := meta.SrcHost.Pack()
-		buffs = []common.RawBytes{b}
-		pLen += len(b)
+		buffs = []common.RawBytes{
+			b,
+			common.RawBytes{byte(len(b))},
+		}
+		pLen += len(b) + 1
 		fallthrough
 	case drkey.AS2Host:
 		if meta.DstHost.Size() == 0 {
 			return drkey.Lvl2Key{}, errors.New("Level 2 DRKey requires a dst host, but it is empty")
 		}
 		b := meta.DstHost.Pack()
-		buffs = append(buffs, b)
-		pLen += len(b)
-		fallthrough
+		buffs = append(buffs,
+			b,
+			common.RawBytes{byte(len(b))})
+		pLen += len(b) + 1
 	case drkey.AS2AS:
+		return drkey.Lvl2Key{
+			Lvl2Meta: meta,
+			Key:      ds.Key,
+		}, nil
 	default:
 		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
 	}
-	var key drkey.DRKey
-	if len(buffs) > 0 {
-		all := make(common.RawBytes, pLen)
-		pLen = 0
-		for i := len(buffs) - 1; i >= 0; i-- {
-			copy(all[pLen:], buffs[i])
-			pLen += len(buffs[i])
-		}
-		h.Write(all)
-		key = drkey.DRKey(h.Sum(nil))
-	} else {
-		key = ds.Key
+	all := make(common.RawBytes, pLen)
+	pLen = 0
+	for i := len(buffs) - 1; i >= 0; i-- {
+		copy(all[pLen:], buffs[i])
+		pLen += len(buffs[i])
 	}
+	h.Write(all)
 	return drkey.Lvl2Key{
 		Lvl2Meta: meta,
-		Key:      key,
+		Key:      drkey.DRKey(h.Sum(nil)),
 	}, nil
 }
 

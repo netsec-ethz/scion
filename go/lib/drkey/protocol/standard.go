@@ -22,6 +22,12 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
+// TODO(juagargi) the standard derivation (in this file) and delegated one will be just
+// functions: no name for them and won't implement any interface in particular. The way to configure
+// a new protocol will look like the SCMP or PISKES protocols: new type with their functions, and
+// registration with the correct name. No configuration will be allowed to change this (the
+// configuration file will not include any mapping protocol->derivation).
+
 // StandardName is the name of the DRKey standard derivation algorithm.
 const StandardName = "standard"
 
