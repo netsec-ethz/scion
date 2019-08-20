@@ -197,15 +197,13 @@ class CerealBox(object, metaclass=ABCMeta):
         capnp object. The appropriate python class is selected by looking up the union field name in
         CLASS_FIELD_MAP.
         """
-        type_ = "Unassigned"
         try:
             type_ = p.which()
             for cls_, field in cls.CLASS_FIELD_MAP.items():
                 if type_ == field:
                     return cls._from_union(p, cls_.from_proto(getattr(p, type_)))
-        except:
-            pass
-
+        except capnp.lib.capnp.KjException as e:
+            raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls, e))
         raise SCIONParseError("Unsupported %s proto type: %s" % (cls.NAME, type_))
 
     @classmethod
