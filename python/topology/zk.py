@@ -36,7 +36,7 @@ class ZKGenerator(object):
         self.zk_conf = {'version': '3', 'services': {}}
 
     def generate(self):
-        if not self.args.docker:
+        if not self.args.docker and not self.args.in_docker:
             return
         # Take first topo_id as zookeeper is the same for all topos
         topo_id = next(iter(self.args.topo_dicts))
