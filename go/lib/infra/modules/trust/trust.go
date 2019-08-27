@@ -659,7 +659,11 @@ func (store *Store) NewSigner(key common.RawBytes, meta infra.SignerMeta) (infra
 }
 
 func (store *Store) NewVerifier() infra.Verifier {
-	return NewBasicVerifier(store)
+	verifiabilityRange := infra.SignatureTimestampRange{
+		MaxPldAge:   10 * time.Second,
+		MaxInFuture: 10 * time.Second,
+	}
+	return NewBasicVerifier(store).WithSignatureTimestampRange(verifiabilityRange)
 }
 
 // ByAttributes returns a list of ASes in the specified ISD that
