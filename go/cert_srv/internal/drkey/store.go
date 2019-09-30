@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 
@@ -44,11 +45,84 @@ const (
 	HandlerTimeout = 3 * time.Second
 )
 
+// EpochToSV keeps the current and next secret values and removes the expired ones.
+type EpochToSV struct {
+	cache map[int64]drkey.SV
+	mutex sync.Mutex
+
+	keyDuration  time.Duration
+	stopCleaning chan bool
+	timeNowFcn   func() time.Time
+}
+
+// NewEpochToSV creates a new EpochToSV and initializes the cleaner.
+func NewEpochToSV(keyDuration time.Duration) *EpochToSV {
+	m := &EpochToSV{
+		cache:        make(map[int64]drkey.SV),
+		keyDuration:  keyDuration,
+		stopCleaning: make(chan bool),
+		timeNowFcn:   time.Now,
+	}
+	runtime.SetFinalizer(m, stopCleaner)
+	go func() {
+		defer log.LogPanicAndExit()
+		m.startCleaner()
+	}()
+	return m
+}
+
+// Get returns the element, and an indicator of its presence.
+func (m *EpochToSV) Get(idx int64) (drkey.SV, bool) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	k, found := m.cache[idx]
+	return k, found
+}
+
+// Set sets the key, and registers this element in this shard.
+func (m *EpochToSV) Set(idx int64, key drkey.SV) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.cache[idx] = key
+}
+
+// cleanExpired removes the current shard at once.
+func (m *EpochToSV) cleanExpired() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	now := m.timeNowFcn()
+	for idx, value := range m.cache {
+		if !value.Epoch.Contains(now) {
+			delete(m.cache, idx)
+		}
+	}
+}
+
+func stopCleaner(m *EpochToSV) {
+	m.stopCleaning <- true
+}
+
+func (m *EpochToSV) startCleaner() {
+	ticker := time.NewTicker(2 * m.keyDuration)
+	for {
+		select {
+		case <-ticker.C:
+			m.cleanExpired()
+		case <-m.stopCleaning:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
 // SecretValueFactory stores the secret value
 type SecretValueFactory struct {
 	keyDuration time.Duration
 	masterKey   common.RawBytes
-	keyMap      *drkey.EpochToSV
+	keyMap      *EpochToSV
 	mapMutex    sync.Mutex
 }
 
@@ -60,7 +134,7 @@ func NewSecretValueFactory(masterKey common.RawBytes,
 		masterKey:   masterKey,
 		keyDuration: keyDuration,
 	}
-	s.keyMap = drkey.NewEpochToSV(s.keyDuration)
+	s.keyMap = NewEpochToSV(s.keyDuration)
 	return s
 }
 
