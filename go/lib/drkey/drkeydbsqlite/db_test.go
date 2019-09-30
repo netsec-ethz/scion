@@ -46,7 +46,7 @@ func TestDRKeyLvl1(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	Convey("Initialize DB and derive DRKey", t, func() {
-		db, cleanF := newDatabase(t)
+		db, cleanF := newLvl1Database(t)
 		defer cleanF()
 
 		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
@@ -54,7 +54,7 @@ func TestDRKeyLvl1(t *testing.T) {
 		SoMsg("drkey", sv, ShouldNotBeNil)
 		SoMsg("drkey", err, ShouldBeNil)
 
-		drkeyLvl1, err := drkey.DeriveLvl1(drkey.Lvl1Meta{
+		drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
 			Epoch: epoch,
 			SrcIA: addr.IAFromRaw(rawSrcIA),
 			DstIA: addr.IAFromRaw(rawDstIA)}, sv)
@@ -88,7 +88,7 @@ func TestDRKeyLvl2(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	Convey("Initialize DB and derive DRKey", t, func() {
-		db, cleanF := newDatabase(t)
+		db, cleanF := newLvl2Database(t)
 		defer cleanF()
 
 		srcIA := addr.IAFromRaw(rawSrcIA)
@@ -97,7 +97,7 @@ func TestDRKeyLvl2(t *testing.T) {
 		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
 		SoMsg("drkey", sv, ShouldNotBeNil)
 		SoMsg("drkey", err, ShouldBeNil)
-		drkeyLvl1, err := drkey.DeriveLvl1(drkey.Lvl1Meta{
+		drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
 			Epoch: epoch,
 			SrcIA: srcIA,
 			DstIA: dstIA,
@@ -144,7 +144,7 @@ func TestGetMentionedASes(t *testing.T) {
 	defer cancelF()
 
 	Convey("Insert many rows", t, func() {
-		db, cleanF := newDatabase(t)
+		db, cleanF := newLvl1Database(t)
 		defer cleanF()
 
 		pairsL1 := [][]interface{}{
@@ -163,7 +163,7 @@ func TestGetMentionedASes(t *testing.T) {
 			sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
 			SoMsg("drkey", sv, ShouldNotBeNil)
 			SoMsg("drkey", err, ShouldBeNil)
-			key, err := drkey.DeriveLvl1(drkey.Lvl1Meta{
+			key, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
 				Epoch: epoch,
 				SrcIA: srcIA,
 				DstIA: dstIA,
@@ -209,7 +209,7 @@ func ia(iaStr string) addr.IA {
 	return ia
 }
 
-func newDatabase(t *testing.T) (*Backend, func()) {
+func newLvl1Database(t *testing.T) (*Lvl1Backend, func()) {
 	file, err := ioutil.TempFile("", "db-test-")
 	if err != nil {
 		t.Fatalf("unable to create temp file")
@@ -218,7 +218,26 @@ func newDatabase(t *testing.T) (*Backend, func()) {
 	if err := file.Close(); err != nil {
 		t.Fatalf("unable to close temp file")
 	}
-	db, err := New(name)
+	db, err := NewLvl1Backend(name)
+	if err != nil {
+		t.Fatalf("unable to initialize database")
+	}
+	return db, func() {
+		db.Close()
+		os.Remove(name)
+	}
+}
+
+func newLvl2Database(t *testing.T) (*Lvl2Backend, func()) {
+	file, err := ioutil.TempFile("", "db-test-")
+	if err != nil {
+		t.Fatalf("unable to create temp file")
+	}
+	name := file.Name()
+	if err := file.Close(); err != nil {
+		t.Fatalf("unable to close temp file")
+	}
+	db, err := NewLvl2Backend(name)
 	if err != nil {
 		t.Fatalf("unable to initialize database")
 	}
