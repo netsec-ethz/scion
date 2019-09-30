@@ -45,8 +45,8 @@ const (
 	HandlerTimeout = 3 * time.Second
 )
 
-// EpochToSV keeps the current and next secret values and removes the expired ones.
-type EpochToSV struct {
+// SecretValueStore keeps the current and next secret values and removes the expired ones.
+type SecretValueStore struct {
 	cache map[int64]drkey.SV
 	mutex sync.Mutex
 
@@ -55,9 +55,9 @@ type EpochToSV struct {
 	timeNowFcn   func() time.Time
 }
 
-// NewEpochToSV creates a new EpochToSV and initializes the cleaner.
-func NewEpochToSV(keyDuration time.Duration) *EpochToSV {
-	m := &EpochToSV{
+// NewSecretValueStore creates a new SecretValueStore and initializes the cleaner.
+func NewSecretValueStore(keyDuration time.Duration) *SecretValueStore {
+	m := &SecretValueStore{
 		cache:        make(map[int64]drkey.SV),
 		keyDuration:  keyDuration,
 		stopCleaning: make(chan bool),
@@ -72,7 +72,7 @@ func NewEpochToSV(keyDuration time.Duration) *EpochToSV {
 }
 
 // Get returns the element, and an indicator of its presence.
-func (m *EpochToSV) Get(idx int64) (drkey.SV, bool) {
+func (m *SecretValueStore) Get(idx int64) (drkey.SV, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -81,7 +81,7 @@ func (m *EpochToSV) Get(idx int64) (drkey.SV, bool) {
 }
 
 // Set sets the key, and registers this element in this shard.
-func (m *EpochToSV) Set(idx int64, key drkey.SV) {
+func (m *SecretValueStore) Set(idx int64, key drkey.SV) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -89,7 +89,7 @@ func (m *EpochToSV) Set(idx int64, key drkey.SV) {
 }
 
 // cleanExpired removes the current shard at once.
-func (m *EpochToSV) cleanExpired() {
+func (m *SecretValueStore) cleanExpired() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -101,11 +101,11 @@ func (m *EpochToSV) cleanExpired() {
 	}
 }
 
-func stopCleaner(m *EpochToSV) {
+func stopCleaner(m *SecretValueStore) {
 	m.stopCleaning <- true
 }
 
-func (m *EpochToSV) startCleaner() {
+func (m *SecretValueStore) startCleaner() {
 	ticker := time.NewTicker(2 * m.keyDuration)
 	for {
 		select {
@@ -122,7 +122,7 @@ func (m *EpochToSV) startCleaner() {
 type SecretValueFactory struct {
 	keyDuration time.Duration
 	masterKey   common.RawBytes
-	keyMap      *EpochToSV
+	keyMap      *SecretValueStore
 	mapMutex    sync.Mutex
 }
 
@@ -134,7 +134,7 @@ func NewSecretValueFactory(masterKey common.RawBytes,
 		masterKey:   masterKey,
 		keyDuration: keyDuration,
 	}
-	s.keyMap = NewEpochToSV(s.keyDuration)
+	s.keyMap = NewSecretValueStore(s.keyDuration)
 	return s
 }
 
