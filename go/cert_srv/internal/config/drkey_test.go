@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package drkeystorage
+package config
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ import (
 )
 
 func TestInitDefaults(t *testing.T) {
-	var cfg Config
+	var cfg DRKeyConfig
 	cfg.InitDefaults()
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -44,9 +44,9 @@ func TestInitDefaults(t *testing.T) {
 	}
 }
 
-func TestConfigSample(t *testing.T) {
+func TestDRKeyConfigSample(t *testing.T) {
 	var sample bytes.Buffer
-	var cfg Config
+	var cfg DRKeyConfig
 	cfg.Sample(&sample, nil, nil)
 	meta, err := toml.Decode(sample.String(), &cfg)
 	if err != nil {
@@ -70,7 +70,7 @@ func TestConfigSample(t *testing.T) {
 }
 
 func TestDisable(t *testing.T) {
-	var cfg = Config{}
+	var cfg = DRKeyConfig{}
 	if cfg.Enabled() == true {
 		t.Error("Unexpected enabled set")
 	}
@@ -98,7 +98,7 @@ func TestDisable(t *testing.T) {
 
 func TestProtocols(t *testing.T) {
 	// init protocols
-	m := protocol.Map{}
+	m := protocol.NewRegistry()
 	// check the name of the two know implementations
 	if err := m.Register("p1", "standard"); err != nil {
 		t.Errorf("Standard implementation not found")

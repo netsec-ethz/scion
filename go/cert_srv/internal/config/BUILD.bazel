@@ -35,11 +35,13 @@ go_test(
     name = "go_default_test",
     srcs = [
         "config_test.go",
+        "drkey_test.go",
         "state_test.go",
     ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//go/lib/drkey/protocol:go_default_library",
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/infra/modules/idiscovery/idiscoverytest:go_default_library",
         "//go/lib/keyconf:go_default_library",

@@ -162,25 +162,6 @@ func startDRKeyRunners() {
 	// TODO(juagargi): if there has been a change in the duration, we probably need to keep
 	// the already sent keys (and their duration) as they were already handed to other entities
 	cleanerPeriod := 2 * cfg.DRKey.EpochDuration.Duration
-	// // TODO(juagargi): the duration of the requester must depend on the present keys, not on our SV
-	// requesterPeriod := cfg.DRKey.EpochDuration.Duration / 2
-	// if cleanerPeriod < 2*requesterPeriod {
-	// 	// since the keeper removes keys, the requester must see them before removal at least once
-	// 	fatal.Fatal(common.NewBasicError("DRKey start failed: the removal of expired keys happens "+
-	// 		"too often compared to the request of new level 1 keys", nil,
-	// 		"removal period", cleanerPeriod, "requester period", requesterPeriod))
-	// }
-	// // TODO(juagargi): check the timeout value
-	// drkeyRequester = periodic.StartPeriodicTask(
-	// 	&drkey.Requester{
-	// 		Msgr:  msgr,
-	// 		State: state,
-	// 		IA:    itopo.Get().ISD_AS,
-	// 	},
-	// 	periodic.NewTicker(requesterPeriod),
-	// 	time.Minute,
-	// )
-
 	drkeyStoreCleaner = periodic.StartPeriodicTask(
 		drkeystorage.NewServiceStoreCleaner(state.DRKeyStore),
 		periodic.NewTicker(cleanerPeriod), cleanerPeriod)
@@ -205,9 +186,6 @@ func stopReissRunner() {
 }
 
 func stopDRKeyRunners() {
-	// if drkeyRequester != nil {
-	// 	drkeyRequester.Stop()
-	// }
 	if drkeyStoreCleaner != nil {
 		drkeyStoreCleaner.Stop()
 	}
