@@ -15,6 +15,8 @@
 package drkey
 
 import (
+	"bytes"
+
 	"github.com/scionproto/scion/go/lib/addr"
 )
 
@@ -25,8 +27,18 @@ type Lvl1Meta struct {
 	DstIA addr.IA
 }
 
+// Equal returns true if both meta are identical.
+func (m Lvl1Meta) Equal(other Lvl1Meta) bool {
+	return m.Epoch.Equal(other.Epoch) && m.SrcIA.Equal(other.SrcIA) && m.DstIA.Equal(other.DstIA)
+}
+
 // Lvl1Key represents a level 1 DRKey.
 type Lvl1Key struct {
 	Lvl1Meta
 	Key DRKey
+}
+
+// Equal returns true if both level 1 keys are identical.
+func (k Lvl1Key) Equal(other Lvl1Key) bool {
+	return k.Lvl1Meta.Equal(other.Lvl1Meta) && bytes.Compare(k.Key, other.Key) == 0
 }

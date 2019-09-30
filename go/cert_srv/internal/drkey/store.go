@@ -69,7 +69,7 @@ func (s *SecretValueFactory) GetKeyDuration() time.Duration {
 	return s.keyDuration
 }
 
-// SecretValue derives or reuses the secret value for this time stamp.
+// GetSecretValue derives or reuses the secret value for this time stamp.
 func (s *SecretValueFactory) GetSecretValue(t time.Time) (drkey.SV, error) {
 	s.mapMutex.Lock()
 	defer s.mapMutex.Unlock()
@@ -105,13 +105,13 @@ var _ drkeystorage.ServiceStore = &ServiceStore{}
 
 // NewServiceStore constructs a DRKey ServiceStore.
 func NewServiceStore(local addr.IA, asDecryptKey common.RawBytes,
-	db drkey.Lvl1DB, trustDB trustdb.TrustDB, svFactory drkeystorage.SecretValueFactory) *ServiceStore {
+	db drkey.Lvl1DB, trustDB trustdb.TrustDB, svFac drkeystorage.SecretValueFactory) *ServiceStore {
 
 	return &ServiceStore{
 		ia:           local,
 		asDecryptKey: asDecryptKey,
 		db:           db,
-		secretValues: svFactory,
+		secretValues: svFac,
 		trustDB:      trustDB,
 	}
 }
@@ -360,7 +360,7 @@ func (h *lvl1ReqHandler) buildReply(key drkey.Lvl1Key, remoteCert *cert.Certific
 		Cipher:       cipher,
 		Nonce:        nonce,
 		CertVerDst:   remoteCert.Version,
-		TimestampRaw: uint32(time.Now().Unix()),
+		TimestampRaw: util.TimeToSecs(time.Now()),
 	}
 	return reply, nil
 }

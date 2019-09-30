@@ -17,15 +17,13 @@ package config
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/drkeystorage/mock_drkeystorage"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-func TestLoadState(t *testing.T) {
+func TestNewState(t *testing.T) {
 	mstr0, _ := keyconf.LoadKey("testdata/keys/master0.key", keyconf.RawKey)
 	mstr1, _ := keyconf.LoadKey("testdata/keys/master1.key", keyconf.RawKey)
 	dcrpt, _ := keyconf.LoadKey("testdata/keys/as-decrypt.key",
@@ -34,12 +32,9 @@ func TestLoadState(t *testing.T) {
 	issSig, _ := keyconf.LoadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
 	online, _ := keyconf.LoadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
 	Convey("Load core state", t, func() {
-		ctrl, drkeystore := setupState(t)
-		defer ctrl.Finish()
-
-		drkeystore.EXPECT().SetMasterKey(gomock.Any())
-		state, err := LoadState("testdata", true, nil, nil, drkeystore)
+		keyConf, err := LoadKeyConf("testdata", true)
 		SoMsg("err", err, ShouldBeNil)
+		state := NewState(keyConf, nil, nil, nil, nil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
 		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, dcrpt)
@@ -50,12 +45,9 @@ func TestLoadState(t *testing.T) {
 	})
 
 	Convey("Load non-core state", t, func() {
-		ctrl, drkeystore := setupState(t)
-		defer ctrl.Finish()
-
-		drkeystore.EXPECT().SetMasterKey(gomock.Any())
-		state, err := LoadState("testdata", false, nil, nil, drkeystore)
+		keyConf, err := LoadKeyConf("testdata", false)
 		SoMsg("err", err, ShouldBeNil)
+		state := NewState(keyConf, nil, nil, nil, nil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
 		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, dcrpt)
@@ -64,10 +56,4 @@ func TestLoadState(t *testing.T) {
 		SoMsg("Online", state.keyConf.OnRootKey, ShouldBeZeroValue)
 		SoMsg("Offline", state.keyConf.OffRootKey, ShouldBeZeroValue)
 	})
-}
-
-func setupState(t *testing.T) (*gomock.Controller, *mock_drkeystorage.MockStore) {
-	ctrl := gomock.NewController(t)
-	drkeyStore := mock_drkeystorage.NewMockStore(ctrl)
-	return ctrl, drkeyStore
 }

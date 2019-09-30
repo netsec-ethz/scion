@@ -27,6 +27,11 @@ type Epoch struct {
 	End   time.Time
 }
 
+// Equal returns true if both Epochs are identical.
+func (e Epoch) Equal(other Epoch) bool {
+	return e.Begin == other.Begin && e.End == other.End
+}
+
 // NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
 func NewEpoch(begin, end uint32) Epoch {
 	return Epoch{

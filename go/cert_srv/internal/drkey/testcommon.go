@@ -16,21 +16,37 @@ package drkey
 
 import (
 	"testing"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
-func getTestSV() drkey.SV {
-	return drkey.SV{
-		SVMeta: drkey.SVMeta{
-			Epoch: drkey.NewEpoch(0, 1),
-		},
-		Key: drkey.DRKey{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+func getTestMasterSecret() common.RawBytes {
+	return common.RawBytes{0, 1, 2, 3}
+}
+
+// TestSecretValueFactory works as a SecretValueFactory but uses a user-controlled-variable instead
+// of time.Now when calling GetSecretValue.
+type TestSecretValueFactory struct {
+	SecretValueFactory
+	Now time.Time
+}
+
+func (f *TestSecretValueFactory) GetSecretValue(t time.Time) (drkey.SV, error) {
+	return f.SecretValueFactory.GetSecretValue(f.Now)
+}
+
+func getTestSecretValueFactory() drkeystorage.SecretValueFactory {
+	return &TestSecretValueFactory{
+		SecretValueFactory: *NewSecretValueFactory(getTestMasterSecret(), 10*time.Second),
+		Now:                util.SecsToTime(0),
 	}
 }
 

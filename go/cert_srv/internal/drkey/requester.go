@@ -14,6 +14,8 @@
 
 package drkey
 
+// TODO(juagargi) do we need a periodic task to retrieve L1 keys before they are needed?
+
 // import (
 // 	"context"
 // 	"database/sql"
