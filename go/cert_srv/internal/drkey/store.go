@@ -524,7 +524,7 @@ func (h *lvl2ReqHandler) validate() error {
 func (h *lvl2ReqHandler) deriveLvl2(meta drkey.Lvl2Meta, lvl1Key drkey.Lvl1Key) (
 	drkey.Lvl2Key, error) {
 
-	return h.registry.DeriveLvl2(meta, lvl1Key)
+	return h.registry.Find(meta.Protocol).DeriveLvl2(meta, lvl1Key)
 }
 
 // sendRep takes a level 2 drkey reply and sends it.

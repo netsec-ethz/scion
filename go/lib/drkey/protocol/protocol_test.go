@@ -17,7 +17,6 @@ package protocol
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"testing"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -124,49 +123,18 @@ func getLvl1(t *testing.T) drkey.Lvl1Key {
 	return lvl1
 }
 
-type nopProtocol struct{}
-
-var errorNop = errors.New("Not implemented")
-
-func (n nopProtocol) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	return drkey.Lvl2Key{}, errorNop
-}
-
-func (n nopProtocol) Name() string {
-	return "nop"
-}
-
 func TestRegistry(t *testing.T) {
 	m := NewRegistry()
 	lvl2Meta := drkey.Lvl2Meta{
 		Protocol: "foo",
 		KeyType:  drkey.AS2AS,
 	}
-	lvl1Key := drkey.Lvl1Key{
-		Lvl1Meta: drkey.Lvl1Meta{
-			Epoch: drkey.NewEpoch(0, 1),
-		},
-		Key: drkey.DRKey{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5},
-	}
-	_, err := m.DeriveLvl2(lvl2Meta, lvl1Key)
-	if err == nil {
+	if m.Find(lvl2Meta.Protocol) != nil {
 		t.Error("Expected unable to derive level 2 because no protocol registered")
 	}
 	m.Register("foo", StandardName)
-	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	nop := &nopProtocol{}
-	KnownDerivations[nop.Name()] = nop
-	defer func() {
-		delete(KnownDerivations, nop.Name())
-	}()
-	m.Register("bar", "nop")
-	lvl2Meta.Protocol = "bar"
-	_, err = m.DeriveLvl2(lvl2Meta, lvl1Key)
-	if err != errorNop {
-		t.Errorf("Unexpected error: %v", err)
+	if m.Find(lvl2Meta.Protocol) == nil {
+		t.Error("Could not find derivation")
 	}
 }
 

@@ -16,8 +16,6 @@ package protocol
 
 import (
 	"fmt"
-
-	"github.com/scionproto/scion/go/lib/drkey"
 )
 
 // defaultRegistrations is the map of the already present protocol derivations.
@@ -31,7 +29,6 @@ var defaultRegistrations = map[string]Derivation{
 type Registry interface {
 	Register(protocolName, derivationName string) error
 	Find(name string) Derivation
-	DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error)
 }
 
 type registry map[string]Derivation
@@ -47,8 +44,8 @@ func NewRegistry() Registry {
 
 // Register registers a protocol with a derivation.
 func (r registry) Register(protocolName string, derivationName string) error {
-	der, found := KnownDerivations[derivationName]
-	if !found || der == nil {
+	der := KnownDerivations[derivationName]
+	if der == nil {
 		return fmt.Errorf("There is no DRKey derivation with name \"%s\"", derivationName)
 	}
 	r[protocolName] = der
@@ -58,15 +55,4 @@ func (r registry) Register(protocolName string, derivationName string) error {
 // Find returns the derivation associated with a protocol.
 func (r registry) Find(name string) Derivation {
 	return r[name]
-}
-
-// DeriveLvl2 will find the derivation associated with the key's protocol and use it to
-// derive the level 2 drkey.
-func (r registry) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	p := r.Find(meta.Protocol)
-	if p == nil {
-		return drkey.Lvl2Key{},
-			fmt.Errorf("Cannot find derivation for protocol %s", meta.Protocol)
-	}
-	return p.DeriveLvl2(meta, key)
 }
