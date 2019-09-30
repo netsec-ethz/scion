@@ -16,8 +16,6 @@ package protocol
 
 import (
 	"fmt"
-	"reflect"
-	"sync"
 
 	"github.com/scionproto/scion/go/lib/drkey"
 )
@@ -36,49 +34,35 @@ type Registry interface {
 	DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error)
 }
 
-type registry struct {
-	// m is a sync Map between the protocol name and the Derivation.
-	m sync.Map
-}
+type registry map[string]Derivation
 
 // NewRegistry creates and initializes a new Registry with the default registrations.
 func NewRegistry() Registry {
-	r := &registry{}
+	r := registry{}
 	for k, v := range defaultRegistrations {
-		r.m.Store(k, v)
+		r[k] = v
 	}
-	return r
+	return &r
 }
 
 // Register registers a protocol with a derivation.
-func (r *registry) Register(protocolName string, derivationName string) error {
+func (r registry) Register(protocolName string, derivationName string) error {
 	der, found := KnownDerivations[derivationName]
-	if !found {
+	if !found || der == nil {
 		return fmt.Errorf("There is no DRKey derivation with name \"%s\"", derivationName)
 	}
-	// check if this protocol was already registered to a different derivation
-	if p := r.Find(protocolName); p != nil && reflect.TypeOf(p) != reflect.TypeOf(der) {
-		return fmt.Errorf("Protocol \"%s\" already register to \"%s\" [\"%s\" in registry]\n"+
-			"Existing: %T(%p) ; New: %T(%p)",
-			protocolName, der.Name(), p.Name(),
-			p, p, der, der)
-	}
-	r.m.Store(protocolName, der)
+	r[protocolName] = der
 	return nil
 }
 
 // Find returns the derivation associated with a protocol.
-func (r *registry) Find(name string) Derivation {
-	p, _ := r.m.Load(name)
-	if p == nil {
-		return nil
-	}
-	return p.(Derivation)
+func (r registry) Find(name string) Derivation {
+	return r[name]
 }
 
 // DeriveLvl2 will find the derivation associated with the key's protocol and use it to
 // derive the level 2 drkey.
-func (r *registry) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
+func (r registry) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
 	p := r.Find(meta.Protocol)
 	if p == nil {
 		return drkey.Lvl2Key{},
