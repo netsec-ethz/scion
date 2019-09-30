@@ -32,19 +32,19 @@ func getTestMasterSecret() common.RawBytes {
 	return common.RawBytes{0, 1, 2, 3}
 }
 
-// TestSecretValueFactory works as a SecretValueFactory but uses a user-controlled-variable instead
+// SecretValueTestFactory works as a SecretValueFactory but uses a user-controlled-variable instead
 // of time.Now when calling GetSecretValue.
-type TestSecretValueFactory struct {
+type SecretValueTestFactory struct {
 	SecretValueFactory
 	Now time.Time
 }
 
-func (f *TestSecretValueFactory) GetSecretValue(t time.Time) (drkey.SV, error) {
+func (f *SecretValueTestFactory) GetSecretValue(t time.Time) (drkey.SV, error) {
 	return f.SecretValueFactory.GetSecretValue(f.Now)
 }
 
-func getTestSecretValueFactory() drkeystorage.SecretValueFactory {
-	return &TestSecretValueFactory{
+func getSecretValueTestFactory() drkeystorage.SecretValueFactory {
+	return &SecretValueTestFactory{
 		SecretValueFactory: *NewSecretValueFactory(getTestMasterSecret(), 10*time.Second),
 		Now:                util.SecsToTime(0),
 	}

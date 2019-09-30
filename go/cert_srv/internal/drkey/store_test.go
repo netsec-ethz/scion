@@ -27,8 +27,73 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-func TestSecretValue(t *testing.T) {
+func TestSecretValueStore(t *testing.T) {
+	dur := time.Millisecond
+	c := NewSecretValueStore(dur)
+	c.timeNowFcn = func() time.Time { return time.Unix(10, 0) }
+	_, found := c.Get(1)
+	if found {
+		t.Fatalf("Should have not been found")
+	}
+	sv := drkey.SV{SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(20, 21)}}
+	c.Set(1, sv)
+	_, found = c.Get(1)
+	if !found {
+		t.Fatalf("Should have been found")
+	}
+	// the ticker should remove the key:
+	c.timeNowFcn = func() time.Time { return time.Unix(30, 0) }
+	time.Sleep(10 * time.Millisecond)
+	_, found = c.Get(1)
+	if found {
+		t.Fatalf("Should have not been found")
+	}
 
+	dur = time.Hour
+	c = NewSecretValueStore(dur)
+	k1 := drkey.SV{
+		SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(10, 12)},
+		Key:    drkey.DRKey(common.RawBytes{1, 2, 3}),
+	}
+	// k1 := &DRKey{Epoch: *NewEpoch(10, 12), Key: common.RawBytes{1, 2, 3}}
+	c.Set(1, k1)
+	k, found := c.Get(1)
+	if !found {
+		t.Fatalf("Should have been found")
+	}
+	if !k1.Equal(k) {
+		t.Fatalf("Both SVs should be equal. Expected: %v . Got: %v", k1, k)
+	}
+	if len(c.cache) != 1 {
+		t.Fatalf("The cache should contain 1 SV, but it contains %d", len(c.cache))
+	}
+	time.Sleep(10 * time.Millisecond)
+	k2 := drkey.SV{
+		SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(11, 13)},
+		Key:    drkey.DRKey(common.RawBytes{2, 3, 4}),
+	}
+	c.Set(2, k2)
+	if len(c.cache) != 2 {
+		t.Fatalf("The cache should contain 2 SVs, but it contains %d", len(c.cache))
+	}
+	c.timeNowFcn = func() time.Time { return time.Unix(12, 0).Add(-1 * time.Nanosecond) }
+	c.cleanExpired()
+	if len(c.cache) != 2 {
+		t.Fatalf("The cache should contain 2 SVs, but it contains %d", len(c.cache))
+	}
+	c.timeNowFcn = func() time.Time { return time.Unix(12, 1) }
+	c.cleanExpired()
+	if len(c.cache) != 1 {
+		t.Fatalf("The cache should contain 1 SV, but it contains %d", len(c.cache))
+	}
+	_, found = c.Get(1)
+	if found {
+		t.Fatalf("Should have not been found")
+	}
+
+}
+
+func TestSecretValueFactory(t *testing.T) {
 	master := common.RawBytes{}
 	fac := NewSecretValueFactory(master, 10*time.Second)
 	_, err := fac.GetSecretValue(time.Now())
@@ -72,7 +137,7 @@ func TestDeriveLvl1Key(t *testing.T) {
 	dstIA, _ := addr.IAFromString("1-ff00:0:111")
 	store := ServiceStore{
 		ia:           srcIA,
-		secretValues: getTestSecretValueFactory(),
+		secretValues: getSecretValueTestFactory(),
 	}
 	lvl1Key, err := store.deriveLvl1(dstIA, time.Now())
 	if err != nil {
@@ -92,7 +157,7 @@ func TestLvl1KeyBuildReply(t *testing.T) {
 
 	store := ServiceStore{
 		ia:           srcIA,
-		secretValues: getTestSecretValueFactory(),
+		secretValues: getSecretValueTestFactory(),
 		asDecryptKey: privateKey112,
 	}
 	handler := &lvl1ReqHandler{
@@ -127,7 +192,7 @@ func TestDeriveLvl2Key(t *testing.T) {
 		registry: protocol.NewRegistry(),
 	}
 
-	sv, err := getTestSecretValueFactory().GetSecretValue(util.SecsToTime(0))
+	sv, err := getSecretValueTestFactory().GetSecretValue(util.SecsToTime(0))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

@@ -15,6 +15,7 @@
 package drkey
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -36,6 +37,11 @@ type SVMeta struct {
 type SV struct {
 	SVMeta
 	Key DRKey
+}
+
+// Equal returns true if both secret values are identical.
+func (sv SV) Equal(other SV) bool {
+	return sv.Epoch.Equal(other.Epoch) && bytes.Compare(sv.Key, other.Key) == 0
 }
 
 // DeriveSV constructs a valid SV. asSecret is typically the AS master secret.
