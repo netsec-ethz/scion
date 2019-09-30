@@ -15,14 +15,14 @@
 package drkeydbsqlite
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"io/ioutil"
 	"net"
 	"os"
 	"testing"
 	"time"
-
-	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -45,161 +45,212 @@ var (
 func TestDRKeyLvl1(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	Convey("Initialize DB and derive DRKey", t, func() {
-		db, cleanF := newLvl1Database(t)
-		defer cleanF()
+	db, cleanF := newLvl1Database(t)
+	defer cleanF()
 
-		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
-		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
-		SoMsg("drkey", sv, ShouldNotBeNil)
-		SoMsg("drkey", err, ShouldBeNil)
+	epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
+	sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
+		Epoch: epoch,
+		SrcIA: addr.IAFromRaw(rawSrcIA),
+		DstIA: addr.IAFromRaw(rawDstIA)}, sv)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
-			Epoch: epoch,
-			SrcIA: addr.IAFromRaw(rawSrcIA),
-			DstIA: addr.IAFromRaw(rawDstIA)}, sv)
-		SoMsg("drkey", err, ShouldBeNil)
-		Convey("Insert drkey into database", func() {
-			err := db.InsertLvl1Key(ctx, drkeyLvl1)
-			SoMsg("err", err, ShouldBeNil)
-			// same key again. It should be okay.
-			err = db.InsertLvl1Key(ctx, drkeyLvl1)
-			SoMsg("err", err, ShouldBeNil)
+	//
+	err = db.InsertLvl1Key(ctx, drkeyLvl1)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	// same key again. It should be okay.
+	err = db.InsertLvl1Key(ctx, drkeyLvl1)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	newKey, err := db.GetLvl1Key(ctx, drkeyLvl1.Lvl1Meta, util.TimeToSecs(time.Now()))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if bytes.Compare(drkeyLvl1.Key, newKey.Key) != 0 {
+		t.Fatalf("Keys should be identical. Expected: %s. Got: %s",
+			hex.EncodeToString(drkeyLvl1.Key), hex.EncodeToString(newKey.Key))
+	}
 
-			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetLvl1Key(ctx, drkeyLvl1.Lvl1Meta, util.TimeToSecs(time.Now()))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl1.Key)
-			})
+	rows, err := db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if rows != 0 {
+		t.Fatalf("Expecting 0 rows. Got %d", rows)
+	}
+	rows, err = db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if rows != 1 {
+		t.Fatalf("Expecting 0 rows. Got %d", rows)
+	}
 
-			Convey("Remove outdated drkeys", func() {
-				rows, err := db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldEqual, 1)
-			})
-		})
-	})
 }
 
 func TestDRKeyLvl2(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	Convey("Initialize DB and derive DRKey", t, func() {
-		db, cleanF := newLvl2Database(t)
-		defer cleanF()
 
-		srcIA := addr.IAFromRaw(rawSrcIA)
-		dstIA := addr.IAFromRaw(rawDstIA)
-		epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
-		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
-		SoMsg("drkey", sv, ShouldNotBeNil)
-		SoMsg("drkey", err, ShouldBeNil)
-		drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
-			Epoch: epoch,
-			SrcIA: srcIA,
-			DstIA: dstIA,
-		}, sv)
-		SoMsg("drkey", err, ShouldBeNil)
+	db, cleanF := newLvl2Database(t)
+	defer cleanF()
 
-		standardImpl := protocol.Standard{}
-		drkeyLvl2, err := standardImpl.DeriveLvl2(drkey.Lvl2Meta{
-			KeyType:  drkey.Host2Host,
-			Protocol: "test",
-			Epoch:    epoch,
-			SrcIA:    srcIA,
-			DstIA:    dstIA,
-			SrcHost:  addr.HostFromIP(SrcHostIP),
-			DstHost:  addr.HostFromIP(DstHostIP),
-		}, drkeyLvl1)
+	srcIA := addr.IAFromRaw(rawSrcIA)
+	dstIA := addr.IAFromRaw(rawDstIA)
+	epoch := drkey.Epoch{Begin: time.Now(), End: time.Now().Add(timeOffset * time.Second)}
+	sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
+		Epoch: epoch,
+		SrcIA: srcIA,
+		DstIA: dstIA,
+	}, sv)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-		SoMsg("drkey", err, ShouldBeNil)
-		Convey("Insert drkey into database", func() {
-			err := db.InsertLvl2Key(ctx, drkeyLvl2)
-			SoMsg("err", err, ShouldBeNil)
-			err = db.InsertLvl2Key(ctx, drkeyLvl2)
-			SoMsg("err", err, ShouldBeNil)
-			Convey("Fetch drkey from database", func() {
-				newKey, err := db.GetLvl2Key(ctx, drkeyLvl2.Lvl2Meta, util.TimeToSecs(time.Now()))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("drkey", newKey.Key, ShouldResemble, drkeyLvl2.Key)
-			})
+	standardImpl := protocol.Standard{}
+	drkeyLvl2, err := standardImpl.DeriveLvl2(drkey.Lvl2Meta{
+		KeyType:  drkey.Host2Host,
+		Protocol: "test",
+		Epoch:    epoch,
+		SrcIA:    srcIA,
+		DstIA:    dstIA,
+		SrcHost:  addr.HostFromIP(SrcHostIP),
+		DstHost:  addr.HostFromIP(DstHostIP),
+	}, drkeyLvl1)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-			Convey("Remove outdated drkeys", func() {
-				rows, err := db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldEqual, 0)
-				rows, err = db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
-			})
-		})
-	})
+	err = db.InsertLvl2Key(ctx, drkeyLvl2)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	err = db.InsertLvl2Key(ctx, drkeyLvl2)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	newKey, err := db.GetLvl2Key(ctx, drkeyLvl2.Lvl2Meta, util.TimeToSecs(time.Now()))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if bytes.Compare(drkeyLvl2.Key, newKey.Key) != 0 {
+		t.Fatalf("Keys should be identical. Expected: %s. Got: %s",
+			hex.EncodeToString(drkeyLvl2.Key), hex.EncodeToString(newKey.Key))
+	}
+
+	rows, err := db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if rows != 0 {
+		t.Fatalf("Expecting 0 rows. Got %d", rows)
+	}
+	rows, err = db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if rows != 1 {
+		t.Fatalf("Expecting 1 rows. Got %d", rows)
+	}
 }
 
 func TestGetMentionedASes(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
-	Convey("Insert many rows", t, func() {
-		db, cleanF := newLvl1Database(t)
-		defer cleanF()
+	db, cleanF := newLvl1Database(t)
+	defer cleanF()
 
-		pairsL1 := [][]interface{}{
-			{"1-ff00:0:111", "1-ff00:0:112", 1},
-			{"1-ff00:0:111", "1-ff00:0:110", 10},
-			{"2-ff00:0:211", "1-ff00:0:113", 1},
-		}
-		for _, p := range pairsL1 {
-			srcIA, _ := addr.IAFromString(p[0].(string))
-			dstIA, _ := addr.IAFromString(p[1].(string))
-			begin := time.Unix(0, 0)
-			epoch := drkey.Epoch{
-				Begin: begin,
-				End:   begin.Add(time.Duration(p[2].(int)) * time.Second),
-			}
-			sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
-			SoMsg("drkey", sv, ShouldNotBeNil)
-			SoMsg("drkey", err, ShouldBeNil)
-			key, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
-				Epoch: epoch,
-				SrcIA: srcIA,
-				DstIA: dstIA,
-			}, sv)
-			SoMsg("drkey", err, ShouldBeNil)
-			err = db.InsertLvl1Key(ctx, key)
-			SoMsg("err", err, ShouldBeNil)
-		}
-
-		Convey("Get all of them", func() {
-			list, err := db.GetLvl1SrcASes(ctx)
-			SoMsg("err", err, ShouldBeNil)
-			expected := []addr.IA{
-				ia("1-ff00:0:111"),
-				ia("2-ff00:0:211"),
-			}
-			SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
-		})
-		Convey("Get valid ones", func() {
-			list, err := db.GetValidLvl1SrcASes(ctx, 3)
-			SoMsg("err", err, ShouldBeNil)
-			expected := []addr.IA{
-				ia("1-ff00:0:111"),
-			}
-			SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
-		})
-	})
-}
-
-func toMap(list []addr.IA) map[addr.IA]struct{} {
-	set := map[addr.IA]struct{}{}
-	for _, i := range list {
-		set[i] = struct{}{}
+	pairsL1 := [][]interface{}{
+		{"1-ff00:0:111", "1-ff00:0:112", 1},
+		{"1-ff00:0:111", "1-ff00:0:110", 10},
+		{"2-ff00:0:211", "1-ff00:0:113", 1},
 	}
-	return set
+	for _, p := range pairsL1 {
+		srcIA, _ := addr.IAFromString(p[0].(string))
+		dstIA, _ := addr.IAFromString(p[1].(string))
+		begin := time.Unix(0, 0)
+		epoch := drkey.Epoch{
+			Begin: begin,
+			End:   begin.Add(time.Duration(p[2].(int)) * time.Second),
+		}
+		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		key, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
+			Epoch: epoch,
+			SrcIA: srcIA,
+			DstIA: dstIA,
+		}, sv)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		err = db.InsertLvl1Key(ctx, key)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	}
+
+	list, err := db.GetLvl1SrcASes(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expected := []addr.IA{
+		ia("1-ff00:0:111"),
+		ia("2-ff00:0:211"),
+	}
+	if !equalIASlices(expected, list) {
+		t.Fatalf("Wrong list. Expected: %v. Got: %v", expected, list)
+	}
+	// SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
+
+	list, err = db.GetValidLvl1SrcASes(ctx, 3)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expected = []addr.IA{
+		ia("1-ff00:0:111"),
+	}
+	if !equalIASlices(expected, list) {
+		t.Fatalf("Wrong list. Expected: %v. Got: %v", expected, list)
+	}
+	// SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
 }
+
+func equalIASlices(a, b []addr.IA) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !a[i].Equal(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// func toMap(list []addr.IA) map[addr.IA]struct{} {
+// 	set := map[addr.IA]struct{}{}
+// 	for _, i := range list {
+// 		set[i] = struct{}{}
+// 	}
+// 	return set
+// }
 
 func ia(iaStr string) addr.IA {
 	ia, err := addr.IAFromString(iaStr)
