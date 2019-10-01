@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
@@ -59,18 +58,17 @@ func (c *Lvl2Rep) Epoch() drkey.Epoch {
 }
 
 // ToKey returns a drkey Lvl2 built from these values.
-func (c *Lvl2Rep) ToKey(srcIA, dstIA addr.IA, keyType drkey.Lvl2KeyType,
-	protocol string, srcHost, dstHost addr.HostAddr) drkey.Lvl2Key {
+func (c *Lvl2Rep) ToKey(meta drkey.Lvl2Meta) drkey.Lvl2Key {
 
 	return drkey.Lvl2Key{
 		Lvl2Meta: drkey.Lvl2Meta{
 			Epoch:    c.Epoch(),
-			SrcIA:    srcIA,
-			DstIA:    dstIA,
-			KeyType:  keyType,
-			Protocol: protocol,
-			SrcHost:  srcHost,
-			DstHost:  dstHost,
+			SrcIA:    meta.SrcIA,
+			DstIA:    meta.DstIA,
+			KeyType:  meta.KeyType,
+			Protocol: meta.Protocol,
+			SrcHost:  meta.SrcHost,
+			DstHost:  meta.DstHost,
 		},
 		Key: drkey.DRKey(c.DRKeyRaw),
 	}

@@ -129,8 +129,7 @@ type Connector interface {
 	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
 	// DRKey Level 2 request
-	DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string, valTime uint32,
-		srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (drkey.Lvl2Key, error)
+	DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close(ctx context.Context) error
 }
@@ -357,8 +356,7 @@ func (c *connector) RevNotification(ctx context.Context,
 	return reply.(*Pld).RevReply, nil
 }
 
-func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string,
-	valTime uint32, srcIA, dstIA addr.IA, srcHost, dstHost addr.HostAddr) (drkey.Lvl2Key, error) {
+func (c *connector) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error) {
 
 	c.Lock()
 	defer c.Unlock()
@@ -370,27 +368,23 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_drkeyLvl2Req,
 			DRKeyLvl2Req: &drkey_mgmt.Lvl2Req{
-				Protocol:   protocol,
-				ReqType:    keyType,
+				Protocol:   meta.Protocol,
+				ReqType:    uint8(meta.KeyType),
 				ValTimeRaw: valTime,
-				SrcIARaw:   srcIA.IAInt(),
-				DstIARaw:   dstIA.IAInt(),
-				SrcHost:    drkey_mgmt.NewHost(srcHost),
-				DstHost:    drkey_mgmt.NewHost(dstHost),
+				SrcIARaw:   meta.SrcIA.IAInt(),
+				DstIARaw:   meta.DstIA.IAInt(),
+				SrcHost:    drkey_mgmt.NewHost(meta.SrcHost),
+				DstHost:    drkey_mgmt.NewHost(meta.DstHost),
 			},
 		},
 		nil,
 	)
 	if err != nil {
 		return drkey.Lvl2Key{}, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
-			"keyType", keyType, "protocol", protocol, "valTime", valTime,
-			"srcIA", srcIA, "srcHost", srcHost,
-			"dstIA", dstIA, "dstHost", dstHost,
-		)
+			"meta", meta, "valTime", valTime)
 	}
 	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
-	return lvl2rep.ToKey(srcIA, dstIA, drkey.Lvl2KeyType(keyType),
-		protocol, srcHost, dstHost), nil
+	return lvl2rep.ToKey(meta), nil
 }
 
 func (c *connector) Close(ctx context.Context) error {

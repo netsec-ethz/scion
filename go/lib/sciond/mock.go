@@ -162,8 +162,8 @@ func (m *MockConn) RevNotification(ctx context.Context,
 }
 
 // DRKeyGetLvl2Key is not implemented
-func (m *MockConn) DRKeyGetLvl2Key(ctx context.Context, keyType uint8, protocol string,
-	valTime uint32, srcIA, dstIA addr.IA, srcHost, dsthost addr.HostAddr) (drkey.Lvl2Key, error) {
+func (m *MockConn) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
+	valTime uint32) (drkey.Lvl2Key, error) {
 
 	panic("not implemented")
 }
