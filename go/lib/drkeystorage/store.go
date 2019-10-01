@@ -26,7 +26,6 @@ import (
 
 // SecretValueFactory has the functionality to store secret values.
 type SecretValueFactory interface {
-	GetKeyDuration() time.Duration
 	GetSecretValue(time.Time) (drkey.SV, error)
 }
 

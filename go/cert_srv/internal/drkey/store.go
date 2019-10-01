@@ -138,11 +138,6 @@ func NewSecretValueFactory(masterKey common.RawBytes,
 	return s
 }
 
-// GetKeyDuration returns the max duration of all keys.
-func (s *SecretValueFactory) GetKeyDuration() time.Duration {
-	return s.keyDuration
-}
-
 // GetSecretValue derives or reuses the secret value for this time stamp.
 func (s *SecretValueFactory) GetSecretValue(t time.Time) (drkey.SV, error) {
 	s.mapMutex.Lock()
