@@ -79,10 +79,15 @@ func InitTestConfig(cfg *Config) {
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	idiscoverytest.InitTestConfig(&cfg.Discovery)
 	InitTestCSConfig(&cfg.CS)
+	InitTestDRKeyConfig(&cfg.DRKey)
 }
 
 func InitTestCSConfig(cfg *CSConfig) {
 	cfg.AutomaticRenewal = true
+}
+
+func InitTestDRKeyConfig(cfg *DRKeyConfig) {
+	cfg.EpochDuration.Duration = 23 * time.Hour
 }
 
 func CheckTestConfig(cfg *Config, id string) {
@@ -90,6 +95,7 @@ func CheckTestConfig(cfg *Config, id string) {
 	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
 	idiscoverytest.CheckTestConfig(&cfg.Discovery)
 	CheckTestCSConfig(&cfg.CS)
+	CheckTestDRKeyConfig(&cfg.DRKey)
 }
 
 func CheckTestCSConfig(cfg *CSConfig) {
@@ -100,4 +106,10 @@ func CheckTestCSConfig(cfg *CSConfig) {
 		LeafReissTime)
 	SoMsg("IssuerReissLeadTime correct", cfg.IssuerReissueLeadTime.Duration, ShouldEqual,
 		IssuerReissTime)
+}
+
+func CheckTestDRKeyConfig(cfg *DRKeyConfig) {
+	SoMsg("Epoch duration", cfg.EpochDuration.Duration, ShouldEqual, DefaultEpochDuration)
+	SoMsg("Max reply age", cfg.MaxReplyAge.Duration, ShouldEqual, DefaultMaxReplyAge)
+	SoMsg("Protocols", cfg.Protocols, ShouldContainKey, "foo")
 }
