@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
@@ -63,12 +62,4 @@ func loadCertsKeys(t *testing.T) (*cert.Certificate, common.RawBytes, *cert.Cert
 	cert112 := loadChain("testdata/as112/certs/ISD1-ASff00_0_112-V1.crt", t).Leaf
 	privateKey112, _ := keyconf.LoadKey("testdata/as112/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
 	return cert111, privateKey111, cert112, privateKey112
-}
-
-func ia(iaStr string) addr.IA {
-	ia, err := addr.IAFromString(iaStr)
-	if err != nil {
-		panic("Unexpected bad IA")
-	}
-	return ia
 }

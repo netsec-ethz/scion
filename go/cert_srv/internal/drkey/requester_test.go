@@ -34,6 +34,7 @@ package drkey
 
 // func TestUnionSet(t *testing.T) {
 // 	Convey("Union", t, func() {
+// TODO(juagargi) use xtest.MustParseIA
 // 		a := asSet{
 // 			ia("1-ff00:0:111"): struct{}{},
 // 		}
