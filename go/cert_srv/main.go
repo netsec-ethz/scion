@@ -163,7 +163,7 @@ func startDRKeyRunners() {
 	// the already sent keys (and their duration) as they were already handed to other entities
 	cleanerPeriod := 2 * cfg.DRKey.EpochDuration.Duration
 	drkeyStoreCleaner = periodic.StartPeriodicTask(
-		drkeystorage.NewServiceStoreCleaner(state.DRKeyStore),
+		drkeystorage.NewStoreCleaner(state.DRKeyStore),
 		periodic.NewTicker(cleanerPeriod), cleanerPeriod)
 }
 

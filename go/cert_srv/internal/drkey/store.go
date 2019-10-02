@@ -118,6 +118,8 @@ func (m *SecretValueStore) startCleaner() {
 	}
 }
 
+// TODO(juagargi) merge SecretValueStore and SecretValueFactory
+
 // SecretValueFactory stores the secret value
 type SecretValueFactory struct {
 	keyDuration time.Duration

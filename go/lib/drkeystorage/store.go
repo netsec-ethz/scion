@@ -28,15 +28,19 @@ type SecretValueFactory interface {
 	GetSecretValue(time.Time) (drkey.SV, error)
 }
 
+type BaseStore interface {
+	DeleteExpiredKeys(ctx context.Context) (int, error)
+	SetMessenger(msger infra.Messenger)
+}
+
 // ServiceStore is the level 1 drkey store, used by the CS.
 // It will keep a cache of those keys that were retrieved from the network.
 // It automatically removes expired keys.
 type ServiceStore interface {
+	BaseStore
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
-	DeleteExpiredKeys(ctx context.Context) (int, error)
 	NewLvl1ReqHandler() infra.Handler
 	NewLvl2ReqHandler() infra.Handler
-	SetMessenger(msger infra.Messenger)
 	MsgVerificationFactory
 }
 
@@ -47,7 +51,7 @@ type MsgVerificationFactory interface {
 }
 
 // NewServiceStoreCleaner creates a Cleaner task that removes expired level 1 drkeys.
-func NewServiceStoreCleaner(s ServiceStore) *cleaner.Cleaner {
+func NewStoreCleaner(s BaseStore) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredKeys(ctx)
 	}, "lvl1Keys")
