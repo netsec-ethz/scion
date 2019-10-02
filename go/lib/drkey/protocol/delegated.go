@@ -22,27 +22,15 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// DelegatedName is the name of the level 2 derivation using a delegation secret.
-const DelegatedName = "delegated"
-
-// DelegatedImpl is the standard implementation of the level 2 drkey derivation, i.e. directly
-// from level 1 derivation without DS.
-var delegatedImpl = Delegated{}
-
 // Delegated implements the level 2 drkey derivation from level 1, without DS. It relies on the
 // Standard implementation to derive the DS from the level 1 key.
 type Delegated struct{}
-
-// Name of this protocol
-func (p Delegated) Name() string {
-	return DelegatedName
-}
 
 // DeriveLvl2 derives the level 2 DRKey without passing through a delegation secret.
 func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
 	metaForDS := meta
 	meta.KeyType = drkey.AS2AS
-	dsKey, err := standardImpl.DeriveLvl2(metaForDS, key)
+	dsKey, err := Standard{}.DeriveLvl2(metaForDS, key)
 	if err != nil {
 		return drkey.Lvl2Key{}, common.NewBasicError("Error deriving DS", err)
 	}
@@ -108,8 +96,4 @@ func (p Delegated) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecr
 		Lvl2Meta: meta,
 		Key:      drkey.DRKey(h.Sum(nil)),
 	}, nil
-}
-
-func init() {
-	KnownDerivations[delegatedImpl.Name()] = &delegatedImpl
 }

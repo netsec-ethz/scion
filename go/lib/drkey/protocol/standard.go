@@ -23,26 +23,13 @@ import (
 )
 
 // TODO(juagargi) the standard derivation (in this file) and delegated one will be just
-// functions: no name for them and won't implement any interface in particular. The way to configure
+// functions: won't implement any interface in particular. The way to configure
 // a new protocol will look like the SCMP or PISKES protocols: new type with their functions, and
 // registration with the correct name. No configuration will be allowed to change this (the
 // configuration file will not include any mapping protocol->derivation).
 
-// StandardName is the name of the DRKey standard derivation algorithm.
-const StandardName = "standard"
-
-// StandardImpl is the standard implementation of the level 2 drkey derivation, i.e. directly
-// from level 1 derivation without DS.
-var standardImpl = Standard{}
-
 // Standard implements the level 2 drkey derivation from level 1, without DS.
-type Standard struct {
-}
-
-// Name of this protocol
-func (p Standard) Name() string {
-	return StandardName
-}
+type Standard struct{}
 
 // DeriveLvl2 derives the level 2 DRKey without passing through a delegation secret.
 func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
@@ -97,8 +84,4 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 		Lvl2Meta: meta,
 		Key:      drkey.DRKey(h.Sum(nil)),
 	}, nil
-}
-
-func init() {
-	KnownDerivations[standardImpl.Name()] = &standardImpl
 }

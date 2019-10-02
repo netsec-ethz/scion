@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -55,7 +54,6 @@ func TestSecretValueStore(t *testing.T) {
 		SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(10, 12)},
 		Key:    drkey.DRKey(common.RawBytes{1, 2, 3}),
 	}
-	// k1 := &DRKey{Epoch: *NewEpoch(10, 12), Key: common.RawBytes{1, 2, 3}}
 	c.Set(1, k1)
 	k, found := c.Get(1)
 	if !found {
@@ -188,9 +186,7 @@ func TestLvl1KeyBuildReply(t *testing.T) {
 func TestDeriveLvl2Key(t *testing.T) {
 	srcIA, _ := addr.IAFromString("1-ff00:0:1")
 	dstIA, _ := addr.IAFromString("1-ff00:0:2")
-	handler := lvl2ReqHandler{
-		registry: protocol.NewRegistry(),
-	}
+	handler := lvl2ReqHandler{}
 
 	sv, err := getSecretValueTestFactory().GetSecretValue(util.SecsToTime(0))
 	if err != nil {

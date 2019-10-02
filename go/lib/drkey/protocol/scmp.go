@@ -30,7 +30,7 @@ func (scmp) Name() string {
 
 // DeriveLvl2 uses the standard derivation.
 func (scmp) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	return standardImpl.DeriveLvl2(meta, key)
+	return Standard{}.DeriveLvl2(meta, key)
 }
 
 func init() {

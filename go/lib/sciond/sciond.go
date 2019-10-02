@@ -357,7 +357,6 @@ func (c *connector) RevNotification(ctx context.Context,
 }
 
 func (c *connector) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error) {
-
 	c.Lock()
 	defer c.Unlock()
 
@@ -379,6 +378,7 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, va
 		},
 		nil,
 	)
+	// TODO(juagargi): return error istead of timing out, when an error occurs such as protocol not found
 	if err != nil {
 		return drkey.Lvl2Key{}, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
 			"meta", meta, "valTime", valTime)

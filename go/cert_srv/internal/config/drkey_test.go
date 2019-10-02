@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
 )
 
 func TestInitDefaults(t *testing.T) {
@@ -64,9 +62,6 @@ func TestDRKeyConfigSample(t *testing.T) {
 	if cfg.MaxReplyAge.Duration != DefaultMaxReplyAge {
 		t.Errorf("Unexpected config value: %v", cfg.MaxReplyAge)
 	}
-	if _, found := cfg.Protocols["foo"]; !found {
-		t.Errorf("Protocol not found")
-	}
 }
 
 func TestDisable(t *testing.T) {
@@ -93,17 +88,5 @@ func TestDisable(t *testing.T) {
 	}
 	if cfg.MaxReplyAge.Duration != 10*time.Hour {
 		t.Errorf("Unexpected config value: %v", cfg.MaxReplyAge)
-	}
-}
-
-func TestProtocols(t *testing.T) {
-	// init protocols
-	m := protocol.NewRegistry()
-	// check the name of the two know implementations
-	if err := m.Register("p1", "standard"); err != nil {
-		t.Errorf("Standard implementation not found")
-	}
-	if err := m.Register("p2", "delegated"); err != nil {
-		t.Errorf("Delegated implementation not found")
 	}
 }

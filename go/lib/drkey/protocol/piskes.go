@@ -30,13 +30,13 @@ func (piskes) Name() string {
 
 // DeriveLvl2 uses the standard derivation.
 func (piskes) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
-	return delegatedImpl.DeriveLvl2(meta, key)
+	return Delegated{}.DeriveLvl2(meta, key)
 }
 
 func (piskes) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecret) (
 	drkey.Lvl2Key, error) {
 
-	return delegatedImpl.DeriveLvl2FromDS(meta, ds)
+	return Delegated{}.DeriveLvl2FromDS(meta, ds)
 }
 
 func init() {

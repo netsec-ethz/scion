@@ -15,7 +15,6 @@
 package config
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -24,7 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
+	// "github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -59,8 +58,6 @@ type DRKeyConfig struct {
 	MaxIdleConns string
 	// EpochDuration is the duration of the keys in this CS.
 	EpochDuration util.DurWrap
-	// Protocols is the map between protocol name and derivation.
-	Protocols ProtocolMap
 	// MaxReplyAge is the age limit for a level 1 reply to be accepted. Older are rejected.
 	MaxReplyAge util.DurWrap
 }
@@ -113,8 +110,7 @@ func (cfg *DRKeyConfig) Validate() error {
 
 // Sample writes a config sample to the writer.
 func (cfg *DRKeyConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, fmt.Sprintf(drkeyDBSample, ctx[config.ID]))
-	config.WriteSample(dst, path, ctx, &cfg.Protocols)
+	config.WriteString(dst, drkeyDBSample)
 }
 
 // ConfigName is the key in the toml file.
@@ -157,28 +153,4 @@ func parsedInt(val string) (int, bool, error) {
 	}
 	i, err := strconv.Atoi(val)
 	return i, true, err
-}
-
-// ProtocolRegistry constructs a registry that represents this configuration.
-func (cfg *DRKeyConfig) ProtocolRegistry() (protocol.Registry, error) {
-	m := protocol.NewRegistry()
-	for protoName, implName := range cfg.Protocols {
-		if err := m.Register(protoName, implName); err != nil {
-			return nil, common.NewBasicError("Bad protocol configuration", err)
-		}
-	}
-	return m, nil
-}
-
-// ProtocolMap is the protocol name to implementation configuration map.
-type ProtocolMap map[string]string
-
-// ConfigName returns the configuration name of this block.
-func (p *ProtocolMap) ConfigName() string {
-	return "protocols"
-}
-
-// Sample returns a valid sample for this configuration map.
-func (p *ProtocolMap) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, drkeyProtocolsSample)
 }

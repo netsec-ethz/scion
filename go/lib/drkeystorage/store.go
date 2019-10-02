@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
@@ -36,7 +35,7 @@ type ServiceStore interface {
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
 	DeleteExpiredKeys(ctx context.Context) (int, error)
 	NewLvl1ReqHandler() infra.Handler
-	NewLvl2ReqHandler(registry protocol.Registry) infra.Handler
+	NewLvl2ReqHandler() infra.Handler
 	SetMessenger(msger infra.Messenger)
 	MsgVerificationFactory
 }

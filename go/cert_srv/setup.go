@@ -231,12 +231,8 @@ func addHandlers() error {
 			infra.DRKeyLvl1Reply,
 			infra.DRKeyLvl2Request,
 		}
-		protoRegistry, err := cfg.DRKey.ProtocolRegistry()
-		if err != nil {
-			return err
-		}
 		msgr.AddHandler(infra.DRKeyLvl1Request, state.DRKeyStore.NewLvl1ReqHandler())
-		msgr.AddHandler(infra.DRKeyLvl2Request, state.DRKeyStore.NewLvl2ReqHandler(protoRegistry))
+		msgr.AddHandler(infra.DRKeyLvl2Request, state.DRKeyStore.NewLvl2ReqHandler())
 	}
 	signingTypes = append(signingTypes, infra.ChainIssueRequest)
 	msgr.UpdateSigner(state.GetSigner(), signingTypes)

@@ -111,5 +111,4 @@ func CheckTestCSConfig(cfg *CSConfig) {
 func CheckTestDRKeyConfig(cfg *DRKeyConfig) {
 	SoMsg("Epoch duration", cfg.EpochDuration.Duration, ShouldEqual, DefaultEpochDuration)
 	SoMsg("Max reply age", cfg.MaxReplyAge.Duration, ShouldEqual, DefaultMaxReplyAge)
-	SoMsg("Protocols", cfg.Protocols, ShouldContainKey, "foo")
 }

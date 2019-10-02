@@ -245,12 +245,11 @@ func (s *ServiceStore) NewLvl1ReqHandler() infra.Handler {
 // NewLvl2ReqHandler returns an infra.Handler for level 1 drkey requests coming from a
 // peer, backed by the trust store. This method should only be used when servicing
 // requests coming from remote nodes.
-func (s *ServiceStore) NewLvl2ReqHandler(registry protocol.Registry) infra.Handler {
+func (s *ServiceStore) NewLvl2ReqHandler() infra.Handler {
 	f := func(r *infra.Request) *infra.HandlerResult {
 		handler := &lvl2ReqHandler{
-			request:  r,
-			store:    s,
-			registry: registry,
+			request: r,
+			store:   s,
 		}
 		return handler.Handle()
 	}
@@ -447,9 +446,8 @@ func (h *lvl1ReqHandler) sendRep(ctx context.Context, addr net.Addr, rep *drkey_
 
 // lvl2ReqHandler contains the necessary information to handle a level 2 drkey request.
 type lvl2ReqHandler struct {
-	request  *infra.Request
-	store    *ServiceStore
-	registry protocol.Registry
+	request *infra.Request
+	store   *ServiceStore
 }
 
 // Handle receives a level 2 drkey request and sends a reply using the messenger in its store.
@@ -519,7 +517,11 @@ func (h *lvl2ReqHandler) validate() error {
 func (h *lvl2ReqHandler) deriveLvl2(meta drkey.Lvl2Meta, lvl1Key drkey.Lvl1Key) (
 	drkey.Lvl2Key, error) {
 
-	return h.registry.Find(meta.Protocol).DeriveLvl2(meta, lvl1Key)
+	der, found := protocol.KnownDerivations[meta.Protocol]
+	if !found {
+		return drkey.Lvl2Key{}, fmt.Errorf("No derivation found for protocol \"%s\"", meta.Protocol)
+	}
+	return der.DeriveLvl2(meta, lvl1Key)
 }
 
 // sendRep takes a level 2 drkey reply and sends it.

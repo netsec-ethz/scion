@@ -35,8 +35,3 @@ EpochDuration = "24h"
 # MaxReplyAge is the age limit for a lvl 1 reply to be accepted. Older are rejected. (default "2s")
 MaxReplyAge = "2s"
 `
-
-const drkeyProtocolsSample = `
-foo = "standard"
-bar = "delegated"
-`

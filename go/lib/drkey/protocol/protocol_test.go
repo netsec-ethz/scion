@@ -38,7 +38,7 @@ func TestDeriveStandard(t *testing.T) {
 			SrcIA:    lvl1.SrcIA,
 			DstIA:    lvl1.DstIA,
 		}
-		lvl2, err := standardImpl.DeriveLvl2(meta, lvl1)
+		lvl2, err := Standard{}.DeriveLvl2(meta, lvl1)
 		if err != nil {
 			t.Fatalf("Lvl2 failed")
 		}
@@ -59,11 +59,11 @@ func TestDeriveDelegated(t *testing.T) {
 			SrcIA:    lvl1.SrcIA,
 			DstIA:    lvl1.DstIA,
 		}
-		lvl2standard, err := delegatedImpl.DeriveLvl2(meta, lvl1)
+		lvl2standard, err := Delegated{}.DeriveLvl2(meta, lvl1)
 		if err != nil {
 			t.Fatalf("Lvl2 standard failed")
 		}
-		lvl2deleg, err := delegatedImpl.DeriveLvl2(meta, lvl1)
+		lvl2deleg, err := Delegated{}.DeriveLvl2(meta, lvl1)
 		if err != nil {
 			t.Fatalf("Lvl2 delegated failed")
 		}
@@ -84,7 +84,7 @@ func TestDeriveDelegated(t *testing.T) {
 			DstIA:    lvl1.DstIA,
 			DstHost:  addr.HostFromIPStr("127.0.0.1"),
 		}
-		lvl2, err := delegatedImpl.DeriveLvl2(meta, lvl1)
+		lvl2, err := Delegated{}.DeriveLvl2(meta, lvl1)
 		if err != nil {
 			t.Fatalf("Lvl2 failed")
 		}
@@ -123,31 +123,10 @@ func getLvl1(t *testing.T) drkey.Lvl1Key {
 	return lvl1
 }
 
-func TestRegistry(t *testing.T) {
-	m := NewRegistry()
-	lvl2Meta := drkey.Lvl2Meta{
-		Protocol: "foo",
-		KeyType:  drkey.AS2AS,
-	}
-	if m.Find(lvl2Meta.Protocol) != nil {
-		t.Error("Expected unable to derive level 2 because no protocol registered")
-	}
-	m.Register("foo", StandardName)
-	if m.Find(lvl2Meta.Protocol) == nil {
-		t.Error("Could not find derivation")
-	}
-}
-
 func TestExistingImplementations(t *testing.T) {
 	// we test that we have the four implementations we know for now (standard,deleg,scmp,piskes)
-	if len(KnownDerivations) != 4 {
+	if len(KnownDerivations) != 2 {
 		t.Errorf("Wrong number of implementations, expecting 4, got %d", len(KnownDerivations))
-	}
-	if _, found := KnownDerivations[StandardName]; !found {
-		t.Errorf("\"%s\" implementation not found", StandardName)
-	}
-	if _, found := KnownDerivations[DelegatedName]; !found {
-		t.Errorf("\"%s\" implementation not found", DelegatedName)
 	}
 	if _, found := KnownDerivations["scmp"]; !found {
 		t.Errorf("\"scmp\" implementation not found")

@@ -6,7 +6,6 @@ go_library(
         "delegated.go",
         "piskes.go",
         "protocol.go",
-        "registry.go",
         "scmp.go",
         "standard.go",
     ],
