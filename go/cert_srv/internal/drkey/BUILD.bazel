@@ -4,7 +4,8 @@ go_library(
     name = "go_default_library",
     srcs = [
         "requester.go",
-        "store.go",
+        "secret_value_store.go",
+        "service_store.go",
         "testcommon.go",
     ],
     importpath = "github.com/scionproto/scion/go/cert_srv/internal/drkey",
