@@ -44,6 +44,14 @@ type ServiceStore interface {
 	MsgVerificationFactory
 }
 
+// ClientStore is the level 2 drkey store, used by sciond.
+// It can get level 2 keys from its backes storage, or by
+// asking a remote CS.
+type ClientStore interface {
+	BaseStore
+	GetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (drkey.Lvl2Key, error)
+}
+
 type MsgVerificationFactory interface {
 	// TODO(juagargi)
 	// NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)

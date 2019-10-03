@@ -38,9 +38,9 @@ type Lvl2Rep struct {
 }
 
 // NewLvl2RepFromKey constructs a level 2 response from a standard level 2 key.
-func NewLvl2RepFromKey(key drkey.Lvl2Key, timestamp uint32) Lvl2Rep {
-	return Lvl2Rep{
-		TimestampRaw: timestamp,
+func NewLvl2RepFromKey(key drkey.Lvl2Key, timestamp time.Time) *Lvl2Rep {
+	return &Lvl2Rep{
+		TimestampRaw: util.TimeToSecs(timestamp),
 		DRKeyRaw:     common.RawBytes(key.Key),
 		EpochBegin:   util.TimeToSecs(key.Epoch.Begin),
 		EpochEnd:     util.TimeToSecs(key.Epoch.End),

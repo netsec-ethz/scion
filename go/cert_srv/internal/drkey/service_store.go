@@ -371,8 +371,8 @@ func (h *lvl2ReqHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 
-	reply := drkey_mgmt.NewLvl2RepFromKey(lvl2Key, util.TimeToSecs(time.Now()))
-	if err := h.sendRep(ctx, saddr, &reply); err != nil {
+	reply := drkey_mgmt.NewLvl2RepFromKey(lvl2Key, time.Now())
+	if err := h.sendRep(ctx, saddr, reply); err != nil {
 		logger.Error("[DRKey ServiceStore.lvl2ReqHandler] Unable to send drkey reply", "err", err)
 		return infra.MetricsErrInternal
 	}

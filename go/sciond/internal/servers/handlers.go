@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -34,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 )
@@ -291,36 +293,6 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.PacketConn
 	}
 }
 
-type DrKeyLvl2RequestHandler struct {
-	Msger    infra.Messenger
-	Topology *topology.Topo
-}
-
-func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
-	src net.Addr, pld *sciond.Pld) {
-
-	logger := log.FromCtx(ctx)
-	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", pld.DRKeyLvl2Req)
-	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
-	defer workCancelF()
-	csAddress := &snet.Addr{IA: h.Topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	rep, err := h.Msger.RequestDRKeyLvl2(workCtx, pld.DRKeyLvl2Req, csAddress, messenger.NextId())
-	if err != nil {
-		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)
-		return
-	}
-	replyToSend := &sciond.Pld{
-		Id:           pld.Id,
-		Which:        proto.SCIONDMsg_Which_drkeyLvl2Rep,
-		DRKeyLvl2Rep: rep,
-	}
-	if err := sendReply(replyToSend, conn, src); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)
-	} else {
-		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.Lvl2Rep{})
-	}
-}
-
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
 // and immediately returns with an error if it cannot. Then, revocation
 // verification is performed and the result is returned.
@@ -360,6 +332,68 @@ func isInvalid(err error) bool {
 // verification ended with an outcome of unknown.
 func isUnknown(err error) bool {
 	return err != nil
+}
+
+type DrKeyLvl2RequestHandler2 struct {
+	Store drkeystorage.ClientStore
+}
+
+func (h *DrKeyLvl2RequestHandler2) Handle(ctx context.Context, conn net.PacketConn,
+	src net.Addr, pld *sciond.Pld) {
+
+	req := pld.DRKeyLvl2Req
+	logger := log.FromCtx(ctx)
+	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", req)
+	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
+	defer workCancelF()
+
+	key, err := h.Store.GetLvl2Key(workCtx, req.ToMeta(), util.SecsToTime(req.ValTimeRaw))
+	if err != nil {
+		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)
+		return
+	}
+
+	replyToSend := &sciond.Pld{
+		Id:           pld.Id,
+		Which:        proto.SCIONDMsg_Which_drkeyLvl2Rep,
+		DRKeyLvl2Rep: drkey_mgmt.NewLvl2RepFromKey(key, time.Now()),
+	}
+	if err := sendReply(replyToSend, conn, src); err != nil {
+		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)
+	} else {
+		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.Lvl2Rep{})
+	}
+}
+
+type DrKeyLvl2RequestHandler struct {
+	Msger    infra.Messenger
+	Topology *topology.Topo
+}
+
+func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
+	src net.Addr, pld *sciond.Pld) {
+
+	logger := log.FromCtx(ctx)
+	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", pld.DRKeyLvl2Req)
+	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
+	defer workCancelF()
+
+	csAddress := &snet.Addr{IA: h.Topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	rep, err := h.Msger.RequestDRKeyLvl2(workCtx, pld.DRKeyLvl2Req, csAddress, messenger.NextId())
+	if err != nil {
+		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)
+		return
+	}
+	replyToSend := &sciond.Pld{
+		Id:           pld.Id,
+		Which:        proto.SCIONDMsg_Which_drkeyLvl2Rep,
+		DRKeyLvl2Rep: rep,
+	}
+	if err := sendReply(replyToSend, conn, src); err != nil {
+		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)
+	} else {
+		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.Lvl2Rep{})
+	}
 }
 
 func sendReply(pld *sciond.Pld, conn net.PacketConn, src net.Addr) error {

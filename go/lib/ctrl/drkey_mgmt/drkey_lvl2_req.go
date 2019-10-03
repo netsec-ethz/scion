@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -66,24 +67,50 @@ type Lvl2Req struct {
 	Misc       common.RawBytes
 }
 
-// SrcIA returns the source IA (fast path).
-func (c *Lvl2Req) SrcIA() addr.IA {
-	return c.SrcIARaw.IA()
-}
+// TODO(juagargi) it seems that we don't use Misc
 
-// DstIA returns the destination IA (slow path).
-func (c *Lvl2Req) DstIA() addr.IA {
-	return c.DstIARaw.IA()
+// NewLvl2ReqFromMeta constructs a level 2 request from a standard level 2 meta info.
+func NewLvl2ReqFromMeta(meta drkey.Lvl2Meta, valTime time.Time) Lvl2Req {
+	return Lvl2Req{
+		ReqType:    uint8(meta.KeyType),
+		Protocol:   meta.Protocol,
+		ValTimeRaw: util.TimeToSecs(valTime),
+		SrcIARaw:   meta.SrcIA.IAInt(),
+		DstIARaw:   meta.DstIA.IAInt(),
+		SrcHost:    NewHost(meta.SrcHost),
+		DstHost:    NewHost(meta.DstHost),
+	}
 }
 
 // ProtoId returns the proto ID.
-func (c *Lvl2Req) ProtoId() proto.ProtoIdType {
+func (r *Lvl2Req) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyLvl2Req_TypeID
 }
 
+// SrcIA returns the source IA (fast path).
+func (r *Lvl2Req) SrcIA() addr.IA {
+	return r.SrcIARaw.IA()
+}
+
+// DstIA returns the destination IA (slow path).
+func (r *Lvl2Req) DstIA() addr.IA {
+	return r.DstIARaw.IA()
+}
+
 // ValTime returns the validity time of the requested DRKey.
-func (c *Lvl2Req) ValTime() time.Time {
-	return util.SecsToTime(c.ValTimeRaw)
+func (r *Lvl2Req) ValTime() time.Time {
+	return util.SecsToTime(r.ValTimeRaw)
+}
+
+func (r *Lvl2Req) ToMeta() drkey.Lvl2Meta {
+	return drkey.Lvl2Meta{
+		KeyType:  drkey.Lvl2KeyType(r.ReqType),
+		Protocol: r.Protocol,
+		SrcIA:    r.SrcIA(),
+		DstIA:    r.DstIA(),
+		SrcHost:  r.SrcHost.ToHostAddr(),
+		DstHost:  r.DstHost.ToHostAddr(),
+	}
 }
 
 func (c *Lvl2Req) String() string {
