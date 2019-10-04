@@ -25,15 +25,6 @@ import (
 func TestInitDefaults(t *testing.T) {
 	var cfg DRKeyConfig
 	cfg.InitDefaults()
-	if err := cfg.Validate(); err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if string(cfg.Backend) != "sqlite" {
-		t.Errorf("Unexpected configuration value: %v", cfg.Backend)
-	}
-	if cfg.Connection != "" {
-		t.Errorf("Unexpected configuration value: %v", cfg.Connection)
-	}
 	if cfg.EpochDuration.Duration != 24*time.Hour {
 		t.Errorf("Unexpected configuration value: %v", cfg.EpochDuration)
 	}
@@ -65,7 +56,7 @@ func TestDRKeyConfigSample(t *testing.T) {
 }
 
 func TestDisable(t *testing.T) {
-	var cfg = DRKeyConfig{}
+	var cfg = NewDRKeyConfig()
 	if cfg.Enabled() == true {
 		t.Error("Unexpected enabled set")
 	}
@@ -74,8 +65,8 @@ func TestDisable(t *testing.T) {
 	}
 	cfg.EpochDuration.Duration = 10 * time.Hour
 	cfg.MaxReplyAge.Duration = 10 * time.Hour
-	cfg.Connection = "a"
-	cfg.Backend = "sqlite"
+	cfg.DRKeyDB["connection"] = "a"
+	cfg.DRKeyDB["backend"] = "sqlite"
 	cfg.InitDefaults()
 	if cfg.Enabled() != true {
 		t.Error("Unexpected enabled unset")

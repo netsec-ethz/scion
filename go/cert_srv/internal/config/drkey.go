@@ -16,15 +16,11 @@ package config
 
 import (
 	"io"
-	"strconv"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
-	// "github.com/scionproto/scion/go/lib/drkey/protocol"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -46,28 +42,27 @@ var _ (config.Config) = (*DRKeyConfig)(nil)
 
 // DRKeyConfig is the configuration for the connection to the trust database.
 type DRKeyConfig struct {
-	// enabled is set to true if we find all the required fields in the configuration
+	// enabled is set to true if we find all the required fields in the configuration.
 	enabled bool
-	// Backend is the backend key in the config mapping.
-	Backend Backend
-	// Connection is the connection key in the config mapping.
-	Connection string
-	// MaxOpenConns is the key for max open conns in the config mapping.
-	MaxOpenConns string
-	// MaxIdleConns is the key for max idle conns in the config mapping.
-	MaxIdleConns string
+	// DRKeyDB contains the DRKey DB configuration.
+	DRKeyDB drkeystorage.DRKeyDBConf
 	// EpochDuration is the duration of the keys in this CS.
 	EpochDuration util.DurWrap
 	// MaxReplyAge is the age limit for a level 1 reply to be accepted. Older are rejected.
 	MaxReplyAge util.DurWrap
 }
 
+func NewDRKeyConfig() *DRKeyConfig {
+	c := DRKeyConfig{
+		DRKeyDB: drkeystorage.DRKeyDBConf{},
+	}
+	return &c
+}
+
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
 func (cfg *DRKeyConfig) InitDefaults() {
 	cfg.enabled = true
-	if cfg.Backend == backendNone {
-		cfg.Backend = BackendSqlite
-	}
+	cfg.DRKeyDB.InitDefaults()
 	if cfg.EpochDuration.Duration == 0 {
 		cfg.enabled = false
 		cfg.EpochDuration.Duration = DefaultEpochDuration
@@ -75,7 +70,7 @@ func (cfg *DRKeyConfig) InitDefaults() {
 	if cfg.MaxReplyAge.Duration == 0 {
 		cfg.MaxReplyAge.Duration = DefaultMaxReplyAge
 	}
-	if cfg.Connection == "" {
+	if cfg.DRKeyDB.Connection() == "" {
 		cfg.enabled = false
 	}
 }
@@ -91,26 +86,13 @@ func (cfg *DRKeyConfig) Validate() error {
 	if !cfg.Enabled() {
 		return nil
 	}
-	switch cfg.Backend {
-	case BackendSqlite:
-		break
-	case backendNone:
-		return common.NewBasicError("No backend set", nil)
-	default:
-		return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend)
-	}
-	if _, _, err := parsedInt(cfg.MaxOpenConns); err != nil {
-		return err
-	}
-	if _, _, err := parsedInt(cfg.MaxIdleConns); err != nil {
-		return err
-	}
-	return nil
+	return cfg.DRKeyDB.Validate()
 }
 
 // Sample writes a config sample to the writer.
 func (cfg *DRKeyConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, drkeyDBSample)
+	config.WriteString(dst, drkeySample)
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample}, &cfg.DRKeyDB)
 }
 
 // ConfigName is the key in the toml file.
@@ -120,37 +102,5 @@ func (cfg *DRKeyConfig) ConfigName() string {
 
 // NewDB creates a drkey.DB from the config.
 func (cfg *DRKeyConfig) NewDB() (drkey.Lvl1DB, error) {
-	log.Info("Connecting DRKeyDB", "backend", cfg.Backend, "connection", cfg.Connection)
-	var err error
-	var db drkey.Lvl1DB
-
-	switch cfg.Backend {
-	case BackendSqlite:
-		db, err = drkeydbsqlite.NewLvl1Backend(cfg.Connection)
-	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend)
-	}
-	if err != nil {
-		return nil, err
-	}
-	setConnLimits(cfg, db)
-	return db, nil
-}
-
-func setConnLimits(cfg *DRKeyConfig, db drkey.Lvl1DB) {
-	if v, found, _ := parsedInt(cfg.MaxOpenConns); found {
-		db.SetMaxOpenConns(v)
-	}
-	if v, found, _ := parsedInt(cfg.MaxIdleConns); found {
-		db.SetMaxIdleConns(v)
-	}
-}
-
-// parsedInt returns the int value, flag indicating it was found, and the parsing error.
-func parsedInt(val string) (int, bool, error) {
-	if val == "" {
-		return 0, false, nil
-	}
-	i, err := strconv.Atoi(val)
-	return i, true, err
+	return cfg.DRKeyDB.NewLvl1DB()
 }

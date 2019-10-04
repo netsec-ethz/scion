@@ -217,7 +217,6 @@ func TestGetMentionedASes(t *testing.T) {
 	if !equalIASlices(expected, list) {
 		t.Fatalf("Wrong list. Expected: %v. Got: %v", expected, list)
 	}
-	// SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
 
 	list, err = db.GetValidLvl1SrcASes(ctx, 3)
 	if err != nil {
@@ -229,7 +228,6 @@ func TestGetMentionedASes(t *testing.T) {
 	if !equalIASlices(expected, list) {
 		t.Fatalf("Wrong list. Expected: %v. Got: %v", expected, list)
 	}
-	// SoMsg("list", toMap(list), ShouldResemble, toMap(expected))
 }
 
 func equalIASlices(a, b []addr.IA) bool {
@@ -243,14 +241,6 @@ func equalIASlices(a, b []addr.IA) bool {
 	}
 	return true
 }
-
-// func toMap(list []addr.IA) map[addr.IA]struct{} {
-// 	set := map[addr.IA]struct{}{}
-// 	for _, i := range list {
-// 		set[i] = struct{}{}
-// 	}
-// 	return set
-// }
 
 func ia(iaStr string) addr.IA {
 	ia, err := addr.IAFromString(iaStr)

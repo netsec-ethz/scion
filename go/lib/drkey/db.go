@@ -22,10 +22,14 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
-// Lvl1DB is the drkey database interface for level 1.
-type Lvl1DB interface {
+type BaseDB interface {
 	io.Closer
 	db.LimitSetter
+}
+
+// Lvl1DB is the drkey database interface for level 1.
+type Lvl1DB interface {
+	BaseDB
 	GetLvl1Key(ctx context.Context, key Lvl1Meta, valTime uint32) (Lvl1Key, error)
 	InsertLvl1Key(ctx context.Context, key Lvl1Key) error
 	RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error)
@@ -35,8 +39,7 @@ type Lvl1DB interface {
 
 // Lvl2DB is the drkey database interface for level 2.
 type Lvl2DB interface {
-	io.Closer
-	db.LimitSetter
+	BaseDB
 	GetLvl2Key(ctx context.Context, key Lvl2Meta, valTime uint32) (Lvl2Key, error)
 	InsertLvl2Key(ctx context.Context, key Lvl2Key) error
 	RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
