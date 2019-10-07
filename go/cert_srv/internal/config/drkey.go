@@ -24,14 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// Backend indicates the database backend type.
-type Backend string
-
 const (
-	// backendNone is the empty backend. It defaults to sqlite.
-	backendNone Backend = ""
-	// BackendSqlite indicates an sqlite backend.
-	BackendSqlite Backend = "sqlite"
 	// DefaultEpochDuration is the default duration for the drkey SV and derived keys
 	DefaultEpochDuration = 24 * time.Hour
 	// DefaultMaxReplyAge is the default allowed age for replies.
@@ -62,7 +55,6 @@ func NewDRKeyConfig() *DRKeyConfig {
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
 func (cfg *DRKeyConfig) InitDefaults() {
 	cfg.enabled = true
-	cfg.DRKeyDB.InitDefaults()
 	if cfg.EpochDuration.Duration == 0 {
 		cfg.enabled = false
 		cfg.EpochDuration.Duration = DefaultEpochDuration
@@ -70,6 +62,7 @@ func (cfg *DRKeyConfig) InitDefaults() {
 	if cfg.MaxReplyAge.Duration == 0 {
 		cfg.MaxReplyAge.Duration = DefaultMaxReplyAge
 	}
+	config.InitAll(&cfg.DRKeyDB)
 	if cfg.DRKeyDB.Connection() == "" {
 		cfg.enabled = false
 	}
@@ -81,12 +74,12 @@ func (cfg *DRKeyConfig) Enabled() bool {
 	return cfg.enabled
 }
 
-// Validate validates that all values are parsable, and the backend is set.
+// Validate validates that all values are parsable.
 func (cfg *DRKeyConfig) Validate() error {
 	if !cfg.Enabled() {
 		return nil
 	}
-	return cfg.DRKeyDB.Validate()
+	return config.ValidateAll(&cfg.DRKeyDB)
 }
 
 // Sample writes a config sample to the writer.

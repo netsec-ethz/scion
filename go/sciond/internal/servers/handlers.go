@@ -20,20 +20,17 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -334,11 +331,11 @@ func isUnknown(err error) bool {
 	return err != nil
 }
 
-type DrKeyLvl2RequestHandler2 struct {
+type DrKeyLvl2RequestHandler struct {
 	Store drkeystorage.ClientStore
 }
 
-func (h *DrKeyLvl2RequestHandler2) Handle(ctx context.Context, conn net.PacketConn,
+func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
 	src net.Addr, pld *sciond.Pld) {
 
 	req := pld.DRKeyLvl2Req
@@ -357,37 +354,6 @@ func (h *DrKeyLvl2RequestHandler2) Handle(ctx context.Context, conn net.PacketCo
 		Id:           pld.Id,
 		Which:        proto.SCIONDMsg_Which_drkeyLvl2Rep,
 		DRKeyLvl2Rep: drkey_mgmt.NewLvl2RepFromKey(key, time.Now()),
-	}
-	if err := sendReply(replyToSend, conn, src); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)
-	} else {
-		logger.Trace("Sent reply", "DRKeyLvl2Rep", drkey_mgmt.Lvl2Rep{})
-	}
-}
-
-type DrKeyLvl2RequestHandler struct {
-	Msger    infra.Messenger
-	Topology *topology.Topo
-}
-
-func (h *DrKeyLvl2RequestHandler) Handle(ctx context.Context, conn net.PacketConn,
-	src net.Addr, pld *sciond.Pld) {
-
-	logger := log.FromCtx(ctx)
-	logger.Debug("[DrKeyLvl2RequestHandler] Received request", "req", pld.DRKeyLvl2Req)
-	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
-	defer workCancelF()
-
-	csAddress := &snet.Addr{IA: h.Topology.ISD_AS, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	rep, err := h.Msger.RequestDRKeyLvl2(workCtx, pld.DRKeyLvl2Req, csAddress, messenger.NextId())
-	if err != nil {
-		logger.Error("Error sending DRKey lvl2 request via messenger", "err", err)
-		return
-	}
-	replyToSend := &sciond.Pld{
-		Id:           pld.Id,
-		Which:        proto.SCIONDMsg_Which_drkeyLvl2Rep,
-		DRKeyLvl2Rep: rep,
 	}
 	if err := sendReply(replyToSend, conn, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err, "reply", replyToSend)

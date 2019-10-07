@@ -30,6 +30,8 @@ type SecretValueFactory interface {
 
 type BaseStore interface {
 	DeleteExpiredKeys(ctx context.Context) (int, error)
+	// TODO(juagargi) the drkey store is unnecessary to create a messenger. Remove SetMessenger
+	// and make the prior presence of a messenger mandatory for the creation of any drkey store.
 	SetMessenger(msger infra.Messenger)
 }
 

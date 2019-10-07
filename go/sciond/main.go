@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/config"
+	"github.com/scionproto/scion/go/sciond/internal/drkey"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
@@ -107,6 +108,13 @@ func realMain() int {
 		log.Crit("Unable to load local TRC", "err", err)
 		return 1
 	}
+	drkeyDB, err := cfg.SD.DRKeyDB.NewLvl2DB()
+	if err != nil {
+		log.Crit("Unable to initialize drkey storage", "err", err)
+		return 1
+	}
+	defer drkeyDB.Close()
+
 	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
 	if err != nil {
 		log.Crit("Unable to create tracer", "err", err)
@@ -134,6 +142,7 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
+	drkeyStore := drkey.NewClientStore(itopo.Get().ISD_AS, drkeyDB, msger)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
@@ -156,8 +165,7 @@ func realMain() int {
 			TrustStore: trustStore,
 		},
 		proto.SCIONDMsg_Which_drkeyLvl2Req: &servers.DrKeyLvl2RequestHandler{
-			Msger:    msger,
-			Topology: itopo.Get(),
+			Store: drkeyStore,
 		},
 	}
 	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),

@@ -49,10 +49,11 @@ type ClientStore struct {
 var _ drkeystorage.ClientStore = &ClientStore{}
 
 // NewClientStore constructs a new client store without assigned messenger.
-func NewClientStore(local addr.IA, db drkey.Lvl2DB) *ClientStore {
+func NewClientStore(local addr.IA, db drkey.Lvl2DB, msger infra.Messenger) *ClientStore {
 	return &ClientStore{
-		ia: local,
-		db: db,
+		ia:    local,
+		db:    db,
+		msger: msger,
 	}
 }
 

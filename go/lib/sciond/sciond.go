@@ -360,7 +360,6 @@ func (c *connector) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, va
 	c.Lock()
 	defer c.Unlock()
 
-	// TODO(juagargi): use a store here
 	reply, err := c.dispatcher.Request(
 		ctx,
 		&Pld{
