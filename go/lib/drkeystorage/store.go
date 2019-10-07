@@ -30,9 +30,6 @@ type SecretValueFactory interface {
 
 type BaseStore interface {
 	DeleteExpiredKeys(ctx context.Context) (int, error)
-	// TODO(juagargi) the drkey store is unnecessary to create a messenger. Remove SetMessenger
-	// and make the prior presence of a messenger mandatory for the creation of any drkey store.
-	SetMessenger(msger infra.Messenger)
 }
 
 // ServiceStore is the level 1 drkey store, used by the CS.
@@ -40,6 +37,7 @@ type BaseStore interface {
 // It automatically removes expired keys.
 type ServiceStore interface {
 	BaseStore
+	SetMessenger(msger infra.Messenger)
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
 	NewLvl1ReqHandler() infra.Handler
 	NewLvl2ReqHandler() infra.Handler

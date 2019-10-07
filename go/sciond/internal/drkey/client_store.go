@@ -57,14 +57,6 @@ func NewClientStore(local addr.IA, db drkey.Lvl2DB, msger infra.Messenger) *Clie
 	}
 }
 
-// SetMessenger sets the messenter. Only callable once.
-func (s *ClientStore) SetMessenger(msger infra.Messenger) {
-	if s.msger != nil {
-		panic("messenger already set")
-	}
-	s.msger = msger
-}
-
 // GetLvl2Key returns the level 2 drkey from the local DB or if not found, by asking our local CS.
 func (s *ClientStore) GetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
 	valTime time.Time) (drkey.Lvl2Key, error) {
