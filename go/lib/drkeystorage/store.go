@@ -28,6 +28,7 @@ type SecretValueFactory interface {
 	GetSecretValue(time.Time) (drkey.SV, error)
 }
 
+// BaseStore is the common base for any drkey store.
 type BaseStore interface {
 	DeleteExpiredKeys(ctx context.Context) (int, error)
 }
@@ -41,7 +42,6 @@ type ServiceStore interface {
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
 	NewLvl1ReqHandler() infra.Handler
 	NewLvl2ReqHandler() infra.Handler
-	MsgVerificationFactory
 }
 
 // ClientStore is the level 2 drkey store, used by sciond.
@@ -52,15 +52,9 @@ type ClientStore interface {
 	GetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (drkey.Lvl2Key, error)
 }
 
-type MsgVerificationFactory interface {
-	// TODO(juagargi)
-	// NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
-	// NewVerifier() Verifier
-}
-
-// NewServiceStoreCleaner creates a Cleaner task that removes expired level 1 drkeys.
+// NewStoreCleaner creates a Cleaner task that removes expired level 1 drkeys.
 func NewStoreCleaner(s BaseStore) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredKeys(ctx)
-	}, "lvl1Keys")
+	}, "drkey")
 }
