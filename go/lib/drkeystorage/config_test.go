@@ -18,9 +18,49 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
-func TestInitDefaults(t *testing.T) {
+func TestDelegationListDefaults(t *testing.T) {
+	var cfg DelegationList
+	cfg.InitDefaults()
+	if cfg == nil {
+		t.Errorf("InitDefaults should have initialized the map, but did not")
+	}
+	if len(cfg) != 0 {
+		t.Errorf("InitDefaults should leave the map empty but is not: %+v", cfg)
+	}
+}
+
+func TestDelegationListSyntax(t *testing.T) {
+	var cfg DelegationList
+	sample1 := `piskes = ["1.1.1.1"]`
+	meta, err := toml.Decode(sample1, &cfg)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(meta.Undecoded()) != 0 {
+		t.Fatalf("Should be empty but it's not: %+v", meta.Undecoded())
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Unexpected validation error: %v", err)
+	}
+
+	sample2 := `piskes = ["not an address"]`
+	meta, err = toml.Decode(sample2, &cfg)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(meta.Undecoded()) != 0 {
+		t.Fatalf("Should be empty but it's not: %+v", meta.Undecoded())
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("Expected validation error but got none")
+	}
+}
+
+func TestInitDRKeyDBDefaults(t *testing.T) {
 	var cfg DRKeyDBConf
 	cfg.InitDefaults()
 	if err := cfg.Validate(); err != nil {

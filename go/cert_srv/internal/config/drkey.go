@@ -43,11 +43,15 @@ type DRKeyConfig struct {
 	EpochDuration util.DurWrap
 	// MaxReplyAge is the age limit for a level 1 reply to be accepted. Older are rejected.
 	MaxReplyAge util.DurWrap
+	// AuthorizedDelegations is the DelegationList for this CS.
+	Delegation drkeystorage.DelegationList
 }
 
+// NewDRKeyConfig returns a pointer to a valid, empty configuration.
 func NewDRKeyConfig() *DRKeyConfig {
 	c := DRKeyConfig{
-		DRKeyDB: drkeystorage.DRKeyDBConf{},
+		DRKeyDB:    drkeystorage.DRKeyDBConf{},
+		Delegation: drkeystorage.DelegationList{},
 	}
 	return &c
 }
@@ -62,7 +66,7 @@ func (cfg *DRKeyConfig) InitDefaults() {
 	if cfg.MaxReplyAge.Duration == 0 {
 		cfg.MaxReplyAge.Duration = DefaultMaxReplyAge
 	}
-	config.InitAll(&cfg.DRKeyDB)
+	config.InitAll(&cfg.DRKeyDB, &cfg.Delegation)
 	if cfg.DRKeyDB.Connection() == "" {
 		cfg.enabled = false
 	}
@@ -79,13 +83,14 @@ func (cfg *DRKeyConfig) Validate() error {
 	if !cfg.Enabled() {
 		return nil
 	}
-	return config.ValidateAll(&cfg.DRKeyDB)
+	return config.ValidateAll(&cfg.DRKeyDB, &cfg.Delegation)
 }
 
 // Sample writes a config sample to the writer.
 func (cfg *DRKeyConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, drkeySample)
-	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample}, &cfg.DRKeyDB)
+	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+		&cfg.DRKeyDB, &cfg.Delegation)
 }
 
 // ConfigName is the key in the toml file.

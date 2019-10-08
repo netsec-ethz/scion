@@ -19,10 +19,12 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
+	"github.com/scionproto/scion/go/lib/drkey/protocol"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -51,10 +53,13 @@ const (
 // DRKeyDBConf is the configuration used to describe both a level 1 and 2 DRKey DB.
 type DRKeyDBConf map[string]string
 
-var _ (config.Config) = (*DRKeyDBConf)(nil)
+// DelegationList configures which endhosts can get delegation secrets, per protocol.
+type DelegationList map[string][]string
 
-// InitDefaults chooses the sqlite backend if no backend is set and sets all keys
-// to lower case.
+var _ (config.Config) = (*DRKeyDBConf)(nil)
+var _ (config.Config) = (*DelegationList)(nil)
+
+// InitDefaults chooses the sqlite backend if no backend is set and sets all keys to lower case.
 func (cfg *DRKeyDBConf) InitDefaults() {
 	if *cfg == nil {
 		*cfg = make(DRKeyDBConf)
@@ -147,7 +152,7 @@ func (cfg *DRKeyDBConf) newDB(newdbFcn func(string) (drkey.BaseDB, error)) (drke
 	if err != nil {
 		return nil, err
 	}
-	setConnLimits(cfg, db)
+	cfg.setConnLimits(db)
 	return db, nil
 }
 
@@ -171,11 +176,43 @@ func (cfg *DRKeyDBConf) NewLvl2DB() (drkey.Lvl2DB, error) {
 	return db.(drkey.Lvl2DB), nil
 }
 
-func setConnLimits(cfg *DRKeyDBConf, db drkey.BaseDB) {
+func (cfg *DRKeyDBConf) setConnLimits(db drkey.BaseDB) {
 	if m, ok := cfg.MaxOpenConns(); ok {
 		db.SetMaxOpenConns(m)
 	}
 	if m, ok := cfg.MaxIdleConns(); ok {
 		db.SetMaxIdleConns(m)
 	}
+}
+
+// InitDefaults will not add or modify any entry in the config.
+func (cfg *DelegationList) InitDefaults() {
+	if *cfg == nil {
+		*cfg = make(DelegationList)
+	}
+}
+
+// Validate validates that the protocols exist, and their addresses are parsable.
+func (cfg *DelegationList) Validate() error {
+	for proto, list := range *cfg {
+		if _, found := protocol.KnownDerivations[proto]; !found {
+			return common.NewBasicError("Configured protocol not found", nil, "protocol", proto)
+		}
+		for _, ip := range list {
+			if h := addr.HostFromIPStr(ip); h == nil {
+				return common.NewBasicError("Syntax error: not a valid address", nil, "ip", ip)
+			}
+		}
+	}
+	return nil
+}
+
+// Sample writes a config sample to the writer.
+func (cfg *DelegationList) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, drkeyDelegationListSample)
+}
+
+// ConfigName is the key in the toml file.
+func (cfg *DelegationList) ConfigName() string {
+	return "delegation"
 }

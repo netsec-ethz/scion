@@ -29,3 +29,8 @@ MaxOpenConns = ""
 # empty string, the limit is not set and uses the go default. (default "")
 MaxIdleConns = ""
 `
+
+const drkeyDelegationListSample = `
+# The list of hosts authorized to get a DS per protocol.
+piskes = [ "127.0.0.1", "127.0.0.2"]
+`
