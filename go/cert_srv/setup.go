@@ -153,7 +153,7 @@ func initState(cfg *config.Config, router snet.Router) error {
 			return common.NewBasicError("Unable to initialize DRKey DB", err)
 		}
 		drkeyStore = drkey.NewServiceStore(topo.ISD_AS, keyConf.DecryptKey,
-			drkeyDB, trustDB, svFactory)
+			drkeyDB, trustDB, svFactory, cfg.DRKey.Delegation.ToMapPerHost())
 		log.Info("DRKey is enabled")
 	} else {
 		log.Warn("DRKey is DISABLED by configuration")

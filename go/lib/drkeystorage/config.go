@@ -216,3 +216,25 @@ func (cfg *DelegationList) Sample(dst io.Writer, path config.Path, ctx config.Ct
 func (cfg *DelegationList) ConfigName() string {
 	return "delegation"
 }
+
+// ToMapPerHost will return map where there is a set of supported protocols per host.
+func (cfg *DelegationList) ToMapPerHost() map[[16]byte]map[string]struct{} {
+	m := make(map[[16]byte]map[string]struct{})
+	for proto, ipList := range *cfg {
+		for _, ip := range ipList {
+			host := addr.HostFromIPStr(ip)
+			if host == nil {
+				continue
+			}
+			var rawHost [16]byte
+			copy(rawHost[:], host.IP().To16())
+			protoSet := m[rawHost]
+			if protoSet == nil {
+				protoSet = make(map[string]struct{})
+			}
+			protoSet[proto] = struct{}{}
+			m[rawHost] = protoSet
+		}
+	}
+	return m
+}

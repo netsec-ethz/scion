@@ -46,13 +46,17 @@ type ServiceStore struct {
 	trustDB      trustdb.TrustDB
 	asDecryptKey common.RawBytes
 	msger        infra.Messenger
+	// allowedDSs is a set of protocols per IP address (in 16 byte form). Represents the allowed
+	// protocols hosts can obtain delegation secrets for.
+	allowedDSs map[[16]byte]map[string]struct{}
 }
 
 var _ drkeystorage.ServiceStore = &ServiceStore{}
 
 // NewServiceStore constructs a DRKey ServiceStore.
-func NewServiceStore(local addr.IA, asDecryptKey common.RawBytes,
-	db drkey.Lvl1DB, trustDB trustdb.TrustDB, svFac drkeystorage.SecretValueFactory) *ServiceStore {
+func NewServiceStore(local addr.IA, asDecryptKey common.RawBytes, db drkey.Lvl1DB,
+	trustDB trustdb.TrustDB, svFac drkeystorage.SecretValueFactory,
+	allowedDS map[[16]byte]map[string]struct{}) *ServiceStore {
 
 	return &ServiceStore{
 		ia:           local,
@@ -60,6 +64,7 @@ func NewServiceStore(local addr.IA, asDecryptKey common.RawBytes,
 		db:           db,
 		secretValues: svFac,
 		trustDB:      trustDB,
+		allowedDSs:   allowedDS,
 	}
 }
 
@@ -235,52 +240,50 @@ type lvl1ReqHandler struct {
 // Handle receives a level 1 request and returns a level 1 reply via the
 // infra.Messenger in the store.
 func (h *lvl1ReqHandler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
-	logger.Trace("[DRKey ServiceStore.lvl1ReqHandler] got request")
+	log.Trace("[DRKey ServiceStore.lvl1ReqHandler] got request")
 	ctx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 
 	if err := h.validate(); err != nil {
-		logger.Error("[DRKey ServiceStore.lvl1ReqHandler] Error validating request", "err", err)
+		log.Error("[DRKey ServiceStore.lvl1ReqHandler] Error validating request", "err", err)
 		return infra.MetricsErrInvalid
 	}
 	saddr := h.request.Peer.(*snet.Addr)
 	req := h.request.Message.(*drkey_mgmt.Lvl1Req)
 	dstIA := req.DstIA()
-	logger.Trace("[DRKey ServiceStore.lvl1ReqHandler] Received request", "dstIA", dstIA)
+	log.Trace("[DRKey ServiceStore.lvl1ReqHandler] Received request", "dstIA", dstIA)
 	lvl1Key, err := h.store.deriveLvl1(dstIA, req.ValTime())
 	if err != nil {
-		logger.Error("[DRKey ServiceStore.lvl1ReqHandler] Error deriving level 1 key", "err", err)
+		log.Error("[DRKey ServiceStore.lvl1ReqHandler] Error deriving level 1 key", "err", err)
 		return infra.MetricsErrInternal
 	}
 	// Get the newest certificate for the remote AS
 	dstChain, err := h.store.getCertChain(ctx, dstIA, scrypto.LatestVer)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore.lvl1ReqHandler] Unable to fetch certificate for remote AS",
+		log.Error("[DRKey ServiceStore.lvl1ReqHandler] Unable to fetch certificate for remote AS",
 			"err", err)
 		return infra.MetricsErrTrustStore(err)
 	}
 
 	reply, err := h.buildReply(lvl1Key, dstChain.Leaf)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore.lvl1ReqHandler] Error building reply", "err", err)
+		log.Error("[DRKey ServiceStore.lvl1ReqHandler] Error building reply", "err", err)
 		return infra.MetricsErrInternal
 	}
 	if err := h.sendRep(ctx, saddr, &reply); err != nil {
-		logger.Error("[DRKey ServiceStore.lvl1ReqHandler] Unable to send drkey reply", "err", err)
+		log.Error("[DRKey ServiceStore.lvl1ReqHandler] Unable to send drkey reply", "err", err)
 		return infra.MetricsErrInternal
 	}
 	return infra.MetricsResultOk
 }
 
-// validate checks that the request came from a service in this AS or a CS in another AS.
+// validate checks that the request is well formed.
 func (h *lvl1ReqHandler) validate() error {
 	req := h.request.Message.(*drkey_mgmt.Lvl1Req)
 	if req == nil {
 		return common.NewBasicError("Request is NULL", nil,
 			"type(req)", fmt.Sprintf("%T", h.request.Message))
 	}
-	// TODO(juagargi) validate requester address is a service in this AS or a CS in another AS
 	return nil
 }
 
@@ -330,20 +333,19 @@ type lvl2ReqHandler struct {
 
 // Handle receives a level 2 drkey request and sends a reply using the messenger in its store.
 func (h *lvl2ReqHandler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
-	logger.Trace("[DRKey ServiceStore.lvl2ReqHandler] got request")
+	log.Trace("[DRKey ServiceStore.lvl2ReqHandler] got request")
 	ctx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 
 	if err := h.validate(); err != nil {
-		logger.Error("[DRKey ServiceStore.lvl2ReqHandler] Error validating request", "err", err)
+		log.Error("[DRKey ServiceStore.lvl2ReqHandler] Error validating request", "err", err)
 		return infra.MetricsErrInvalid
 	}
 	saddr := h.request.Peer.(*snet.Addr)
 	req := h.request.Message.(*drkey_mgmt.Lvl2Req)
 	srcIA := req.SrcIA()
 	dstIA := req.DstIA()
-	logger.Trace("[DRKey ServiceStore.lvl2ReqHandler] Received request",
+	log.Trace("[DRKey ServiceStore.lvl2ReqHandler] Received request",
 		"protocol", req.Protocol, "dstIA", dstIA)
 
 	lvl1Meta := drkey.Lvl1Meta{
@@ -352,7 +354,7 @@ func (h *lvl2ReqHandler) Handle() *infra.HandlerResult {
 	}
 	lvl1Key, err := h.store.GetLvl1Key(ctx, lvl1Meta, req.ValTime())
 	if err != nil {
-		logger.Error("[DRKey ServiceStore.lvl2ReqHandler] Error getting the level 1 key",
+		log.Error("[DRKey ServiceStore.lvl2ReqHandler] Error getting the level 1 key",
 			"err", err)
 		return infra.MetricsErrInternal
 	}
@@ -367,13 +369,13 @@ func (h *lvl2ReqHandler) Handle() *infra.HandlerResult {
 	}
 	lvl2Key, err := h.deriveLvl2(lvl2Meta, lvl1Key)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore.lvl2ReqHandler] Error deriving level 2 key", "err", err)
+		log.Error("[DRKey ServiceStore.lvl2ReqHandler] Error deriving level 2 key", "err", err)
 		return infra.MetricsErrInternal
 	}
 
 	reply := drkey_mgmt.NewLvl2RepFromKey(lvl2Key, time.Now())
 	if err := h.sendRep(ctx, saddr, reply); err != nil {
-		logger.Error("[DRKey ServiceStore.lvl2ReqHandler] Unable to send drkey reply", "err", err)
+		log.Error("[DRKey ServiceStore.lvl2ReqHandler] Unable to send drkey reply", "err", err)
 		return infra.MetricsErrInternal
 	}
 	return infra.MetricsResultOk
@@ -388,6 +390,43 @@ func (h *lvl2ReqHandler) validate() error {
 			"type(req)", fmt.Sprintf("%T", h.request.Message))
 	}
 	// TODO(juagargi) do the checks depending on the key type
+	saddr, ok := h.request.Peer.(*snet.Addr)
+	if !ok {
+		return common.NewBasicError("Requester does not have a SCION address", nil)
+	}
+	localAddr := saddr.Host.L3
+	log.Trace("lvl2ReqHandler validate", "saddr", saddr.String(), "localAddr", localAddr)
+	switch drkey.Lvl2KeyType(req.ReqType) {
+	case drkey.Host2Host:
+		if localAddr.Equal(req.SrcHost.ToHostAddr()) {
+			break
+		}
+		fallthrough
+	case drkey.AS2Host:
+		if localAddr.Equal(req.DstHost.ToHostAddr()) {
+			break
+		}
+		fallthrough
+	case drkey.AS2AS:
+		// check in the allowed endhosts list
+		var rawIP [16]byte
+		copy(rawIP[:], localAddr.IP().To16())
+		protocolSet, foundSet := h.store.allowedDSs[rawIP]
+		if foundSet {
+			if _, found := protocolSet[req.Protocol]; found {
+				log.Trace("Authorized delegated secret", "ReqType", req.ReqType,
+					"requester address", localAddr, "SrcHost", req.SrcHost.ToHostAddr().String(),
+					"DstHost", req.DstHost.ToHostAddr().String())
+				return nil
+			}
+		}
+		return common.NewBasicError("Endhost not allowed for DRKey request", nil,
+			"ReqType", req.ReqType, "endhost address", localAddr,
+			"SrcHost", req.SrcHost.ToHostAddr().String(),
+			"DstHost", req.DstHost.ToHostAddr().String())
+	default:
+		return common.NewBasicError("Unknown request type", nil, "ReqType", req.ReqType)
+	}
 	return nil
 }
 
