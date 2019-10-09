@@ -29,7 +29,7 @@ type Delegated struct{}
 // DeriveLvl2 derives the level 2 DRKey without passing through a delegation secret.
 func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2Key, error) {
 	metaForDS := meta
-	meta.KeyType = drkey.AS2AS
+	metaForDS.KeyType = drkey.AS2AS
 	dsKey, err := Standard{}.DeriveLvl2(metaForDS, key)
 	if err != nil {
 		return drkey.Lvl2Key{}, common.NewBasicError("Error deriving DS", err)

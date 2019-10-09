@@ -15,6 +15,8 @@
 package drkey
 
 import (
+	"bytes"
+
 	"github.com/scionproto/scion/go/lib/addr"
 )
 
@@ -38,10 +40,22 @@ type Lvl2Meta struct {
 	DstHost  addr.HostAddr
 }
 
+// Equal returns true if both meta are identical.
+func (m Lvl2Meta) Equal(other Lvl2Meta) bool {
+	return m.KeyType == other.KeyType && m.Protocol == other.Protocol &&
+		m.Epoch.Equal(other.Epoch) && m.SrcIA.Equal(other.SrcIA) && m.DstIA.Equal(other.DstIA) &&
+		m.SrcHost.Equal(other.SrcHost) && m.DstHost.Equal(other.DstHost)
+}
+
 // Lvl2Key represents a level 2 DRKey.
 type Lvl2Key struct {
 	Lvl2Meta
 	Key DRKey
+}
+
+// Equal returns true if both level 2 keys are identical.
+func (k Lvl2Key) Equal(other Lvl2Key) bool {
+	return k.Lvl2Meta.Equal(other.Lvl2Meta) && bytes.Compare(k.Key, other.Key) == 0
 }
 
 // DelegationSecret is similar to a level 2 key, type AS to AS.

@@ -72,9 +72,9 @@ func TestDeriveDelegated(t *testing.T) {
 		}
 	}
 	protoToLvl2 := map[string]string{
-		"foo":  "84e628f7c9318d6831ff4f85827f7af3",
-		"bar":  "f51fa0769a6e3d2b9570eefb788a92c0",
-		"fooo": "d88513be2ff73b11615053540146e960",
+		"foo":  "b4279b032d7d81c38754ab7b253f5ac0",
+		"bar":  "a30df8ad348bfce1ecdf1cf83c9e5265",
+		"fooo": "434817fb40cb602b36c80e88789aee46",
 	}
 	for proto, key := range protoToLvl2 {
 		meta := drkey.Lvl2Meta{
@@ -92,6 +92,54 @@ func TestDeriveDelegated(t *testing.T) {
 		if hexKey != key {
 			t.Fatalf("Unexpected lvl2 key for protocol [%s]: %s", proto, hexKey)
 		}
+	}
+}
+
+func TestDeriveDelegatedViaDS(t *testing.T) {
+	// derive DS and then derive key. Compare to derive directly key
+	lvl1Key := getLvl1(t)
+	meta := drkey.Lvl2Meta{
+		Protocol: "piskes",
+		KeyType:  drkey.AS2AS,
+		SrcIA:    lvl1Key.SrcIA,
+		DstIA:    lvl1Key.DstIA,
+		SrcHost:  addr.HostNone{},
+		DstHost:  addr.HostNone{},
+	}
+	lvl2Key, err := piskes{}.DeriveLvl2(meta, lvl1Key)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	ds := drkey.DelegationSecret{
+		Protocol: lvl2Key.Protocol,
+		Epoch:    lvl2Key.Epoch,
+		SrcIA:    lvl2Key.SrcIA,
+		DstIA:    lvl2Key.DstIA,
+		Key:      lvl2Key.Key,
+	}
+	srcHost := addr.HostFromIPStr("1.1.1.1")
+	dstHost := addr.HostFromIPStr("2.2.2.2")
+	meta = drkey.Lvl2Meta{
+		Protocol: meta.Protocol,
+		KeyType:  drkey.Host2Host,
+		SrcIA:    meta.SrcIA,
+		DstIA:    meta.DstIA,
+		SrcHost:  srcHost,
+		DstHost:  dstHost,
+	}
+	lvl2KeyViaDS, err := piskes{}.DeriveLvl2FromDS(meta, ds)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	_ = lvl2KeyViaDS
+	// now get the level 2 key directly without explicitly going through DS
+	lvl2Key, err = piskes{}.DeriveLvl2(meta, lvl1Key)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !lvl2Key.Equal(lvl2KeyViaDS) {
+		t.Fatalf("Level 2 key from DS and direct should be equal. From DS = %s , direct = %s",
+			hex.EncodeToString(lvl2KeyViaDS.Key), hex.EncodeToString(lvl2Key.Key))
 	}
 }
 
