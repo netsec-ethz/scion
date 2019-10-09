@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -174,6 +175,9 @@ func realMain() int {
 	rcCleaner := periodic.StartPeriodicTask(revcache.NewCleaner(revCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
 	defer rcCleaner.Stop()
+	drkeyCleaner := periodic.StartPeriodicTask(drkeystorage.NewStoreCleaner(drkeyStore),
+		periodic.NewTicker(time.Hour), 10*time.Minute)
+	defer drkeyCleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers, log.Root())
 	defer shutdownF()
