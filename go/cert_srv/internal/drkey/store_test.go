@@ -134,7 +134,7 @@ func TestDeriveLvl1Key(t *testing.T) {
 	srcIA, _ := addr.IAFromString("1-ff00:0:112")
 	dstIA, _ := addr.IAFromString("1-ff00:0:111")
 	store := ServiceStore{
-		ia:           srcIA,
+		localIA:      srcIA,
 		secretValues: getSecretValueTestFactory(),
 	}
 	lvl1Key, err := store.deriveLvl1(dstIA, time.Now())
@@ -154,7 +154,7 @@ func TestLvl1KeyBuildReply(t *testing.T) {
 	cert111, privateKey111, cert112, privateKey112 := loadCertsKeys(t)
 
 	store := ServiceStore{
-		ia:           srcIA,
+		localIA:      srcIA,
 		secretValues: getSecretValueTestFactory(),
 		asDecryptKey: privateKey112,
 	}

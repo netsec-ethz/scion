@@ -40,7 +40,7 @@ import (
 
 // ServiceStore keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
 type ServiceStore struct {
-	ia           addr.IA
+	localIA      addr.IA
 	db           drkey.Lvl1DB
 	secretValues drkeystorage.SecretValueFactory
 	trustDB      trustdb.TrustDB
@@ -59,7 +59,7 @@ func NewServiceStore(local addr.IA, asDecryptKey common.RawBytes, db drkey.Lvl1D
 	allowedDS map[[16]byte]map[string]struct{}) *ServiceStore {
 
 	return &ServiceStore{
-		ia:           local,
+		localIA:      local,
 		asDecryptKey: asDecryptKey,
 		db:           db,
 		secretValues: svFac,
@@ -81,7 +81,7 @@ func (s *ServiceStore) SetMessenger(msger infra.Messenger) {
 func (s *ServiceStore) GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta,
 	valTime time.Time) (drkey.Lvl1Key, error) {
 
-	if meta.SrcIA == s.ia {
+	if meta.SrcIA == s.localIA {
 		return s.deriveLvl1(meta.DstIA, valTime)
 	}
 	// look in the DB
@@ -139,6 +139,11 @@ func (s *ServiceStore) NewLvl2ReqHandler() infra.Handler {
 	return infra.HandlerFunc(f)
 }
 
+// KnownASes returns a list with distinct AS seen as sources in level 1 DRKeys.
+func (s *ServiceStore) KnownASes(ctx context.Context) ([]addr.IA, error) {
+	return s.db.GetLvl1SrcASes(ctx)
+}
+
 func (s *ServiceStore) deriveLvl1(dstIA addr.IA, valTime time.Time) (drkey.Lvl1Key, error) {
 	log.Trace("[DRKey ServiceStore] deriving level 1", "dstIA", dstIA)
 	sv, err := s.secretValues.GetSecretValue(valTime)
@@ -147,7 +152,7 @@ func (s *ServiceStore) deriveLvl1(dstIA addr.IA, valTime time.Time) (drkey.Lvl1K
 	}
 	meta := drkey.Lvl1Meta{
 		Epoch: sv.Epoch,
-		SrcIA: s.ia,
+		SrcIA: s.localIA,
 		DstIA: dstIA,
 	}
 	key, err := protocol.DeriveLvl1(meta, sv)

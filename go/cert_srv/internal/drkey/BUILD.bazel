@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "requester.go",
+        "prefetcher.go",
         "secret_value_store.go",
         "service_store.go",
         "testcommon.go",
@@ -23,6 +23,7 @@ go_library(
         "//go/lib/infra/modules/trust/trustdb:go_default_library",
         "//go/lib/keyconf:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/periodic:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cert:go_default_library",
         "//go/lib/snet:go_default_library",
@@ -33,7 +34,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
-        "requester_test.go",
+        "prefetcher_test.go",
         "store_test.go",
     ],
     data = glob(["testdata/**"]),

@@ -25,6 +25,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
+	"github.com/scionproto/scion/go/cert_srv/internal/drkey"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
@@ -40,14 +41,15 @@ import (
 )
 
 var (
-	cfg               config.Config
-	state             *config.State
-	reissRunner       *periodic.Runner
-	discRunners       idiscovery.Runners
-	corePusher        *periodic.Runner
-	msgr              infra.Messenger
-	trustDB           trustdb.TrustDB
-	drkeyStoreCleaner *periodic.Runner
+	cfg                  config.Config
+	state                *config.State
+	reissRunner          *periodic.Runner
+	discRunners          idiscovery.Runners
+	corePusher           *periodic.Runner
+	msgr                 infra.Messenger
+	trustDB              trustdb.TrustDB
+	drkeyStoreCleaner    *periodic.Runner
+	drkeyStorePrefetcher *periodic.Runner
 )
 
 func init() {
@@ -165,6 +167,14 @@ func startDRKeyRunners() {
 	drkeyStoreCleaner = periodic.StartPeriodicTask(
 		drkeystorage.NewStoreCleaner(state.DRKeyStore),
 		periodic.NewTicker(cleanerPeriod), cleanerPeriod)
+	prefetchPeriod := cfg.DRKey.EpochDuration.Duration / 2
+	drkeyStorePrefetcher = periodic.StartPeriodicTask(
+		&drkey.Prefetcher{
+			LocalIA:     itopo.Get().ISD_AS,
+			Store:       state.DRKeyStore,
+			KeyDuration: cfg.DRKey.EpochDuration.Duration,
+		},
+		periodic.NewTicker(prefetchPeriod), prefetchPeriod)
 }
 
 func startDiscovery() {
@@ -188,6 +198,9 @@ func stopReissRunner() {
 func stopDRKeyRunners() {
 	if drkeyStoreCleaner != nil {
 		drkeyStoreCleaner.Stop()
+	}
+	if drkeyStorePrefetcher != nil {
+		drkeyStorePrefetcher.Stop()
 	}
 }
 
