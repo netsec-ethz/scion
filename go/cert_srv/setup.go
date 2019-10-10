@@ -141,7 +141,7 @@ func initState(cfg *config.Config, router snet.Router) error {
 	}
 	keyConf, err := config.LoadKeyConf(cfg.General.ConfigDir, topo.Core)
 	if err != nil {
-		return common.NewBasicError("Unable to load the keys", err)
+		return common.NewBasicError("Unable to load AS keys", err)
 	}
 	var drkeyStore drkeystorage.ServiceStore
 	var svFactory drkeystorage.SecretValueFactory
@@ -224,7 +224,7 @@ func addHandlers() error {
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	signingTypes := []infra.MessageType{}
+	signingTypes := []infra.MessageType{infra.ChainIssueRequest}
 	if cfg.DRKey.Enabled() {
 		signingTypes = []infra.MessageType{
 			infra.DRKeyLvl1Request,
@@ -234,7 +234,6 @@ func addHandlers() error {
 		msgr.AddHandler(infra.DRKeyLvl1Request, state.DRKeyStore.NewLvl1ReqHandler())
 		msgr.AddHandler(infra.DRKeyLvl2Request, state.DRKeyStore.NewLvl2ReqHandler())
 	}
-	signingTypes = append(signingTypes, infra.ChainIssueRequest)
 	msgr.UpdateSigner(state.GetSigner(), signingTypes)
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.

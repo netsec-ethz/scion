@@ -161,7 +161,7 @@ func startDRKeyRunners() {
 	if !cfg.DRKey.Enabled() {
 		return
 	}
-	// TODO(juagargi): if there has been a change in the duration, we probably need to keep
+	// TODO(juagargi): if there has been a change in the duration, we need to keep
 	// the already sent keys (and their duration) as they were already handed to other entities
 	cleanerPeriod := 2 * cfg.DRKey.EpochDuration.Duration
 	drkeyStoreCleaner = periodic.StartPeriodicTask(
