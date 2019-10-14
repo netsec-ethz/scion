@@ -109,12 +109,6 @@ func realMain() int {
 		log.Crit("Unable to load local TRC", "err", err)
 		return 1
 	}
-	drkeyDB, err := cfg.SD.DRKeyDB.NewLvl2DB()
-	if err != nil {
-		log.Crit("Unable to initialize drkey storage", "err", err)
-		return 1
-	}
-	defer drkeyDB.Close()
 
 	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
 	if err != nil {
@@ -143,7 +137,6 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	drkeyStore := drkey.NewClientStore(itopo.Get().ISD_AS, drkeyDB, msger)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
@@ -165,9 +158,24 @@ func realMain() int {
 			RevCache:   revCache,
 			TrustStore: trustStore,
 		},
-		proto.SCIONDMsg_Which_drkeyLvl2Req: &servers.DrKeyLvl2RequestHandler{
+	}
+
+	drkeyEnabled := cfg.SD.DRKeyDB.Connection() != ""
+	log.Info("DRKey", "enabled", drkeyEnabled)
+	if drkeyEnabled {
+		drkeyDB, err := cfg.SD.DRKeyDB.NewLvl2DB()
+		if err != nil {
+			log.Crit("Unable to initialize drkey storage", "err", err)
+			return 1
+		}
+		defer drkeyDB.Close()
+		drkeyStore := drkey.NewClientStore(itopo.Get().ISD_AS, drkeyDB, msger)
+		drkeyCleaner := periodic.StartPeriodicTask(drkeystorage.NewStoreCleaner(drkeyStore),
+			periodic.NewTicker(time.Hour), 10*time.Minute)
+		defer drkeyCleaner.Stop()
+		handlers[proto.SCIONDMsg_Which_drkeyLvl2Req] = &servers.DrKeyLvl2RequestHandler{
 			Store: drkeyStore,
-		},
+		}
 	}
 	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
@@ -175,9 +183,6 @@ func realMain() int {
 	rcCleaner := periodic.StartPeriodicTask(revcache.NewCleaner(revCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
 	defer rcCleaner.Stop()
-	drkeyCleaner := periodic.StartPeriodicTask(drkeystorage.NewStoreCleaner(drkeyStore),
-		periodic.NewTicker(time.Hour), 10*time.Minute)
-	defer drkeyCleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", cfg.SD.Reliable, handlers, log.Root())
 	defer shutdownF()

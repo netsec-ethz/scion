@@ -140,7 +140,7 @@ func (cfg *DRKeyDBConf) ConfigName() string {
 // a function func(string)(drkey.Lvl1DB, error) (also drkey.Lvl2DB) such as
 // drkeydbsqlite.NewLvl1Backend .
 func (cfg *DRKeyDBConf) newDB(newdbFcn func(string) (drkey.BaseDB, error)) (drkey.BaseDB, error) {
-	log.Info("Connecting DRKeyDB", "backend", cfg.Backend, "connection", cfg.Connection)
+	log.Info("Connecting DRKeyDB", "backend", cfg.Backend(), "connection", cfg.Connection())
 	var err error
 	var db drkey.BaseDB
 	switch cfg.Backend() {
