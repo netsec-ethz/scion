@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/util"
@@ -74,6 +75,8 @@ type Pld struct {
 	IfInfoReply        *IFInfoReply
 	ServiceInfoRequest *ServiceInfoRequest
 	ServiceInfoReply   *ServiceInfoReply
+	DRKeyLvl2Req       *drkey_mgmt.Lvl2Req `capnp:"drkeyLvl2Req"`
+	DRKeyLvl2Rep       *drkey_mgmt.Lvl2Rep `capnp:"drkeyLvl2Rep"`
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
@@ -118,6 +121,10 @@ func (p *Pld) union() (interface{}, error) {
 		return p.ServiceInfoRequest, nil
 	case proto.SCIONDMsg_Which_serviceInfoReply:
 		return p.ServiceInfoReply, nil
+	case proto.SCIONDMsg_Which_drkeyLvl2Req:
+		return p.DRKeyLvl2Req, nil
+	case proto.SCIONDMsg_Which_drkeyLvl2Rep:
+		return p.DRKeyLvl2Rep, nil
 	}
 	return nil, common.NewBasicError("Unsupported SCIOND union type", nil, "type", p.Which)
 }

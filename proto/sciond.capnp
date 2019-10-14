@@ -7,6 +7,7 @@ using Common = import "common.capnp";
 using Sign = import "sign.capnp";
 using PSeg = import "path_seg.capnp";
 using PathMgmt = import "path_mgmt.capnp";
+using DRKey = import "drkey_mgmt.capnp";
 
 struct SCIONDMsg {
     id @0 :UInt64;  # Request ID
@@ -24,6 +25,8 @@ struct SCIONDMsg {
         revReply @11 :RevReply;
         segTypeHopReq @12 :SegTypeHopReq;
         segTypeHopReply @13 :SegTypeHopReply;
+        drkeyLvl2Req @14 :DRKey.DRKeyLvl2Req;
+        drkeyLvl2Rep @15 :DRKey.DRKeyLvl2Rep;
     }
 }
 

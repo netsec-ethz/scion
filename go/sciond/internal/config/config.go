@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/pathstorage"
@@ -117,9 +118,12 @@ type SDConfig struct {
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap
+	// DRKeyDB contains the DRKey DB configuration.
+	DRKeyDB drkeystorage.DRKeyDBConf
 }
 
 func (cfg *SDConfig) InitDefaults() {
+
 	if cfg.Reliable == "" {
 		cfg.Reliable = sciond.DefaultSCIONDPath
 	}
@@ -132,7 +136,7 @@ func (cfg *SDConfig) InitDefaults() {
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
-	config.InitAll(&cfg.PathDB, &cfg.RevCache)
+	config.InitAll(&cfg.PathDB, &cfg.RevCache, &cfg.DRKeyDB)
 }
 
 func (cfg *SDConfig) Validate() error {
@@ -148,7 +152,7 @@ func (cfg *SDConfig) Validate() error {
 	if cfg.QueryInterval.Duration == 0 {
 		return common.NewBasicError("QueryInterval must not be zero", nil)
 	}
-	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
+	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache, &cfg.DRKeyDB)
 }
 
 func (cfg *SDConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {

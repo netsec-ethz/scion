@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
@@ -122,6 +123,19 @@ func (rw *QUICResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt
 	return rw.sendMessage(ctrlPld)
 }
 
+func (rw *QUICResponseWriter) SendDRKeyLvl1(ctx context.Context, msg *drkey_mgmt.Lvl1Rep) error {
+	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	return rw.sendMessage(ctrlPld)
+}
+
 func (rw *QUICResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error {
 	go func() {
 		defer log.LogPanicAndExit()
@@ -129,6 +143,19 @@ func (rw *QUICResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt
 		rw.ReplyWriter.Close()
 	}()
 	ctrlPld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
+	if err != nil {
+		return err
+	}
+	return rw.sendMessage(ctrlPld)
+}
+
+func (rw *QUICResponseWriter) SendDRKeyLvl2(ctx context.Context, msg *drkey_mgmt.Lvl2Rep) error {
+	go func() {
+		defer log.LogPanicAndExit()
+		<-ctx.Done()
+		rw.ReplyWriter.Close()
+	}()
+	ctrlPld, err := ctrl.NewDRKeyMgmtPld(msg, nil, &ctrl.Data{ReqId: rw.ID})
 	if err != nil {
 		return err
 	}

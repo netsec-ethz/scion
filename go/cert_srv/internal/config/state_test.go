@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-func TestLoadState(t *testing.T) {
+func TestNewState(t *testing.T) {
 	mstr0, _ := keyconf.LoadKey("testdata/keys/master0.key", keyconf.RawKey)
 	mstr1, _ := keyconf.LoadKey("testdata/keys/master1.key", keyconf.RawKey)
 	dcrpt, _ := keyconf.LoadKey("testdata/keys/as-decrypt.key",
@@ -32,8 +32,9 @@ func TestLoadState(t *testing.T) {
 	issSig, _ := keyconf.LoadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
 	online, _ := keyconf.LoadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
 	Convey("Load core state", t, func() {
-		state, err := LoadState("testdata", true, nil, nil)
+		keyConf, err := LoadKeyConf("testdata", true)
 		SoMsg("err", err, ShouldBeNil)
+		state := NewState(keyConf, nil, nil, nil, nil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
 		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, dcrpt)
@@ -44,8 +45,9 @@ func TestLoadState(t *testing.T) {
 	})
 
 	Convey("Load non-core state", t, func() {
-		state, err := LoadState("testdata", false, nil, nil)
+		keyConf, err := LoadKeyConf("testdata", false)
 		SoMsg("err", err, ShouldBeNil)
+		state := NewState(keyConf, nil, nil, nil, nil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
 		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, dcrpt)

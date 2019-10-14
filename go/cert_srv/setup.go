@@ -22,10 +22,12 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/config"
+	"github.com/scionproto/scion/go/cert_srv/internal/drkey"
 	"github.com/scionproto/scion/go/cert_srv/internal/metrics"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -91,6 +93,9 @@ func setup() error {
 	if err := setMessenger(&cfg, router); err != nil {
 		return common.NewBasicError("Unable to set messenger", err)
 	}
+	if err := addHandlers(); err != nil {
+		return common.NewBasicError("Unable to add handlers", err)
+	}
 	return nil
 }
 
@@ -111,6 +116,8 @@ func reload() error {
 	// Restart the periodic reissue task to respect the fresh parameters.
 	stopReissRunner()
 	startReissRunner()
+	stopDRKeyRunners()
+	startDRKeyRunners()
 	return nil
 }
 
@@ -133,10 +140,26 @@ func initState(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load local crypto", err)
 	}
-	state, err = config.LoadState(cfg.General.ConfigDir, topo.Core, trustDB, trustStore)
+	keyConf, err := config.LoadKeyConf(cfg.General.ConfigDir, topo.Core)
 	if err != nil {
-		return common.NewBasicError("Unable to load CS state", err)
+		return common.NewBasicError("Unable to load AS keys", err)
 	}
+	var drkeyStore drkeystorage.ServiceStore
+	var svFactory drkeystorage.SecretValueFactory
+	if cfg.DRKey.Enabled() {
+		svFactory = drkey.NewSecretValueFactory(
+			keyConf.Master.Key0, cfg.DRKey.EpochDuration.Duration)
+		drkeyDB, err := cfg.DRKey.NewDB()
+		if err != nil {
+			return common.NewBasicError("Unable to initialize DRKey DB", err)
+		}
+		drkeyStore = drkey.NewServiceStore(topo.ISD_AS, keyConf.DecryptKey,
+			drkeyDB, trustDB, svFactory, cfg.DRKey.Delegation.ToMapPerHost())
+		log.Info("DRKey is enabled")
+	} else {
+		log.Warn("DRKey is DISABLED by configuration")
+	}
+	state = config.NewState(keyConf, trustDB, trustStore, svFactory, drkeyStore)
 	if err = setDefaultSignerVerifier(state, topo.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
 	}
@@ -190,11 +213,29 @@ func setMessenger(cfg *config.Config, router snet.Router) error {
 	if err != nil {
 		return common.NewBasicError("Unable to initialize SCION Messenger", err)
 	}
+	if cfg.DRKey.Enabled() {
+		state.DRKeyStore.SetMessenger(msgr)
+	}
+	return nil
+}
+
+func addHandlers() error {
+	topo := itopo.Get()
 	msgr.AddHandler(infra.ChainRequest, state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, state.Store.NewTRCPushHandler())
-	msgr.UpdateSigner(state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
+	signingTypes := []infra.MessageType{infra.ChainIssueRequest}
+	if cfg.DRKey.Enabled() {
+		signingTypes = []infra.MessageType{
+			infra.DRKeyLvl1Request,
+			infra.DRKeyLvl1Reply,
+			infra.DRKeyLvl2Request,
+		}
+		msgr.AddHandler(infra.DRKeyLvl1Request, state.DRKeyStore.NewLvl1ReqHandler())
+		msgr.AddHandler(infra.DRKeyLvl2Request, state.DRKeyStore.NewLvl2ReqHandler())
+	}
+	msgr.UpdateSigner(state.GetSigner(), signingTypes)
 	msgr.UpdateVerifier(state.GetVerifier())
 	// Only core CS handles certificate reissuance requests.
 	if topo.Core {

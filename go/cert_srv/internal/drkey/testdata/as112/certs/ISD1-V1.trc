@@ -1,0 +1,26 @@
+{
+    "CertLogs": {},
+    "CoreASes": {
+        "1-ff00:0:110": {
+            "OfflineKey": "ZkThW2K8mz4WJbis/Ep7gAmol26LQgXpNf5QKreVc0s=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "BbanKjLwQZZnlxq0aPDyHXZkWB9/KZqRJte/5OvSOsY=",
+            "OnlineKeyAlg": "ed25519"
+        }
+    },
+    "CreationTime": 1562315695,
+    "Description": "ISD 1",
+    "ExpirationTime": 1593851695,
+    "GracePeriod": 0,
+    "ISD": 1,
+    "Quarantine": false,
+    "QuorumCAs": 0,
+    "QuorumTRC": 1,
+    "RAINS": {},
+    "RootCAs": {},
+    "Signatures": {
+        "1-ff00:0:110": "W6+CT57auacwR666STViy/ycg5sgkREofbL6mtV/R+DU1c2T852hUMSnEGbiKHb+TeG7UKK3wpOPiKOjB00BDg=="
+    },
+    "ThresholdEEPKI": 0,
+    "Version": 1
+}

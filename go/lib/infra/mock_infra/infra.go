@@ -12,6 +12,7 @@ import (
 	ctrl "github.com/scionproto/scion/go/lib/ctrl"
 	ack "github.com/scionproto/scion/go/lib/ctrl/ack"
 	cert_mgmt "github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	drkey_mgmt "github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	ifid "github.com/scionproto/scion/go/lib/ctrl/ifid"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -255,6 +256,36 @@ func (mr *MockMessengerMockRecorder) RequestChainIssue(arg0, arg1, arg2, arg3 in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestChainIssue", reflect.TypeOf((*MockMessenger)(nil).RequestChainIssue), arg0, arg1, arg2, arg3)
 }
 
+// RequestDRKeyLvl1 mocks base method
+func (m *MockMessenger) RequestDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Req, arg2 net.Addr, arg3 uint64) (*drkey_mgmt.Lvl1Rep, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestDRKeyLvl1", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*drkey_mgmt.Lvl1Rep)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestDRKeyLvl1 indicates an expected call of RequestDRKeyLvl1
+func (mr *MockMessengerMockRecorder) RequestDRKeyLvl1(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestDRKeyLvl1", reflect.TypeOf((*MockMessenger)(nil).RequestDRKeyLvl1), arg0, arg1, arg2, arg3)
+}
+
+// RequestDRKeyLvl2 mocks base method
+func (m *MockMessenger) RequestDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Req, arg2 net.Addr, arg3 uint64) (*drkey_mgmt.Lvl2Rep, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestDRKeyLvl2", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*drkey_mgmt.Lvl2Rep)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestDRKeyLvl2 indicates an expected call of RequestDRKeyLvl2
+func (mr *MockMessengerMockRecorder) RequestDRKeyLvl2(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestDRKeyLvl2", reflect.TypeOf((*MockMessenger)(nil).RequestDRKeyLvl2), arg0, arg1, arg2, arg3)
+}
+
 // SendAck mocks base method
 func (m *MockMessenger) SendAck(arg0 context.Context, arg1 *ack.Ack, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
@@ -319,6 +350,14 @@ func (m *MockMessenger) SendHPCfgReply(arg0 context.Context, arg1 *path_mgmt.HPC
 	return ret0
 }
 
+// SendDRKeyLvl1 mocks base method
+func (m *MockMessenger) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Rep, arg2 net.Addr, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendDRKeyLvl1", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
 // SendHPCfgReply indicates an expected call of SendHPCfgReply
 func (mr *MockMessengerMockRecorder) SendHPCfgReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
@@ -329,6 +368,20 @@ func (mr *MockMessengerMockRecorder) SendHPCfgReply(arg0, arg1, arg2, arg3 inter
 func (m *MockMessenger) SendHPSegReg(arg0 context.Context, arg1 *path_mgmt.HPSegReg, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendHPSegReg", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendDRKeyLvl1 indicates an expected call of SendDRKeyLvl1
+func (mr *MockMessengerMockRecorder) SendDRKeyLvl1(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl1", reflect.TypeOf((*MockMessenger)(nil).SendDRKeyLvl1), arg0, arg1, arg2, arg3)
+}
+
+// SendDRKeyLvl2 mocks base method
+func (m *MockMessenger) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Rep, arg2 net.Addr, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendDRKeyLvl2", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -351,6 +404,12 @@ func (m *MockMessenger) SendHPSegReply(arg0 context.Context, arg1 *path_mgmt.HPS
 func (mr *MockMessengerMockRecorder) SendHPSegReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPSegReply", reflect.TypeOf((*MockMessenger)(nil).SendHPSegReply), arg0, arg1, arg2, arg3)
+}
+
+// SendDRKeyLvl2 indicates an expected call of SendDRKeyLvl2
+func (mr *MockMessengerMockRecorder) SendDRKeyLvl2(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl2", reflect.TypeOf((*MockMessenger)(nil).SendDRKeyLvl2), arg0, arg1, arg2, arg3)
 }
 
 // SendIfId mocks base method
@@ -576,6 +635,14 @@ func (m *MockResponseWriter) SendHPCfgReply(arg0 context.Context, arg1 *path_mgm
 	return ret0
 }
 
+// SendDRKeyLvl1 mocks base method
+func (m *MockResponseWriter) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Rep) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendDRKeyLvl1", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
 // SendHPCfgReply indicates an expected call of SendHPCfgReply
 func (mr *MockResponseWriterMockRecorder) SendHPCfgReply(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
@@ -590,10 +657,30 @@ func (m *MockResponseWriter) SendHPSegReply(arg0 context.Context, arg1 *path_mgm
 	return ret0
 }
 
+// SendDRKeyLvl1 indicates an expected call of SendDRKeyLvl1
+func (mr *MockResponseWriterMockRecorder) SendDRKeyLvl1(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl1", reflect.TypeOf((*MockResponseWriter)(nil).SendDRKeyLvl1), arg0, arg1)
+}
+
+// SendDRKeyLvl2 mocks base method
+func (m *MockResponseWriter) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Rep) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendDRKeyLvl2", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
 // SendHPSegReply indicates an expected call of SendHPSegReply
 func (mr *MockResponseWriterMockRecorder) SendHPSegReply(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPSegReply", reflect.TypeOf((*MockResponseWriter)(nil).SendHPSegReply), arg0, arg1)
+}
+
+// SendDRKeyLvl2 indicates an expected call of SendDRKeyLvl2
+func (mr *MockResponseWriterMockRecorder) SendDRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl2", reflect.TypeOf((*MockResponseWriter)(nil).SendDRKeyLvl2), arg0, arg1)
 }
 
 // SendIfStateInfoReply mocks base method

@@ -81,6 +81,7 @@ func InitTestConfig(cfg *Config) {
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	idiscoverytest.InitTestConfig(&cfg.Discovery)
 	InitTestCSConfig(&cfg.CS)
+	InitTestDRKeyConfig(&cfg.DRKey)
 }
 
 func InitTestCSConfig(cfg *CSConfig) {
@@ -88,11 +89,16 @@ func InitTestCSConfig(cfg *CSConfig) {
 	cfg.DisableCorePush = true
 }
 
+func InitTestDRKeyConfig(cfg *DRKeyConfig) {
+	cfg.EpochDuration.Duration = 23 * time.Hour
+}
+
 func CheckTestConfig(cfg *Config, id string) {
 	envtest.CheckTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, &cfg.Sciond, id)
 	truststoragetest.CheckTestConfig(&cfg.TrustDB, id)
 	idiscoverytest.CheckTestConfig(&cfg.Discovery)
 	CheckTestCSConfig(&cfg.CS)
+	CheckTestDRKeyConfig(&cfg.DRKey)
 }
 
 func CheckTestCSConfig(cfg *CSConfig) {
@@ -104,4 +110,9 @@ func CheckTestCSConfig(cfg *CSConfig) {
 	SoMsg("IssuerReissLeadTime correct", cfg.IssuerReissueLeadTime.Duration, ShouldEqual,
 		IssuerReissTime)
 	SoMsg("DisableCorePush correct", cfg.DisableCorePush, ShouldBeFalse)
+}
+
+func CheckTestDRKeyConfig(cfg *DRKeyConfig) {
+	SoMsg("Epoch duration", cfg.EpochDuration.Duration, ShouldEqual, DefaultEpochDuration)
+	SoMsg("Max reply age", cfg.MaxReplyAge.Duration, ShouldEqual, DefaultMaxReplyAge)
 }

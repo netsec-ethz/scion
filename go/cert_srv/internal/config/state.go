@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -42,29 +43,32 @@ type State struct {
 	verifier infra.Verifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
+	// drkey secret value factory.
+	SecretValues drkeystorage.SecretValueFactory
+	// DRKeyStore is the drykey store with level 1 keys.
+	DRKeyStore drkeystorage.ServiceStore
 }
 
-func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
-	trustStore *trust.Store) (*State, error) {
+func NewState(keyConf *keyconf.Conf, trustDB trustdb.TrustDB, trustStore *trust.Store,
+	svFact drkeystorage.SecretValueFactory, drkeyStore drkeystorage.ServiceStore) *State {
 
-	s := &State{
-		Store:   trustStore,
-		TrustDB: trustDB,
+	return &State{
+		keyConf:      keyConf,
+		Store:        trustStore,
+		TrustDB:      trustDB,
+		SecretValues: svFact,
+		DRKeyStore:   drkeyStore,
 	}
-	if err := s.loadKeyConf(confDir, isCore); err != nil {
-		return nil, err
-	}
-	return s, nil
 }
 
-// loadKeyConf loads the key configuration.
-func (s *State) loadKeyConf(confDir string, isCore bool) error {
-	var err error
-	s.keyConf, err = keyconf.Load(filepath.Join(confDir, "keys"), isCore, isCore, false, true)
+// LoadKeyConf loads the key configuration.
+func LoadKeyConf(confDir string, isCore bool) (*keyconf.Conf, error) {
+
+	keyConf, err := keyconf.Load(filepath.Join(confDir, "keys"), isCore, isCore, false, true)
 	if err != nil {
-		return common.NewBasicError(ErrorKeyConf, err)
+		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
-	return nil
+	return keyConf, nil
 }
 
 // GetSigningKey returns the signing key of the current key configuration.

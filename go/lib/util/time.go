@@ -80,3 +80,12 @@ func TimeToCompact(t time.Time) string {
 	}
 	return TimeToString(t)
 }
+
+// TimeDistance returns the distance as a positive time duration between two points in time.
+func TimeDistance(a, b time.Time) time.Duration {
+	d := a.Sub(b)
+	if d < 0 {
+		d = -d
+	}
+	return d
+}

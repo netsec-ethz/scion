@@ -39,7 +39,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -128,6 +130,8 @@ type Connector interface {
 	RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error)
 	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
+	// DRKey Level 2 request
+	DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close(ctx context.Context) error
 }
@@ -352,6 +356,36 @@ func (c *connector) RevNotification(ctx context.Context,
 		return nil, common.NewBasicError("[sciond-API] Failed to send RevNotification", err)
 	}
 	return reply.(*Pld).RevReply, nil
+}
+
+func (c *connector) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, valTime uint32) (drkey.Lvl2Key, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	reply, err := c.dispatcher.Request(
+		ctx,
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_drkeyLvl2Req,
+			DRKeyLvl2Req: &drkey_mgmt.Lvl2Req{
+				Protocol:   meta.Protocol,
+				ReqType:    uint8(meta.KeyType),
+				ValTimeRaw: valTime,
+				SrcIARaw:   meta.SrcIA.IAInt(),
+				DstIARaw:   meta.DstIA.IAInt(),
+				SrcHost:    drkey_mgmt.NewHost(meta.SrcHost),
+				DstHost:    drkey_mgmt.NewHost(meta.DstHost),
+			},
+		},
+		nil,
+	)
+	// TODO(juagargi): return error istead of timing out, when an error occurs such as protocol not found
+	if err != nil {
+		return drkey.Lvl2Key{}, common.NewBasicError("[sciond-API] Failed to send DRKeyLvl2Req", err,
+			"meta", meta, "valTime", valTime)
+	}
+	lvl2rep := reply.(*Pld).DRKeyLvl2Rep
+	return lvl2rep.ToKey(meta), nil
 }
 
 func (c *connector) Close(ctx context.Context) error {

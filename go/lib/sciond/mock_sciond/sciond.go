@@ -10,6 +10,7 @@ import (
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	drkey "github.com/scionproto/scion/go/lib/drkey"
 	sciond "github.com/scionproto/scion/go/lib/sciond"
 	proto "github.com/scionproto/scion/go/proto"
 	reflect "reflect"
@@ -119,6 +120,21 @@ func (m *MockConnector) Close(arg0 context.Context) error {
 func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close), arg0)
+}
+
+// DRKeyGetLvl2Key mocks base method
+func (m *MockConnector) DRKeyGetLvl2Key(arg0 context.Context, arg1 drkey.Lvl2Meta, arg2 uint32) (drkey.Lvl2Key, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeyGetLvl2Key", arg0, arg1, arg2)
+	ret0, _ := ret[0].(drkey.Lvl2Key)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DRKeyGetLvl2Key indicates an expected call of DRKeyGetLvl2Key
+func (mr *MockConnectorMockRecorder) DRKeyGetLvl2Key(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetLvl2Key", reflect.TypeOf((*MockConnector)(nil).DRKeyGetLvl2Key), arg0, arg1, arg2)
 }
 
 // IFInfo mocks base method

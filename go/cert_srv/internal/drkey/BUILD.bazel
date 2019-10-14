@@ -1,0 +1,48 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "prefetcher.go",
+        "secret_value_store.go",
+        "service_store.go",
+        "testcommon.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/cert_srv/internal/drkey",
+    visibility = ["//go/cert_srv:__subpackages__"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/cert_mgmt:go_default_library",
+        "//go/lib/ctrl/drkey_mgmt:go_default_library",
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/protocol:go_default_library",
+        "//go/lib/drkeystorage:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/infra/messenger:go_default_library",
+        "//go/lib/infra/modules/trust/trustdb:go_default_library",
+        "//go/lib/keyconf:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/periodic:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/scrypto/cert:go_default_library",
+        "//go/lib/snet:go_default_library",
+        "//go/lib/util:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "prefetcher_test.go",
+        "store_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/util:go_default_library",
+    ],
+)

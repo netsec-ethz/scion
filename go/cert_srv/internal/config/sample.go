@@ -38,3 +38,11 @@ AutomaticRenewal = false
 # Disable the core pushing. (default false)
 DisableCorePush = false
 `
+
+const drkeySample = `
+# EpochDuration of the DRKey secret value and of all derived keys. (default "24h")
+EpochDuration = "24h"
+
+# MaxReplyAge is the age limit for a lvl 1 reply to be accepted. Older are rejected. (default "2s")
+MaxReplyAge = "2s"
+`

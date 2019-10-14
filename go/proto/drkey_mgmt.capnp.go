@@ -9,269 +9,574 @@ import (
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
-type DRKeyReq struct{ capnp.Struct }
-type DRKeyReq_flags DRKeyReq
+type DRKeyLvl1Req struct{ capnp.Struct }
 
-// DRKeyReq_TypeID is the unique identifier for the type DRKeyReq.
-const DRKeyReq_TypeID = 0x9f50d21c9d4ce7ef
+// DRKeyLvl1Req_TypeID is the unique identifier for the type DRKeyLvl1Req.
+const DRKeyLvl1Req_TypeID = 0xfa255f8dc1ac13e3
 
-func NewDRKeyReq(s *capnp.Segment) (DRKeyReq, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
-	return DRKeyReq{st}, err
+func NewDRKeyLvl1Req(s *capnp.Segment) (DRKeyLvl1Req, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return DRKeyLvl1Req{st}, err
 }
 
-func NewRootDRKeyReq(s *capnp.Segment) (DRKeyReq, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
-	return DRKeyReq{st}, err
+func NewRootDRKeyLvl1Req(s *capnp.Segment) (DRKeyLvl1Req, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return DRKeyLvl1Req{st}, err
 }
 
-func ReadRootDRKeyReq(msg *capnp.Message) (DRKeyReq, error) {
+func ReadRootDRKeyLvl1Req(msg *capnp.Message) (DRKeyLvl1Req, error) {
 	root, err := msg.RootPtr()
-	return DRKeyReq{root.Struct()}, err
+	return DRKeyLvl1Req{root.Struct()}, err
 }
 
-func (s DRKeyReq) String() string {
-	str, _ := text.Marshal(0x9f50d21c9d4ce7ef, s.Struct)
+func (s DRKeyLvl1Req) String() string {
+	str, _ := text.Marshal(0xfa255f8dc1ac13e3, s.Struct)
 	return str
 }
 
-func (s DRKeyReq) Isdas() uint64 {
+func (s DRKeyLvl1Req) DstIA() uint64 {
 	return s.Struct.Uint64(0)
 }
 
-func (s DRKeyReq) SetIsdas(v uint64) {
+func (s DRKeyLvl1Req) SetDstIA(v uint64) {
 	s.Struct.SetUint64(0, v)
 }
 
-func (s DRKeyReq) Timestamp() uint32 {
+func (s DRKeyLvl1Req) ValTime() uint32 {
 	return s.Struct.Uint32(8)
 }
 
-func (s DRKeyReq) SetTimestamp(v uint32) {
+func (s DRKeyLvl1Req) SetValTime(v uint32) {
 	s.Struct.SetUint32(8, v)
 }
 
-func (s DRKeyReq) Signature() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
-	return []byte(p.Data()), err
-}
-
-func (s DRKeyReq) HasSignature() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s DRKeyReq) SetSignature(v []byte) error {
-	return s.Struct.SetData(0, v)
-}
-
-func (s DRKeyReq) CertVer() uint32 {
+func (s DRKeyLvl1Req) Timestamp() uint32 {
 	return s.Struct.Uint32(12)
 }
 
-func (s DRKeyReq) SetCertVer(v uint32) {
+func (s DRKeyLvl1Req) SetTimestamp(v uint32) {
 	s.Struct.SetUint32(12, v)
 }
 
-func (s DRKeyReq) TrcVer() uint32 {
-	return s.Struct.Uint32(16)
+// DRKeyLvl1Req_List is a list of DRKeyLvl1Req.
+type DRKeyLvl1Req_List struct{ capnp.List }
+
+// NewDRKeyLvl1Req creates a new list of DRKeyLvl1Req.
+func NewDRKeyLvl1Req_List(s *capnp.Segment, sz int32) (DRKeyLvl1Req_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	return DRKeyLvl1Req_List{l}, err
 }
 
-func (s DRKeyReq) SetTrcVer(v uint32) {
-	s.Struct.SetUint32(16, v)
-}
+func (s DRKeyLvl1Req_List) At(i int) DRKeyLvl1Req { return DRKeyLvl1Req{s.List.Struct(i)} }
 
-func (s DRKeyReq) Flags() DRKeyReq_flags { return DRKeyReq_flags(s) }
+func (s DRKeyLvl1Req_List) Set(i int, v DRKeyLvl1Req) error { return s.List.SetStruct(i, v.Struct) }
 
-func (s DRKeyReq_flags) Prefetch() bool {
-	return s.Struct.Bit(160)
-}
-
-func (s DRKeyReq_flags) SetPrefetch(v bool) {
-	s.Struct.SetBit(160, v)
-}
-
-// DRKeyReq_List is a list of DRKeyReq.
-type DRKeyReq_List struct{ capnp.List }
-
-// NewDRKeyReq creates a new list of DRKeyReq.
-func NewDRKeyReq_List(s *capnp.Segment, sz int32) (DRKeyReq_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
-	return DRKeyReq_List{l}, err
-}
-
-func (s DRKeyReq_List) At(i int) DRKeyReq { return DRKeyReq{s.List.Struct(i)} }
-
-func (s DRKeyReq_List) Set(i int, v DRKeyReq) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s DRKeyReq_List) String() string {
-	str, _ := text.MarshalList(0x9f50d21c9d4ce7ef, s.List)
+func (s DRKeyLvl1Req_List) String() string {
+	str, _ := text.MarshalList(0xfa255f8dc1ac13e3, s.List)
 	return str
 }
 
-// DRKeyReq_Promise is a wrapper for a DRKeyReq promised by a client call.
-type DRKeyReq_Promise struct{ *capnp.Pipeline }
+// DRKeyLvl1Req_Promise is a wrapper for a DRKeyLvl1Req promised by a client call.
+type DRKeyLvl1Req_Promise struct{ *capnp.Pipeline }
 
-func (p DRKeyReq_Promise) Struct() (DRKeyReq, error) {
+func (p DRKeyLvl1Req_Promise) Struct() (DRKeyLvl1Req, error) {
 	s, err := p.Pipeline.Struct()
-	return DRKeyReq{s}, err
+	return DRKeyLvl1Req{s}, err
 }
 
-func (p DRKeyReq_Promise) Flags() DRKeyReq_flags_Promise { return DRKeyReq_flags_Promise{p.Pipeline} }
+type DRKeyLvl1Rep struct{ capnp.Struct }
 
-// DRKeyReq_flags_Promise is a wrapper for a DRKeyReq_flags promised by a client call.
-type DRKeyReq_flags_Promise struct{ *capnp.Pipeline }
+// DRKeyLvl1Rep_TypeID is the unique identifier for the type DRKeyLvl1Rep.
+const DRKeyLvl1Rep_TypeID = 0xd70d7b2bf8abab14
 
-func (p DRKeyReq_flags_Promise) Struct() (DRKeyReq_flags, error) {
-	s, err := p.Pipeline.Struct()
-	return DRKeyReq_flags{s}, err
-}
-
-type DRKeyRep struct{ capnp.Struct }
-
-// DRKeyRep_TypeID is the unique identifier for the type DRKeyRep.
-const DRKeyRep_TypeID = 0xc3fe25dd82681d64
-
-func NewDRKeyRep(s *capnp.Segment) (DRKeyRep, error) {
+func NewDRKeyLvl1Rep(s *capnp.Segment) (DRKeyLvl1Rep, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
-	return DRKeyRep{st}, err
+	return DRKeyLvl1Rep{st}, err
 }
 
-func NewRootDRKeyRep(s *capnp.Segment) (DRKeyRep, error) {
+func NewRootDRKeyLvl1Rep(s *capnp.Segment) (DRKeyLvl1Rep, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
-	return DRKeyRep{st}, err
+	return DRKeyLvl1Rep{st}, err
 }
 
-func ReadRootDRKeyRep(msg *capnp.Message) (DRKeyRep, error) {
+func ReadRootDRKeyLvl1Rep(msg *capnp.Message) (DRKeyLvl1Rep, error) {
 	root, err := msg.RootPtr()
-	return DRKeyRep{root.Struct()}, err
+	return DRKeyLvl1Rep{root.Struct()}, err
 }
 
-func (s DRKeyRep) String() string {
-	str, _ := text.Marshal(0xc3fe25dd82681d64, s.Struct)
+func (s DRKeyLvl1Rep) String() string {
+	str, _ := text.Marshal(0xd70d7b2bf8abab14, s.Struct)
 	return str
 }
 
-func (s DRKeyRep) Isdas() uint64 {
+func (s DRKeyLvl1Rep) DstIA() uint64 {
 	return s.Struct.Uint64(0)
 }
 
-func (s DRKeyRep) SetIsdas(v uint64) {
+func (s DRKeyLvl1Rep) SetDstIA(v uint64) {
 	s.Struct.SetUint64(0, v)
 }
 
-func (s DRKeyRep) Timestamp() uint32 {
+func (s DRKeyLvl1Rep) EpochBegin() uint32 {
 	return s.Struct.Uint32(8)
 }
 
-func (s DRKeyRep) SetTimestamp(v uint32) {
+func (s DRKeyLvl1Rep) SetEpochBegin(v uint32) {
 	s.Struct.SetUint32(8, v)
 }
 
-func (s DRKeyRep) ExpTime() uint32 {
+func (s DRKeyLvl1Rep) EpochEnd() uint32 {
 	return s.Struct.Uint32(12)
 }
 
-func (s DRKeyRep) SetExpTime(v uint32) {
+func (s DRKeyLvl1Rep) SetEpochEnd(v uint32) {
 	s.Struct.SetUint32(12, v)
 }
 
-func (s DRKeyRep) Cipher() ([]byte, error) {
+func (s DRKeyLvl1Rep) Cipher() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
 }
 
-func (s DRKeyRep) HasCipher() bool {
+func (s DRKeyLvl1Rep) HasCipher() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s DRKeyRep) SetCipher(v []byte) error {
+func (s DRKeyLvl1Rep) SetCipher(v []byte) error {
 	return s.Struct.SetData(0, v)
 }
 
-func (s DRKeyRep) Signature() ([]byte, error) {
+func (s DRKeyLvl1Rep) Nonce() ([]byte, error) {
 	p, err := s.Struct.Ptr(1)
 	return []byte(p.Data()), err
 }
 
-func (s DRKeyRep) HasSignature() bool {
+func (s DRKeyLvl1Rep) HasNonce() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s DRKeyRep) SetSignature(v []byte) error {
+func (s DRKeyLvl1Rep) SetNonce(v []byte) error {
 	return s.Struct.SetData(1, v)
 }
 
-func (s DRKeyRep) CertVerSrc() uint32 {
-	return s.Struct.Uint32(16)
+func (s DRKeyLvl1Rep) CertVerDst() uint64 {
+	return s.Struct.Uint64(16)
 }
 
-func (s DRKeyRep) SetCertVerSrc(v uint32) {
-	s.Struct.SetUint32(16, v)
+func (s DRKeyLvl1Rep) SetCertVerDst(v uint64) {
+	s.Struct.SetUint64(16, v)
 }
 
-func (s DRKeyRep) CertVerDst() uint32 {
-	return s.Struct.Uint32(20)
-}
-
-func (s DRKeyRep) SetCertVerDst(v uint32) {
-	s.Struct.SetUint32(20, v)
-}
-
-func (s DRKeyRep) TrcVer() uint32 {
+func (s DRKeyLvl1Rep) Timestamp() uint32 {
 	return s.Struct.Uint32(24)
 }
 
-func (s DRKeyRep) SetTrcVer(v uint32) {
+func (s DRKeyLvl1Rep) SetTimestamp(v uint32) {
 	s.Struct.SetUint32(24, v)
 }
 
-// DRKeyRep_List is a list of DRKeyRep.
-type DRKeyRep_List struct{ capnp.List }
+// DRKeyLvl1Rep_List is a list of DRKeyLvl1Rep.
+type DRKeyLvl1Rep_List struct{ capnp.List }
 
-// NewDRKeyRep creates a new list of DRKeyRep.
-func NewDRKeyRep_List(s *capnp.Segment, sz int32) (DRKeyRep_List, error) {
+// NewDRKeyLvl1Rep creates a new list of DRKeyLvl1Rep.
+func NewDRKeyLvl1Rep_List(s *capnp.Segment, sz int32) (DRKeyLvl1Rep_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2}, sz)
-	return DRKeyRep_List{l}, err
+	return DRKeyLvl1Rep_List{l}, err
 }
 
-func (s DRKeyRep_List) At(i int) DRKeyRep { return DRKeyRep{s.List.Struct(i)} }
+func (s DRKeyLvl1Rep_List) At(i int) DRKeyLvl1Rep { return DRKeyLvl1Rep{s.List.Struct(i)} }
 
-func (s DRKeyRep_List) Set(i int, v DRKeyRep) error { return s.List.SetStruct(i, v.Struct) }
+func (s DRKeyLvl1Rep_List) Set(i int, v DRKeyLvl1Rep) error { return s.List.SetStruct(i, v.Struct) }
 
-func (s DRKeyRep_List) String() string {
-	str, _ := text.MarshalList(0xc3fe25dd82681d64, s.List)
+func (s DRKeyLvl1Rep_List) String() string {
+	str, _ := text.MarshalList(0xd70d7b2bf8abab14, s.List)
 	return str
 }
 
-// DRKeyRep_Promise is a wrapper for a DRKeyRep promised by a client call.
-type DRKeyRep_Promise struct{ *capnp.Pipeline }
+// DRKeyLvl1Rep_Promise is a wrapper for a DRKeyLvl1Rep promised by a client call.
+type DRKeyLvl1Rep_Promise struct{ *capnp.Pipeline }
 
-func (p DRKeyRep_Promise) Struct() (DRKeyRep, error) {
+func (p DRKeyLvl1Rep_Promise) Struct() (DRKeyLvl1Rep, error) {
 	s, err := p.Pipeline.Struct()
-	return DRKeyRep{s}, err
+	return DRKeyLvl1Rep{s}, err
+}
+
+type DRKeyHost struct{ capnp.Struct }
+
+// DRKeyHost_TypeID is the unique identifier for the type DRKeyHost.
+const DRKeyHost_TypeID = 0x929b462d5a0499b7
+
+func NewDRKeyHost(s *capnp.Segment) (DRKeyHost, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return DRKeyHost{st}, err
+}
+
+func NewRootDRKeyHost(s *capnp.Segment) (DRKeyHost, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return DRKeyHost{st}, err
+}
+
+func ReadRootDRKeyHost(msg *capnp.Message) (DRKeyHost, error) {
+	root, err := msg.RootPtr()
+	return DRKeyHost{root.Struct()}, err
+}
+
+func (s DRKeyHost) String() string {
+	str, _ := text.Marshal(0x929b462d5a0499b7, s.Struct)
+	return str
+}
+
+func (s DRKeyHost) Type() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s DRKeyHost) SetType(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+func (s DRKeyHost) Host() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
+}
+
+func (s DRKeyHost) HasHost() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyHost) SetHost(v []byte) error {
+	return s.Struct.SetData(0, v)
+}
+
+// DRKeyHost_List is a list of DRKeyHost.
+type DRKeyHost_List struct{ capnp.List }
+
+// NewDRKeyHost creates a new list of DRKeyHost.
+func NewDRKeyHost_List(s *capnp.Segment, sz int32) (DRKeyHost_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return DRKeyHost_List{l}, err
+}
+
+func (s DRKeyHost_List) At(i int) DRKeyHost { return DRKeyHost{s.List.Struct(i)} }
+
+func (s DRKeyHost_List) Set(i int, v DRKeyHost) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s DRKeyHost_List) String() string {
+	str, _ := text.MarshalList(0x929b462d5a0499b7, s.List)
+	return str
+}
+
+// DRKeyHost_Promise is a wrapper for a DRKeyHost promised by a client call.
+type DRKeyHost_Promise struct{ *capnp.Pipeline }
+
+func (p DRKeyHost_Promise) Struct() (DRKeyHost, error) {
+	s, err := p.Pipeline.Struct()
+	return DRKeyHost{s}, err
+}
+
+type DRKeyLvl2Req struct{ capnp.Struct }
+
+// DRKeyLvl2Req_TypeID is the unique identifier for the type DRKeyLvl2Req.
+const DRKeyLvl2Req_TypeID = 0xe5a448baf4040d94
+
+func NewDRKeyLvl2Req(s *capnp.Segment) (DRKeyLvl2Req, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4})
+	return DRKeyLvl2Req{st}, err
+}
+
+func NewRootDRKeyLvl2Req(s *capnp.Segment) (DRKeyLvl2Req, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4})
+	return DRKeyLvl2Req{st}, err
+}
+
+func ReadRootDRKeyLvl2Req(msg *capnp.Message) (DRKeyLvl2Req, error) {
+	root, err := msg.RootPtr()
+	return DRKeyLvl2Req{root.Struct()}, err
+}
+
+func (s DRKeyLvl2Req) String() string {
+	str, _ := text.Marshal(0xe5a448baf4040d94, s.Struct)
+	return str
+}
+
+func (s DRKeyLvl2Req) Protocol() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s DRKeyLvl2Req) HasProtocol() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyLvl2Req) ProtocolBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s DRKeyLvl2Req) SetProtocol(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s DRKeyLvl2Req) ReqType() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s DRKeyLvl2Req) SetReqType(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+func (s DRKeyLvl2Req) ValTime() uint32 {
+	return s.Struct.Uint32(4)
+}
+
+func (s DRKeyLvl2Req) SetValTime(v uint32) {
+	s.Struct.SetUint32(4, v)
+}
+
+func (s DRKeyLvl2Req) SrcIA() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s DRKeyLvl2Req) SetSrcIA(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+func (s DRKeyLvl2Req) DstIA() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s DRKeyLvl2Req) SetDstIA(v uint64) {
+	s.Struct.SetUint64(16, v)
+}
+
+func (s DRKeyLvl2Req) SrcHost() (DRKeyHost, error) {
+	p, err := s.Struct.Ptr(1)
+	return DRKeyHost{Struct: p.Struct()}, err
+}
+
+func (s DRKeyLvl2Req) HasSrcHost() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyLvl2Req) SetSrcHost(v DRKeyHost) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewSrcHost sets the srcHost field to a newly
+// allocated DRKeyHost struct, preferring placement in s's segment.
+func (s DRKeyLvl2Req) NewSrcHost() (DRKeyHost, error) {
+	ss, err := NewDRKeyHost(s.Struct.Segment())
+	if err != nil {
+		return DRKeyHost{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s DRKeyLvl2Req) DstHost() (DRKeyHost, error) {
+	p, err := s.Struct.Ptr(2)
+	return DRKeyHost{Struct: p.Struct()}, err
+}
+
+func (s DRKeyLvl2Req) HasDstHost() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyLvl2Req) SetDstHost(v DRKeyHost) error {
+	return s.Struct.SetPtr(2, v.Struct.ToPtr())
+}
+
+// NewDstHost sets the dstHost field to a newly
+// allocated DRKeyHost struct, preferring placement in s's segment.
+func (s DRKeyLvl2Req) NewDstHost() (DRKeyHost, error) {
+	ss, err := NewDRKeyHost(s.Struct.Segment())
+	if err != nil {
+		return DRKeyHost{}, err
+	}
+	err = s.Struct.SetPtr(2, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s DRKeyLvl2Req) Misc() ([]byte, error) {
+	p, err := s.Struct.Ptr(3)
+	return []byte(p.Data()), err
+}
+
+func (s DRKeyLvl2Req) HasMisc() bool {
+	p, err := s.Struct.Ptr(3)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyLvl2Req) SetMisc(v []byte) error {
+	return s.Struct.SetData(3, v)
+}
+
+// DRKeyLvl2Req_List is a list of DRKeyLvl2Req.
+type DRKeyLvl2Req_List struct{ capnp.List }
+
+// NewDRKeyLvl2Req creates a new list of DRKeyLvl2Req.
+func NewDRKeyLvl2Req_List(s *capnp.Segment, sz int32) (DRKeyLvl2Req_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4}, sz)
+	return DRKeyLvl2Req_List{l}, err
+}
+
+func (s DRKeyLvl2Req_List) At(i int) DRKeyLvl2Req { return DRKeyLvl2Req{s.List.Struct(i)} }
+
+func (s DRKeyLvl2Req_List) Set(i int, v DRKeyLvl2Req) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s DRKeyLvl2Req_List) String() string {
+	str, _ := text.MarshalList(0xe5a448baf4040d94, s.List)
+	return str
+}
+
+// DRKeyLvl2Req_Promise is a wrapper for a DRKeyLvl2Req promised by a client call.
+type DRKeyLvl2Req_Promise struct{ *capnp.Pipeline }
+
+func (p DRKeyLvl2Req_Promise) Struct() (DRKeyLvl2Req, error) {
+	s, err := p.Pipeline.Struct()
+	return DRKeyLvl2Req{s}, err
+}
+
+func (p DRKeyLvl2Req_Promise) SrcHost() DRKeyHost_Promise {
+	return DRKeyHost_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+func (p DRKeyLvl2Req_Promise) DstHost() DRKeyHost_Promise {
+	return DRKeyHost_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
+}
+
+type DRKeyLvl2Rep struct{ capnp.Struct }
+
+// DRKeyLvl2Rep_TypeID is the unique identifier for the type DRKeyLvl2Rep.
+const DRKeyLvl2Rep_TypeID = 0xdfa735fef0302b84
+
+func NewDRKeyLvl2Rep(s *capnp.Segment) (DRKeyLvl2Rep, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	return DRKeyLvl2Rep{st}, err
+}
+
+func NewRootDRKeyLvl2Rep(s *capnp.Segment) (DRKeyLvl2Rep, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	return DRKeyLvl2Rep{st}, err
+}
+
+func ReadRootDRKeyLvl2Rep(msg *capnp.Message) (DRKeyLvl2Rep, error) {
+	root, err := msg.RootPtr()
+	return DRKeyLvl2Rep{root.Struct()}, err
+}
+
+func (s DRKeyLvl2Rep) String() string {
+	str, _ := text.Marshal(0xdfa735fef0302b84, s.Struct)
+	return str
+}
+
+func (s DRKeyLvl2Rep) Timestamp() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s DRKeyLvl2Rep) SetTimestamp(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+func (s DRKeyLvl2Rep) Drkey() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
+}
+
+func (s DRKeyLvl2Rep) HasDrkey() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyLvl2Rep) SetDrkey(v []byte) error {
+	return s.Struct.SetData(0, v)
+}
+
+func (s DRKeyLvl2Rep) EpochBegin() uint32 {
+	return s.Struct.Uint32(4)
+}
+
+func (s DRKeyLvl2Rep) SetEpochBegin(v uint32) {
+	s.Struct.SetUint32(4, v)
+}
+
+func (s DRKeyLvl2Rep) EpochEnd() uint32 {
+	return s.Struct.Uint32(8)
+}
+
+func (s DRKeyLvl2Rep) SetEpochEnd(v uint32) {
+	s.Struct.SetUint32(8, v)
+}
+
+func (s DRKeyLvl2Rep) Misc() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return []byte(p.Data()), err
+}
+
+func (s DRKeyLvl2Rep) HasMisc() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyLvl2Rep) SetMisc(v []byte) error {
+	return s.Struct.SetData(1, v)
+}
+
+// DRKeyLvl2Rep_List is a list of DRKeyLvl2Rep.
+type DRKeyLvl2Rep_List struct{ capnp.List }
+
+// NewDRKeyLvl2Rep creates a new list of DRKeyLvl2Rep.
+func NewDRKeyLvl2Rep_List(s *capnp.Segment, sz int32) (DRKeyLvl2Rep_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
+	return DRKeyLvl2Rep_List{l}, err
+}
+
+func (s DRKeyLvl2Rep_List) At(i int) DRKeyLvl2Rep { return DRKeyLvl2Rep{s.List.Struct(i)} }
+
+func (s DRKeyLvl2Rep_List) Set(i int, v DRKeyLvl2Rep) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s DRKeyLvl2Rep_List) String() string {
+	str, _ := text.MarshalList(0xdfa735fef0302b84, s.List)
+	return str
+}
+
+// DRKeyLvl2Rep_Promise is a wrapper for a DRKeyLvl2Rep promised by a client call.
+type DRKeyLvl2Rep_Promise struct{ *capnp.Pipeline }
+
+func (p DRKeyLvl2Rep_Promise) Struct() (DRKeyLvl2Rep, error) {
+	s, err := p.Pipeline.Struct()
+	return DRKeyLvl2Rep{s}, err
 }
 
 type DRKeyMgmt struct{ capnp.Struct }
 type DRKeyMgmt_Which uint16
 
 const (
-	DRKeyMgmt_Which_unset    DRKeyMgmt_Which = 0
-	DRKeyMgmt_Which_drkeyReq DRKeyMgmt_Which = 1
-	DRKeyMgmt_Which_drkeyRep DRKeyMgmt_Which = 2
+	DRKeyMgmt_Which_unset        DRKeyMgmt_Which = 0
+	DRKeyMgmt_Which_drkeyLvl1Req DRKeyMgmt_Which = 1
+	DRKeyMgmt_Which_drkeyLvl1Rep DRKeyMgmt_Which = 2
+	DRKeyMgmt_Which_drkeyLvl2Req DRKeyMgmt_Which = 3
+	DRKeyMgmt_Which_drkeyLvl2Rep DRKeyMgmt_Which = 4
 )
 
 func (w DRKeyMgmt_Which) String() string {
-	const s = "unsetdrkeyReqdrkeyRep"
+	const s = "unsetdrkeyLvl1ReqdrkeyLvl1RepdrkeyLvl2ReqdrkeyLvl2Rep"
 	switch w {
 	case DRKeyMgmt_Which_unset:
 		return s[0:5]
-	case DRKeyMgmt_Which_drkeyReq:
-		return s[5:13]
-	case DRKeyMgmt_Which_drkeyRep:
-		return s[13:21]
+	case DRKeyMgmt_Which_drkeyLvl1Req:
+		return s[5:17]
+	case DRKeyMgmt_Which_drkeyLvl1Rep:
+		return s[17:29]
+	case DRKeyMgmt_Which_drkeyLvl2Req:
+		return s[29:41]
+	case DRKeyMgmt_Which_drkeyLvl2Rep:
+		return s[41:53]
 
 	}
 	return "DRKeyMgmt_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -308,15 +613,15 @@ func (s DRKeyMgmt) SetUnset() {
 
 }
 
-func (s DRKeyMgmt) DrkeyReq() (DRKeyReq, error) {
+func (s DRKeyMgmt) DrkeyLvl1Req() (DRKeyLvl1Req, error) {
 	if s.Struct.Uint16(0) != 1 {
-		panic("Which() != drkeyReq")
+		panic("Which() != drkeyLvl1Req")
 	}
 	p, err := s.Struct.Ptr(0)
-	return DRKeyReq{Struct: p.Struct()}, err
+	return DRKeyLvl1Req{Struct: p.Struct()}, err
 }
 
-func (s DRKeyMgmt) HasDrkeyReq() bool {
+func (s DRKeyMgmt) HasDrkeyLvl1Req() bool {
 	if s.Struct.Uint16(0) != 1 {
 		return false
 	}
@@ -324,32 +629,32 @@ func (s DRKeyMgmt) HasDrkeyReq() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s DRKeyMgmt) SetDrkeyReq(v DRKeyReq) error {
+func (s DRKeyMgmt) SetDrkeyLvl1Req(v DRKeyLvl1Req) error {
 	s.Struct.SetUint16(0, 1)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewDrkeyReq sets the drkeyReq field to a newly
-// allocated DRKeyReq struct, preferring placement in s's segment.
-func (s DRKeyMgmt) NewDrkeyReq() (DRKeyReq, error) {
+// NewDrkeyLvl1Req sets the drkeyLvl1Req field to a newly
+// allocated DRKeyLvl1Req struct, preferring placement in s's segment.
+func (s DRKeyMgmt) NewDrkeyLvl1Req() (DRKeyLvl1Req, error) {
 	s.Struct.SetUint16(0, 1)
-	ss, err := NewDRKeyReq(s.Struct.Segment())
+	ss, err := NewDRKeyLvl1Req(s.Struct.Segment())
 	if err != nil {
-		return DRKeyReq{}, err
+		return DRKeyLvl1Req{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s DRKeyMgmt) DrkeyRep() (DRKeyRep, error) {
+func (s DRKeyMgmt) DrkeyLvl1Rep() (DRKeyLvl1Rep, error) {
 	if s.Struct.Uint16(0) != 2 {
-		panic("Which() != drkeyRep")
+		panic("Which() != drkeyLvl1Rep")
 	}
 	p, err := s.Struct.Ptr(0)
-	return DRKeyRep{Struct: p.Struct()}, err
+	return DRKeyLvl1Rep{Struct: p.Struct()}, err
 }
 
-func (s DRKeyMgmt) HasDrkeyRep() bool {
+func (s DRKeyMgmt) HasDrkeyLvl1Rep() bool {
 	if s.Struct.Uint16(0) != 2 {
 		return false
 	}
@@ -357,18 +662,84 @@ func (s DRKeyMgmt) HasDrkeyRep() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s DRKeyMgmt) SetDrkeyRep(v DRKeyRep) error {
+func (s DRKeyMgmt) SetDrkeyLvl1Rep(v DRKeyLvl1Rep) error {
 	s.Struct.SetUint16(0, 2)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewDrkeyRep sets the drkeyRep field to a newly
-// allocated DRKeyRep struct, preferring placement in s's segment.
-func (s DRKeyMgmt) NewDrkeyRep() (DRKeyRep, error) {
+// NewDrkeyLvl1Rep sets the drkeyLvl1Rep field to a newly
+// allocated DRKeyLvl1Rep struct, preferring placement in s's segment.
+func (s DRKeyMgmt) NewDrkeyLvl1Rep() (DRKeyLvl1Rep, error) {
 	s.Struct.SetUint16(0, 2)
-	ss, err := NewDRKeyRep(s.Struct.Segment())
+	ss, err := NewDRKeyLvl1Rep(s.Struct.Segment())
 	if err != nil {
-		return DRKeyRep{}, err
+		return DRKeyLvl1Rep{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s DRKeyMgmt) DrkeyLvl2Req() (DRKeyLvl2Req, error) {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != drkeyLvl2Req")
+	}
+	p, err := s.Struct.Ptr(0)
+	return DRKeyLvl2Req{Struct: p.Struct()}, err
+}
+
+func (s DRKeyMgmt) HasDrkeyLvl2Req() bool {
+	if s.Struct.Uint16(0) != 3 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyMgmt) SetDrkeyLvl2Req(v DRKeyLvl2Req) error {
+	s.Struct.SetUint16(0, 3)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewDrkeyLvl2Req sets the drkeyLvl2Req field to a newly
+// allocated DRKeyLvl2Req struct, preferring placement in s's segment.
+func (s DRKeyMgmt) NewDrkeyLvl2Req() (DRKeyLvl2Req, error) {
+	s.Struct.SetUint16(0, 3)
+	ss, err := NewDRKeyLvl2Req(s.Struct.Segment())
+	if err != nil {
+		return DRKeyLvl2Req{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s DRKeyMgmt) DrkeyLvl2Rep() (DRKeyLvl2Rep, error) {
+	if s.Struct.Uint16(0) != 4 {
+		panic("Which() != drkeyLvl2Rep")
+	}
+	p, err := s.Struct.Ptr(0)
+	return DRKeyLvl2Rep{Struct: p.Struct()}, err
+}
+
+func (s DRKeyMgmt) HasDrkeyLvl2Rep() bool {
+	if s.Struct.Uint16(0) != 4 {
+		return false
+	}
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s DRKeyMgmt) SetDrkeyLvl2Rep(v DRKeyLvl2Rep) error {
+	s.Struct.SetUint16(0, 4)
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewDrkeyLvl2Rep sets the drkeyLvl2Rep field to a newly
+// allocated DRKeyLvl2Rep struct, preferring placement in s's segment.
+func (s DRKeyMgmt) NewDrkeyLvl2Rep() (DRKeyLvl2Rep, error) {
+	s.Struct.SetUint16(0, 4)
+	ss, err := NewDRKeyLvl2Rep(s.Struct.Segment())
+	if err != nil {
+		return DRKeyLvl2Rep{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -400,59 +771,86 @@ func (p DRKeyMgmt_Promise) Struct() (DRKeyMgmt, error) {
 	return DRKeyMgmt{s}, err
 }
 
-func (p DRKeyMgmt_Promise) DrkeyReq() DRKeyReq_Promise {
-	return DRKeyReq_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p DRKeyMgmt_Promise) DrkeyLvl1Req() DRKeyLvl1Req_Promise {
+	return DRKeyLvl1Req_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p DRKeyMgmt_Promise) DrkeyRep() DRKeyRep_Promise {
-	return DRKeyRep_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p DRKeyMgmt_Promise) DrkeyLvl1Rep() DRKeyLvl1Rep_Promise {
+	return DRKeyLvl1Rep_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_f85d2602085656c1 = "x\xda\x84\x92OHT]\x18\xc6\xdf\xe7}\xef\x9dQ" +
-	"p`\x0e3\x1f\xc8\xc7\xf7a\x9b\x846\x92\xbas\xa3" +
-	"\x84B\x7f\x0c<\xa3(D\x12\xc3x\x1c\x87\x1a\xb9\xde" +
-	"{\x85\xdc$\xb5k\xd1\xaeM\x90d\x90\xe0\xa2(\xa1" +
-	"\xa8E-\xa2E\x10m\x1a*,\x12\x12\x94Z$\x15" +
-	"\x14\x08\xa17\x8eW\xc7!\x94v3\xcfy\xce{\x9f" +
-	"\xe7\xfc\xde\xc3C\xe8\xe2V\xb7\x08\"\x9dv\x13\xd1\xd7" +
-	"O\xbd3\xffU\xfan\x90V\x90\xe8\xe9\xe0`\x1d7" +
-	"\x0f\xaf\x93\x8b$\x91\xbaVQsI\xa2\xd6\x9bC " +
-	"D/\xbeg~\xbd}\xf8d\xc1Z\xb1k\xedAR" +
-	"\x882\xef\xf0>\xb3joe\x96q\x97\x10\x8d\xfc?" +
-	"vi\xe9\xe0\xe63\xebvj\x06\xb3\xb5\\\xe4J\xe6" +
-	"\x8a\xfd\xd5~\x99\x9f\xdb\xd9\x8f\x9b\x0f\x05\x17\xd6\xe6+" +
-	"\xa4\xff\x85\xec\x86\xfa\x07I\x10\xb5\x0f;\x0cB&\xef" +
-	"t\xda\xc1\xfeY3u\xa6\\\xe4r\xd8R\xc8{\xe3" +
-	"^Gw\xee\x84\x99\xca\x19L\xf4\x01\xbaQ\x1c\"\x07" +
-	"6}\x1b\x91\xbe*\xd0\xb3\x0c\x05\xce\xc2\x8a39\"" +
-	"}]\xa0\xe7\x19Vc\"5g\xb5[\x02}\x8f\xa1" +
-	"D\xb2\x10\"u\xe7\x08\x91\x9e\x17\xe8\xfb\x0c\xe58Y" +
-	"8Dj\xa1\x83H\xdf\x16\xe8G\x0c\xb8\xa8\xc9\xad\x1e" +
-	"\xb4\x117\x95\x82\x91|\x80zb\xd4\x13\xa2\xb0T6" +
-	"A\x98/\x13<\xd4\x11\xa3\x8e\x10\x05\xa5\xe2x>\x9c" +
-	"\xf4\x09\x06)b\xa4\x08\xd3\x05\xe3\x87\x83\xc6\xdf\xf1t" +
-	"\x86~\xa1\xe6o\xd3\xe8\xb9|1\xd8\xaf\xf6\xc9\xa2\x94" +
-	"C\xdb\xbbA\x9c\x86(\xda*\xdec\x8bw\x09t/" +
-	"#\x85\xcd(n~\xec8\x91>*\xd0\x03\x8c\x14o" +
-	"Dqwm\xd5>\x81>\xcdh\x9a\x1c\x0fLH\x89" +
-	"\xf8[93ADH\xef\xd2  \xbd\x03 g\xbc" +
-	"\xf8\xb4\xca\xb9\xf6tO<\x9e\x8dy\xa0\x8a\xe7\x95M" +
-	"\xf9R\xa0\x17k\xf0\xbc\xb1(^\x0b\xf4G\x86b\x89" +
-	"3.Y\x14\x8b\x02\xbd\xc2\xc06\x9eeK\xe2\x83@" +
-	"\x7f\xb6x\x10\xe3Y\xb5\xb7W\x04\xfa\x1bC\xb9N\x16" +
-	".\x91Z;E\xa4\xbf\x08\xf4:C%\xdc,\x12D" +
-	"\xea\xa7\x15\x7f\x08r`\xa8d\"\xbb\xb5\xee\x1bv\xe6" +
-	"\xba\xa0\xdf\x01\xe3\xef,\xa7\xcdyo\xa0T6Un" +
-	"\x85\x927f\xfc\x1d\xac{\xa1\x8e\xb6Q\xf7\x93\xf8\x85" +
-	"\xeaNl\x8b\xdd$A\xb8\xcf\x12T\x9fU\xfe|\xd6" +
-	"\x89\x96\xad\xfd \xed\x88\x93\x9e\x8d+\xa7,\xd4\x06\x81" +
-	"ndD\x9eoFMX\x18\xb3\xb8@\x0c\x10~\x07" +
-	"\x00\x00\xff\xff\x9fS\xf7\xb5"
+func (p DRKeyMgmt_Promise) DrkeyLvl2Req() DRKeyLvl2Req_Promise {
+	return DRKeyLvl2Req_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p DRKeyMgmt_Promise) DrkeyLvl2Rep() DRKeyLvl2Rep_Promise {
+	return DRKeyLvl2Rep_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+const schema_f85d2602085656c1 = "x\xda\x8c\x94_h\x1cU\x14\xc6\xcfw\xce\xecn\x0a" +
+	"Y\x92\xcb\x0c\xa8`Y\x1f\xacXK\xa5I\xf5\xc1\xbe" +
+	"\xd8\x86D\x92\x98@o\xa8A\x02\xa5\x84\xcd\x90D\xb3" +
+	"\x7f\xb23F\x83\x86(\xb4\xd0\x82\xe2\x1f\xf2`\xd0\x07" +
+	"\x1f\x0a>TP\x1f\xa4*\x0a\x06\x0a\xfeA\xa1\x85\xa2" +
+	"\xb6T\xac\xd8B\x85\x0am\xe8C\xb4\xb6#'\xb3;" +
+	"\xb3n\xa3\xf6i\x87\xb3\xdf=\xf7~\xbf\xf3\xdd\xbb\xe3" +
+	"\x11\xde\xcd]\x99;\x98\xc8\xde\x99\xc9F\xc7\x97\x9d\xb1" +
+	"\xed\x8f\xbd\xf5\x06Y\x03D+\xa3\xa3m|\xdf\xfe5" +
+	"\xca Gd\xae\x9e57\xf4\xf7\x8fg\x09\xd17W" +
+	"\xdd\xeb\xdf\x1f\xff\xfc\xc3\x16e\x1fr\x19\"\xf7\x09\x9c" +
+	"u\xc7u\xd1\xce\xfd(\x80\x10y\xc7\x8e\xadm{>" +
+	"\xff\x83\xca\x9d\xa6\xc6\x9c#r\x17x\xd5=\xa2_;" +
+	"\x0f\xf1\xab\xaa>\xb8m\xc7\x95\x9b\x0f\xbf\xfb\xb3\xaa\xb9" +
+	"U\xbd\xd9Yu\xb7:\xaa\xde\xe2\xac\xf7^\xca;\xd7" +
+	">\xed?zQ\xd5\xd2\xa4V\x8d\xbb'\xb3\xea\x0eg" +
+	"T=\x90\xf9R\xd5\xbf\xba\xef\xad\xbcr`\xcb\x9f-" +
+	"\xbd\xd7\xc5&\xb7\xean\xce\xe9\xd7]\xb9\xf7\x09\xd1D" +
+	"\xedi\x7f\xfe@i\x92K\xe1\x83\xc5\xf1j\xb9\xba\xab" +
+	"w\xe4q\x7f\xbe\xbf\"A\xb8\x17\xb0m\xe2\x109 " +
+	"2[\x1f \xb2\xf7\x0a\xec\x0e\x06\xe0Ak\xdb\xb5v" +
+	"\xbf\xc0>\xc4\xe8\x08\xe7\xab>\xb2\xc4\xc8\x12:\xa6*" +
+	"A\x88<1\xf2\xff\xbe\xc9\xf0\xa4\x94\xd67\xf1\xc4i" +
+	"\x8f\xa2\xf5]\x16\xba\x89\xecs\x02{\x90\x91\xc7\xcd(" +
+	"\xde\xe7\xa5\xa7\x88\xec\x8b\x02\xfb2#\xcf7\"\x0fL" +
+	"d\x8eh\xf5\xb0\xc0.1\xf2\xf2W\xe4A\x88\xcc\xeb" +
+	"Z}M`\xdff\xe4\x9d\xeb\x91\x07\x87\xc8,k\xf5" +
+	"M\x81=\xca(<S\x0e\xfc\x90\xb2\xf1\xb9\x86\xe6f" +
+	"\xa8\xa3k\xc4\x9fEgJ\x8e\x80\xce\xc6\xc1\x1b\x82*" +
+	":\xd3!\xdf\"\xe8\x8e;$\x93\xdaH\xa0\x1d\x92\xc1" +
+	"7\x0bne34W\x98\xd1=\x15\xcf\xdd\xc9\x0c>" +
+	"R:\x1f\x08\xecg\x0c\x03\x8e\xe1|2Fd?\x16" +
+	"\xd8\x13\x0c\xc3\x12\xb3Y\x19$\xb2_\x08\xec\xb7\x0cH" +
+	"L\xe6\xeb]D\xf6\x84\xc0\x9ed\x18\x071\x98\xef\xb4" +
+	"\xe5W\x02{\x9aa2\xec!CdNi\xcb\x93\x02" +
+	"{\x8ea\xb2Y\x0fY\"sf\x84\xc8\xfe(\xb0\x17" +
+	"\x18\x85\x89 \x1c\xd8\x83M\xc4\xd8D\x88\xfcj\xa58" +
+	"\xd5\xe3O\x92L\x97\xd1F\x8c\xb6F\xb1\xaf<AD" +
+	"\x8d\xda\xa3\xc5\xe9\xea\x94_k\x04\xa3P\xae\x94\x8b~" +
+	"\x12\x93\xa2_\x0bG\xfdZ/I\x10&\xad\xc3\xe9\x92" +
+	"\x1f\x84\xe3%B5\xe9\xfc\x1f\xcc\xba\xeb\xcc\xbc\x84\xd9" +
+	"\x82\x1e\xfb\x05\x81=\x9c\xe6\xf6Pw\x9a'\xc3\xa8\xc7" +
+	"i,\x8d\x93\x11\xae\xa7i0MS\xc2lYc\xbf" +
+	"$\xb0\xef\xf0\x86\x07,\xac\x1f0\xf1u\xbbt:J" +
+	"\xd3A\xf1\xff.M\xdd\xe4\xac\x9a\xbc'1yj0" +
+	"\x1dX\xc3\xe4\x99\x1e\"{Z`\xcf7\x99\xfc\xa9'" +
+	"\x1d\xa2\x11\xc4&\x7fQ\x1c\xe7\x04\xf6\x92\x9a\xe4\xd8\xe4" +
+	"E-\x9e\x17\xd8\xcb\x1a\x0c\xc4\xc1\xf8M\x97_\x10\xd8" +
+	"+\x1a\x0c\x8e\x83\xf1\xbb\x16/\x09\xec5\x86\xc9\x89\x17" +
+	"?\xa5\xca\xe8\xb2\xc0\xae1\xa2j\xad\x12V\x8a\x95\x19" +
+	"5\xdbN\x8cv\xc2b\xcd\x9f\xdd\xd7\xf4b,\xce\x8d" +
+	"\xcf\xec\x9b.\xf9\x09\xc3\xa0VL\x13\xf6\xcf\xbc-\x06" +
+	"\xb5b\xbf>0\x9d\xe9s\x1e_\xa7\xc5\x89 \xdc\xf8" +
+	"\x9f\xdb\x86\xdbU\x87\xdb\x9e\xc0\xedS\x12\xbb\x05v\xa8" +
+	"\xe9\xd6\x0d\xa8\xe9^\x81\xdd\xdbt\xeb\x865kC\x02" +
+	"\xfbd\xeb\x15i\xb5\xb7Ql\xfe\x0e\x00\x00\xff\xff\xf9" +
+	"*\x89+"
 
 func init() {
 	schemas.Register(schema_f85d2602085656c1,
-		0x9f50d21c9d4ce7ef,
+		0x929b462d5a0499b7,
 		0xb1bdb7d6fb13f1ca,
-		0xc3fe25dd82681d64,
-		0xd2a8ed7e732926bc)
+		0xd70d7b2bf8abab14,
+		0xdfa735fef0302b84,
+		0xe5a448baf4040d94,
+		0xfa255f8dc1ac13e3)
 }

@@ -45,6 +45,7 @@ const (
 
 var _ config.Config = (*Config)(nil)
 
+// Config that contains all necessary parameters to run a CS.
 type Config struct {
 	General   env.General
 	Features  env.Features
@@ -55,9 +56,11 @@ type Config struct {
 	Sciond    env.SciondClient `toml:"sd_client"`
 	TrustDB   truststorage.TrustDBConf
 	Discovery idiscovery.Config
+	DRKey     DRKeyConfig
 	CS        CSConfig
 }
 
+// InitDefaults will initialize the configuration variables with their default values.
 func (cfg *Config) InitDefaults() {
 	config.InitAll(
 		&cfg.General,
@@ -68,10 +71,12 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Sciond,
 		&cfg.TrustDB,
 		&cfg.Discovery,
+		&cfg.DRKey,
 		&cfg.CS,
 	)
 }
 
+// Validate will validate all configuration variables.
 func (cfg *Config) Validate() error {
 	return config.ValidateAll(
 		&cfg.General,
@@ -81,10 +86,12 @@ func (cfg *Config) Validate() error {
 		&cfg.Sciond,
 		&cfg.TrustDB,
 		&cfg.Discovery,
+		&cfg.DRKey,
 		&cfg.CS,
 	)
 }
 
+// Sample writes a sample of the configuration.
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
 		&cfg.General,
@@ -96,16 +103,19 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.QUIC,
 		&cfg.TrustDB,
 		&cfg.Discovery,
+		&cfg.DRKey,
 		&cfg.CS,
 	)
 }
 
+// ConfigName returns the configuration name for this block.
 func (cfg *Config) ConfigName() string {
 	return "cs_config"
 }
 
 var _ config.Config = (*CSConfig)(nil)
 
+// CSConfig holds the configuration values for a CS that don't have their own block.
 type CSConfig struct {
 	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
 	// the reissuance process starts.
