@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -73,6 +74,10 @@ func TestBasicVerifierVerify(t *testing.T) {
 					Version:   1,
 					Signature: []byte("signature"),
 				},
+			})
+			store.trustdb.InsertTRC(context.Background(), &trc.TRC{
+				ISD:     ia110.I,
+				Version: 1,
 			})
 			require.NoError(t, err)
 			verifier := NewBasicVerifier(store)
