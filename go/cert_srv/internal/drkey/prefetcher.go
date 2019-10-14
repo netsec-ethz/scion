@@ -27,15 +27,16 @@ import (
 
 var _ periodic.Task = (*Prefetcher)(nil)
 
-func deleteme() {
-
-}
-
 // Prefetcher is in charge of getting the level 1 keys before they expire.
 type Prefetcher struct {
 	LocalIA     addr.IA
 	Store       drkeystorage.ServiceStore
 	KeyDuration time.Duration
+}
+
+// Name returns the tasks name.
+func (r *Prefetcher) Name() string {
+	return "drkey.Prefetcher"
 }
 
 // Run requests the level 1 keys to other CSs.

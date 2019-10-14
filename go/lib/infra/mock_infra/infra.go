@@ -342,32 +342,10 @@ func (mr *MockMessengerMockRecorder) SendChainIssueReply(arg0, arg1, arg2, arg3 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendChainIssueReply", reflect.TypeOf((*MockMessenger)(nil).SendChainIssueReply), arg0, arg1, arg2, arg3)
 }
 
-// SendHPCfgReply mocks base method
-func (m *MockMessenger) SendHPCfgReply(arg0 context.Context, arg1 *path_mgmt.HPCfgReply, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendHPCfgReply", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
 // SendDRKeyLvl1 mocks base method
 func (m *MockMessenger) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Rep, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl1", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendHPCfgReply indicates an expected call of SendHPCfgReply
-func (mr *MockMessengerMockRecorder) SendHPCfgReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPCfgReply", reflect.TypeOf((*MockMessenger)(nil).SendHPCfgReply), arg0, arg1, arg2, arg3)
-}
-
-// SendHPSegReg mocks base method
-func (m *MockMessenger) SendHPSegReg(arg0 context.Context, arg1 *path_mgmt.HPSegReg, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendHPSegReg", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -382,6 +360,34 @@ func (mr *MockMessengerMockRecorder) SendDRKeyLvl1(arg0, arg1, arg2, arg3 interf
 func (m *MockMessenger) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgmt.Lvl2Rep, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl2", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendDRKeyLvl2 indicates an expected call of SendDRKeyLvl2
+func (mr *MockMessengerMockRecorder) SendDRKeyLvl2(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl2", reflect.TypeOf((*MockMessenger)(nil).SendDRKeyLvl2), arg0, arg1, arg2, arg3)
+}
+
+// SendHPCfgReply mocks base method
+func (m *MockMessenger) SendHPCfgReply(arg0 context.Context, arg1 *path_mgmt.HPCfgReply, arg2 net.Addr, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHPCfgReply", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendHPCfgReply indicates an expected call of SendHPCfgReply
+func (mr *MockMessengerMockRecorder) SendHPCfgReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPCfgReply", reflect.TypeOf((*MockMessenger)(nil).SendHPCfgReply), arg0, arg1, arg2, arg3)
+}
+
+// SendHPSegReg mocks base method
+func (m *MockMessenger) SendHPSegReg(arg0 context.Context, arg1 *path_mgmt.HPSegReg, arg2 net.Addr, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHPSegReg", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -404,12 +410,6 @@ func (m *MockMessenger) SendHPSegReply(arg0 context.Context, arg1 *path_mgmt.HPS
 func (mr *MockMessengerMockRecorder) SendHPSegReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPSegReply", reflect.TypeOf((*MockMessenger)(nil).SendHPSegReply), arg0, arg1, arg2, arg3)
-}
-
-// SendDRKeyLvl2 indicates an expected call of SendDRKeyLvl2
-func (mr *MockMessengerMockRecorder) SendDRKeyLvl2(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl2", reflect.TypeOf((*MockMessenger)(nil).SendDRKeyLvl2), arg0, arg1, arg2, arg3)
 }
 
 // SendIfId mocks base method
@@ -627,32 +627,10 @@ func (mr *MockResponseWriterMockRecorder) SendChainIssueReply(arg0, arg1 interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendChainIssueReply", reflect.TypeOf((*MockResponseWriter)(nil).SendChainIssueReply), arg0, arg1)
 }
 
-// SendHPCfgReply mocks base method
-func (m *MockResponseWriter) SendHPCfgReply(arg0 context.Context, arg1 *path_mgmt.HPCfgReply) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendHPCfgReply", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
 // SendDRKeyLvl1 mocks base method
 func (m *MockResponseWriter) SendDRKeyLvl1(arg0 context.Context, arg1 *drkey_mgmt.Lvl1Rep) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyLvl1", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendHPCfgReply indicates an expected call of SendHPCfgReply
-func (mr *MockResponseWriterMockRecorder) SendHPCfgReply(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPCfgReply", reflect.TypeOf((*MockResponseWriter)(nil).SendHPCfgReply), arg0, arg1)
-}
-
-// SendHPSegReply mocks base method
-func (m *MockResponseWriter) SendHPSegReply(arg0 context.Context, arg1 *path_mgmt.HPSegReply) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendHPSegReply", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -671,16 +649,38 @@ func (m *MockResponseWriter) SendDRKeyLvl2(arg0 context.Context, arg1 *drkey_mgm
 	return ret0
 }
 
-// SendHPSegReply indicates an expected call of SendHPSegReply
-func (mr *MockResponseWriterMockRecorder) SendHPSegReply(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPSegReply", reflect.TypeOf((*MockResponseWriter)(nil).SendHPSegReply), arg0, arg1)
-}
-
 // SendDRKeyLvl2 indicates an expected call of SendDRKeyLvl2
 func (mr *MockResponseWriterMockRecorder) SendDRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDRKeyLvl2", reflect.TypeOf((*MockResponseWriter)(nil).SendDRKeyLvl2), arg0, arg1)
+}
+
+// SendHPCfgReply mocks base method
+func (m *MockResponseWriter) SendHPCfgReply(arg0 context.Context, arg1 *path_mgmt.HPCfgReply) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHPCfgReply", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendHPCfgReply indicates an expected call of SendHPCfgReply
+func (mr *MockResponseWriterMockRecorder) SendHPCfgReply(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPCfgReply", reflect.TypeOf((*MockResponseWriter)(nil).SendHPCfgReply), arg0, arg1)
+}
+
+// SendHPSegReply mocks base method
+func (m *MockResponseWriter) SendHPSegReply(arg0 context.Context, arg1 *path_mgmt.HPSegReply) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHPSegReply", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendHPSegReply indicates an expected call of SendHPSegReply
+func (mr *MockResponseWriterMockRecorder) SendHPSegReply(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHPSegReply", reflect.TypeOf((*MockResponseWriter)(nil).SendHPSegReply), arg0, arg1)
 }
 
 // SendIfStateInfoReply mocks base method
