@@ -93,12 +93,7 @@ run_zk() {
         return
     fi
     echo "Running zookeeper..."
-    if is_docker_zk; then
-        host_zk_stop || true
-        ./tools/quiet ./tools/dc zk up -d
-    else
-        host_zk_start
-    fi
+    ./tools/quiet ./tools/dc zk up -d
     if [ -n "$1" ]; then
         echo "Deleting all Zookeeper state"
         # Wait some time, such that zookeeper accepts connections again after startup
@@ -106,7 +101,7 @@ run_zk() {
         local addr="127.0.0.1:2181"
         if is_running_in_docker; then
             addr="${DOCKER0:-172.17.0.1}:2182"
-        elif is_docker_zk; then
+        elif is_docker_be; then
             addr="$(./tools/docker-ip):2181"
         fi
         tools/zkcleanslate --zk "$addr"
@@ -127,14 +122,6 @@ stop_jaeger() {
     fi
     echo "Stopping jaeger..."
     ./tools/quiet ./tools/dc jaeger down
-}
-
-host_zk_start() {
-    systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
-}
-
-host_zk_stop() {
-    systemctl is-active --quiet zookeeper && sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
 }
 
 cmd_mstart() {
@@ -256,10 +243,6 @@ glob_match() {
 
 is_docker_be() {
     [ -f gen/scion-dc.yml ]
-}
-
-is_docker_zk() {
-    is_docker_be || [ -f gen/zk-dc.yml ]
 }
 
 is_supervisor() {
