@@ -87,6 +87,7 @@ func (s *ServiceStore) GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta,
 	// look in the DB
 	k, err := s.db.GetLvl1Key(ctx, meta, util.TimeToSecs(valTime))
 	if err == nil {
+		log.Trace("[DRKey ServiceStore] L1 key found in storage")
 		return k, err
 	}
 	if err != sql.ErrNoRows {
@@ -171,6 +172,7 @@ func (s *ServiceStore) getLvl1FromOtherCS(ctx context.Context, srcIA, dstIA addr
 		return drkey.Lvl1Key{},
 			common.NewBasicError("Unable to fetch certificate for remote host", err)
 	}
+	log.Trace("[DRKey ServiceStore] Requesting remote L1", "SrcIA", srcIA)
 	csAddr := &snet.Addr{IA: srcIA, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	lvl1Req := drkey_mgmt.NewLvl1Req(dstIA, util.TimeToSecs(valTime))
 	lvl1Rep, err := s.msger.RequestDRKeyLvl1(ctx, &lvl1Req, csAddr, messenger.NextId())
@@ -338,7 +340,6 @@ type lvl2ReqHandler struct {
 
 // Handle receives a level 2 drkey request and sends a reply using the messenger in its store.
 func (h *lvl2ReqHandler) Handle() *infra.HandlerResult {
-	log.Trace("[DRKey ServiceStore.lvl2ReqHandler] got request")
 	ctx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 
@@ -351,7 +352,7 @@ func (h *lvl2ReqHandler) Handle() *infra.HandlerResult {
 	srcIA := req.SrcIA()
 	dstIA := req.DstIA()
 	log.Trace("[DRKey ServiceStore.lvl2ReqHandler] Received request",
-		"protocol", req.Protocol, "dstIA", dstIA)
+		"Type", req.ReqType, "protocol", req.Protocol, "SrcIA", srcIA, "DstIA", dstIA)
 
 	lvl1Meta := drkey.Lvl1Meta{
 		SrcIA: srcIA,
