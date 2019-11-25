@@ -1,4 +1,4 @@
-.PHONY: all clean goenv gogen vendor mocks bazel gazelle setcap tags
+.PHONY: all clean gogen mocks bazel gazelle setcap tags
 
 BRACCEPT = bin/braccept
 
@@ -18,19 +18,13 @@ else
 	@echo "gogen: skipped"
 endif
 
-goenv: vendor
-
-vendor:
-	if [ -e go/vendor ]; then rm -r go/vendor; fi
-	bzlcompat -vendorBase=go
-
-bazel: vendor gogen
+bazel: gogen
 	rm -f bin/*
 	bazel build //:scion //:scion-ci --workspace_status_command=./tools/bazel-build-env
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
-mocks: goenv
+mocks:
 	./tools/gomocks
 
 gazelle:
