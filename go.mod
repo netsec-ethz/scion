@@ -69,5 +69,3 @@ require (
 )
 
 replace github.com/smartystreets/goconvey => github.com/kormat/goconvey v0.0.0-20161013142909-a9793712606d
-
-go 1.13
