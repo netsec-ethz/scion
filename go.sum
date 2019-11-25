@@ -52,6 +52,7 @@ github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvW
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656 h1:aG3mi6+atPavBL5PM/s0XqiRuJ2n08aEY9xza16XGTo=
 github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656/go.mod h1:8fpYQL5jskFnAq4zE2UpspqEVHuTjurptCxHPpdoBgM=
+github.com/kormat/goconvey v0.0.0-20161013142909-a9793712606d h1:ukVl44+lOValNd6FspqB3mu2EwVcq0BhcMQAuaJPTHA=
 github.com/kormat/goconvey v0.0.0-20161013142909-a9793712606d/go.mod h1:fSDDyprxOwuCBOI6vRyEm1sUc7rU00lGBxesFYarB9g=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
