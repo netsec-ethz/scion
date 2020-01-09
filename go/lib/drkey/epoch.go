@@ -42,5 +42,5 @@ func NewEpoch(begin, end uint32) Epoch {
 
 // Contains indicates whether the time point is inside this Epoch.
 func (e *Epoch) Contains(t time.Time) bool {
-	return t.After(e.Begin) && e.End.After(t)
+	return !e.Begin.After(t) && e.End.After(t)
 }
