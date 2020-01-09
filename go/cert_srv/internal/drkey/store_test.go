@@ -16,7 +16,9 @@ package drkey
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,30 +28,59 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+// TestSecretValueStoreTicker checks that the store starts a ticker to clean expired values.
+func TestSecretValueStoreTicker(t *testing.T) {
+	var m sync.Mutex
+	cond := sync.NewCond(&m)
+	m.Lock()
+	c := NewSecretValueStore(time.Millisecond)
+	c.mutex.Lock()
+	c.timeNowFcn = func() time.Time {
+		cond.Broadcast()
+		return time.Unix(0, 0)
+	}
+	c.mutex.Unlock()
+	// wait for the condition variable, but with a timeout
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Minute)
+	defer cancelF()
+	done := make(chan struct{})
+	go func() {
+		cond.Wait()
+		done <- struct{}{}
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("Time function not called. Is ticker running in the store?")
+	}
+}
+
 func TestSecretValueStore(t *testing.T) {
-	dur := time.Millisecond
-	c := NewSecretValueStore(dur)
+	c := NewSecretValueStore(time.Millisecond)
+	// these timeNowFcn functions mock time.Now()
+	c.mutex.Lock()
 	c.timeNowFcn = func() time.Time { return time.Unix(10, 0) }
+	c.mutex.Unlock()
+	c.cleanExpired()
 	_, found := c.Get(1)
 	if found {
 		t.Fatalf("Should have not been found")
 	}
-	sv := drkey.SV{SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(20, 21)}}
-	c.Set(1, sv)
+	c.Set(1, drkey.SV{SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(20, 21)}})
 	_, found = c.Get(1)
 	if !found {
 		t.Fatalf("Should have been found")
 	}
 	// the ticker should remove the key:
+	c.mutex.Lock()
 	c.timeNowFcn = func() time.Time { return time.Unix(30, 0) }
-	time.Sleep(10 * time.Millisecond)
+	c.mutex.Unlock()
+	c.cleanExpired()
 	_, found = c.Get(1)
 	if found {
 		t.Fatalf("Should have not been found")
 	}
-
-	dur = time.Hour
-	c = NewSecretValueStore(dur)
+	c = NewSecretValueStore(time.Hour)
 	k1 := drkey.SV{
 		SVMeta: drkey.SVMeta{Epoch: drkey.NewEpoch(10, 12)},
 		Key:    drkey.DRKey(common.RawBytes{1, 2, 3}),
@@ -74,12 +105,16 @@ func TestSecretValueStore(t *testing.T) {
 	if len(c.cache) != 2 {
 		t.Fatalf("The cache should contain 2 SVs, but it contains %d", len(c.cache))
 	}
+	c.mutex.Lock()
 	c.timeNowFcn = func() time.Time { return time.Unix(12, 0).Add(-1 * time.Nanosecond) }
+	c.mutex.Unlock()
 	c.cleanExpired()
 	if len(c.cache) != 2 {
 		t.Fatalf("The cache should contain 2 SVs, but it contains %d", len(c.cache))
 	}
+	c.mutex.Lock()
 	c.timeNowFcn = func() time.Time { return time.Unix(12, 1) }
+	c.mutex.Unlock()
 	c.cleanExpired()
 	if len(c.cache) != 1 {
 		t.Fatalf("The cache should contain 1 SV, but it contains %d", len(c.cache))
@@ -88,7 +123,6 @@ func TestSecretValueStore(t *testing.T) {
 	if found {
 		t.Fatalf("Should have not been found")
 	}
-
 }
 
 func TestSecretValueFactory(t *testing.T) {
