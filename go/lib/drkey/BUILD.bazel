@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "db.go",
+        "drkey.go",
+        "epoch.go",
+        "level1.go",
+        "level2.go",
+        "secret_value.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/drkey",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/infra/modules/db:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/util:go_default_library",
+        "@org_golang_x_crypto//pbkdf2:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["secret_value_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/xtest:go_default_library",
+    ],
+)
