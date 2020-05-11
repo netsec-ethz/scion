@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -37,6 +38,16 @@ func NewPld(u proto.Cerealizable, d *Data) (*Pld, error) {
 	return p, p.union.set(u)
 }
 
+// NewDRKeyMgmtPld creates a new control payload, containing a new drkey_mgmt payload,
+// which in turn contains the supplied Cerealizable instance.
+func NewDRKeyMgmtPld(u proto.Cerealizable, drkeyD *drkey_mgmt.Data, ctrlD *Data) (*Pld, error) {
+	kpld, err := drkey_mgmt.NewPld(u, drkeyD)
+	if err != nil {
+		return nil, err
+	}
+	return NewPld(kpld, ctrlD)
+}
+
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{Data: &Data{}}
 	return p, proto.ParseFromRaw(p, b)
@@ -44,6 +55,21 @@ func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
 	return p.union.get()
+}
+
+// GetDRKeyMgmt returns the DRKeyMgmt payload and the CtrlPld's non-union Data.
+// If the union type is not DRKeyMgmt, an error is returned.
+func (p *Pld) GetDRKeyMgmt() (*drkey_mgmt.Pld, *Data, error) {
+	u, err := p.Union()
+	if err != nil {
+		return nil, nil, err
+	}
+	drkeyP, ok := u.(*drkey_mgmt.Pld)
+	if !ok {
+		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
+			"expected", "*drkey_mgmt.Pld", "actual", common.TypeOf(u))
+	}
+	return drkeyP, p.Data, nil
 }
 
 func (p *Pld) Len() int {

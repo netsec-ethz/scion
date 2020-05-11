@@ -4,33 +4,54 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
-struct DRKeyReq {
-    isdas @0 :UInt64;      # Src ISD-AS of the requested DRKey
-    timestamp @1 :UInt32;  # Timestamp, seconds since Unix Epoch
-    signature @2 :Data;    # Signature of (isdas, prefetch, timestamp)
-    certVer @3 :UInt32;    # Version cert used to sign
-    trcVer @4 :UInt32;     # Version of TRC, which signed cert
-    flags :group {
-        prefetch @5 :Bool; # Indicator request for current (false) or next (true) DRKey
-    }
 
+struct DRKeyLvl1Req {
+    dstIA @0 :UInt64;     # Dst ISD-AS of the requested DRKey
+    valTime @1 :UInt32;   # Point in time where requested DRKey is valid. Used to identify the epoch
+    timestamp @2 :UInt32; # Point in time when the request was created
 }
 
-struct DRKeyRep {
-    isdas @0 :UInt64;      # Src ISD-AS of the DRKey
-    timestamp @1 :UInt32;  # Timestamp, seconds since Unix Epoch
-    expTime @2 :UInt32;    # Expiration time of the DRKey, seconds since Unix Epoch
+struct DRKeyLvl1Rep {
+    dstIA @0 :UInt64;      # Dst ISD-AS of the DRKey
+    epochBegin @1 :UInt32; # Begin of validity period of DRKey
+    epochEnd @2 :UInt32;   # End of validity period of DRKey
     cipher @3 :Data;       # Encrypted DRKey
-    signature @4 :Data;    # Signature (isdas, cipher, timestamp, expTime)
-    certVerSrc @5 :UInt32; # Version of cert used to sign
-    certVerDst @6 :UInt32; # Version of cert of public key used to encrypt
-    trcVer @7 :UInt32;     # Version of TRC, of signing cert
+    nonce @4 :Data;        # Nonce used for encryption
+    certVerDst @5 :UInt64; # Version of cert of public key used to encrypt
+    timestamp @6 :UInt32;  # Creation time of this reply
+}
+
+struct DRKeyHost {
+    type @0 :UInt8; # AddrType
+    host @1 :Data;  # Host address
+}
+
+struct DRKeyLvl2Req {
+    protocol @0 :Text;      # Protocol identifier
+    reqType @1 :UInt8;      # Requested DRKeyProtoKeyType
+    valTime @2 :UInt32;     # Point in time where requested DRKey is valid. Used to identify the epoch
+    srcIA @3 :UInt64;       # Src ISD-AS of the requested DRKey
+    dstIA @4 :UInt64;       # Dst ISD-AS of the requested DRKey
+    srcHost @5 :DRKeyHost;  # Src Host of the request DRKey (optional)
+    dstHost @6 :DRKeyHost;  # Dst Host of the request DRKey (optional)
+    misc @7 :Data;          # Additional information (optional)
+}
+
+struct DRKeyLvl2Rep {
+    timestamp @0 :UInt32;  # Timestamp
+    drkey @1 :Data;        # Derived DRKey
+    epochBegin @2 :UInt32; # Begin of validity period of DRKey
+    epochEnd @3 :UInt32;   # End of validity period of DRKey
+    misc @4 :Data;         # Additional information (optional)
 }
 
 struct DRKeyMgmt {
     union {
         unset @0 :Void;
-        drkeyReq @1 :DRKeyReq;
-        drkeyRep @2 :DRKeyRep;
+        drkeyLvl1Req @1 :DRKeyLvl1Req;
+        drkeyLvl1Rep @2 :DRKeyLvl1Rep;
+        drkeyLvl2Req @3 :DRKeyLvl2Req;
+        drkeyLvl2Rep @4 :DRKeyLvl2Rep;
     }
 }
+
