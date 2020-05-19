@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "sample.go",
+        "store.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/drkeystorage",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/config:go_default_library",
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/drkeydbsqlite:go_default_library",
+        "//go/lib/drkey/protocol:go_default_library",
+        "//go/lib/infra:go_default_library",
+        "//go/lib/infra/modules/cleaner:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/util:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["config_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
