@@ -72,8 +72,8 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
 	defer log.HandlePanic()
-	if err := validateConfig(); err != nil {
-		log.Crit("Validation of config failed", "err", err)
+	if err := cfg.Validate(); err != nil {
+		log.Crit("Configuration validation failed", "err", err)
 		return 1
 	}
 	// Setup tun early so that we can drop capabilities before interacting with network etc.
@@ -133,16 +133,6 @@ func setupBasic() error {
 	}
 	prom.ExportElementID(cfg.Sig.ID)
 	return env.LogAppStarted("SIG", cfg.Sig.ID)
-}
-
-func validateConfig() error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	if cfg.Metrics.Prometheus == "" {
-		cfg.Metrics.Prometheus = "127.0.0.1:1281"
-	}
-	return nil
 }
 
 func setupTun() (io.ReadWriteCloser, error) {
