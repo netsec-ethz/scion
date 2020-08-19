@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
@@ -82,6 +83,8 @@ type SigConf struct {
 	ID string `toml:"id,omitempty"`
 	// The SIG config json file. (required)
 	SIGConfig string `toml:"sig_config,omitempty"`
+	// _IA is *ignored*, kept only for backwards compatibility
+	_IA addr.IA `toml:"isd_as,omitempty"`
 	// IP the bind IP address (optional, default determined based on route to control service)
 	IP net.IP `toml:"ip,omitempty"`
 	// Control data port, e.g. keepalives. (default DefaultCtrlPort)
