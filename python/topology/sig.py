@@ -150,7 +150,6 @@ class SIGGenerator(object):
             'sig': {
                 'id': name,
                 'sig_config': 'conf/cfg.json',
-                'isd_as': str(topo_id),
                 'ip': str(net[ipv]),
             },
             'sciond_connection': {

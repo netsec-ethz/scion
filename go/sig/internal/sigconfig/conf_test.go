@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -58,7 +57,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 func CheckTestSigConf(t *testing.T, cfg *SigConf, id string) {
 	assert.Equal(t, "sig4", cfg.ID)
 	assert.Equal(t, "/etc/scion/sig/sig.json", cfg.SIGConfig)
-	assert.Equal(t, xtest.MustParseIA("1-ff00:0:113"), cfg.IA)
 	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.IP)
 	assert.Equal(t, DefaultCtrlPort, int(cfg.CtrlPort))
 	assert.Equal(t, DefaultEncapPort, int(cfg.EncapPort))
