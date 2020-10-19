@@ -64,7 +64,7 @@ func (p Delegated) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecr
 		b := meta.SrcHost.Pack()
 		buffs = [][]byte{
 			b,
-			[]byte{byte(len(b))},
+			{byte(len(b))},
 		}
 		pLen += len(b) + 1
 		fallthrough

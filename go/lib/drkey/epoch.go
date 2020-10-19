@@ -17,32 +17,32 @@ package drkey
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Epoch represents a validity period.
 type Epoch struct {
-	scrypto.Validity
+	cppki.Validity
 }
 
 // Equal returns true if both Epochs are identical.
 func (e Epoch) Equal(other Epoch) bool {
-	return e.NotBefore.Time == other.NotBefore.Time &&
-		e.NotAfter.Time == other.NotAfter.Time
+	return e.NotBefore == other.NotBefore &&
+		e.NotAfter == other.NotAfter
 }
 
 // NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
 func NewEpoch(begin, end uint32) Epoch {
 	return Epoch{
-		scrypto.Validity{
-			NotBefore: util.UnixTime{Time: util.SecsToTime(begin)},
-			NotAfter:  util.UnixTime{Time: util.SecsToTime(end)},
+		cppki.Validity{
+			NotBefore: util.SecsToTime(begin).UTC(),
+			NotAfter:  util.SecsToTime(end).UTC(),
 		},
 	}
 }
 
 // Contains indicates whether the time point is inside this Epoch.
 func (e *Epoch) Contains(t time.Time) bool {
-	return e.Contains(t)
+	return e.Validity.Contains(t)
 }

@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/protocol"
-	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -50,9 +50,9 @@ func TestDRKeyLvl1(t *testing.T) {
 	defer cleanF()
 
 	epoch := drkey.Epoch{
-		Validity: scrypto.Validity{
-			NotBefore: util.UnixTime{Time: time.Now()},
-			NotAfter:  util.UnixTime{Time: time.Now().Add(timeOffset * time.Second)},
+		Validity: cppki.Validity{
+			NotBefore: time.Now(),
+			NotAfter:  time.Now().Add(timeOffset * time.Second),
 		},
 	}
 	sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
@@ -74,11 +74,13 @@ func TestDRKeyLvl1(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, drkeyLvl1.Key, newKey.Key)
 
-	rows, err := db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
+	rows, err := db.RemoveOutdatedLvl1Keys(ctx,
+		util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
 	require.NoError(t, err)
 	require.EqualValues(t, 0, rows)
 
-	rows, err = db.RemoveOutdatedLvl1Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
+	rows, err = db.RemoveOutdatedLvl1Keys(ctx,
+		util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
 	require.NoError(t, err)
 	require.EqualValues(t, 1, rows)
 
@@ -94,9 +96,9 @@ func TestDRKeyLvl2(t *testing.T) {
 	srcIA := addr.IAFromRaw(rawSrcIA)
 	dstIA := addr.IAFromRaw(rawDstIA)
 	epoch := drkey.Epoch{
-		Validity: scrypto.Validity{
-			NotBefore: util.UnixTime{Time: time.Now()},
-			NotAfter:  util.UnixTime{Time: time.Now().Add(timeOffset * time.Second)},
+		Validity: cppki.Validity{
+			NotBefore: time.Now(),
+			NotAfter:  time.Now().Add(timeOffset * time.Second),
 		},
 	}
 	sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
@@ -129,11 +131,13 @@ func TestDRKeyLvl2(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, drkeyLvl2.Key, newKey.Key)
 
-	rows, err := db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
+	rows, err := db.RemoveOutdatedLvl2Keys(ctx,
+		util.TimeToSecs(time.Now().Add(-timeOffset*time.Second)))
 	require.NoError(t, err)
 	require.EqualValues(t, 0, rows)
 
-	rows, err = db.RemoveOutdatedLvl2Keys(ctx, util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
+	rows, err = db.RemoveOutdatedLvl2Keys(ctx,
+		util.TimeToSecs(time.Now().Add(2*timeOffset*time.Second)))
 	require.NoError(t, err)
 	require.EqualValues(t, 1, rows)
 }
@@ -155,9 +159,9 @@ func TestGetMentionedASes(t *testing.T) {
 		dstIA, _ := addr.IAFromString(p[1].(string))
 		begin := time.Unix(0, 0)
 		epoch := drkey.Epoch{
-			Validity: scrypto.Validity{
-				NotBefore: util.UnixTime{Time: begin},
-				NotAfter:  util.UnixTime{Time: begin.Add(time.Duration(p[2].(int)) * time.Second)},
+			Validity: cppki.Validity{
+				NotBefore: begin,
+				NotAfter:  begin.Add(time.Duration(p[2].(int)) * time.Second),
 			},
 		}
 		sv, err := drkey.DeriveSV(drkey.SVMeta{Epoch: epoch}, asMasterPassword)
@@ -181,6 +185,8 @@ func TestGetMentionedASes(t *testing.T) {
 		ia("1-ff00:0:111"),
 		ia("2-ff00:0:211"),
 	}
+
+	require.Equal(t, expected, list)
 
 	list, err = db.GetValidLvl1SrcASes(ctx, 3)
 	require.NoError(t, err)

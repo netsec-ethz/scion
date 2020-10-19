@@ -30,3 +30,14 @@ const caSample = `
 # loaded that satisfies the condition. (default 3d)
 max_as_validity = "3d"
 `
+const drkeySample = `
+# EpochDuration of the DRKey secret value and of all derived keys. (default "24h")
+epoch_duration = "24h"
+
+# MaxReplyAge is the age limit for a lvl 1 reply to be accepted. Older are rejected. (default "2s")
+max_reply_age = "2s"
+`
+const drkeyDelegationListSample = `
+# The list of hosts authorized to get a DS per protocol.
+piskes = [ "127.0.0.1", "127.0.0.2"]
+`

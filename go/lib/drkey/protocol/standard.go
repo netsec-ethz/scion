@@ -49,7 +49,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 		b := meta.SrcHost.Pack()
 		buffs = [][]byte{
 			b,
-			[]byte{byte(len(b))},
+			{byte(len(b))},
 		}
 		pLen += len(b) + 1
 		fallthrough

@@ -1,0 +1,84 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/drkey";
+
+package proto.drkey.mgmt.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message DRKeyLvl1Request{
+    // Dst ISD-AS of the requested DRKey
+    uint64 dst_IA = 1;
+    // Point in time where requested DRKey is valid. Used to identify the epoch
+    google.protobuf.Timestamp val_time = 2;
+    // Point in time when the request was created
+    google.protobuf.Timestamp timestamp = 3;
+
+}
+
+message DRKeyLvl1Response{
+    // Dst ISD-AS of the DRKey
+    uint64 dst_IA = 1;
+    // src ISD-AS of the DRKey
+    uint64 src_IA = 2; 
+    // Begin of validity period of DRKey
+    google.protobuf.Timestamp epoch_begin = 3;
+    // End of validity period of DRKey
+    google.protobuf.Timestamp epoch_end = 4;
+    // Lvl1 DRKey
+    bytes drkey = 5;
+    // Creation time of this reply
+    google.protobuf.Timestamp timestamp = 6;
+}
+
+message DRKeyLvl2Request{
+    message DRKeyHost{
+        // AddrType
+        uint32 type = 1;
+        // Host address
+        bytes host = 2;
+    }
+    // Protocol identifier
+    string protocol = 1;
+    // Requested DRKeyProtoKeyType
+    uint32 req_type = 2;
+    // Point in time where requested DRKey is valid. Used to identify the epoch
+    google.protobuf.Timestamp val_time = 3;
+    // Src ISD-AS of the requested DRKey
+    uint64 src_IA = 4;
+    // Dst ISD-AS of the requested DRKey
+    uint64 dst_IA = 5;
+    // Src Host of the request DRKey (optional)
+    DRKeyHost src_host = 6;
+    // Dst Host of the request DRKey (optional)
+    DRKeyHost dst_host = 7;
+    // Additional information (optional)
+    bytes misc = 8;
+}
+
+message DRKeyLvl2Response{
+    // Timestamp
+    google.protobuf.Timestamp timestamp = 1;
+    // Derived DRKey
+    bytes drkey = 2;
+    // Begin of validity period of DRKey
+    google.protobuf.Timestamp epoch_begin = 3;
+    // End of validity period of DRKey
+    google.protobuf.Timestamp epoch_end = 4;
+    // Additional information (optional)
+    bytes misc = 5;
+}

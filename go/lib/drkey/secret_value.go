@@ -52,8 +52,8 @@ func DeriveSV(meta SVMeta, asSecret []byte) (SV, error) {
 	all := make([]byte, 1+msLen+8)
 	copy(all, []byte{byte(msLen)})
 	copy(all[1:], asSecret)
-	binary.LittleEndian.PutUint32(all[msLen+1:], util.TimeToSecs(meta.Epoch.NotBefore.Time))
-	binary.LittleEndian.PutUint32(all[msLen+5:], util.TimeToSecs(meta.Epoch.NotAfter.Time))
+	binary.LittleEndian.PutUint32(all[msLen+1:], util.TimeToSecs(meta.Epoch.NotBefore))
+	binary.LittleEndian.PutUint32(all[msLen+5:], util.TimeToSecs(meta.Epoch.NotAfter))
 
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	return SV{

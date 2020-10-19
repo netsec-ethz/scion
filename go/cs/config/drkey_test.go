@@ -12,17 +12,59 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package drkeystorage
+package config
 
 import (
+	"bytes"
 	"io/ioutil"
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/pkg/storage"
 )
+
+func TestInitDefaults(t *testing.T) {
+	var cfg DRKeyConfig
+	cfg.InitDefaults()
+	assert.EqualValues(t, 24*time.Hour, cfg.EpochDuration.Duration)
+	assert.EqualValues(t, 2*time.Second, cfg.MaxReplyAge.Duration)
+}
+
+func TestDRKeyConfigSample(t *testing.T) {
+	var sample bytes.Buffer
+	var cfg DRKeyConfig
+	cfg.Sample(&sample, nil, nil)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	require.NoError(t, err)
+	require.Empty(t, meta.Undecoded())
+	err = cfg.Validate()
+	require.NoError(t, err)
+	assert.Equal(t, DefaultEpochDuration, cfg.EpochDuration.Duration)
+	assert.Equal(t, DefaultMaxReplyAge, cfg.MaxReplyAge.Duration)
+}
+
+func TestDisable(t *testing.T) {
+	var cfg = NewDRKeyConfig()
+	require.False(t, cfg.Enabled())
+	var err error
+	err = cfg.Validate()
+	require.NoError(t, err)
+	cfg.EpochDuration.Duration = 10 * time.Hour
+	cfg.MaxReplyAge.Duration = 10 * time.Hour
+	cfg.DRKeyDB.Connection = "a"
+	cfg.InitDefaults()
+	require.True(t, cfg.Enabled())
+	err = cfg.Validate()
+	require.NoError(t, err)
+	assert.EqualValues(t, 10*time.Hour, cfg.EpochDuration.Duration)
+	assert.EqualValues(t, 10*time.Hour, cfg.MaxReplyAge.Duration)
+}
 
 func TestDelegationListDefaults(t *testing.T) {
 	var cfg DelegationList
@@ -66,37 +108,14 @@ func TestToMapPerHost(t *testing.T) {
 	require.Contains(t, m[rawIP], "piskes")
 }
 
-func TestInitDRKeyDBDefaults(t *testing.T) {
-	var cfg DRKeyDBConf
-	cfg.InitDefaults()
-	require.NoError(t, cfg.Validate())
-	require.EqualValues(t, "sqlite", cfg.Backend())
-	require.Empty(t, cfg.Connection())
-}
-
 func TestNewLvl1DB(t *testing.T) {
-	cfg := &DRKeyDBConf{
-		"backend":    "sqlite",
-		"connection": tempFile(t),
-	}
-	db, err := cfg.NewLvl1DB()
+	cfg := DRKeyConfig{}
+	cfg.InitDefaults()
+	cfg.DRKeyDB.Connection = tempFile(t)
+	db, err := storage.NewDRKeyLvl1Storage(cfg.DRKeyDB)
 	defer func() {
 		db.Close()
-		os.Remove(cfg.Connection())
-	}()
-	require.NoError(t, err)
-	require.NotNil(t, db)
-}
-
-func TestNewLvl2DB(t *testing.T) {
-	cfg := &DRKeyDBConf{
-		"backend":    "sqlite",
-		"connection": tempFile(t),
-	}
-	db, err := cfg.NewLvl2DB()
-	defer func() {
-		db.Close()
-		os.Remove(cfg.Connection())
+		os.Remove(cfg.DRKeyDB.Connection)
 	}()
 	require.NoError(t, err)
 	require.NotNil(t, db)

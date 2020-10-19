@@ -16,6 +16,7 @@ go_library(
         "signer_gen.go",
         "store.go",
         "tls_handshake.go",
+        "transport_credentials.go",
         "verifier.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/trust",
@@ -40,6 +41,7 @@ go_library(
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_opentracing_opentracing_go//ext:go_default_library",
         "@com_github_patrickmn_go_cache//:go_default_library",
+        "@org_golang_google_grpc//credentials:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )

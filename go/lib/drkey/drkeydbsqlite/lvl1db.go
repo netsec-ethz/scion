@@ -146,7 +146,9 @@ AND EpochBegin<=? AND ?<EpochEnd
 
 // GetLvl1Key takes an pointer to a first level DRKey and a timestamp at which the DRKey should be
 // valid and returns the corresponding first level DRKey.
-func (b *Lvl1Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta, valTime uint32) (drkey.Lvl1Key, error) {
+func (b *Lvl1Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta,
+	valTime uint32) (drkey.Lvl1Key, error) {
+
 	var epochBegin, epochEnd int
 	var bytes []byte
 	err := b.getLvl1KeyStmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
@@ -176,7 +178,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 // InsertLvl1Key inserts a first level DRKey and returns the number of affected rows.
 func (b *Lvl1Backend) InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error {
 	_, err := b.insertLvl1KeyStmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
-		key.DstIA.A, uint32(key.Epoch.NotBefore.Time.Unix()), uint32(key.Epoch.NotAfter.Time.Unix()), key.Key)
+		key.DstIA.A, uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()), key.Key)
 	if err != nil {
 		return err
 	}

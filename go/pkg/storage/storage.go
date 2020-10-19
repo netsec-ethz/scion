@@ -23,6 +23,8 @@ import (
 	sqlitebeacondb "github.com/scionproto/scion/go/cs/beacon/beacondbsqlite"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -60,6 +62,9 @@ var (
 	}
 	SampleTrustDB = DBConfig{
 		Connection: DefaultTrustDBPath,
+	}
+	SampleDRKeyDB = DBConfig{
+		Connection: "/share/drkey/%s.drkey.db",
 	}
 )
 
@@ -161,6 +166,16 @@ func NewTrustStorage(c DBConfig) (trust.DB, error) {
 func NewRenewalStorage(c DBConfig) (renewal.DB, error) {
 	log.Info("Connecting RenewalDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqliterenewaldb.New(c.Connection)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+	return db, nil
+}
+
+func NewDRKeyLvl1Storage(c DBConfig) (drkey.Lvl1DB, error) {
+	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := drkeydbsqlite.NewLvl1Backend(c.Connection)
 	if err != nil {
 		return nil, err
 	}

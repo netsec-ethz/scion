@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
 
@@ -39,10 +38,8 @@ type BaseStore interface {
 // It automatically removes expired keys.
 type ServiceStore interface {
 	BaseStore
-	SetMessenger(msger infra.Messenger)
+	DeriveLvl1(dstIA addr.IA, valTime time.Time) (drkey.Lvl1Key, error)
 	GetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (drkey.Lvl1Key, error)
-	NewLvl1ReqHandler() infra.Handler
-	NewLvl2ReqHandler() infra.Handler
 	KnownASes(ctx context.Context) ([]addr.IA, error)
 }
 
