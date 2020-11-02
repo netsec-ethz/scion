@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grpc_test
+package drkey_test
 
 import (
 	"testing"
@@ -27,10 +27,35 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
-	dk_grpc "github.com/scionproto/scion/go/pkg/cs/drkey/grpc"
-	"github.com/scionproto/scion/go/pkg/cs/drkey/test"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
+
+func TestLvl1reqToProtoRequest(t *testing.T) {
+	now := time.Now().UTC()
+
+	valTime, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+	timestamp, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+
+	dstIA := xtest.MustParseIA("1-ff00:0:110")
+
+	pbReq := &dkpb.DRKeyLvl1Request{
+		DstIa:     uint64(dstIA.IAInt()),
+		ValTime:   valTime,
+		Timestamp: timestamp,
+	}
+
+	lvl1Req := ctrl.Lvl1Req{
+		DstIA:     dstIA,
+		ValTime:   now,
+		Timestamp: now,
+	}
+
+	req, err := ctrl.Lvl1reqToProtoRequest(lvl1Req)
+	require.NoError(t, err)
+	assert.Equal(t, pbReq, req)
+}
 
 func TestRequestToLvl1Req(t *testing.T) {
 	now := time.Now().UTC()
@@ -43,12 +68,12 @@ func TestRequestToLvl1Req(t *testing.T) {
 	dstIA := xtest.MustParseIA("1-ff00:0:110").IAInt()
 
 	req := &dkpb.DRKeyLvl1Request{
-		Dst_IA:    uint64(dstIA),
+		DstIa:     uint64(dstIA),
 		ValTime:   valTime,
 		Timestamp: timestamp,
 	}
 
-	lvl1Req, err := dk_grpc.RequestToLvl1Req(req)
+	lvl1Req, err := ctrl.RequestToLvl1Req(req)
 	require.NoError(t, err)
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:110"), lvl1Req.DstIA)
 	assert.Equal(t, now, lvl1Req.ValTime)
@@ -74,14 +99,14 @@ func TestKeyToLvl1Resp(t *testing.T) {
 	}
 
 	targetResp := &dkpb.DRKeyLvl1Response{
-		Dst_IA:     uint64(dstIA.IAInt()),
-		Src_IA:     uint64(srcIA.IAInt()),
+		DstIa:      uint64(dstIA.IAInt()),
+		SrcIa:      uint64(srcIA.IAInt()),
 		EpochBegin: epochBegin,
 		EpochEnd:   epochEnd,
 		Drkey:      []byte(k),
 	}
 
-	pbResp, err := dk_grpc.KeyToLvl1Resp(lvl1Key)
+	pbResp, err := ctrl.KeyToLvl1Resp(lvl1Key)
 	targetResp.Timestamp = pbResp.Timestamp
 	require.NoError(t, err)
 	assert.Equal(t, targetResp, pbResp)
@@ -98,8 +123,8 @@ func TestGetLvl1KeyFromReply(t *testing.T) {
 	k := xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a level 1 key
 
 	resp := &dkpb.DRKeyLvl1Response{
-		Dst_IA:     uint64(dstIA.IAInt()),
-		Src_IA:     uint64(srcIA.IAInt()),
+		DstIa:      uint64(dstIA.IAInt()),
+		SrcIa:      uint64(srcIA.IAInt()),
 		EpochBegin: epochBegin,
 		EpochEnd:   epochEnd,
 		Drkey:      []byte(k),
@@ -114,7 +139,7 @@ func TestGetLvl1KeyFromReply(t *testing.T) {
 		Key: k,
 	}
 
-	lvl1Key, err := dk_grpc.GetLvl1KeyFromReply(resp)
+	lvl1Key, err := ctrl.GetLvl1KeyFromReply(resp)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl1Key, lvl1Key)
 
@@ -133,8 +158,8 @@ func TestRequestToLvl2Req(t *testing.T) {
 	req := &dkpb.DRKeyLvl2Request{
 		Protocol: "piskes",
 		ReqType:  uint32(reqType),
-		Dst_IA:   uint64(dstIA.IAInt()),
-		Src_IA:   uint64(srcIA.IAInt()),
+		DstIa:    uint64(dstIA.IAInt()),
+		SrcIa:    uint64(srcIA.IAInt()),
 		ValTime:  valTime,
 		SrcHost: &dkpb.DRKeyLvl2Request_DRKeyHost{
 			Type: uint32(hostType),
@@ -162,16 +187,29 @@ func TestRequestToLvl2Req(t *testing.T) {
 		},
 	}
 
-	lvl2Req, err := dk_grpc.RequestToLvl2Req(req)
+	lvl2Req, err := ctrl.RequestToLvl2Req(req)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl2Req, lvl2Req)
 
 }
 
 func TestKeyToLvl2Resp(t *testing.T) {
-	meta, lvl1Key := test.GetInputToDeriveLvl2Key(t)
-	lvl2Key, err := dk_grpc.DeriveLvl2(meta, lvl1Key)
-	require.NoError(t, err)
+	srcIA := xtest.MustParseIA("1-ff00:0:1")
+	dstIA := xtest.MustParseIA("1-ff00:0:2")
+	key := xtest.MustParseHexString("47bfbb7d94706dc9e79825e5a837b006")
+	meta := drkey.Lvl2Meta{
+		KeyType:  drkey.AS2AS,
+		Protocol: "scmp",
+		Epoch:    drkey.NewEpoch(0, 1),
+		SrcIA:    srcIA,
+		DstIA:    dstIA,
+		SrcHost:  addr.HostNone{},
+		DstHost:  addr.HostNone{},
+	}
+	lvl2Key := drkey.Lvl2Key{
+		Lvl2Meta: meta,
+		Key:      key,
+	}
 
 	epochBegin, err := ptypes.TimestampProto(lvl2Key.Epoch.NotBefore)
 	require.NoError(t, err)
@@ -184,7 +222,7 @@ func TestKeyToLvl2Resp(t *testing.T) {
 		Drkey:      []byte(lvl2Key.Key),
 	}
 
-	resp, err := dk_grpc.KeyToLvl2Resp(lvl2Key)
+	resp, err := ctrl.KeyToLvl2Resp(lvl2Key)
 	require.NoError(t, err)
 	targetResp.Timestamp = resp.Timestamp
 	assert.Equal(t, targetResp, resp)

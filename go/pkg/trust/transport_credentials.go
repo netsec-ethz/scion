@@ -59,6 +59,7 @@ func (c *ClientCredentials) ClientHandshake(ctx context.Context, authority strin
 	if err != nil {
 		return nil, nil, err
 	}
+
 	tlsInfo, ok := authInfo.(credentials.TLSInfo)
 	if !ok {
 		conn.Close()
@@ -67,7 +68,9 @@ func (c *ClientCredentials) ClientHandshake(ctx context.Context, authority strin
 				"authInfoType", authInfo.AuthType()),
 		}
 	}
-	if err = verifyConnection(tlsInfo.State); err != nil {
+	// XXX (jonito): In Go1.13 tls.ConnectionState.ServerName is only set
+	// on ther server side. Thus, we pass authority as the serverName.
+	if err = verifyConnection(tlsInfo.State, authority); err != nil {
 		conn.Close()
 		return nil, nil, &nonTempWrapper{
 			serrors.WrapStr("verifying connection in client handshake", err),
@@ -84,8 +87,8 @@ func (e *nonTempWrapper) Temporary() bool {
 	return false
 }
 
-func verifyConnection(cs tls.ConnectionState) error {
-	serverIA, err := addr.IAFromString(cs.ServerName)
+func verifyConnection(cs tls.ConnectionState, serverName string) error {
+	serverIA, err := addr.IAFromString(serverName)
 	if err != nil {
 		return serrors.WrapStr("extracting IA from server name", err)
 	}

@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/drkey/protocol"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/storage"
 )
@@ -128,11 +128,11 @@ func (cfg *DelegationList) InitDefaults() {
 func (cfg *DelegationList) Validate() error {
 	for proto, list := range *cfg {
 		if _, found := protocol.KnownDerivations[proto]; !found {
-			return common.NewBasicError("Configured protocol not found", nil, "protocol", proto)
+			return serrors.New("Configured protocol not found", "protocol", proto)
 		}
 		for _, ip := range list {
 			if h := addr.HostFromIPStr(ip); h == nil {
-				return common.NewBasicError("Syntax error: not a valid address", nil, "ip", ip)
+				return serrors.New("Syntax error: not a valid address", "ip", ip)
 			}
 		}
 	}

@@ -21,8 +21,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -88,7 +88,7 @@ func (b *Lvl1Backend) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
 	rows, err := b.getLvl1SrcASesStmt.QueryContext(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(unableToExecuteStmt, err)
+			err = serrors.WrapStr(unableToExecuteStmt, err)
 		}
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (b *Lvl1Backend) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
 	for rows.Next() {
 		var I, A int
 		if err := rows.Scan(&I, &A); err != nil {
-			return nil, common.NewBasicError("Cannot copy from SQL to memory", err)
+			return nil, serrors.WrapStr("Cannot copy from SQL to memory", err)
 		}
 		ia := addr.IA{
 			I: addr.ISD(I),
@@ -119,7 +119,7 @@ func (b *Lvl1Backend) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) (
 	rows, err := b.getValidLvl1SrcASesStmt.QueryContext(ctx, valTime, valTime)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(unableToExecuteStmt, err)
+			err = serrors.WrapStr(unableToExecuteStmt, err)
 		}
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (b *Lvl1Backend) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) (
 	for rows.Next() {
 		var I, A int
 		if err := rows.Scan(&I, &A); err != nil {
-			return nil, common.NewBasicError("Cannot copy from SQL to memory", err)
+			return nil, serrors.WrapStr("Cannot copy from SQL to memory", err)
 		}
 		ia := addr.IA{
 			I: addr.ISD(I),
@@ -155,7 +155,7 @@ func (b *Lvl1Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta,
 		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(unableToExecuteStmt, err)
+			err = serrors.WrapStr(unableToExecuteStmt, err)
 		}
 		return drkey.Lvl1Key{}, err
 	}

@@ -17,9 +17,9 @@ package protocol
 import (
 	"errors"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // TODO(juagargi) the standard derivation (in this file) and delegated one will be just
@@ -71,7 +71,7 @@ func (p Standard) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl2
 			[]byte{byte(len(b))})
 		pLen += len(b) + 2
 	default:
-		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
+		return drkey.Lvl2Key{}, serrors.New("Unknown DRKey type")
 	}
 	all := make([]byte, pLen)
 	pLen = 0

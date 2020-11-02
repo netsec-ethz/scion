@@ -18,6 +18,7 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/daemon";
 
 package proto.daemon.v1;
 
+import "proto/drkey/mgmt/v1/mgmt.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
@@ -34,6 +35,8 @@ service DaemonService {
     rpc Services(ServicesRequest) returns (ServicesResponse) {}
     // Inform the SCION Daemon of a revocation.
     rpc NotifyInterfaceDown(NotifyInterfaceDownRequest) returns (NotifyInterfaceDownResponse) {}
+    // Return the Lvl2Key that matches the request
+    rpc DRKeyLvl2(DRKeyLvl2Request) returns (DRKeyLvl2Response) {}
 }
 
 message PathsRequest {
@@ -182,3 +185,13 @@ message NotifyInterfaceDownRequest {
 }
 
 message NotifyInterfaceDownResponse {};
+
+message DRKeyLvl2Request{
+    // BaseReq contains the basic information for the Lvl2 request
+    proto.drkey.mgmt.v1.DRKeyLvl2Request base_req = 1;
+}
+
+message DRKeyLvl2Response{
+    // BaseRep contains the basic information for the Lvl2 response
+    proto.drkey.mgmt.v1.DRKeyLvl2Response base_rep = 1;
+}

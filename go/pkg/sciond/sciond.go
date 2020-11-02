@@ -25,6 +25,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
@@ -108,6 +109,7 @@ type ServerConfig struct {
 	RevCache     revcache.RevCache
 	Engine       trust.Engine
 	TopoProvider topology.Provider
+	DRKeyStore   drkeystorage.ClientStore
 }
 
 // NewServer constructs a daemon API server.
@@ -117,6 +119,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		ASInspector:  cfg.Engine.Inspector,
 		RevCache:     cfg.RevCache,
 		TopoProvider: cfg.TopoProvider,
+		DRKeyStore:   cfg.DRKeyStore,
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{

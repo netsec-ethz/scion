@@ -27,7 +27,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	ctrl_drkey "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -47,6 +50,7 @@ type DaemonServer struct {
 	TopoProvider topology.Provider
 	RevCache     revcache.RevCache
 	ASInspector  trust.Inspector
+	DRKeyStore   drkeystorage.ClientStore
 
 	Metrics Metrics
 
@@ -338,4 +342,45 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 		}
 	}
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
+}
+
+// DRKeyLvl2 serves a Lvl2Key request
+func (s *DaemonServer) DRKeyLvl2(ctx context.Context,
+	req *sdpb.DRKeyLvl2Request) (*sdpb.DRKeyLvl2Response, error) {
+
+	logger := log.FromCtx(ctx)
+
+	parsedReq, err := requestToLvl2Req(req)
+	if err != nil {
+		logger.Error("[DRKey DeamonService] Invalid DRKey Lvl2 request", "err", err)
+		return nil, serrors.WrapStr("parsing protobuf Lvl2Req", err)
+	}
+
+	lvl2Key, err := s.DRKeyStore.GetLvl2Key(ctx, parsedReq.ToMeta(), parsedReq.ValTime)
+	if err != nil {
+		logger.Error("[DRKey DeamonService] Error getting Lvl2Key", "err", err)
+		return nil, serrors.WrapStr("getting Lvl2Key from client store", err)
+	}
+
+	resp, err := keyToLvl2Resp(lvl2Key)
+	if err != nil {
+		logger.Debug("[DRKey DeamonService] Error parsing DRKey Lvl2 to protobuf resp",
+			"err", err)
+		return nil, serrors.WrapStr("parsing to protobuf Lvl2Rep", err)
+	}
+	return resp, nil
+}
+
+func requestToLvl2Req(req *sdpb.DRKeyLvl2Request) (ctrl_drkey.Lvl2Req, error) {
+	return ctrl_drkey.RequestToLvl2Req(req.BaseReq)
+}
+
+func keyToLvl2Resp(drkey drkey.Lvl2Key) (*sdpb.DRKeyLvl2Response, error) {
+	baseRep, err := ctrl_drkey.KeyToLvl2Resp(drkey)
+	if err != nil {
+		return nil, err
+	}
+	return &sdpb.DRKeyLvl2Response{
+		BaseRep: baseRep,
+	}, nil
 }

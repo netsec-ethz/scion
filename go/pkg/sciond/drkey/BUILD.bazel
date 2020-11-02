@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["client_store.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/sciond/drkey",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/drkeystorage:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/util:go_default_library",
+    ],
+)

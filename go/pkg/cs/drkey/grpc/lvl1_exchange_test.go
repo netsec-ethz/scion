@@ -112,7 +112,7 @@ func TestLvl1KeyFetching(t *testing.T) {
 	client := cppb.NewDRKeyLvl1ServiceClient(conn)
 
 	lvl1req := pb_ctrl.NewLvl1Req(ia111, time.Now())
-	req, err := dk_grpc.Lvl1reqToProtoRequest(lvl1req)
+	req, err := pb_ctrl.Lvl1reqToProtoRequest(lvl1req)
 	require.NoError(t, err)
 	_, err = client.DRKeyLvl1(context.Background(), req)
 	require.NoError(t, err)

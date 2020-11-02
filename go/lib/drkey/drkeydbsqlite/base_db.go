@@ -19,9 +19,9 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -60,7 +60,7 @@ func (b *dbBaseBackend) prepareAll(stmts preparedStmts) error {
 	}()
 	for str, stmt := range stmts {
 		if *stmt, err = b.db.Prepare(str); err != nil {
-			return common.NewBasicError(unableToPrepareStmt, err)
+			return serrors.WrapStr(unableToPrepareStmt, err)
 		}
 	}
 	return nil

@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -66,7 +67,7 @@ func (p *Pld) GetDRKeyMgmt() (*drkey_mgmt.Pld, *Data, error) {
 	}
 	drkeyP, ok := u.(*drkey_mgmt.Pld)
 	if !ok {
-		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
+		return nil, nil, serrors.New("Non-matching ctrl pld contents",
 			"expected", "*drkey_mgmt.Pld", "actual", common.TypeOf(u))
 	}
 	return drkeyP, p.Data, nil

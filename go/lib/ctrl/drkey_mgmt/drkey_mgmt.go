@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -45,8 +46,7 @@ func (u *union) set(c proto.Cerealizable) error {
 		u.Which = proto.DRKeyMgmt_Which_drkeyLvl2Rep
 		u.Lvl2Rep = p
 	default:
-		return common.NewBasicError("Unsupported drkey mgmt union type (set)",
-			nil, "type", common.TypeOf(c))
+		return serrors.New("Unsupported drkey mgmt union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
@@ -62,8 +62,7 @@ func (u *union) get() (proto.Cerealizable, error) {
 	case proto.DRKeyMgmt_Which_drkeyLvl2Rep:
 		return u.Lvl2Rep, nil
 	}
-	return nil, common.NewBasicError("Unsupported drkey mgmt union type (get)",
-		nil, "type", u.Which)
+	return nil, serrors.New("Unsupported drkey mgmt union type (get)", "type", u.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)

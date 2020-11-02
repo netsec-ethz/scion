@@ -15,11 +15,5 @@
 package grpc
 
 var (
-	DeriveLvl2            = deriveLvl2
-	Lvl1reqToProtoRequest = lvl1reqToProtoRequest
-	RequestToLvl1Req      = requestToLvl1Req
-	KeyToLvl1Resp         = keyToLvl1Resp
-	GetLvl1KeyFromReply   = getLvl1KeyFromReply
-	RequestToLvl2Req      = requestToLvl2Req
-	KeyToLvl2Resp         = keyToLvl2Resp
+	DeriveLvl2 = deriveLvl2
 )

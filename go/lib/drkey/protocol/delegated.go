@@ -17,9 +17,9 @@ package protocol
 import (
 	"errors"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Delegated implements the level 2 drkey derivation from level 1, without DS. It relies on the
@@ -32,7 +32,7 @@ func (p Delegated) DeriveLvl2(meta drkey.Lvl2Meta, key drkey.Lvl1Key) (drkey.Lvl
 	metaForDS.KeyType = drkey.AS2AS
 	dsKey, err := Standard{}.DeriveLvl2(metaForDS, key)
 	if err != nil {
-		return drkey.Lvl2Key{}, common.NewBasicError("Error deriving DS", err)
+		return drkey.Lvl2Key{}, serrors.WrapStr("Error deriving DS", err)
 	}
 	ds := drkey.DelegationSecret{
 		Protocol: meta.Protocol,
@@ -83,7 +83,7 @@ func (p Delegated) DeriveLvl2FromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecr
 			Key:      ds.Key,
 		}, nil
 	default:
-		return drkey.Lvl2Key{}, common.NewBasicError("Unknown DRKey type", nil)
+		return drkey.Lvl2Key{}, serrors.New("Unknown DRKey type")
 	}
 	all := make([]byte, pLen)
 	pLen = 0

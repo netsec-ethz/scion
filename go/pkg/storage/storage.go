@@ -47,6 +47,7 @@ const (
 	DefaultPath        = "/share/scion.db"
 	DefaultTrustDBPath = "/share/data/%s.trust.db"
 	DefaultPathDBPath  = "/share/cache/%s.path.db"
+	DefaultDRKeyDBPath = "/share/cache/%s.drkey.db"
 )
 
 // Default samples for various databases.
@@ -64,7 +65,7 @@ var (
 		Connection: DefaultTrustDBPath,
 	}
 	SampleDRKeyDB = DBConfig{
-		Connection: "/share/drkey/%s.drkey.db",
+		Connection: DefaultDRKeyDBPath,
 	}
 )
 
@@ -176,6 +177,16 @@ func NewRenewalStorage(c DBConfig) (renewal.DB, error) {
 func NewDRKeyLvl1Storage(c DBConfig) (drkey.Lvl1DB, error) {
 	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
 	db, err := drkeydbsqlite.NewLvl1Backend(c.Connection)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+	return db, nil
+}
+
+func NewDRKeyLvl2Storage(c DBConfig) (drkey.Lvl2DB, error) {
+	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := drkeydbsqlite.NewLvl2Backend(c.Connection)
 	if err != nil {
 		return nil, err
 	}

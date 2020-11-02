@@ -20,8 +20,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -100,7 +100,7 @@ func (b *Lvl2Backend) GetLvl2Key(ctx context.Context, key drkey.Lvl2Meta,
 		valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			err = common.NewBasicError(unableToExecuteStmt, err)
+			err = serrors.WrapStr(unableToExecuteStmt, err)
 		}
 		return drkey.Lvl2Key{}, err
 	}

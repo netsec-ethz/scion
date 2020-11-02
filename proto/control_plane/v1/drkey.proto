@@ -27,6 +27,16 @@ service DRKeyLvl1Service{
 
 service DRKeyLvl2Service{
     // Return the Lvl2Key that matches the request
-    rpc DRKeyLvl2(proto.drkey.mgmt.v1.DRKeyLvl2Request) returns (proto.drkey.mgmt.v1.DRKeyLvl2Response) {}
+    rpc DRKeyLvl2(DRKeyLvl2Request) returns (DRKeyLvl2Response) {}
+}
+
+message DRKeyLvl2Request{
+    // BaseReq contains the basic information for the Lvl2 request
+    proto.drkey.mgmt.v1.DRKeyLvl2Request base_req = 1;
+}
+
+message DRKeyLvl2Response{
+    // BaseRep contains the basic information for the Lvl2 response
+    proto.drkey.mgmt.v1.DRKeyLvl2Response base_rep = 1;
 }
 
