@@ -4,7 +4,7 @@
 [![Documentation](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/scionproto/scion)
 [![ReadTheDocs](https://img.shields.io/badge/doc-reference-blue?version=latest&style=flat&label=docs&logo=read-the-docs&logoColor=white)](https://anapaya-scion.readthedocs-hosted.com/en/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/netsec-ethz/scion)](https://goreportcard.com/report/github.com/netsec-ethz/scion)
-[![License](https://img.shields.io/github/license/netsec-ethz/scion.svg?maxAge=2592000)](https://github.com/netsec-ethz/scion/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/netsec-ethz/scion.svg?maxAge=2592000)](https://github.com/netsec-ethz/scion/blob/scionlab/LICENSE)
 
 Welcome to the open-source implementation of
 [SCION](http://www.scion-architecture.net) (Scalability, Control and Isolation
@@ -41,4 +41,4 @@ and the [contribution guide](https://anapaya-scion.readthedocs-hosted.com/en/lat
 
 ## License
 
-[![License](https://img.shields.io/github/license/netsec-ethz/scion.svg?maxAge=2592000)](https://github.com/netsec-ethz/scion/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/netsec-ethz/scion.svg?maxAge=2592000)](https://github.com/netsec-ethz/scion/blob/scionlab/LICENSE)
