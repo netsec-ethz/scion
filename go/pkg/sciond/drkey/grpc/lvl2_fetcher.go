@@ -23,16 +23,13 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	sc_grpc "github.com/scionproto/scion/go/pkg/grpc"
-	"github.com/scionproto/scion/go/pkg/proto/daemon"
-	sd_pb "github.com/scionproto/scion/go/pkg/proto/daemon"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	sd_drkey "github.com/scionproto/scion/go/pkg/sciond/drkey"
-	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // DRKeyFetcher obtains Lvl2 DRKey from the local CS.
 type DRKeyFetcher struct {
 	Dialer sc_grpc.Dialer
-	Router trust.Router
 }
 
 var _ sd_drkey.Fetcher = (*DRKeyFetcher)(nil)
@@ -42,18 +39,13 @@ var _ sd_drkey.Fetcher = (*DRKeyFetcher)(nil)
 func (f DRKeyFetcher) GetDRKeyLvl2(ctx context.Context, lvl2meta drkey.Lvl2Meta,
 	dstIA addr.IA, valTime time.Time) (drkey.Lvl2Key, error) {
 
-	csServer, err := f.Router.ChooseServer(ctx, dstIA.I)
-	if err != nil {
-		return drkey.Lvl2Key{}, serrors.WrapStr("choosing server", err)
-	}
-
-	// grpc.DialContext, using credentials +  remote addr.
-	conn, err := f.Dialer.Dial(ctx, csServer)
+	// logger := log.FromCtx(ctx)
+	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.Lvl2Key{}, serrors.WrapStr("dialing", err)
 	}
 	defer conn.Close()
-	client := daemon.NewDaemonServiceClient(conn)
+	client := cppb.NewDRKeyLvl2ServiceClient(conn)
 	lvl2req := ctrl.NewLvl2ReqFromMeta(lvl2meta, valTime)
 	req, err := lvl2reqToProtoRequest(lvl2req)
 	if err != nil {
@@ -73,17 +65,17 @@ func (f DRKeyFetcher) GetDRKeyLvl2(ctx context.Context, lvl2meta drkey.Lvl2Meta,
 	return lvl2Key, nil
 }
 
-func lvl2reqToProtoRequest(req ctrl.Lvl2Req) (*sd_pb.DRKeyLvl2Request, error) {
+func lvl2reqToProtoRequest(req ctrl.Lvl2Req) (*cppb.DRKeyLvl2Request, error) {
 	baseReq, err := ctrl.Lvl2reqToProtoRequest(req)
 	if err != nil {
 		return nil, err
 	}
-	return &sd_pb.DRKeyLvl2Request{
+	return &cppb.DRKeyLvl2Request{
 		BaseReq: baseReq,
 	}, nil
 }
 
 // getLvl2KeyFromReply decrypts and extracts the level 1 drkey from the reply.
-func getLvl2KeyFromReply(rep *sd_pb.DRKeyLvl2Response, meta drkey.Lvl2Meta) (drkey.Lvl2Key, error) {
+func getLvl2KeyFromReply(rep *cppb.DRKeyLvl2Response, meta drkey.Lvl2Meta) (drkey.Lvl2Key, error) {
 	return ctrl.GetLvl2KeyFromReply(rep.BaseRep, meta)
 }

@@ -9,6 +9,8 @@ gomock(
         "InterfaceStateConsumerServiceServer",
         "InterfaceStateServiceServer",
         "TrustMaterialServiceServer",
+        "DRKeyLvl2ServiceServer",
+        "DRKeyLvl1ServiceServer",
     ],
     library = "//go/pkg/proto/control_plane:go_default_library",
     package = "mock_control_plane",
@@ -21,6 +23,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/pkg/proto/control_plane:go_default_library",
+        "//go/pkg/proto/drkey:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],
 )

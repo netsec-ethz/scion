@@ -21,17 +21,18 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	csdrkey "github.com/scionproto/scion/go/pkg/cs/drkey"
 	sc_grpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
-	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // DRKeyFetcher obtains Lvl1 DRKey from a remote CS.
 type DRKeyFetcher struct {
 	Dialer sc_grpc.Dialer
-	Router trust.Router
+	Router snet.Router
 }
 
 var _ csdrkey.Fetcher = (*DRKeyFetcher)(nil)
@@ -39,10 +40,18 @@ var _ csdrkey.Fetcher = (*DRKeyFetcher)(nil)
 // GetLvl1FromOtherCS queries a CS for a level 1 key.
 func (f DRKeyFetcher) GetLvl1FromOtherCS(ctx context.Context,
 	srcIA, dstIA addr.IA, valTime time.Time) (drkey.Lvl1Key, error) {
+	logger := log.FromCtx(ctx)
 
-	remote, err := f.Router.ChooseServer(ctx, dstIA.I)
+	logger.Info("[DRKey Fetcher] resolving server", "srcIA", srcIA.String())
+	path, err := f.Router.Route(ctx, srcIA)
 	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("choosing server", err)
+		return drkey.Lvl1Key{}, serrors.WrapStr("retrieving paths", err)
+	}
+	remote := &snet.SVCAddr{
+		IA:      srcIA,
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     addr.SvcCS,
 	}
 
 	// grpc.DialContext, using credentials +  remote addr.
