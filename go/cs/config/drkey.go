@@ -71,7 +71,7 @@ func (cfg *DRKeyConfig) InitDefaults() {
 	if cfg.MaxReplyAge.Duration == 0 {
 		cfg.MaxReplyAge.Duration = DefaultMaxReplyAge
 	}
-	config.InitAll(&cfg.DRKeyDB, &cfg.Delegation)
+	config.InitAll(&cfg.Delegation)
 	if cfg.DRKeyDB.Connection == "" {
 		cfg.enabled = false
 	}

@@ -72,6 +72,26 @@ type AddressRewriter struct {
 // If the address is already unicast, no redirection to QUIC is attempted.
 func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 	address net.Addr) (net.Addr, bool, error) {
+
+	ret, quicRedirect, err := r.redirectToQUIC(ctx, address, svc.QUIC)
+	if err != nil {
+		return nil, false, err
+	}
+	return ret, quicRedirect, err
+}
+
+func (r AddressRewriter) RedirectToTLSQUIC(ctx context.Context,
+	address net.Addr) (net.Addr, bool, error) {
+
+	ret, quicRedirect, err := r.redirectToQUIC(ctx, address, svc.TLSQUIC)
+	if err != nil {
+		return nil, false, err
+	}
+	return ret, quicRedirect, err
+}
+
+func (r AddressRewriter) redirectToQUIC(ctx context.Context,
+	address net.Addr, transport svc.Transport) (net.Addr, bool, error) {
 	logger := log.FromCtx(ctx)
 
 	// FIXME(scrye): This is not legitimate use. It's only included for
@@ -99,7 +119,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 		}
 
 		// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
-		p, u, quicRedirect, err := r.resolveSVC(ctx, path, fa.SVC)
+		p, u, quicRedirect, err := r.resolveSVC(ctx, path, fa.SVC, transport)
 		if err != nil {
 			// For a revoked path we don't fallback we want to give the option
 			// to retry with a new path.
@@ -178,7 +198,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 // The returned path is the path contained in the reply; the path can be used
 // to talk to the remote AS after One-Hop Path construction.
 func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
-	s addr.HostSVC) (snet.Path, *net.UDPAddr, bool, error) {
+	s addr.HostSVC, transport svc.Transport) (snet.Path, *net.UDPAddr, bool, error) {
 	logger := log.FromCtx(ctx)
 	if r.SVCResolutionFraction < 1.0 {
 		var cancelF context.CancelFunc
@@ -196,7 +216,7 @@ func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
 	}
 
 	logger.Debug("SVC resolution successful", "reply", reply)
-	u, err := parseReply(reply)
+	u, err := parseReply(reply, transport)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -216,14 +236,14 @@ func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, co
 
 // parseReply searches for a QUIC server on the remote address. If one is not
 // found, an error is returned.
-func parseReply(reply *svc.Reply) (*net.UDPAddr, error) {
+func parseReply(reply *svc.Reply, transport svc.Transport) (*net.UDPAddr, error) {
 	if reply == nil {
 		return nil, serrors.New("nil reply")
 	}
 	if reply.Transports == nil {
 		return nil, serrors.New("empty reply")
 	}
-	addressStr, ok := reply.Transports[svc.QUIC]
+	addressStr, ok := reply.Transports[transport]
 	if !ok {
 		return nil, serrors.New("QUIC server address not found")
 	}

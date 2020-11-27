@@ -121,6 +121,10 @@ type AddressRewriter interface {
 	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, bool, error)
 }
 
+type TLSAddressRewriter interface {
+	RedirectToTLSQUIC(ctx context.Context, address net.Addr) (net.Addr, bool, error)
+}
+
 // ConnDialer dials a net.Conn.
 type ConnDialer interface {
 	Dial(context.Context, net.Addr) (net.Conn, error)
@@ -161,13 +165,14 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 // TLSQUICDialer dials a gRPC connection over TLS/QUIC/SCION. This dialer is meant to
 // be used for secure inter AS communication.
 type TLSQUICDialer struct {
-	*QUICDialer
+	Rewriter    TLSAddressRewriter
+	Dialer      ConnDialer
 	Credentials credentials.TransportCredentials
 }
 
 // Dial dials a gRPC connection over TLS/QUIC/SCION.
 func (d *TLSQUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
-	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, addr)
+	addr, _, err := d.Rewriter.RedirectToTLSQUIC(ctx, addr)
 	if err != nil {
 		return nil, serrors.WrapStr("resolving SVC address", err)
 	}

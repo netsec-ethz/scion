@@ -87,6 +87,8 @@ type NetworkConfig struct {
 type QUICStack struct {
 	Listener       *squic.ConnListener
 	Dialer         *squic.ConnDialer
+	TLSListener    *squic.ConnListener
+	TLSDialer      *squic.ConnDialer
 	RedirectCloser func()
 }
 
@@ -118,7 +120,25 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
 
-	cancel, err := nc.initSvcRedirect(fmt.Sprintf("%s", server.LocalAddr()))
+	//TLS/QUIC part
+	tlsClient, tlsServer, err := nc.initQUICSockets()
+	if err != nil {
+		return nil, err
+	}
+	log.Info("TLS/QUIC server conn initialized", "local_addr", tlsServer.LocalAddr())
+	log.Info("TLS/QUIC client conn initialized", "local_addr", tlsClient.LocalAddr())
+
+	tlsQuicConfig, err := GenerateTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	tlsListener, err := quic.Listen(tlsServer, tlsQuicConfig, nil)
+	if err != nil {
+		return nil, serrors.WrapStr("listening TLS/QUIC/SCION", err)
+	}
+
+	cancel, err := nc.initSvcRedirect(fmt.Sprintf("%s", server.LocalAddr()),
+		fmt.Sprintf("%s", tlsServer.LocalAddr()))
 	if err != nil {
 		return nil, serrors.WrapStr("starting service redirection", err)
 	}
@@ -128,6 +148,11 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		Dialer: &squic.ConnDialer{
 			Conn:      client,
 			TLSConfig: tlsConfig,
+		},
+		TLSListener: squic.NewConnListener(tlsListener),
+		TLSDialer: &squic.ConnDialer{
+			Conn:      tlsClient,
+			TLSConfig: tlsQuicConfig,
 		},
 		RedirectCloser: cancel,
 	}, nil
@@ -206,10 +231,11 @@ func (nc *NetworkConfig) AddressRewriter(
 // initSvcRedirect creates the main control-plane UDP socket. SVC anycasts will be
 // delivered to this socket, which replies to SVC resolution requests. The
 // address will be included as the QUIC address in SVC resolution replies.
-func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
+func (nc *NetworkConfig) initSvcRedirect(quicAddress string, tlsQUICAdress string) (func(), error) {
 	reply := &svc.Reply{
 		Transports: map[svc.Transport]string{
-			svc.QUIC: quicAddress,
+			svc.QUIC:    quicAddress,
+			svc.TLSQUIC: tlsQUICAdress,
 		},
 	}
 

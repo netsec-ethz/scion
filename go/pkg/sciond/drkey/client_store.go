@@ -27,13 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// Drkey fetching errors.
-var (
-	ErrDB        = serrors.New("error with DB")
-	ErrInsertDB  = serrors.New("error inserting in DB")
-	ErrMessenger = serrors.New("error with Messenger")
-)
-
 // Fetcher obtains a Lvl2 DRKey from the local CS.
 type Fetcher interface {
 	GetDRKeyLvl2(ctx context.Context, meta drkey.Lvl2Meta, a addr.IA,
@@ -70,18 +63,18 @@ func (s *ClientStore) GetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
 		return k, err
 	}
 	if err != sql.ErrNoRows {
-		return drkey.Lvl2Key{}, serrors.Wrap(ErrDB, err)
+		return drkey.Lvl2Key{}, serrors.WrapStr("looking up level 2 key in DB", err)
 	}
 	logger.Debug("[DRKey ClientStore] Level 2 key not stored. Requesting it to CS")
 	// if not, ask our CS for it
 
 	k, err = s.fetcher.GetDRKeyLvl2(ctx, meta, s.ia, valTime)
 	if err != nil {
-		return drkey.Lvl2Key{}, serrors.Wrap(ErrMessenger, err)
+		return drkey.Lvl2Key{}, serrors.WrapStr("fetching lvl2 key from local CS", err)
 	}
 	if err = s.db.InsertLvl2Key(ctx, k); err != nil {
 		logger.Error("[DRKey ClientStore] Could not insert level 2 in DB", "error", err)
-		return k, serrors.Wrap(ErrInsertDB, err)
+		return k, serrors.WrapStr("inserting level 2 key in DB", err)
 	}
 	return k, nil
 }

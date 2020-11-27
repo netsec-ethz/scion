@@ -30,10 +30,12 @@ package sciond
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	libmetrics "github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -94,6 +96,9 @@ type Connector interface {
 	RevNotificationFromRaw(ctx context.Context, b []byte) error
 	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) error
+	// DRKeyGetLvl2Key sends a DRKey Lvl2Key request to SCIOND
+	DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
+		valTime time.Time) (drkey.Lvl2Key, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close(ctx context.Context) error
 }

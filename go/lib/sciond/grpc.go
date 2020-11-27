@@ -23,7 +23,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	dkctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -172,6 +174,29 @@ func (c grpcConn) RevNotification(ctx context.Context, sRevInfo *path_mgmt.Signe
 
 }
 
+func (c grpcConn) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
+	valTime time.Time) (drkey.Lvl2Key, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+
+	lvl2Req := dkctrl.NewLvl2ReqFromMeta(meta, valTime)
+	pbLvl2Req, err := lvl2reqToProtoRequest(lvl2Req)
+	if err != nil {
+		return drkey.Lvl2Key{}, err
+	}
+
+	reply, err := client.DRKeyLvl2(ctx, pbLvl2Req)
+	if err != nil {
+		return drkey.Lvl2Key{}, err
+	}
+
+	lvl2Key, err := getLvl2KeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.Lvl2Key{}, err
+	}
+	return lvl2Key, nil
+}
+
 func (c grpcConn) Close(_ context.Context) error {
 	return c.conn.Close()
 }
@@ -267,4 +292,19 @@ func topoServiceTypeToSVCAddr(st topology.ServiceType) addr.HostSVC {
 	default:
 		return addr.SvcNone
 	}
+}
+
+func lvl2reqToProtoRequest(req dkctrl.Lvl2Req) (*sdpb.DRKeyLvl2Request, error) {
+	baseReq, err := dkctrl.Lvl2reqToProtoRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return &sdpb.DRKeyLvl2Request{
+		BaseReq: baseReq,
+	}, nil
+}
+
+// getLvl2KeyFromReply decrypts and extracts the level 1 drkey from the reply.
+func getLvl2KeyFromReply(rep *sdpb.DRKeyLvl2Response, meta drkey.Lvl2Meta) (drkey.Lvl2Key, error) {
+	return dkctrl.GetLvl2KeyFromReply(rep.BaseRep, meta)
 }

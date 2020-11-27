@@ -58,7 +58,6 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Tracing,
 		cfg.TrustDB.WithDefault(fmt.Sprintf(storage.DefaultTrustDBPath, "sd")),
 		cfg.PathDB.WithDefault(fmt.Sprintf(storage.DefaultPathDBPath, "sd")),
-		cfg.DRKeyDB.WithDefault(fmt.Sprintf(storage.DefaultDRKeyDBPath, "sd")),
 		&cfg.SD,
 		&cfg.TrustEngine,
 	)

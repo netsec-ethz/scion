@@ -16,6 +16,7 @@ package drkey
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -29,8 +30,13 @@ var _ periodic.Task = (*Prefetcher)(nil)
 
 // Prefetcher is in charge of getting the level 1 keys before they expire.
 type Prefetcher struct {
-	LocalIA     addr.IA
-	Store       drkeystorage.ServiceStore
+	LocalIA addr.IA
+	Store   drkeystorage.ServiceStore
+	// XXX(jonieto): At the moment we assume "global" KeyDuration, i.e.
+	// every AS involved uses the same EpochDuration. This will be improve
+	// further in the future, so that the prefetcher get keys in advance
+	// based on the epoch established by the AS which derived the first
+	// level key.
 	KeyDuration time.Duration
 }
 
@@ -41,6 +47,7 @@ func (f *Prefetcher) Name() string {
 
 // Run requests the level 1 keys to other CSs.
 func (f *Prefetcher) Run(ctx context.Context) {
+	var wg sync.WaitGroup
 	ases, err := f.Store.KnownASes(ctx)
 	if err != nil {
 		log.Error("Could not prefetch level 1 keys", "error", err)
@@ -50,15 +57,18 @@ func (f *Prefetcher) Run(ctx context.Context) {
 	when := time.Now().Add(f.KeyDuration)
 	for _, srcIA := range ases {
 		srcIA := srcIA
+		wg.Add(1)
 		go func() {
 			defer log.HandlePanic()
-			getLvl1Key(ctx, f.Store, srcIA, f.LocalIA, when)
+			getLvl1Key(ctx, f.Store, srcIA, f.LocalIA, when, &wg)
 		}()
 	}
+	wg.Wait()
 }
 
 func getLvl1Key(ctx context.Context, store drkeystorage.ServiceStore,
-	srcIA, dstIA addr.IA, valTime time.Time) {
+	srcIA, dstIA addr.IA, valTime time.Time, wg *sync.WaitGroup) {
+	defer wg.Done()
 	meta := drkey.Lvl1Meta{
 		SrcIA: srcIA,
 		DstIA: dstIA,

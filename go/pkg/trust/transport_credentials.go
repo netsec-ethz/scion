@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"strings"
 
 	"google.golang.org/grpc/credentials"
 
@@ -69,7 +70,7 @@ func (c *ClientCredentials) ClientHandshake(ctx context.Context, authority strin
 		}
 	}
 	// XXX (jonito): In Go1.13 tls.ConnectionState.ServerName is only set
-	// on ther server side. Thus, we pass authority as the serverName.
+	// on the server side. Thus, we pass authority as the serverName.
 	if err = verifyConnection(tlsInfo.State, authority); err != nil {
 		conn.Close()
 		return nil, nil, &nonTempWrapper{
@@ -88,7 +89,8 @@ func (e *nonTempWrapper) Temporary() bool {
 }
 
 func verifyConnection(cs tls.ConnectionState, serverName string) error {
-	serverIA, err := addr.IAFromString(serverName)
+	serverNameIA := strings.Split(serverName, ",")[0]
+	serverIA, err := addr.IAFromString(serverNameIA)
 	if err != nil {
 		return serrors.WrapStr("extracting IA from server name", err)
 	}

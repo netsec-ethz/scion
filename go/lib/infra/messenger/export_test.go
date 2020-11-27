@@ -16,9 +16,9 @@ func (r AddressRewriter) BuildFullAddress(ctx context.Context,
 
 func (r AddressRewriter) ResolveSVC(ctx context.Context, p snet.Path,
 	s addr.HostSVC) (snet.Path, *net.UDPAddr, bool, error) {
-	return r.resolveSVC(ctx, p, s)
+	return r.resolveSVC(ctx, p, s, svc.QUIC)
 }
 
 func ParseReply(reply *svc.Reply) (*net.UDPAddr, error) {
-	return parseReply(reply)
+	return parseReply(reply, svc.QUIC)
 }

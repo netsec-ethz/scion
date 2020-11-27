@@ -146,7 +146,7 @@ func Lvl2reqToProtoRequest(req Lvl2Req) (*dkpb.DRKeyLvl2Request, error) {
 		Protocol: req.Protocol,
 		ReqType:  req.ReqType,
 		DstIa:    uint64(req.DstIA.IAInt()),
-		SrcIa:    uint64(req.DstIA.IAInt()),
+		SrcIa:    uint64(req.SrcIA.IAInt()),
 		ValTime:  valTime,
 		SrcHost: &dkpb.DRKeyLvl2Request_DRKeyHost{
 			Type: uint32(req.SrcHost.Type),

@@ -99,5 +99,6 @@ func (r *Reply) fromProtoFormat(protoReply *cppb.ServiceResolutionResponse) erro
 type Transport string
 
 const (
-	QUIC Transport = "QUIC"
+	QUIC    Transport = "QUIC"
+	TLSQUIC Transport = "TLSQUIC"
 )

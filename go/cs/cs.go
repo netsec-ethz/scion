@@ -16,14 +16,18 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
@@ -39,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	libconfig "github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -46,6 +51,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	libmetrics "github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -57,6 +63,8 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/cs"
+	"github.com/scionproto/scion/go/pkg/cs/drkey"
+	drkeygrpc "github.com/scionproto/scion/go/pkg/cs/drkey/grpc"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	cstrustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/metrics"
@@ -135,7 +143,6 @@ func run(file string) error {
 	}
 	pathDB = pathdb.WithMetrics(string(storage.BackendSqlite), pathDB)
 	defer pathDB.Close()
-
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.PublicAddress(addr.SvcCS, cfg.General.ID),
@@ -366,6 +373,65 @@ func run(file string) error {
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
 
+	//DRKey feature
+	var drkeyServStore drkeystorage.ServiceStore
+	var svFactory drkeystorage.SecretValueFactory
+	var quicTLSServer *grpc.Server
+	if cfg.DRKey.Enabled() {
+		masterKey, err := loadMasterSecret(cfg.General.ConfigDir)
+		if err != nil {
+			return serrors.WrapStr("loading master secret in DRKey", err)
+		}
+		svFactory = drkey.NewSecretValueFactory(
+			masterKey.Key0, cfg.DRKey.EpochDuration.Duration)
+		drkeyDB, err := storage.NewDRKeyLvl1Storage(cfg.DRKey.DRKeyDB)
+		if err != nil {
+			return serrors.WrapStr("initializing DRKey DB", err)
+		}
+		loader := fileLoader{
+			CertFile: cfg.DRKey.CertFile,
+			KeyFile:  cfg.DRKey.KeyFile,
+		}
+		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
+		drkeyFetcher := drkeygrpc.DRKeyFetcher{
+			Dialer: &libgrpc.TLSQUICDialer{
+				Rewriter:    nc.AddressRewriter(nil),
+				Dialer:      quicStack.TLSDialer,
+				Credentials: getCredentials(tlsMgr),
+			},
+			Router: segreq.NewRouter(fetcherCfg),
+		}
+		drkeyServStore = &drkey.ServiceStore{
+			LocalIA:      topo.IA(),
+			DB:           drkeyDB,
+			SecretValues: svFactory,
+			Fetcher:      drkeyFetcher,
+		}
+		drkeyService := &drkeygrpc.DRKeyServer{
+			LocalIA:    topo.IA(),
+			Store:      drkeyServStore,
+			AllowedDSs: cfg.DRKey.Delegation.ToMapPerHost(),
+		}
+		srvConfig := &tls.Config{
+			InsecureSkipVerify:    true,
+			GetCertificate:        tlsMgr.GetCertificate,
+			VerifyPeerCertificate: tlsMgr.VerifyPeerCertificate,
+			ClientAuth:            tls.RequireAnyClientCert,
+		}
+		quicTLSServer = grpc.NewServer(
+			grpc.Creds(credentials.NewTLS(srvConfig)),
+			grpc.ChainUnaryInterceptor(
+				otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+				libgrpc.LogIDServerInterceptor(),
+			),
+		)
+		cppb.RegisterDRKeyLvl1ServiceServer(quicTLSServer, drkeyService)
+		cppb.RegisterDRKeyLvl2ServiceServer(tcpServer, drkeyService)
+		log.Info("DRKey is enabled")
+	} else {
+		log.Info("DRKey is DISABLED by configuration")
+	}
+
 	dsHealth := health.NewServer()
 	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
 	healthpb.RegisterHealthServer(tcpServer, dsHealth)
@@ -384,6 +450,15 @@ func run(file string) error {
 			fatal.Fatal(err)
 		}
 	}()
+
+	if cfg.DRKey.Enabled() {
+		go func() {
+			defer log.HandlePanic()
+			if err := quicTLSServer.Serve(quicStack.TLSListener); err != nil {
+				fatal.Fatal(err)
+			}
+		}()
+	}
 
 	err = cs.StartHTTPEndpoints(cfg.General.ID, cfg, signer, chainBuilder, cfg.Metrics)
 	if err != nil {
@@ -432,12 +507,14 @@ func run(file string) error {
 		OneHopConn:      ohpConn,
 		Inspector:       inspector,
 		Metrics:         metrics,
+		DRKeyStore:      drkeyServStore,
 		MACGen:          macGen,
 		TopoProvider:    itopo.Provider(),
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
 
 		OriginationInterval:  cfg.BS.OriginationInterval.Duration,
 		PropagationInterval:  cfg.BS.PropagationInterval.Duration,
+		DRKeyEpochInterval:   cfg.DRKey.EpochDuration.Duration,
 		RegistrationInterval: cfg.BS.RegistrationInterval.Duration,
 		AllowIsdLoop:         isdLoopAllowed,
 	})
@@ -518,4 +595,36 @@ func loadBeaconStore(core bool, ia addr.IA, cfg config.Config) (cs.Store, bool, 
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
+}
+
+func loadMasterSecret(dir string) (keyconf.Master, error) {
+	masterKey, err := keyconf.LoadMaster(filepath.Join(dir, "keys"))
+	if err != nil {
+		return keyconf.Master{}, serrors.WrapStr("error getting master secret", err)
+	}
+	return masterKey, nil
+}
+
+func getCredentials(mgr *trust.TLSCryptoManager) credentials.TransportCredentials {
+	config := &tls.Config{
+		InsecureSkipVerify:    true,
+		GetClientCertificate:  mgr.GetClientCertificate,
+		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
+	}
+	return trust.NewClientCredentials(config)
+}
+
+// FileLoader loads key pair from file
+type fileLoader struct {
+	CertFile string
+	KeyFile  string
+}
+
+// LoadX509KeyPair returns the TLS certificate to be provided during a TLS handshake.
+func (l fileLoader) LoadX509KeyPair() (*tls.Certificate, error) {
+	cert, err := tls.LoadX509KeyPair(l.CertFile, l.KeyFile)
+	if err != nil {
+		return nil, serrors.WrapStr("loading certificates for DRKey gRPCs", err)
+	}
+	return &cert, nil
 }

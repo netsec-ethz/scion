@@ -35,7 +35,8 @@ import (
 
 // DRKeyServer keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
 type DRKeyServer struct {
-	Store drkeystorage.ServiceStore
+	LocalIA addr.IA
+	Store   drkeystorage.ServiceStore
 	// AllowedDSs is a set of protocols per IP address (in 16 byte form). Represents the allowed
 	// protocols hosts can obtain delegation secrets for.
 	AllowedDSs map[[16]byte]map[string]struct{}
@@ -50,25 +51,25 @@ func (d *DRKeyServer) DRKeyLvl1(ctx context.Context,
 	logger := log.FromCtx(ctx)
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		logger.Error("[DRKey ServiceStore] Cannot retrieve peer from ctx")
+		logger.Error("[DRKey gRPC server] Cannot retrieve peer from ctx")
 		return nil, serrors.New("retrieving peer information from ctx")
 	}
 	parsedReq, err := ctrl.RequestToLvl1Req(req)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore] Invalid DRKey Lvl1 request",
+		logger.Error("[DRKey gRPC server] Invalid DRKey Lvl1 request",
 			"peer", peer, "err", err)
 		return nil, err
 	}
 
 	// validating peer Subject.IA == req.dstIA
 	if err = exchange.ValitadePeerWithCert(peer, parsedReq.DstIA); err != nil {
-		logger.Error("[DRKey ServiceStore] Error validating requested dstIA with certicate",
+		logger.Error("[DRKey gRPC server] Error validating requested dstIA with certicate",
 			"err", err)
 		return nil, serrors.WrapStr("validating requested dstIA", err)
 	}
 
-	logger.Debug("[DRKey ServiceStore] Received Lvl1 request",
-		"lvl1_req", parsedReq, "peer", peer)
+	logger.Debug("[DRKey gRPC server] Received Lvl1 request",
+		"lvl1_req", parsedReq, "peer", peer.Addr.String())
 	lvl1Key, err := d.Store.DeriveLvl1(parsedReq.DstIA, parsedReq.ValTime)
 	if err != nil {
 		logger.Error("Error deriving level 1 key", "err", err)
@@ -76,7 +77,7 @@ func (d *DRKeyServer) DRKeyLvl1(ctx context.Context,
 	}
 	resp, err := ctrl.KeyToLvl1Resp(lvl1Key)
 	if err != nil {
-		logger.Error("Error parsing DRKey Lvl1 to protobuf resp", "err", err)
+		logger.Error("[DRKey gRPC server] Error parsing DRKey Lvl1 to protobuf resp", "err", err)
 		return nil, err
 	}
 	return resp, nil
@@ -88,27 +89,25 @@ func (d *DRKeyServer) DRKeyLvl2(ctx context.Context,
 	logger := log.FromCtx(ctx)
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		logger.Error("[DRKey ServiceStore] Cannot retrieve peer from ctx")
+		logger.Error("[DRKey gRPC server] Cannot retrieve peer from ctx")
 		return nil, serrors.New("retrieving peer information from ctx")
 	}
 
 	parsedReq, err := requestToLvl2Req(req)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore] Invalid DRKey Lvl2 request",
+		logger.Error("[DRKey gRPC server] Invalid DRKey Lvl2 request",
 			"peer", peer, "err", err)
 		return nil, err
 	}
 	if err := d.validateLvl2Req(parsedReq, peer.Addr); err != nil {
-		log.Error("[DRKey ServiceStore] Error validating Lvl2 request",
+		log.Error("[DRKey gRPC server] Error validating Lvl2 request",
 			"err", err)
 		return nil, err
 	}
-	logger.Debug("[DRKey ServiceStore] Received Lvl2 request",
-		"lvl2_req", parsedReq, "peer", peer)
 
 	srcIA := parsedReq.SrcIA
 	dstIA := parsedReq.DstIA
-	logger.Debug(" [DRKey ServiceStore] Received request",
+	logger.Debug(" [DRKey gRPC server] Received lvl2 request",
 		"Type", parsedReq.ReqType, "protocol", parsedReq.Protocol,
 		"SrcIA", srcIA, "DstIA", dstIA)
 	lvl1Meta := drkey.Lvl1Meta{
@@ -117,7 +116,7 @@ func (d *DRKeyServer) DRKeyLvl2(ctx context.Context,
 	}
 	lvl1Key, err := d.Store.GetLvl1Key(ctx, lvl1Meta, parsedReq.ValTime)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore] Error getting the level 1 key",
+		logger.Error("[DRKey gRPC server] Error getting the level 1 key",
 			"err", err)
 		return nil, err
 	}
@@ -133,14 +132,14 @@ func (d *DRKeyServer) DRKeyLvl2(ctx context.Context,
 
 	lvl2Key, err := deriveLvl2(lvl2Meta, lvl1Key)
 	if err != nil {
-		logger.Error("[DRKey ServiceStore] Error deriving level 2 key",
+		logger.Error("[DRKey gRPC server] Error deriving level 2 key",
 			"err", err)
 		return nil, err
 	}
 
 	resp, err := keyToLvl2Resp(lvl2Key)
 	if err != nil {
-		logger.Debug("[DRKey ServiceStore] Error parsing DRKey Lvl2 to protobuf resp",
+		logger.Debug("[DRKey gRPC server] Error parsing DRKey Lvl2 to protobuf resp",
 			"err", err)
 		return nil, err
 	}
@@ -183,15 +182,25 @@ func (d *DRKeyServer) validateLvl2Req(req ctrl.Lvl2Req, peerAddr net.Addr) error
 			"peer", peerAddr, "type", common.TypeOf(peerAddr))
 	}
 	localAddr := addr.HostFromIP(tcpAddr.IP)
+
+	if req.SrcIA != d.LocalIA && req.DstIA != d.LocalIA {
+		return serrors.New("invalid request, localIA not found in request",
+			"localIA", d.LocalIA, "srcIA", req.SrcIA, "dstIA", req.DstIA)
+	}
+
 	switch drkey.Lvl2KeyType(req.ReqType) {
 	case drkey.Host2Host:
-		if localAddr.Equal(req.SrcHost.ToHostAddr()) {
-			break
+		if req.SrcIA == d.LocalIA {
+			if localAddr.Equal(req.SrcHost.ToHostAddr()) {
+				break
+			}
 		}
 		fallthrough
 	case drkey.AS2Host:
-		if localAddr.Equal(req.DstHost.ToHostAddr()) {
-			break
+		if req.DstIA == d.LocalIA {
+			if localAddr.Equal(req.DstHost.ToHostAddr()) {
+				break
+			}
 		}
 		fallthrough
 	case drkey.AS2AS:
