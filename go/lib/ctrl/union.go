@@ -18,7 +18,6 @@ package ctrl
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
-	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -27,12 +26,11 @@ import (
 
 // union represents the contents of the unnamed capnp union.
 type union struct {
-	Which     proto.CtrlPld_Which
-	PathMgmt  *path_mgmt.Pld
-	Sibra     []byte          `capnp:"-"` // Omit for now
-	DRKeyMgmt *drkey_mgmt.Pld `capnp:"drkeyMgmt"`
-	Sig       *sig_mgmt.Pld
-	Ack       *ack.Ack
+	Which    proto.CtrlPld_Which
+	PathMgmt *path_mgmt.Pld
+	Sibra    []byte `capnp:"-"` // Omit for now
+	Sig      *sig_mgmt.Pld
+	Ack      *ack.Ack
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -40,9 +38,6 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *path_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_pathMgmt
 		u.PathMgmt = p
-	case *drkey_mgmt.Pld:
-		u.Which = proto.CtrlPld_Which_drkeyMgmt
-		u.DRKeyMgmt = p
 	case *sig_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_sig
 		u.Sig = p
@@ -60,8 +55,6 @@ func (u *union) get() (proto.Cerealizable, error) {
 	switch u.Which {
 	case proto.CtrlPld_Which_pathMgmt:
 		return u.PathMgmt, nil
-	case proto.CtrlPld_Which_drkeyMgmt:
-		return u.DRKeyMgmt, nil
 	case proto.CtrlPld_Which_sig:
 		return u.Sig, nil
 	case proto.CtrlPld_Which_ack:
