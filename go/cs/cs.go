@@ -375,14 +375,13 @@ func run(file string) error {
 
 	//DRKey feature
 	var drkeyServStore drkeystorage.ServiceStore
-	var svFactory drkeystorage.SecretValueFactory
 	var quicTLSServer *grpc.Server
 	if cfg.DRKey.Enabled() {
 		masterKey, err := loadMasterSecret(cfg.General.ConfigDir)
 		if err != nil {
 			return serrors.WrapStr("loading master secret in DRKey", err)
 		}
-		svFactory = drkey.NewSecretValueFactory(
+		svFactory := drkey.NewSecretValueFactory(
 			masterKey.Key0, cfg.DRKey.EpochDuration.Duration)
 		drkeyDB, err := storage.NewDRKeyLvl1Storage(cfg.DRKey.DRKeyDB)
 		if err != nil {

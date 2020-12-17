@@ -29,8 +29,6 @@ import (
 const (
 	// DefaultEpochDuration is the default duration for the drkey SV and derived keys
 	DefaultEpochDuration = 24 * time.Hour
-	// DefaultMaxReplyAge is the default allowed age for replies.
-	DefaultMaxReplyAge = 2 * time.Second
 )
 
 var _ (config.Config) = (*DRKeyConfig)(nil)
@@ -43,8 +41,6 @@ type DRKeyConfig struct {
 	DRKeyDB storage.DBConfig `toml:"drkey_db,omitempty"`
 	// EpochDuration is the duration of the keys in this CS.
 	EpochDuration util.DurWrap `toml:"epoch_duration,omitempty"`
-	// MaxReplyAge is the age limit for a level 1 reply to be accepted. Older are rejected.
-	MaxReplyAge util.DurWrap `toml:"max_reply_age,omitempty"`
 	// AuthorizedDelegations is the DelegationList for this CS.
 	Delegation DelegationList `toml:"delegation,omitempty"`
 
@@ -68,26 +64,20 @@ func (cfg *DRKeyConfig) InitDefaults() {
 	if cfg.EpochDuration.Duration == 0 {
 		cfg.EpochDuration.Duration = DefaultEpochDuration
 	}
-	if cfg.MaxReplyAge.Duration == 0 {
-		cfg.MaxReplyAge.Duration = DefaultMaxReplyAge
-	}
 	config.InitAll(&cfg.Delegation)
-	if cfg.DRKeyDB.Connection == "" {
-		cfg.enabled = false
-	}
 }
 
 // Enabled returns true if DRKey is configured. False otherwise.
 func (cfg *DRKeyConfig) Enabled() bool {
 	// TODO(juagargi): check that disabled CSs can receive DRKey queries from sciond (mine crashes)
-	return cfg.enabled
+	if cfg.DRKeyDB.Connection == "" {
+		return false
+	}
+	return true
 }
 
 // Validate validates that all values are parsable.
 func (cfg *DRKeyConfig) Validate() error {
-	if !cfg.Enabled() {
-		return nil
-	}
 	return config.ValidateAll(&cfg.DRKeyDB, &cfg.Delegation)
 }
 

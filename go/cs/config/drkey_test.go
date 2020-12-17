@@ -33,7 +33,6 @@ func TestInitDefaults(t *testing.T) {
 	var cfg DRKeyConfig
 	cfg.InitDefaults()
 	assert.EqualValues(t, 24*time.Hour, cfg.EpochDuration.Duration)
-	assert.EqualValues(t, 2*time.Second, cfg.MaxReplyAge.Duration)
 }
 
 func TestDRKeyConfigSample(t *testing.T) {
@@ -46,7 +45,6 @@ func TestDRKeyConfigSample(t *testing.T) {
 	err = cfg.Validate()
 	require.NoError(t, err)
 	assert.Equal(t, DefaultEpochDuration, cfg.EpochDuration.Duration)
-	assert.Equal(t, DefaultMaxReplyAge, cfg.MaxReplyAge.Duration)
 }
 
 func TestDisable(t *testing.T) {
@@ -56,14 +54,29 @@ func TestDisable(t *testing.T) {
 	err = cfg.Validate()
 	require.NoError(t, err)
 	cfg.EpochDuration.Duration = 10 * time.Hour
-	cfg.MaxReplyAge.Duration = 10 * time.Hour
+	require.False(t, cfg.Enabled())
 	cfg.DRKeyDB.Connection = "a"
 	cfg.InitDefaults()
 	require.True(t, cfg.Enabled())
 	err = cfg.Validate()
 	require.NoError(t, err)
 	assert.EqualValues(t, 10*time.Hour, cfg.EpochDuration.Duration)
-	assert.EqualValues(t, 10*time.Hour, cfg.MaxReplyAge.Duration)
+}
+
+func TestValidate(t *testing.T) {
+	var err error
+	var cfg = NewDRKeyConfig()
+	err = cfg.Validate()
+	require.NoError(t, err)
+	cfg.EpochDuration.Duration = 10 * time.Hour
+	sample1 := `piskes = ["not an address"]`
+	toml.Decode(sample1, &cfg.Delegation)
+	require.Error(t, cfg.Validate())
+	sample2 := `piskes = ["1.1.1.1"]`
+	toml.Decode(sample2, &cfg.Delegation)
+	require.NoError(t, cfg.Validate())
+	cfg.DRKeyDB.Connection = "a"
+	require.NoError(t, cfg.Validate())
 }
 
 func TestDelegationListDefaults(t *testing.T) {
