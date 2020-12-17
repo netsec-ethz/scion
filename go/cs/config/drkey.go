@@ -69,7 +69,6 @@ func (cfg *DRKeyConfig) InitDefaults() {
 
 // Enabled returns true if DRKey is configured. False otherwise.
 func (cfg *DRKeyConfig) Enabled() bool {
-	// TODO(juagargi): check that disabled CSs can receive DRKey queries from sciond (mine crashes)
 	if cfg.DRKeyDB.Connection == "" {
 		return false
 	}

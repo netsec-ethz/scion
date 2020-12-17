@@ -107,3 +107,18 @@ func verifyChain(chain []*x509.Certificate, trcs []cppki.SignedTRC) error {
 	}
 	return errs.ToError()
 }
+
+// FileLoader loads key pair from file
+type FileLoader struct {
+	CertFile string
+	KeyFile  string
+}
+
+// LoadX509KeyPair returns the TLS certificate to be provided during a TLS handshake.
+func (l FileLoader) LoadX509KeyPair() (*tls.Certificate, error) {
+	cert, err := tls.LoadX509KeyPair(l.CertFile, l.KeyFile)
+	if err != nil {
+		return nil, serrors.WrapStr("loading certificates for DRKey gRPCs", err)
+	}
+	return &cert, nil
+}

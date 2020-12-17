@@ -104,3 +104,14 @@ func verifyConnection(cs tls.ConnectionState, serverName string) error {
 	}
 	return nil
 }
+
+// GetTansportCredentials returns a configuration which implements TransportCredentials
+// interface, based on the provided TLSCryptoManager
+func GetTansportCredentials(mgr *TLSCryptoManager) credentials.TransportCredentials {
+	config := &tls.Config{
+		InsecureSkipVerify:    true,
+		GetClientCertificate:  mgr.GetClientCertificate,
+		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
+	}
+	return NewClientCredentials(config)
+}

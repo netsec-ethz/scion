@@ -7,8 +7,8 @@ proto_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//proto/drkey/mgmt/v1:drkey",
         "@com_google_protobuf//:duration_proto",
         "@com_google_protobuf//:timestamp_proto",
-        "//proto/drkey/mgmt/v1:drkey",
     ],
 )

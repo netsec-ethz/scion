@@ -387,7 +387,7 @@ func run(file string) error {
 		if err != nil {
 			return serrors.WrapStr("initializing DRKey DB", err)
 		}
-		loader := fileLoader{
+		loader := trust.FileLoader{
 			CertFile: cfg.DRKey.CertFile,
 			KeyFile:  cfg.DRKey.KeyFile,
 		}
@@ -396,7 +396,7 @@ func run(file string) error {
 			Dialer: &libgrpc.TLSQUICDialer{
 				Rewriter:    nc.AddressRewriter(nil),
 				Dialer:      quicStack.TLSDialer,
-				Credentials: getCredentials(tlsMgr),
+				Credentials: trust.GetTansportCredentials(tlsMgr),
 			},
 			Router: segreq.NewRouter(fetcherCfg),
 		}
@@ -602,28 +602,4 @@ func loadMasterSecret(dir string) (keyconf.Master, error) {
 		return keyconf.Master{}, serrors.WrapStr("error getting master secret", err)
 	}
 	return masterKey, nil
-}
-
-func getCredentials(mgr *trust.TLSCryptoManager) credentials.TransportCredentials {
-	config := &tls.Config{
-		InsecureSkipVerify:    true,
-		GetClientCertificate:  mgr.GetClientCertificate,
-		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
-	}
-	return trust.NewClientCredentials(config)
-}
-
-// FileLoader loads key pair from file
-type fileLoader struct {
-	CertFile string
-	KeyFile  string
-}
-
-// LoadX509KeyPair returns the TLS certificate to be provided during a TLS handshake.
-func (l fileLoader) LoadX509KeyPair() (*tls.Certificate, error) {
-	cert, err := tls.LoadX509KeyPair(l.CertFile, l.KeyFile)
-	if err != nil {
-		return nil, serrors.WrapStr("loading certificates for DRKey gRPCs", err)
-	}
-	return &cert, nil
 }
