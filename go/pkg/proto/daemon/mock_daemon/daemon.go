@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	daemon "github.com/scionproto/scion/go/pkg/proto/daemon"
+	drkey "github.com/scionproto/scion/go/pkg/proto/drkey"
 	reflect "reflect"
 )
 
@@ -49,19 +50,109 @@ func (mr *MockDaemonServiceServerMockRecorder) AS(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AS", reflect.TypeOf((*MockDaemonServiceServer)(nil).AS), arg0, arg1)
 }
 
-// DRKeyLvl2 mocks base method
-func (m *MockDaemonServiceServer) DRKeyLvl2(arg0 context.Context, arg1 *daemon.DRKeyLvl2Request) (*daemon.DRKeyLvl2Response, error) {
+// ASHost mocks base method
+func (m *MockDaemonServiceServer) ASHost(arg0 context.Context, arg1 *drkey.ASHostRequest) (*drkey.ASHostResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DRKeyLvl2", arg0, arg1)
-	ret0, _ := ret[0].(*daemon.DRKeyLvl2Response)
+	ret := m.ctrl.Call(m, "ASHost", arg0, arg1)
+	ret0, _ := ret[0].(*drkey.ASHostResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DRKeyLvl2 indicates an expected call of DRKeyLvl2
-func (mr *MockDaemonServiceServerMockRecorder) DRKeyLvl2(arg0, arg1 interface{}) *gomock.Call {
+// ASHost indicates an expected call of ASHost
+func (mr *MockDaemonServiceServerMockRecorder) ASHost(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyLvl2", reflect.TypeOf((*MockDaemonServiceServer)(nil).DRKeyLvl2), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ASHost", reflect.TypeOf((*MockDaemonServiceServer)(nil).ASHost), arg0, arg1)
+}
+
+// ColibriAddAdmissionEntry mocks base method
+func (m *MockDaemonServiceServer) ColibriAddAdmissionEntry(arg0 context.Context, arg1 *daemon.ColibriAdmissionEntry) (*daemon.ColibriAdmissionEntryResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ColibriAddAdmissionEntry", arg0, arg1)
+	ret0, _ := ret[0].(*daemon.ColibriAdmissionEntryResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ColibriAddAdmissionEntry indicates an expected call of ColibriAddAdmissionEntry
+func (mr *MockDaemonServiceServerMockRecorder) ColibriAddAdmissionEntry(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ColibriAddAdmissionEntry", reflect.TypeOf((*MockDaemonServiceServer)(nil).ColibriAddAdmissionEntry), arg0, arg1)
+}
+
+// ColibriCleanupRsv mocks base method
+func (m *MockDaemonServiceServer) ColibriCleanupRsv(arg0 context.Context, arg1 *daemon.ColibriCleanupRequest) (*daemon.ColibriCleanupResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ColibriCleanupRsv", arg0, arg1)
+	ret0, _ := ret[0].(*daemon.ColibriCleanupResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ColibriCleanupRsv indicates an expected call of ColibriCleanupRsv
+func (mr *MockDaemonServiceServerMockRecorder) ColibriCleanupRsv(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ColibriCleanupRsv", reflect.TypeOf((*MockDaemonServiceServer)(nil).ColibriCleanupRsv), arg0, arg1)
+}
+
+// ColibriListRsvs mocks base method
+func (m *MockDaemonServiceServer) ColibriListRsvs(arg0 context.Context, arg1 *daemon.ColibriListRequest) (*daemon.ColibriListResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ColibriListRsvs", arg0, arg1)
+	ret0, _ := ret[0].(*daemon.ColibriListResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ColibriListRsvs indicates an expected call of ColibriListRsvs
+func (mr *MockDaemonServiceServerMockRecorder) ColibriListRsvs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ColibriListRsvs", reflect.TypeOf((*MockDaemonServiceServer)(nil).ColibriListRsvs), arg0, arg1)
+}
+
+// ColibriSetupRsv mocks base method
+func (m *MockDaemonServiceServer) ColibriSetupRsv(arg0 context.Context, arg1 *daemon.ColibriSetupRequest) (*daemon.ColibriSetupResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ColibriSetupRsv", arg0, arg1)
+	ret0, _ := ret[0].(*daemon.ColibriSetupResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ColibriSetupRsv indicates an expected call of ColibriSetupRsv
+func (mr *MockDaemonServiceServerMockRecorder) ColibriSetupRsv(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ColibriSetupRsv", reflect.TypeOf((*MockDaemonServiceServer)(nil).ColibriSetupRsv), arg0, arg1)
+}
+
+// HostAS mocks base method
+func (m *MockDaemonServiceServer) HostAS(arg0 context.Context, arg1 *drkey.HostASRequest) (*drkey.HostASResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HostAS", arg0, arg1)
+	ret0, _ := ret[0].(*drkey.HostASResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HostAS indicates an expected call of HostAS
+func (mr *MockDaemonServiceServerMockRecorder) HostAS(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HostAS", reflect.TypeOf((*MockDaemonServiceServer)(nil).HostAS), arg0, arg1)
+}
+
+// HostHost mocks base method
+func (m *MockDaemonServiceServer) HostHost(arg0 context.Context, arg1 *drkey.HostHostRequest) (*drkey.HostHostResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HostHost", arg0, arg1)
+	ret0, _ := ret[0].(*drkey.HostHostResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HostHost indicates an expected call of HostHost
+func (mr *MockDaemonServiceServerMockRecorder) HostHost(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HostHost", reflect.TypeOf((*MockDaemonServiceServer)(nil).HostHost), arg0, arg1)
 }
 
 // Interfaces mocks base method
@@ -107,6 +198,21 @@ func (m *MockDaemonServiceServer) Paths(arg0 context.Context, arg1 *daemon.Paths
 func (mr *MockDaemonServiceServerMockRecorder) Paths(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Paths", reflect.TypeOf((*MockDaemonServiceServer)(nil).Paths), arg0, arg1)
+}
+
+// SV mocks base method
+func (m *MockDaemonServiceServer) SV(arg0 context.Context, arg1 *daemon.SVRequest) (*daemon.SVResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SV", arg0, arg1)
+	ret0, _ := ret[0].(*daemon.SVResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SV indicates an expected call of SV
+func (mr *MockDaemonServiceServerMockRecorder) SV(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SV", reflect.TypeOf((*MockDaemonServiceServer)(nil).SV), arg0, arg1)
 }
 
 // Services mocks base method

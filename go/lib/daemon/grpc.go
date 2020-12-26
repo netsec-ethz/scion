@@ -164,29 +164,6 @@ func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInf
 
 }
 
-func (c grpcConn) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
-	valTime time.Time) (drkey.Lvl2Key, error) {
-
-	client := sdpb.NewDaemonServiceClient(c.conn)
-
-	lvl2Req := dkctrl.NewLvl2ReqFromMeta(meta, valTime)
-	pbLvl2Req, err := lvl2reqToProtoRequest(lvl2Req)
-	if err != nil {
-		return drkey.Lvl2Key{}, err
-	}
-
-	reply, err := client.DRKeyLvl2(ctx, pbLvl2Req)
-	if err != nil {
-		return drkey.Lvl2Key{}, err
-	}
-
-	lvl2Key, err := getLvl2KeyFromReply(reply, meta)
-	if err != nil {
-		return drkey.Lvl2Key{}, err
-	}
-	return lvl2Key, nil
-}
-
 func (c grpcConn) ColibriListRsvs(ctx context.Context, dstIA addr.IA) (
 	*col.StitchableSegments, error) {
 
@@ -323,6 +300,72 @@ func (c grpcConn) ColibriAddAdmissionEntry(ctx context.Context, entry *col.Admis
 	return util.SecsToTime(res.Base.ValidUntil), nil
 }
 
+func (c grpcConn) DRKeyGetASHostKey(ctx context.Context,
+	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+
+	pbReq, err := dkctrl.ASHostMetaToProtoRequest(meta)
+	if err != nil {
+		return drkey.ASHostKey{}, err
+	}
+
+	reply, err := client.ASHost(ctx, pbReq)
+	if err != nil {
+		return drkey.ASHostKey{}, err
+	}
+
+	key, err := dkctrl.GetASHostKeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.ASHostKey{}, err
+	}
+	return key, nil
+}
+
+func (c grpcConn) DRKeyGetHostASKey(ctx context.Context,
+	meta drkey.HostASMeta) (drkey.HostASKey, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+
+	req, err := dkctrl.HostASMetaToProtoRequest(meta)
+	if err != nil {
+		return drkey.HostASKey{}, err
+	}
+
+	reply, err := client.HostAS(ctx, req)
+	if err != nil {
+		return drkey.HostASKey{}, err
+	}
+
+	key, err := dkctrl.GetHostASKeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.HostASKey{}, err
+	}
+	return key, nil
+}
+
+func (c grpcConn) DRKeyGetHostHostKey(ctx context.Context,
+	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+
+	pbReq, err := dkctrl.HostHostMetaToProtoRequest(meta)
+	if err != nil {
+		return drkey.HostHostKey{}, err
+	}
+
+	reply, err := client.HostHost(ctx, pbReq)
+	if err != nil {
+		return drkey.HostHostKey{}, err
+	}
+
+	key, err := dkctrl.GetHostHostKeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.HostHostKey{}, err
+	}
+	return key, nil
+}
+
 func (c grpcConn) Close(_ context.Context) error {
 	return c.conn.Close()
 }
@@ -419,19 +462,4 @@ func topoServiceTypeToSVCAddr(st topology.ServiceType) addr.HostSVC {
 	default:
 		return addr.SvcNone
 	}
-}
-
-func lvl2reqToProtoRequest(req dkctrl.Lvl2Req) (*sdpb.DRKeyLvl2Request, error) {
-	baseReq, err := dkctrl.Lvl2reqToProtoRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	return &sdpb.DRKeyLvl2Request{
-		BaseReq: baseReq,
-	}, nil
-}
-
-// getLvl2KeyFromReply decrypts and extracts the level 1 drkey from the reply.
-func getLvl2KeyFromReply(rep *sdpb.DRKeyLvl2Response, meta drkey.Lvl2Meta) (drkey.Lvl2Key, error) {
-	return dkctrl.GetLvl2KeyFromReply(rep.BaseRep, meta)
 }

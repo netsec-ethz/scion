@@ -37,7 +37,7 @@ flake8_lint_config(
 pkg_tar(
     name = "scion",
     srcs = [
-        "//go/co",
+        #"//go/co",
         "//go/cs",
         "//go/daemon",
         "//go/dispatcher",

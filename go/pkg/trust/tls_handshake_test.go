@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
 )
 
-func TestTLSCryptoManagerVerifyPeerCertificate(t *testing.T) {
+func TestTLSCryptoManagerVerifyServerCertificate(t *testing.T) {
 	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
 	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
 
@@ -59,7 +59,42 @@ func TestTLSCryptoManagerVerifyPeerCertificate(t *testing.T) {
 				Timeout: 5 * time.Second,
 			}
 			rawChain := loadRawChain(t, crt111File)
-			err := mgr.VerifyPeerCertificate(rawChain, nil)
+			err := mgr.VerifyServerCertificate(rawChain, nil)
+			tc.assertErr(t, err)
+		})
+	}
+}
+
+func TestTLSCryptoManagerVerifyClientCertificate(t *testing.T) {
+	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
+	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
+
+	testCases := map[string]struct {
+		db        func(ctrl *gomock.Controller) trust.DB
+		assertErr assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			db: func(ctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
+				return db
+			},
+			assertErr: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			db := tc.db(ctrl)
+			mgr := trust.TLSCryptoManager{
+				DB:      db,
+				Timeout: 5 * time.Second,
+			}
+			rawChain := loadRawChain(t, crt111File)
+			err := mgr.VerifyClientCertificate(rawChain, nil)
 			tc.assertErr(t, err)
 		})
 	}
@@ -80,7 +115,7 @@ func TestHandshake(t *testing.T) {
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).MaxTimes(2).Return(trc, nil)
 	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadX509KeyPair().MaxTimes(2).Return(&tlsCert, nil)
+	loader.EXPECT().LoadX509KeyPair(gomock.Any()).MaxTimes(2).Return(&tlsCert, nil)
 
 	mgr := trust.NewTLSCryptoManager(loader, db)
 	clientConn, serverConn := net.Pipe()
@@ -90,12 +125,12 @@ func TestHandshake(t *testing.T) {
 	client := tls.Client(clientConn, &tls.Config{
 		InsecureSkipVerify:    true,
 		GetClientCertificate:  mgr.GetClientCertificate,
-		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
+		VerifyPeerCertificate: mgr.VerifyServerCertificate,
 	})
 	server := tls.Server(serverConn, &tls.Config{
 		InsecureSkipVerify:    true,
 		GetCertificate:        mgr.GetCertificate,
-		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
+		VerifyPeerCertificate: mgr.VerifyClientCertificate,
 		ClientAuth:            tls.RequireAnyClientCert,
 	})
 

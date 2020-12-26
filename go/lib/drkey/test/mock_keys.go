@@ -23,14 +23,14 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-type KeyMap map[fastSlow]drkey.Lvl2Key
+type KeyMap map[fastSlow]drkey.Key
 
 type fastSlow struct {
 	fast addr.IA
 	slow addr.IA
 }
 
-func GetKey(keyMap KeyMap, fastIA, slowIA addr.IA) (drkey.Lvl2Key, bool) {
+func GetKey(keyMap KeyMap, fastIA, slowIA addr.IA) (drkey.Key, bool) {
 	k, ok := keyMap[fastSlow{fast: fastIA, slow: slowIA}]
 	return k, ok
 }

@@ -7,8 +7,8 @@ gomock(
     interfaces = [
         "ChainRenewalServiceServer",
         "TrustMaterialServiceServer",
-        "DRKeyLvl2ServiceServer",
-        "DRKeyLvl1ServiceServer",
+        "DRKeyIntraServiceServer",
+        "DRKeyInterServiceServer",
     ],
     library = "//go/pkg/proto/control_plane:go_default_library",
     package = "mock_control_plane",

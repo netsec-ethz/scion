@@ -20,22 +20,28 @@ package proto.control_plane.v1;
 
 import "proto/drkey/mgmt/v1/mgmt.proto";
 
-service DRKeyLvl1Service{
+service DRKeyInterService{
     // Return the Lvl1Key that matches the request
-    rpc DRKeyLvl1(proto.drkey.mgmt.v1.DRKeyLvl1Request) returns (proto.drkey.mgmt.v1.DRKeyLvl1Response) {}
+    rpc Lvl1(proto.drkey.mgmt.v1.Lvl1Request) returns (proto.drkey.mgmt.v1.Lvl1Response) {}
 }
 
-service DRKeyLvl2Service{
-    // Return the Lvl2Key that matches the request
-    rpc DRKeyLvl2(DRKeyLvl2Request) returns (DRKeyLvl2Response) {}
+service DRKeyIntraService{
+    // Return the AS-Host that matches the request
+    rpc ASHost(proto.drkey.mgmt.v1.ASHostRequest) returns (proto.drkey.mgmt.v1.ASHostResponse) {}
+    // Return the Host-AS that matches the request
+    rpc HostAS(proto.drkey.mgmt.v1.HostASRequest) returns (proto.drkey.mgmt.v1.HostASResponse) {}
+    // Return the Host-Host that matches the request
+    rpc HostHost(proto.drkey.mgmt.v1.HostHostRequest) returns (proto.drkey.mgmt.v1.HostHostResponse) {}
+    // Return the SV that matches the request
+    rpc SV(SVRequest) returns (SVResponse) {}
 }
 
-message DRKeyLvl2Request{
-    // BaseReq contains the basic information for the Lvl2 request
-    proto.drkey.mgmt.v1.DRKeyLvl2Request base_req = 1;
+message SVRequest{
+    // BaseReq contains the basic information for the SV request
+    proto.drkey.mgmt.v1.SVRequest base_req = 1;
 }
 
-message DRKeyLvl2Response{
-    // BaseRep contains the basic information for the Lvl2 response
-    proto.drkey.mgmt.v1.DRKeyLvl2Response base_rep = 1;
+message SVResponse{
+    // BaseReq contains the basic information for the SV request
+    proto.drkey.mgmt.v1.SVResponse base_rep = 1;
 }

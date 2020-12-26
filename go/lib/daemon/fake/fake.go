@@ -186,8 +186,20 @@ func (c connector) RevNotification(ctx context.Context,
 	panic("not implemented")
 }
 
-func (c connector) DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
-	valTime time.Time) (drkey.Lvl2Key, error) {
+func (c connector) DRKeyGetASHostKey(ctx context.Context,
+	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+
+	panic("not implemented")
+}
+
+func (c connector) DRKeyGetHostASKey(ctx context.Context,
+	meta drkey.HostASMeta) (drkey.HostASKey, error) {
+
+	panic("not implemented")
+}
+
+func (c connector) DRKeyGetHostHostKey(ctx context.Context,
+	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
 	panic("not implemented")
 }

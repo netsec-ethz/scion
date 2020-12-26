@@ -18,216 +18,341 @@ import (
 	"context"
 	"net"
 
+	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"inet.af/netaddr"
 
+	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/exchange"
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	cs_drkey "github.com/scionproto/scion/go/pkg/cs/drkey"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
-// DRKeyServer keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
-type DRKeyServer struct {
+// Server keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
+type Server struct {
 	LocalIA addr.IA
-	Store   drkeystorage.ServiceStore
-	// AllowedDSs is a set of protocols per IP address (in 16 byte form). Represents the allowed
-	// protocols hosts can obtain delegation secrets for.
-	AllowedDSs map[[16]byte]map[string]struct{}
+	Engine  cs_drkey.ServiceEngine
+	// AllowedSVHost is a set of Host,Protocol pairs that represents the allowed
+	// protocols hosts can obtain secrets values for.
+	AllowedSVHostProto map[config.HostProto]struct{}
 }
 
-var _ cppb.DRKeyLvl1ServiceServer = &DRKeyServer{}
-var _ cppb.DRKeyLvl2ServiceServer = &DRKeyServer{}
+var _ cppb.DRKeyInterServiceServer = &Server{}
+var _ cppb.DRKeyIntraServiceServer = &Server{}
 
-// DRKeyLvl1 handle a level 1 request and returns a level 1 response.
-func (d *DRKeyServer) DRKeyLvl1(ctx context.Context,
-	req *dkpb.DRKeyLvl1Request) (*dkpb.DRKeyLvl1Response, error) {
+// Lvl1 handle a level 1 request and returns a level 1 response.
+func (d *Server) Lvl1(ctx context.Context,
+	req *dkpb.Lvl1Request) (*dkpb.Lvl1Response, error) {
 	logger := log.FromCtx(ctx)
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		logger.Error("[DRKey gRPC server] Cannot retrieve peer from ctx")
-		return nil, serrors.New("retrieving peer information from ctx")
+		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
-	parsedReq, err := ctrl.RequestToLvl1Req(req)
+	dstIA, err := extractIAFromPeer(peer)
 	if err != nil {
-		logger.Error("[DRKey gRPC server] Invalid DRKey Lvl1 request",
-			"peer", peer, "err", err)
-		return nil, err
-	}
-
-	dstIA, err := exchange.ExtractIAFromPeer(peer)
-	if err != nil {
-		logger.Error("[DRKey gRPC server] Error retrieving auth info from certicate",
-			"err", err)
 		return nil, serrors.WrapStr("retrieving info from certficate", err)
 	}
 
+	lvl1Meta, err := getMeta(req, d.LocalIA, dstIA)
+	if err != nil {
+		return nil, serrors.WrapStr("Invalid DRKey Lvl1 request", err)
+	}
+
+	// validate requested ProtoID is specific
+	if !lvl1Meta.ProtoId.IsPredefined() {
+		return nil, serrors.New("The requested protocol id is not recognized",
+			"protoID", lvl1Meta.ProtoId)
+	}
+
 	logger.Debug("[DRKey gRPC server] Received Lvl1 request",
-		"lvl1_req", parsedReq, "peer", peer.Addr.String(), "IA from cert", dstIA.String())
-	lvl1Key, err := d.Store.DeriveLvl1(dstIA, parsedReq.ValTime)
+		"lvl1_meta", lvl1Meta, "peer", peer.Addr.String(), "IA from cert", dstIA.String())
+
+	lvl1Key, err := d.Engine.DeriveLvl1(lvl1Meta)
 	if err != nil {
 		logger.Error("Error deriving level 1 key", "err", err)
 		return nil, err
 	}
 	resp, err := ctrl.KeyToLvl1Resp(lvl1Key)
 	if err != nil {
-		logger.Error("[DRKey gRPC server] Error parsing DRKey Lvl1 to protobuf resp", "err", err)
-		return nil, err
+		return nil, serrors.WrapStr("Error parsing DRKey Lvl1 to protobuf resp", err)
 	}
 	return resp, nil
 }
 
-// DRKeyLvl2 handles a level 2 drkey request and returns a level 2 response.
-func (d *DRKeyServer) DRKeyLvl2(ctx context.Context,
-	req *cppb.DRKeyLvl2Request) (*cppb.DRKeyLvl2Response, error) {
+func getMeta(req *dkpb.Lvl1Request, srcIA, dstIA addr.IA) (drkey.Lvl1Meta, error) {
+	valTime, err := ptypes.Timestamp(req.ValTime)
+	if err != nil {
+		return drkey.Lvl1Meta{}, serrors.WrapStr("invalid valTime from pb req", err)
+	}
+	return drkey.Lvl1Meta{
+		Validity: valTime,
+		ProtoId:  drkey.Protocol(req.ProtocolId),
+		SrcIA:    srcIA,
+		DstIA:    dstIA,
+	}, nil
+}
+
+func extractIAFromPeer(peer *peer.Peer) (addr.IA, error) {
+	if peer.AuthInfo == nil {
+		return 0, serrors.New("no auth info", "peer", peer)
+	}
+	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
+	if !ok {
+		return 0, serrors.New("auth info is not of type TLS info",
+			"peer", peer, "authType", peer.AuthInfo.AuthType())
+	}
+	chain := tlsInfo.State.PeerCertificates
+	certIA, err := cppki.ExtractIA(chain[0].Subject)
+	if err != nil {
+		return 0, serrors.WrapStr("extracting IA from peer cert", err)
+	}
+	return certIA, nil
+}
+
+func (d *Server) ASHost(ctx context.Context,
+	req *dkpb.ASHostRequest) (*dkpb.ASHostResponse, error) {
 	logger := log.FromCtx(ctx)
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		logger.Error("[DRKey gRPC server] Cannot retrieve peer from ctx")
-		return nil, serrors.New("retrieving peer information from ctx")
+		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	parsedReq, err := requestToLvl2Req(req)
+	meta, err := ctrl.RequestToASHostMeta(req)
 	if err != nil {
-		logger.Error("[DRKey gRPC server] Invalid DRKey Lvl2 request",
-			"peer", peer, "err", err)
-		return nil, err
+		return nil, serrors.WrapStr("parsing DRKey AS-Host request", err)
 	}
-	if err := d.validateLvl2Req(parsedReq, peer.Addr); err != nil {
-		log.Error("[DRKey gRPC server] Error validating Lvl2 request",
-			"err", err)
-		return nil, err
+	if err := validateASHostReq(meta, d.LocalIA, peer.Addr); err != nil {
+		return nil, serrors.WrapStr("validating AS-Host request", err)
 	}
 
-	srcIA := parsedReq.SrcIA
-	dstIA := parsedReq.DstIA
-	logger.Debug(" [DRKey gRPC server] Received lvl2 request",
-		"Type", parsedReq.ReqType, "protocol", parsedReq.Protocol,
-		"SrcIA", srcIA, "DstIA", dstIA)
-	lvl1Meta := drkey.Lvl1Meta{
-		SrcIA: srcIA,
-		DstIA: dstIA,
-	}
-	lvl1Key, err := d.Store.GetLvl1Key(ctx, lvl1Meta, parsedReq.ValTime)
+	logger.Debug(" [DRKey gRPC server] Received AS-Host request",
+		"protocol", meta.ProtoId,
+		"SrcIA", meta.SrcIA, "DstIA", meta.DstIA)
+
+	asHostKey, err := d.Engine.DeriveASHost(ctx, meta)
 	if err != nil {
-		logger.Error("[DRKey gRPC server] Error getting the level 1 key",
-			"err", err)
-		return nil, err
-	}
-	lvl2Meta := drkey.Lvl2Meta{
-		Epoch:    lvl1Key.Epoch,
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		KeyType:  drkey.Lvl2KeyType(parsedReq.ReqType),
-		Protocol: parsedReq.Protocol,
-		SrcHost:  parsedReq.SrcHost.ToHostAddr(),
-		DstHost:  parsedReq.DstHost.ToHostAddr(),
+		return nil, serrors.WrapStr("deriving AS-Host request", err)
 	}
 
-	lvl2Key, err := deriveLvl2(lvl2Meta, lvl1Key)
+	resp, err := ctrl.KeyToASHostResp(asHostKey)
 	if err != nil {
-		logger.Error("[DRKey gRPC server] Error deriving level 2 key",
-			"err", err)
-		return nil, err
-	}
-
-	resp, err := keyToLvl2Resp(lvl2Key)
-	if err != nil {
-		logger.Debug("[DRKey gRPC server] Error parsing DRKey Lvl2 to protobuf resp",
-			"err", err)
-		return nil, err
+		return nil, serrors.WrapStr("parsing AS-Host request", err)
 	}
 	return resp, nil
 }
 
-func requestToLvl2Req(req *cppb.DRKeyLvl2Request) (ctrl.Lvl2Req, error) {
-	return ctrl.RequestToLvl2Req(req.BaseReq)
+// validateASHostReq returns and error if the requesting host is different from the
+// requested dst host. The source AS infraestructure nodes are not supposed to contact
+// the local CS but to derive this key from the SV instead.
+func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr) error {
+	hostAddr, err := hostAddrFromPeer(peerAddr)
+	if err != nil {
+		return err
+	}
+
+	if !meta.DstIA.Equal(localIA) {
+		return serrors.New("invalid request, req.dstIA != localIA",
+			"req.dstIA", meta.DstIA, "localIA", localIA)
+	}
+	dstHost := addr.HostFromIPStr(meta.DstHost)
+	if !hostAddr.Equal(dstHost) {
+		return serrors.New("invalid request, dst_host != remote host",
+			"dst_host", dstHost, "remote_host", hostAddr)
+	}
+	return nil
 }
 
-func keyToLvl2Resp(drkey drkey.Lvl2Key) (*cppb.DRKeyLvl2Response, error) {
-	baseRep, err := ctrl.KeyToLvl2Resp(drkey)
+func (d *Server) HostAS(ctx context.Context,
+	req *dkpb.HostASRequest) (*dkpb.HostASResponse, error) {
+	logger := log.FromCtx(ctx)
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		serrors.New("Cannot retrieve peer information from ctx")
+	}
+
+	meta, err := ctrl.RequestToHostASMeta(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing Host-AS request", err)
+	}
+	if err := validateHostASReq(meta, d.LocalIA, peer.Addr); err != nil {
+		return nil, serrors.WrapStr("validating Host-AS request", err)
+	}
+	logger.Debug(" [DRKey gRPC server] Received Host-AS request",
+		"protocol", meta.ProtoId,
+		"SrcIA", meta.SrcIA, "DstIA", meta.DstIA)
+	key, err := d.Engine.DeriveHostAS(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("deriving Host-AS request", err)
+	}
+
+	resp, err := ctrl.KeyToHostASResp(key)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing Host-AS request", err)
+	}
+	return resp, nil
+}
+
+// validateASHostReq returns and error if the requesting host is different from the
+// requested src host. The dst AS infraestructure nodes are not supposed to contact
+// the local CS but to derive this key from the SV instead.
+func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr) error {
+	hostAddr, err := hostAddrFromPeer(peerAddr)
+	if err != nil {
+		return err
+	}
+
+	if !meta.SrcIA.Equal(localIA) {
+		return serrors.New("invalid request, req.SrcIA != localIA",
+			"req.SrcIA", meta.SrcIA, "localIA", localIA)
+	}
+	srcHost := addr.HostFromIPStr(meta.SrcHost)
+	if !hostAddr.Equal(srcHost) {
+		return serrors.New("invalid request, src_host != remote host",
+			"src_host", srcHost, "remote_host", hostAddr)
+	}
+	return nil
+}
+
+func (d *Server) HostHost(ctx context.Context,
+	req *dkpb.HostHostRequest) (*dkpb.HostHostResponse, error) {
+	logger := log.FromCtx(ctx)
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		serrors.New("Cannot retrieve peer information from ctx")
+	}
+
+	meta, err := ctrl.RequestToHostHostMeta(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing Host-Host request", err)
+	}
+	if err := validateHostHostReq(meta, d.LocalIA, peer.Addr); err != nil {
+		return nil, serrors.WrapStr("validating Host-Host request", err)
+	}
+
+	logger.Debug(" [DRKey gRPC server] Received Host-Host request",
+		"protocol", meta.ProtoId,
+		"SrcIA", meta.SrcIA, "DstIA", meta.DstIA)
+
+	key, err := d.Engine.DeriveHostHost(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("deriving Host-Host request", err)
+	}
+
+	resp, err := ctrl.KeyToHostHostResp(key)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing Host-Host request", err)
+	}
+	return resp, nil
+}
+
+// validateHostHostReq returns and error if the requesting host is different from the
+// requested src host or the dst host.
+func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.Addr) error {
+	hostAddr, err := hostAddrFromPeer(peerAddr)
+	if err != nil {
+		return err
+	}
+
+	if meta.SrcIA.Equal(localIA) {
+		srcHost := addr.HostFromIPStr(meta.SrcHost)
+		if !hostAddr.Equal(srcHost) {
+			return serrors.New("invalid request, src_host != remote host",
+				"src_host", srcHost, "remote_host", hostAddr)
+		}
+		return nil
+	}
+
+	if meta.DstIA.Equal(localIA) {
+		dstHost := addr.HostFromIPStr(meta.DstHost)
+		if !hostAddr.Equal(dstHost) {
+			return serrors.New("invalid request, dst_host != remote host",
+				"dst_host", dstHost, "remote_host", hostAddr)
+		}
+		return nil
+	}
+	return serrors.New("invalid request, localIA not found in request",
+		"localIA", localIA, "srcIA", meta.SrcIA, "dstIA", meta.DstIA)
+}
+
+func hostAddrFromPeer(peerAddr net.Addr) (addr.HostAddr, error) {
+	tcpAddr, ok := peerAddr.(*net.TCPAddr)
+	if !ok {
+		return nil, serrors.New("invalid peer address type, expected *net.TCPAddr",
+			"peer", peerAddr, "type", common.TypeOf(peerAddr))
+	}
+	return addr.HostFromIP(tcpAddr.IP), nil
+}
+
+// SV handles a SV request and returns a SV response.
+func (d *Server) SV(ctx context.Context,
+	req *cppb.SVRequest) (*cppb.SVResponse, error) {
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		serrors.New("Cannot retrieve peer information from ctx")
+	}
+
+	meta, err := ctrl.RequestToMeta(req.BaseReq)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing Host-Host request", err)
+	}
+	if err := d.validateSVReq(meta, peer.Addr); err != nil {
+		return nil, serrors.WrapStr("validating SV request", err)
+	}
+	sv, err := d.Engine.GetSecretValue(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("getting SV from persistence", err)
+	}
+	resp, err := svToProtoResp(sv)
+	if err != nil {
+		return nil, serrors.WrapStr("encoding SV to Protobuf response", err)
+	}
+	return resp, nil
+}
+
+func svToProtoResp(sv drkey.SV) (*cppb.SVResponse, error) {
+	baseRep, err := ctrl.SVtoProtoResp(sv)
 	if err != nil {
 		return nil, err
 	}
-	return &cppb.DRKeyLvl2Response{
+	return &cppb.SVResponse{
 		BaseRep: baseRep,
 	}, nil
 }
 
-// deriveLvl2 will derive the level 2 key specified by the meta data and the level 1 key.
-func deriveLvl2(meta drkey.Lvl2Meta, lvl1Key drkey.Lvl1Key) (
-	drkey.Lvl2Key, error) {
-
-	der, found := protocol.KnownDerivations[meta.Protocol]
-	if !found {
-		return drkey.Lvl2Key{}, serrors.New("no derivation found for protocol",
-			"protocol", meta.Protocol)
-	}
-	return der.DeriveLvl2(meta, lvl1Key)
-}
-
-// validateLvl2Req checks that the requester is in the destination of the key
-// if AS2Host or host2host, and checks that the requester is authorized as to
-// get a DS if AS2AS (AS2AS == DS).
-func (d *DRKeyServer) validateLvl2Req(req ctrl.Lvl2Req, peerAddr net.Addr) error {
+// validateSVReq checks that the requester is authorized to receive a SV
+func (d *Server) validateSVReq(meta drkey.SVMeta, peerAddr net.Addr) error {
 	tcpAddr, ok := peerAddr.(*net.TCPAddr)
 	if !ok {
 		return serrors.New("invalid peer address type, expected *net.TCPAddr",
 			"peer", peerAddr, "type", common.TypeOf(peerAddr))
 	}
-	localAddr := addr.HostFromIP(tcpAddr.IP)
-
-	if req.SrcIA != d.LocalIA && req.DstIA != d.LocalIA {
-		return serrors.New("invalid request, localIA not found in request",
-			"localIA", d.LocalIA, "srcIA", req.SrcIA, "dstIA", req.DstIA)
+	localAddr, ok := netaddr.FromStdIP(tcpAddr.IP)
+	if !ok {
+		return serrors.New("unable to parse IP", "addr", tcpAddr.IP.String())
+	}
+	hostProto := config.HostProto{
+		Host:  localAddr,
+		Proto: meta.ProtoId,
 	}
 
-	switch drkey.Lvl2KeyType(req.ReqType) {
-	case drkey.Host2Host:
-		if req.SrcIA == d.LocalIA {
-			if localAddr.Equal(req.SrcHost.ToHostAddr()) {
-				break
-			}
-		}
-		fallthrough
-	case drkey.AS2Host:
-		if req.DstIA == d.LocalIA {
-			if localAddr.Equal(req.DstHost.ToHostAddr()) {
-				break
-			}
-		}
-		fallthrough
-	case drkey.AS2AS:
-		// check in the allowed endhosts list
-		var rawIP [16]byte
-		copy(rawIP[:], localAddr.IP().To16())
-		protocolSet, foundSet := d.AllowedDSs[rawIP]
-		if foundSet {
-			if _, found := protocolSet[req.Protocol]; found {
-				log.Debug("Authorized delegated secret",
-					"reqType", req.ReqType,
-					"requester address", localAddr,
-					"srcHost", req.SrcHost.ToHostAddr().String(),
-					"dstHost", req.DstHost.ToHostAddr().String(),
-				)
-				return nil
-			}
-		}
-		return serrors.New("endhost not allowed for DRKey request",
-			"reqType", req.ReqType,
-			"endhost address", localAddr,
-			"protocol", req.Protocol,
-			"srcHost", req.SrcHost.ToHostAddr().String(),
-			"dstHost", req.DstHost.ToHostAddr().String(),
+	_, foundSet := d.AllowedSVHostProto[hostProto]
+	if foundSet {
+		log.Debug("Authorized delegated secret",
+			"protocol", meta.ProtoId.String(),
+			"requester address", localAddr.String(),
 		)
-	default:
-		return serrors.New("unknown request type", "reqType", req.ReqType)
+		return nil
 	}
-	return nil
+	return serrors.New("endhost not allowed for DRKey request",
+		"protocol", meta.ProtoId.String(),
+		"requester address", localAddr.String(),
+	)
 }

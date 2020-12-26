@@ -83,9 +83,6 @@ type Connector interface {
 	SVCInfo(ctx context.Context, svcTypes []addr.HostSVC) (map[addr.HostSVC]string, error)
 	// RevNotification sends a RevocationInfo message to the daemon.
 	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
-	// DRKeyGetLvl2Key sends a DRKey Lvl2Key request to SCIOND
-	DRKeyGetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta,
-		valTime time.Time) (drkey.Lvl2Key, error)
 	// ColibriListRsvs requests the list of reservations towards dstIA.
 	ColibriListRsvs(ctx context.Context, dstIA addr.IA) (*col.StitchableSegments, error)
 	// ColibriSetupRsv requests a COLIBRI E2E reservation stitching up to three segments.
@@ -97,6 +94,9 @@ type Connector interface {
 	// ColibriAddAdmissionEntry adds an entry to the admission list. It returns the effective
 	// validity time for the entry in the list.
 	ColibriAddAdmissionEntry(ctx context.Context, entry *col.AdmissionEntry) (time.Time, error)
+	DRKeyGetASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
+	DRKeyGetHostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
+	DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 	// Close shuts down the connection to the daemon.
 	Close(ctx context.Context) error
 }

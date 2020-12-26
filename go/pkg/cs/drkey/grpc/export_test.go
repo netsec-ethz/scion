@@ -15,5 +15,7 @@
 package grpc
 
 var (
-	DeriveLvl2 = deriveLvl2
+	ValidateASHostReq   = validateASHostReq
+	ValidateHostASReq   = validateHostASReq
+	ValidateHostHostReq = validateHostHostReq
 )

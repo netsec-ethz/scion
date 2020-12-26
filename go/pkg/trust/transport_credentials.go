@@ -111,7 +111,7 @@ func GetTansportCredentials(mgr *TLSCryptoManager) credentials.TransportCredenti
 	config := &tls.Config{
 		InsecureSkipVerify:    true,
 		GetClientCertificate:  mgr.GetClientCertificate,
-		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
+		VerifyPeerCertificate: mgr.VerifyServerCertificate,
 	}
 	return NewClientCredentials(config)
 }

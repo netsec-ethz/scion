@@ -17,118 +17,143 @@ package config
 import (
 	"bytes"
 	"io/ioutil"
-	"net"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/BurntSushi/toml"
+	toml "github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
 
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/pkg/storage"
 )
 
 func TestInitDefaults(t *testing.T) {
 	var cfg DRKeyConfig
 	cfg.InitDefaults()
-	assert.EqualValues(t, 24*time.Hour, cfg.EpochDuration.Duration)
+	assert.EqualValues(t, DefaultPrefetchEntries, cfg.PrefetchEntries)
+	assert.NotNil(t, cfg.Delegation)
 }
 
-func TestDRKeyConfigSample(t *testing.T) {
+func TestSample(t *testing.T) {
 	var sample bytes.Buffer
 	var cfg DRKeyConfig
 	cfg.Sample(&sample, nil, nil)
-	meta, err := toml.Decode(sample.String(), &cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	require.NoError(t, err)
-	require.Empty(t, meta.Undecoded())
 	err = cfg.Validate()
 	require.NoError(t, err)
-	assert.Equal(t, DefaultEpochDuration, cfg.EpochDuration.Duration)
 }
 
 func TestDisable(t *testing.T) {
-	var cfg = NewDRKeyConfig()
-	require.False(t, cfg.Enabled())
-	var err error
-	err = cfg.Validate()
-	require.NoError(t, err)
-	cfg.EpochDuration.Duration = 10 * time.Hour
-	require.False(t, cfg.Enabled())
-	cfg.DRKeyDB.Connection = "a"
-	cfg.InitDefaults()
-	require.True(t, cfg.Enabled())
-	err = cfg.Validate()
-	require.NoError(t, err)
-	assert.EqualValues(t, 10*time.Hour, cfg.EpochDuration.Duration)
+	cases := []struct {
+		name          string
+		prepareCfg    func(cfg *DRKeyConfig)
+		expectEnabled bool
+	}{
+		{
+			name:          "default",
+			expectEnabled: false,
+		},
+		{
+			name: "with CacheEntries",
+			prepareCfg: func(cfg *DRKeyConfig) {
+				cfg.PrefetchEntries = 100
+			},
+			expectEnabled: false,
+		},
+		{
+			name: "with Lvl1DB",
+			prepareCfg: func(cfg *DRKeyConfig) {
+				cfg.Lvl1DB.Connection = "test"
+			},
+			expectEnabled: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := &DRKeyConfig{}
+			cfg.InitDefaults()
+			if c.prepareCfg != nil {
+				c.prepareCfg(cfg)
+			}
+			require.NoError(t, cfg.Validate())
+			assert.Equal(t, c.expectEnabled, cfg.Enabled())
+		})
+	}
 }
 
-func TestValidate(t *testing.T) {
-	var err error
-	var cfg = NewDRKeyConfig()
-	err = cfg.Validate()
-	require.NoError(t, err)
-	cfg.EpochDuration.Duration = 10 * time.Hour
-	sample1 := `piskes = ["not an address"]`
-	toml.Decode(sample1, &cfg.Delegation)
-	require.Error(t, cfg.Validate())
-	sample2 := `piskes = ["1.1.1.1"]`
-	toml.Decode(sample2, &cfg.Delegation)
-	require.NoError(t, cfg.Validate())
-	cfg.DRKeyDB.Connection = "a"
-	require.NoError(t, cfg.Validate())
-}
-
-func TestDelegationListDefaults(t *testing.T) {
-	var cfg DelegationList
+func TestSVHostListDefaults(t *testing.T) {
+	var cfg SVHostList
 	cfg.InitDefaults()
 	require.NotNil(t, cfg)
 	require.Empty(t, cfg)
 }
 
-func TestDelegationListSyntax(t *testing.T) {
-	var cfg DelegationList
-	sample1 := `piskes = ["1.1.1.1"]`
-	meta, err := toml.Decode(sample1, &cfg)
+func TestSVHostListSyntax(t *testing.T) {
+	var cfg SVHostList
+	var err error
+	sample1 := `protocol_scmp = ["1.1.1.1"]`
+	err = toml.NewDecoder(bytes.NewReader([]byte(sample1))).Strict(true).Decode(&cfg)
 	require.NoError(t, err)
-	require.Empty(t, meta.Undecoded())
 	require.NoError(t, cfg.Validate())
 
-	sample2 := `piskes = ["not an address"]`
-	meta, err = toml.Decode(sample2, &cfg)
+	sample2 := `protocol_scmp = ["not an address"]`
+	err = toml.NewDecoder(bytes.NewReader([]byte(sample2))).Strict(true).Decode(&cfg)
 	require.NoError(t, err)
-	require.Empty(t, meta.Undecoded())
 	require.Error(t, cfg.Validate())
 }
 
 func TestToMapPerHost(t *testing.T) {
-	var cfg DelegationList
-	sample := `piskes = ["1.1.1.1", "2.2.2.2"]
-	scmp = ["1.1.1.1"]`
-	toml.Decode(sample, &cfg)
+	var cfg SVHostList
+	sample := `protocol_dns = ["1.1.1.1", "2.2.2.2"]
+	protocol_scmp = ["1.1.1.1"]`
+	ip1111, err := netaddr.ParseIP("1.1.1.1")
+	require.NoError(t, err)
+	ip2222, err := netaddr.ParseIP("2.2.2.2")
+	require.NoError(t, err)
+	err = toml.NewDecoder(bytes.NewReader([]byte(sample))).Strict(true).Decode(&cfg)
+	require.NoError(t, err)
 	require.NoError(t, cfg.Validate())
-	m := cfg.ToMapPerHost()
-	require.Len(t, m, 2)
+	m := cfg.ToAllowedSet()
 
-	var rawIP [16]byte
-	copy(rawIP[:], net.ParseIP("1.1.1.1").To16())
-	require.Len(t, m[rawIP], 2)
-	require.Contains(t, m[rawIP], "piskes")
-	require.Contains(t, m[rawIP], "scmp")
-
-	copy(rawIP[:], net.ParseIP("2.2.2.2").To16())
-	require.Len(t, m[rawIP], 1)
-	require.Contains(t, m[rawIP], "piskes")
+	require.Len(t, m, 3)
+	require.Contains(t, m, HostProto{
+		Host:  ip1111,
+		Proto: drkey.DNS,
+	})
+	require.Contains(t, m, HostProto{
+		Host:  ip2222,
+		Proto: drkey.DNS,
+	})
+	require.Contains(t, m, HostProto{
+		Host:  ip1111,
+		Proto: drkey.DNS,
+	})
 }
 
 func TestNewLvl1DB(t *testing.T) {
 	cfg := DRKeyConfig{}
 	cfg.InitDefaults()
-	cfg.DRKeyDB.Connection = tempFile(t)
-	db, err := storage.NewDRKeyLvl1Storage(cfg.DRKeyDB)
+	cfg.Lvl1DB.Connection = tempFile(t)
+	db, err := storage.NewDRKeyLvl1Storage(cfg.Lvl1DB)
 	defer func() {
 		db.Close()
-		os.Remove(cfg.DRKeyDB.Connection)
+		os.Remove(cfg.Lvl1DB.Connection)
+	}()
+	require.NoError(t, err)
+	require.NotNil(t, db)
+}
+
+func TestNewSVDB(t *testing.T) {
+	cfg := DRKeyConfig{}
+	cfg.InitDefaults()
+	cfg.SVDB.Connection = tempFile(t)
+	db, err := storage.NewDRKeySVStorage(cfg.SVDB)
+	defer func() {
+		db.Close()
+		os.Remove(cfg.Lvl1DB.Connection)
 	}()
 	require.NoError(t, err)
 	require.NotNil(t, db)

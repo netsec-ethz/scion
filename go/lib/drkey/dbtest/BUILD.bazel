@@ -1,0 +1,15 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["dbtest.go"],
+    importpath = "github.com/scionproto/scion/go/lib/drkey/dbtest",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/protocoltest:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

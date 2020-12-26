@@ -30,8 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	ctrl_drkey "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -41,8 +39,10 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/daemon/colibri"
+	daemon_drkey "github.com/scionproto/scion/go/pkg/daemon/drkey"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
+	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -61,7 +61,7 @@ type DaemonServer struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	ASInspector trust.Inspector
-	DRKeyStore  drkeystorage.ClientStore
+	DRKeyClient daemon_drkey.ClientEngine
 	ColFetcher  colibri.Fetcher
 	ColClient   *colibri.DaemonClient
 
@@ -348,45 +348,82 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
 }
 
-// DRKeyLvl2 serves a Lvl2Key request
-func (s *DaemonServer) DRKeyLvl2(ctx context.Context,
-	req *sdpb.DRKeyLvl2Request) (*sdpb.DRKeyLvl2Response, error) {
+func (s *DaemonServer) ASHost(ctx context.Context,
+	req *dkpb.ASHostRequest) (*dkpb.ASHostResponse, error) {
 
 	logger := log.FromCtx(ctx)
 
-	parsedReq, err := requestToLvl2Req(req)
+	meta, err := ctrl_drkey.RequestToASHostMeta(req)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Invalid DRKey Lvl2 request", "err", err)
-		return nil, serrors.WrapStr("parsing protobuf Lvl2Req", err)
+		logger.Error("[DRKey DeamonService] Invalid DRKey AS-Host request", "err", err)
+		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
 	}
 
-	lvl2Key, err := s.DRKeyStore.GetLvl2Key(ctx, parsedReq.ToMeta(), parsedReq.ValTime)
+	lvl2Key, err := s.DRKeyClient.GetASHostKey(ctx, meta)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Error getting Lvl2Key", "err", err)
-		return nil, serrors.WrapStr("getting Lvl2Key from client store", err)
+		logger.Error("[DRKey DeamonService] Error getting AS-Host", "err", err)
+		return nil, serrors.WrapStr("getting AS-Host from client store", err)
 	}
 
-	resp, err := keyToLvl2Resp(lvl2Key)
+	resp, err := ctrl_drkey.KeyToASHostResp(lvl2Key)
 	if err != nil {
-		logger.Debug("[DRKey DeamonService] Error parsing DRKey Lvl2 to protobuf resp",
+		logger.Debug("[DRKey DeamonService] Error parsing AS-Host to protobuf resp",
 			"err", err)
-		return nil, serrors.WrapStr("parsing to protobuf Lvl2Rep", err)
+		return nil, serrors.WrapStr("parsing to protobuf AS-Host", err)
 	}
 	return resp, nil
 }
 
-func requestToLvl2Req(req *sdpb.DRKeyLvl2Request) (ctrl_drkey.Lvl2Req, error) {
-	return ctrl_drkey.RequestToLvl2Req(req.BaseReq)
+func (s *DaemonServer) HostAS(ctx context.Context,
+	req *dkpb.HostASRequest) (*dkpb.HostASResponse, error) {
+
+	logger := log.FromCtx(ctx)
+
+	meta, err := ctrl_drkey.RequestToHostASMeta(req)
+	if err != nil {
+		logger.Error("[DRKey DeamonService] Invalid DRKey Host-AS request", "err", err)
+		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
+	}
+
+	lvl2Key, err := s.DRKeyClient.GetHostASKey(ctx, meta)
+	if err != nil {
+		logger.Error("[DRKey DeamonService] Error getting Host-AS", "err", err)
+		return nil, serrors.WrapStr("getting Host-AS from client store", err)
+	}
+
+	resp, err := ctrl_drkey.KeyToHostASResp(lvl2Key)
+	if err != nil {
+		logger.Debug("[DRKey DeamonService] Error parsing Host-AS to protobuf resp",
+			"err", err)
+		return nil, serrors.WrapStr("parsing to protobuf Host-AS", err)
+	}
+	return resp, nil
 }
 
-func keyToLvl2Resp(drkey drkey.Lvl2Key) (*sdpb.DRKeyLvl2Response, error) {
-	baseRep, err := ctrl_drkey.KeyToLvl2Resp(drkey)
+func (s *DaemonServer) HostHost(ctx context.Context,
+	req *dkpb.HostHostRequest) (*dkpb.HostHostResponse, error) {
+
+	logger := log.FromCtx(ctx)
+
+	meta, err := ctrl_drkey.RequestToHostHostMeta(req)
 	if err != nil {
-		return nil, err
+		logger.Error("[DRKey DeamonService] Invalid DRKey Host-Host request", "err", err)
+		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
 	}
-	return &sdpb.DRKeyLvl2Response{
-		BaseRep: baseRep,
-	}, nil
+
+	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
+	if err != nil {
+		logger.Error("[DRKey DeamonService] Error getting Host-Host", "err", err)
+		return nil, serrors.WrapStr("getting Host-AS from client store", err)
+	}
+
+	resp, err := ctrl_drkey.KeyToHostHostResp(lvl2Key)
+	if err != nil {
+		logger.Debug("[DRKey DeamonService] Error parsing Host-Host to protobuf resp",
+			"err", err)
+		return nil, serrors.WrapStr("parsing to protobuf Host-Host", err)
+	}
+	return resp, nil
 }
 
 func (s *DaemonServer) ColibriListRsvs(ctx context.Context, req *sdpb.ColibriListRsvsRequest) (

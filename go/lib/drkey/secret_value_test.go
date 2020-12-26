@@ -12,27 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package drkey
+package drkey_test
 
 import (
-	"encoding/hex"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/drkey"
 )
 
 func TestDeriveSV(t *testing.T) {
-	meta := SVMeta{NewEpoch(0, 1)}
-	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
-	targetKey := xtest.MustParseHexString("47bfbb7d94706dc9e79825e5a837b006")
 
-	got, err := DeriveSV(meta, asSecret)
-	if err != nil {
-		t.Errorf("DeriveSV() error = %v", err)
-		return
-	}
-	if !got.Key.Equal(targetKey) {
-		t.Fatalf("Unexpected sv key: %s, expected: %s",
-			hex.EncodeToString(got.Key), hex.EncodeToString(targetKey))
-	}
+	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	targetKey := drkey.Key{0xc3, 0xb4, 0x84, 0x3c, 0x99, 0x3,
+		0x14, 0xf9, 0xac, 0x55, 0x4f, 0x9b, 0x78, 0x1c, 0xde, 0xb7}
+
+	got, err := drkey.DeriveSV(0, drkey.NewEpoch(0, 1), asSecret)
+	require.NoError(t, err)
+	require.EqualValues(t, targetKey, got.Key)
 }

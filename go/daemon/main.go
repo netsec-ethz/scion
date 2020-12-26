@@ -32,7 +32,7 @@ import (
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
+	libdrkey "github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
@@ -189,18 +189,24 @@ func realMain(ctx context.Context) error {
 	}, 10*time.Second, 10*time.Second)
 	defer trcLoader.Stop()
 
-	drkeyDB, err := storage.NewDRKeyLvl2Storage(globalCfg.DRKeyDB)
-	if err != nil {
-		log.Error("Creating Lvl2 DRKey DB", "err", err)
+	var drkeyClientEngine drkey.ClientEngine
+	if globalCfg.DRKeyLvl2DB.Connection != "" {
+		drkeyDB, err := storage.NewDRKeyLvl2Storage(globalCfg.DRKeyLvl2DB)
+		if err != nil {
+			log.Error("Creating Lvl2 DRKey DB", "err", err)
+			return serrors.WrapStr("creating lvl2 DRKey DB", err)
+		}
+		drkeyDB = libdrkey.Lvl2WithMetrics(string(storage.BackendSqlite), drkeyDB)
+		defer drkeyDB.Close()
+
+		drkeyFetcher := dk_grpc.Fetcher{
+			Dialer: dialer,
+		}
+		drkeyClientEngine = drkey.NewClientEngine(topo.IA(), drkeyDB, drkeyFetcher)
+		drkeyClientCleaner := periodic.Start(drkey.NewClientEngineCleaner(drkeyClientEngine),
+			5*time.Minute, 5*time.Minute)
+		defer drkeyClientCleaner.Stop()
 	}
-	defer drkeyDB.Close()
-	drkeyFetcher := dk_grpc.DRKeyFetcher{
-		Dialer: dialer,
-	}
-	drkeyStore := drkey.NewClientStore(topo.IA(), drkeyDB, drkeyFetcher)
-	drkeyCleaner := periodic.Start(drkeystorage.NewStoreCleaner(drkeyStore),
-		time.Hour, 10*time.Minute)
-	defer drkeyCleaner.Stop()
 
 	listen := daemon.APIAddress(globalCfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)
@@ -255,11 +261,11 @@ func realMain(ctx context.Context) error {
 					Cfg:        globalCfg.SD,
 				},
 			),
-			Engine:     engine,
-			RevCache:   revCache,
-			DRKeyStore: drkeyStore,
-			ColFetcher: colibri.NewFetcher(dialer),
-			ColClient:  &colibri.DaemonClient{Dialer: dialer},
+			Engine:      engine,
+			RevCache:    revCache,
+			DRKeyClient: drkeyClientEngine,
+			ColFetcher:  colibri.NewFetcher(dialer),
+			ColClient:   &colibri.DaemonClient{Dialer: dialer},
 		},
 	))
 

@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/drkey"
 	dkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
@@ -138,13 +137,17 @@ func getKeys(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.Path
 func getKeysWithLocalIA(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.PathStep,
 	srcIA addr.IA, srcHost net.IP) ([][]byte, error) {
 
-	ias := make([]addr.IA, len(steps))
-	for i, step := range steps {
-		ias[i] = step.IA
-	}
-	return dkut.GetLvl2Keys(ctx, conn, drkey.AS2Host, "colibri",
-		dkut.SlowIAs(srcIA), dkut.SlowHosts(addr.HostFromIP(srcHost)),
-		dkut.FastIAs(ias...))
+	/*
+		TODO(matzf) Rewrite after merge
+		ias := make([]addr.IA, len(steps))
+		for i, step := range steps {
+			ias[i] = step.IA
+		}
+		return dkut.GetLvl2Keys(ctx, conn, drkey.AS2Host, "colibri",
+			dkut.SlowIAs(srcIA), dkut.SlowHosts(addr.HostFromIP(srcHost)),
+			dkut.FastIAs(ias...))
+	*/
+	return nil, nil
 }
 
 func minSizeBaseReq(req *BaseRequest) int {

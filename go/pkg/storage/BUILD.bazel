@@ -15,7 +15,7 @@ go_library(
         "//go/lib/addr:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/drkey:go_default_library",
-        "//go/lib/drkey/drkeydbsqlite:go_default_library",
+        "//go/lib/drkey/sqlite:go_default_library",
         "//go/lib/infra/modules/cleaner:go_default_library",
         "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/log:go_default_library",

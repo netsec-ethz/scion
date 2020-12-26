@@ -126,16 +126,16 @@ class GoGenerator(object):
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
             'drkey': {
-                'cert_file': os.path.join(base, 'crypto', 'as',
-                                          f'{topo_id.ISD()}-{topo_id.AS_file()}.pem'),
-                'key_file': os.path.join(base, 'crypto', 'as', 'cp-as.key'),
-                'drkey_db': {
-                    'connection': os.path.join(self.db_dir, '%s.drkey.db' % name),
+                'lvl1_db': {
+                    'connection': os.path.join(self.db_dir, '%s.lvl1.db' % name),
                 },
-                'delegation': {
-                    'colibri': [str(sd_ip)],  # local daemon must be able to get the colibri DS
-                    'piskes': [str(sd_ip)],   # local daemon must be able to use piskes
+                'sv_db': {
+                    'connection': os.path.join(self.db_dir, '%s.sv.db' % name),
                 },
+                # TODO(matzf): add back after finalizing merge
+                #'delegation': {
+                    #'colibri': [str(sd_ip)],  # local daemon must be able to get the colibri DS
+                #},
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
@@ -274,7 +274,7 @@ class GoGenerator(object):
             'path_db': {
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
-            'drkey_db': {
+            'drkey_lvl2_db': {
                 'connection': os.path.join(self.db_dir, '%s.drkey.db' % name),
             },
             'sd': {

@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -60,7 +59,7 @@ type TasksConfig struct {
 	Signer                seg.Signer
 	Inspector             trust.Inspector
 	Metrics               *Metrics
-	DRKeyStore            drkeystorage.ServiceStore
+	DRKeyEngine           drkey.ServiceEngine
 
 	MACGen     func() hash.Hash
 	StaticInfo func() *beaconing.StaticInfoCfg
@@ -214,26 +213,24 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 	}
 }
 
-func (t *TasksConfig) DRKeyCleaner() *periodic.Runner {
-	if t.DRKeyStore == nil {
+func (t *TasksConfig) DRKeyLvl1Cleaner() *periodic.Runner {
+	if t.DRKeyEngine == nil {
 		return nil
 	}
-	// TODO(juagargi): if there has been a change in the duration, we need to keep
-	// the already sent keys (and their duration) as they were already handed to other entities
 	cleanerPeriod := 2 * t.DRKeyEpochInterval
-	return periodic.Start(drkeystorage.NewStoreCleaner(t.DRKeyStore),
+	return periodic.Start(drkey.NewServiceEngineCleaner(t.DRKeyEngine),
 		cleanerPeriod, cleanerPeriod)
 }
 
 func (t *TasksConfig) DRKeyPrefetcher() *periodic.Runner {
-	if t.DRKeyStore == nil {
+	if t.DRKeyEngine == nil {
 		return nil
 	}
 	prefetchPeriod := t.DRKeyEpochInterval / 2
 	return periodic.Start(
 		&drkey.Prefetcher{
 			LocalIA:     t.IA,
-			Store:       t.DRKeyStore,
+			Engine:      t.DRKeyEngine,
 			KeyDuration: t.DRKeyEpochInterval,
 		},
 		prefetchPeriod, prefetchPeriod)
@@ -246,8 +243,10 @@ type Tasks struct {
 	Registrars      []*periodic.Runner
 	DRKeyPrefetcher *periodic.Runner
 
-	PathCleaner  *periodic.Runner
-	DRKeyCleaner *periodic.Runner
+	BeaconCleaner    *periodic.Runner
+	PathCleaner      *periodic.Runner
+	DRKeyLvl1Cleaner *periodic.Runner
+	DRKeySVCleaner   *periodic.Runner
 }
 
 func StartTasks(cfg TasksConfig) (*Tasks, error) {
@@ -270,7 +269,7 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 			10*time.Second,
 			10*time.Second,
 		),
-		DRKeyCleaner: cfg.DRKeyCleaner(),
+		DRKeyLvl1Cleaner: cfg.DRKeyLvl1Cleaner(),
 	}, nil
 
 }
@@ -285,14 +284,16 @@ func (t *Tasks) Kill() {
 		t.Propagator,
 		t.DRKeyPrefetcher,
 		t.PathCleaner,
-		t.DRKeyCleaner,
+		t.DRKeyLvl1Cleaner,
+		t.DRKeySVCleaner,
 	})
 	killRunners(t.Registrars)
 	t.Originator = nil
 	t.Propagator = nil
 	t.DRKeyPrefetcher = nil
 	t.PathCleaner = nil
-	t.DRKeyCleaner = nil
+	t.DRKeyLvl1Cleaner = nil
+	t.DRKeySVCleaner = nil
 	t.Registrars = nil
 }
 

@@ -21,14 +21,13 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
-	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -48,6 +47,7 @@ import (
 	segreqgrpc "github.com/scionproto/scion/go/cs/segreq/grpc"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	libdrkey "github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -61,6 +61,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 	cppkiapi "github.com/scionproto/scion/go/pkg/api/cppki/api"
 	"github.com/scionproto/scion/go/pkg/api/jwtauth"
 	segapi "github.com/scionproto/scion/go/pkg/api/segments/api"
@@ -512,57 +513,75 @@ func realMain(ctx context.Context) error {
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
 
 	//DRKey feature
-	masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
-	if err != nil {
-		return serrors.WrapStr("loading master secret in DRKey", err)
-	}
-	svFactory := drkey.NewSecretValueFactory(
-		masterKey.Key0, globalCfg.DRKey.EpochDuration.Duration)
-	drkeyDB, err := storage.NewDRKeyLvl1Storage(globalCfg.DRKey.DRKeyDB)
-	if err != nil {
-		return serrors.WrapStr("initializing DRKey DB", err)
-	}
-	loader := trust.FileLoader{
-		CertFile: globalCfg.DRKey.CertFile,
-		KeyFile:  globalCfg.DRKey.KeyFile,
-	}
-	tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
-	drkeyFetcher := drkeygrpc.DRKeyFetcher{
-		Getter: drkeygrpc.Lvl1KeyFetcher{
+	var drkeyEngine drkey.ServiceEngine
+	var quicTLSServer *grpc.Server
+	var epochDuration time.Duration
+	if globalCfg.DRKey.Enabled() {
+		epochDuration, err = loadEpochDuration()
+		if err != nil {
+			return err
+		}
+		log.Debug("DRKey debug info", "epoch duration", epochDuration.String())
+		masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
+		if err != nil {
+			return serrors.WrapStr("loading master secret in DRKey", err)
+		}
+		svDB, err := storage.NewDRKeySVStorage(globalCfg.DRKey.SVDB)
+		if err != nil {
+			return serrors.WrapStr("initializing Secret Value DB", err)
+		}
+		svDB = libdrkey.SVWithMetrics(string(storage.BackendSqlite), svDB)
+		defer svDB.Close()
+		drkeyDB, err := storage.NewDRKeyLvl1Storage(globalCfg.DRKey.Lvl1DB)
+		if err != nil {
+			return serrors.WrapStr("initializing DRKey DB", err)
+		}
+		drkeyDB = libdrkey.Lvl1WithMetrics(string(storage.BackendSqlite), drkeyDB)
+		defer drkeyDB.Close()
+		loader := trust.X509KeyPairProvider{
+			IA:      topo.IA(),
+			DB:      trustDB,
+			Timeout: 5 * time.Second,
+			Loader: cstrust.LoadingRing{
+				Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
+			},
+		}
+		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
+		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.TLSQUICDialer{
 				Rewriter:    nc.AddressRewriter(nil),
 				Dialer:      quicStack.TLSDialer,
 				Credentials: trust.GetTansportCredentials(tlsMgr),
 			},
-			Router: segreq.NewRouter(fetcherCfg),
-		},
+			Router:     segreq.NewRouter(fetcherCfg),
+			MaxRetries: 20,
+		}
+		drkeyEngine, err = drkey.NewServiceEngine(topo.IA(), svDB, masterKey.Key0,
+			epochDuration, drkeyDB, drkeyFetcher, globalCfg.DRKey.PrefetchEntries)
+		if err != nil {
+			return serrors.WrapStr("initializing Service Store", err)
+		}
+		drkeyService := &drkeygrpc.Server{
+			LocalIA:            topo.IA(),
+			Engine:             drkeyEngine,
+			AllowedSVHostProto: globalCfg.DRKey.Delegation.ToAllowedSet(),
+		}
+		srvConfig := &tls.Config{
+			InsecureSkipVerify:    true,
+			GetCertificate:        tlsMgr.GetCertificate,
+			VerifyPeerCertificate: tlsMgr.VerifyClientCertificate,
+			ClientAuth:            tls.RequireAnyClientCert,
+		}
+		quicTLSServer = grpc.NewServer(
+			grpc.Creds(credentials.NewTLS(srvConfig)),
+			libgrpc.UnaryServerInterceptor(),
+		)
+		cppb.RegisterDRKeyInterServiceServer(quicTLSServer, drkeyService)
+		cppb.RegisterDRKeyIntraServiceServer(tcpServer, drkeyService)
+		log.Info("DRKey is enabled")
+	} else {
+		log.Info("DRKey is DISABLED by configuration")
 	}
-	drkeyServStore := &drkey.ServiceStore{
-		LocalIA:      topo.IA(),
-		DB:           drkeyDB,
-		SecretValues: svFactory,
-		Fetcher:      drkeyFetcher,
-	}
-	drkeyService := &drkeygrpc.DRKeyServer{
-		LocalIA:    topo.IA(),
-		Store:      drkeyServStore,
-		AllowedDSs: globalCfg.DRKey.Delegation.ToMapPerHost(),
-	}
-	srvConfig := &tls.Config{
-		InsecureSkipVerify:    true,
-		GetCertificate:        tlsMgr.GetCertificate,
-		VerifyPeerCertificate: tlsMgr.VerifyPeerCertificate,
-		ClientAuth:            tls.RequireAnyClientCert,
-	}
-	quicTLSServer := grpc.NewServer(
-		grpc.Creds(credentials.NewTLS(srvConfig)),
-		grpc.ChainUnaryInterceptor(
-			otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
-			libgrpc.LogIDServerInterceptor(),
-		),
-	)
-	cppb.RegisterDRKeyLvl1ServiceServer(quicTLSServer, drkeyService)
-	cppb.RegisterDRKeyLvl2ServiceServer(tcpServer, drkeyService)
 
 	dsHealth := health.NewServer()
 	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
@@ -605,6 +624,7 @@ func realMain(ctx context.Context) error {
 	cleanup.Add(func() error { tcpServer.GracefulStop(); return nil })
 
 	if globalCfg.DRKey.Enabled() {
+		promgrpc.Register(quicTLSServer)
 		g.Go(func() error {
 			defer log.HandlePanic()
 			return quicTLSServer.Serve(quicStack.TLSListener)
@@ -709,7 +729,7 @@ func realMain(ctx context.Context) error {
 		Signer:          signer,
 		Inspector:       inspector,
 		Metrics:         metrics,
-		DRKeyStore:      drkeyServStore,
+		DRKeyEngine:     drkeyEngine,
 		MACGen:          macGen,
 		NextHopper:      topo,
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
@@ -717,7 +737,7 @@ func realMain(ctx context.Context) error {
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,
 		RegistrationInterval:      globalCfg.BS.RegistrationInterval.Duration,
-		DRKeyEpochInterval:        globalCfg.DRKey.EpochDuration.Duration,
+		DRKeyEpochInterval:        epochDuration,
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 	})
@@ -830,4 +850,15 @@ func (h *healther) GetTRCHealth(ctx context.Context) api.TRCHealthData {
 	return api.TRCHealthData{
 		TRCID: trc.TRC.ID,
 	}
+}
+func loadEpochDuration() (time.Duration, error) {
+	s := os.Getenv(config.EnvVarEpochDuration)
+	if s == "" {
+		return config.DefaultEpochDuration, nil
+	}
+	duration, err := util.ParseDuration(s)
+	if err != nil {
+		return 0, serrors.WrapStr("parsing SCION_TESTING_DRKEY_EPOCH_DURATION", err)
+	}
+	return duration, nil
 }

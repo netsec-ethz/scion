@@ -36,8 +36,6 @@ service DaemonService {
     rpc Services(ServicesRequest) returns (ServicesResponse) {}
     // Inform the SCION Daemon of a revocation.
     rpc NotifyInterfaceDown(NotifyInterfaceDownRequest) returns (NotifyInterfaceDownResponse) {}
-    // Return the Lvl2Key that matches the request.
-    rpc DRKeyLvl2(DRKeyLvl2Request) returns (DRKeyLvl2Response) {}
     // Obtain a list of reservation information from the AS towards another one.
     rpc ColibriListRsvs(ColibriListRsvsRequest) returns (ColibriListRsvsResponse) {}
     // Setup an E2E reservation.
@@ -46,6 +44,12 @@ service DaemonService {
     rpc ColibriCleanupRsv(ColibriCleanupRsvRequest) returns (ColibriCleanupRsvResponse) {}
     // Adds a new automatically expiring entry to the admission list for the host.
     rpc ColibriAddAdmissionEntry(ColibriAddAdmissionEntryRequest) returns (ColibriAddAdmissionEntryResponse) {}
+    // ASHost returns a key that matches the request.
+    rpc ASHost (proto.drkey.mgmt.v1.ASHostRequest) returns (proto.drkey.mgmt.v1.ASHostResponse) {}
+    // HostAS returns a key that matches the request.
+    rpc HostAS (proto.drkey.mgmt.v1.HostASRequest) returns (proto.drkey.mgmt.v1.HostASResponse) {}
+    // HostHost returns a key that matches the request.
+    rpc HostHost (proto.drkey.mgmt.v1.HostHostRequest) returns (proto.drkey.mgmt.v1.HostHostResponse) {}
 }
 
 message PathsRequest {
@@ -195,14 +199,14 @@ message NotifyInterfaceDownRequest {
 
 message NotifyInterfaceDownResponse {};
 
-message DRKeyLvl2Request{
-    // BaseReq contains the basic information for the Lvl2 request
-    proto.drkey.mgmt.v1.DRKeyLvl2Request base_req = 1;
+message SVRequest{
+    // BaseReq contains the basic information for the SV request
+    proto.drkey.mgmt.v1.SVRequest base_req = 1;
 }
 
-message DRKeyLvl2Response {
-    // BaseRep contains the basic information for the Lvl2 response
-    proto.drkey.mgmt.v1.DRKeyLvl2Response base_rep = 1;
+message SVResponse{
+    // BaseReq contains the basic information for the SV request
+    proto.drkey.mgmt.v1.SVResponse base_rep = 1;
 }
 
 message ColibriListRsvsRequest {

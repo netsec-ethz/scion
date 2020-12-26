@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
@@ -30,46 +29,23 @@ import (
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
-func TestLvl1reqToProtoRequest(t *testing.T) {
+func TestLvl1MetaToProtoRequest(t *testing.T) {
 	now := time.Now().UTC()
 
 	valTime, err := ptypes.TimestampProto(now)
 	require.NoError(t, err)
-	timestamp, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
 
-	pbReq := &dkpb.DRKeyLvl1Request{
-		ValTime:   valTime,
-		Timestamp: timestamp,
+	pbReq := &dkpb.Lvl1Request{
+		ValTime: valTime,
 	}
 
-	lvl1Req := ctrl.Lvl1Req{
-		ValTime:   now,
-		Timestamp: now,
+	lvl1Meta := drkey.Lvl1Meta{
+		Validity: now,
 	}
 
-	req, err := ctrl.Lvl1reqToProtoRequest(lvl1Req)
+	req, err := ctrl.Lvl1MetaToProtoRequest(lvl1Meta)
 	require.NoError(t, err)
 	assert.Equal(t, pbReq, req)
-}
-
-func TestRequestToLvl1Req(t *testing.T) {
-	now := time.Now().UTC()
-
-	valTime, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
-	timestamp, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
-
-	req := &dkpb.DRKeyLvl1Request{
-		ValTime:   valTime,
-		Timestamp: timestamp,
-	}
-
-	lvl1Req, err := ctrl.RequestToLvl1Req(req)
-	require.NoError(t, err)
-	assert.Equal(t, now, lvl1Req.ValTime)
-	assert.Equal(t, now, lvl1Req.Timestamp)
 }
 
 func TestKeyToLvl1Resp(t *testing.T) {
@@ -82,22 +58,19 @@ func TestKeyToLvl1Resp(t *testing.T) {
 	k := xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a level 1 key
 
 	lvl1Key := drkey.Lvl1Key{
-		Lvl1Meta: drkey.Lvl1Meta{
-			Epoch: drkey.NewEpoch(0, 1),
-			SrcIA: srcIA,
-			DstIA: dstIA,
-		},
-		Key: k,
+		Epoch: drkey.NewEpoch(0, 1),
+		SrcIA: srcIA,
+		DstIA: dstIA,
 	}
+	copy(lvl1Key.Key[:], k)
 
-	targetResp := &dkpb.DRKeyLvl1Response{
+	targetResp := &dkpb.Lvl1Response{
 		EpochBegin: epochBegin,
 		EpochEnd:   epochEnd,
-		Drkey:      k,
+		Key:        []byte(k),
 	}
 
 	pbResp, err := ctrl.KeyToLvl1Resp(lvl1Key)
-	targetResp.Timestamp = pbResp.Timestamp
 	require.NoError(t, err)
 	assert.Equal(t, targetResp, pbResp)
 
@@ -112,106 +85,281 @@ func TestGetLvl1KeyFromReply(t *testing.T) {
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	k := xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a level 1 key
 
-	resp := &dkpb.DRKeyLvl1Response{
+	resp := &dkpb.Lvl1Response{
 		EpochBegin: epochBegin,
 		EpochEnd:   epochEnd,
-		Drkey:      k,
+		Key:        []byte(k),
+	}
+	lvl1meta := drkey.Lvl1Meta{
+		ProtoId: drkey.SCMP,
+		SrcIA:   srcIA,
+		DstIA:   dstIA,
 	}
 
 	targetLvl1Key := drkey.Lvl1Key{
-		Lvl1Meta: drkey.Lvl1Meta{
-			Epoch: drkey.NewEpoch(0, 1),
-			SrcIA: srcIA,
-			DstIA: dstIA,
-		},
-		Key: k,
+		ProtoId: drkey.SCMP,
+		Epoch:   drkey.NewEpoch(0, 1),
+		SrcIA:   srcIA,
+		DstIA:   dstIA,
 	}
+	copy(targetLvl1Key.Key[:], k)
 
-	lvl1Key, err := ctrl.GetLvl1KeyFromReply(srcIA, dstIA, resp)
+	lvl1Key, err := ctrl.GetLvl1KeyFromReply(lvl1meta, resp)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl1Key, lvl1Key)
 
 }
 
-func TestRequestToLvl2Req(t *testing.T) {
+func TestRequestToASHostMeta(t *testing.T) {
 	now := time.Now().UTC()
 	valTime, err := ptypes.TimestampProto(now)
 	require.NoError(t, err)
 	dstIA := xtest.MustParseIA("1-ff00:0:110")
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
-	reqType := drkey.Host2Host
-	hostType := addr.HostTypeSVC
-	hostAddr := addr.SvcCS
+	strAddr := "127.0.0.1"
 
-	req := &dkpb.DRKeyLvl2Request{
-		Protocol: "piskes",
-		ReqType:  uint32(reqType),
-		DstIa:    uint64(dstIA),
-		SrcIa:    uint64(srcIA),
-		ValTime:  valTime,
-		SrcHost: &dkpb.DRKeyLvl2Request_DRKeyHost{
-			Type: uint32(hostType),
-			Host: hostAddr.Pack(),
-		},
-		DstHost: &dkpb.DRKeyLvl2Request_DRKeyHost{
-			Type: uint32(hostType),
-			Host: hostAddr.Pack(),
-		},
+	req := &dkpb.ASHostRequest{
+		ProtocolId: dkpb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED,
+		DstIa:      uint64(dstIA),
+		SrcIa:      uint64(srcIA),
+		ValTime:    valTime,
+		DstHost:    strAddr,
 	}
 
-	targetLvl2Req := ctrl.Lvl2Req{
-		Protocol: "piskes",
-		ReqType:  uint32(reqType),
-		ValTime:  now,
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost: ctrl.Host{
-			Type: hostType,
-			Host: hostAddr.Pack(),
+	targetLvl2Req := drkey.ASHostMeta{
+		Lvl2Meta: drkey.Lvl2Meta{
+			ProtoId:  drkey.Generic,
+			Validity: now,
+			SrcIA:    srcIA,
+			DstIA:    dstIA,
 		},
-		DstHost: ctrl.Host{
-			Type: hostType,
-			Host: hostAddr.Pack(),
-		},
+		DstHost: strAddr,
 	}
 
-	lvl2Req, err := ctrl.RequestToLvl2Req(req)
+	lvl2Req, err := ctrl.RequestToASHostMeta(req)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl2Req, lvl2Req)
-
 }
 
-func TestKeyToLvl2Resp(t *testing.T) {
+func TestRequestToHostASMeta(t *testing.T) {
+	now := time.Now().UTC()
+	valTime, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+	dstIA := xtest.MustParseIA("1-ff00:0:110")
+	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	strAddr := "127.0.0.1"
+
+	req := &dkpb.HostASRequest{
+		ProtocolId: dkpb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED,
+		DstIa:      uint64(dstIA),
+		SrcIa:      uint64(srcIA),
+		ValTime:    valTime,
+		SrcHost:    strAddr,
+	}
+
+	targetLvl2Req := drkey.HostASMeta{
+		Lvl2Meta: drkey.Lvl2Meta{
+			ProtoId:  drkey.Generic,
+			Validity: now,
+			SrcIA:    srcIA,
+			DstIA:    dstIA,
+		},
+		SrcHost: strAddr,
+	}
+
+	lvl2Req, err := ctrl.RequestToHostASMeta(req)
+	require.NoError(t, err)
+	assert.Equal(t, targetLvl2Req, lvl2Req)
+}
+
+func TestRequestToHostHostMeta(t *testing.T) {
+	now := time.Now().UTC()
+	valTime, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+	dstIA := xtest.MustParseIA("1-ff00:0:110")
+	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	strAddr := "127.0.0.1"
+
+	req := &dkpb.HostHostRequest{
+		ProtocolId: dkpb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED,
+		DstIa:      uint64(dstIA),
+		SrcIa:      uint64(srcIA),
+		ValTime:    valTime,
+		SrcHost:    strAddr,
+		DstHost:    strAddr,
+	}
+
+	targetLvl2Req := drkey.HostHostMeta{
+		Lvl2Meta: drkey.Lvl2Meta{
+			ProtoId:  drkey.Generic,
+			Validity: now,
+			SrcIA:    srcIA,
+			DstIA:    dstIA,
+		},
+		SrcHost: strAddr,
+		DstHost: strAddr,
+	}
+
+	lvl2Req, err := ctrl.RequestToHostHostMeta(req)
+	require.NoError(t, err)
+	assert.Equal(t, targetLvl2Req, lvl2Req)
+}
+
+func TestKeyToASHostResp(t *testing.T) {
 	srcIA := xtest.MustParseIA("1-ff00:0:1")
 	dstIA := xtest.MustParseIA("1-ff00:0:2")
 	key := xtest.MustParseHexString("47bfbb7d94706dc9e79825e5a837b006")
-	meta := drkey.Lvl2Meta{
-		KeyType:  drkey.AS2AS,
-		Protocol: "scmp",
-		Epoch:    drkey.NewEpoch(0, 1),
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost:  addr.HostNone{},
-		DstHost:  addr.HostNone{},
-	}
-	lvl2Key := drkey.Lvl2Key{
-		Lvl2Meta: meta,
-		Key:      key,
-	}
+	strAddr := "127.0.0.1"
 
-	epochBegin, err := ptypes.TimestampProto(lvl2Key.Epoch.NotBefore)
+	asHostKey := drkey.ASHostKey{
+		ProtoId: drkey.SCMP,
+		Epoch:   drkey.NewEpoch(0, 1),
+		SrcIA:   srcIA,
+		DstIA:   dstIA,
+		DstHost: strAddr,
+	}
+	copy(asHostKey.Key[:], key)
+
+	epochBegin, err := ptypes.TimestampProto(asHostKey.Epoch.NotBefore)
 	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(lvl2Key.Epoch.NotAfter)
+	epochEnd, err := ptypes.TimestampProto(asHostKey.Epoch.NotAfter)
 	require.NoError(t, err)
 
-	targetResp := &dkpb.DRKeyLvl2Response{
+	targetResp := &dkpb.ASHostResponse{
 		EpochBegin: epochBegin,
 		EpochEnd:   epochEnd,
-		Drkey:      []byte(lvl2Key.Key),
+		Key:        asHostKey.Key[:],
 	}
 
-	resp, err := ctrl.KeyToLvl2Resp(lvl2Key)
+	resp, err := ctrl.KeyToASHostResp(asHostKey)
 	require.NoError(t, err)
-	targetResp.Timestamp = resp.Timestamp
 	assert.Equal(t, targetResp, resp)
+}
+
+func TestKeyToHostASResp(t *testing.T) {
+	srcIA := xtest.MustParseIA("1-ff00:0:1")
+	dstIA := xtest.MustParseIA("1-ff00:0:2")
+	rawKey := xtest.MustParseHexString("47bfbb7d94706dc9e79825e5a837b006")
+	strAddr := "127.0.0.1"
+
+	key := drkey.HostASKey{
+		ProtoId: drkey.SCMP,
+		Epoch:   drkey.NewEpoch(0, 1),
+		SrcIA:   srcIA,
+		DstIA:   dstIA,
+		SrcHost: strAddr,
+	}
+	copy(key.Key[:], rawKey)
+
+	epochBegin, err := ptypes.TimestampProto(key.Epoch.NotBefore)
+	require.NoError(t, err)
+	epochEnd, err := ptypes.TimestampProto(key.Epoch.NotAfter)
+	require.NoError(t, err)
+
+	targetResp := &dkpb.HostASResponse{
+		EpochBegin: epochBegin,
+		EpochEnd:   epochEnd,
+		Key:        key.Key[:],
+	}
+
+	resp, err := ctrl.KeyToHostASResp(key)
+	require.NoError(t, err)
+	assert.Equal(t, targetResp, resp)
+}
+
+func TestKeyToHostHostResp(t *testing.T) {
+	srcIA := xtest.MustParseIA("1-ff00:0:1")
+	dstIA := xtest.MustParseIA("1-ff00:0:2")
+	rawKey := xtest.MustParseHexString("47bfbb7d94706dc9e79825e5a837b006")
+	strAddr := "127.0.0.1"
+
+	key := drkey.HostHostKey{
+		ProtoId: drkey.SCMP,
+		Epoch:   drkey.NewEpoch(0, 1),
+		SrcIA:   srcIA,
+		DstIA:   dstIA,
+		SrcHost: strAddr,
+		DstHost: strAddr,
+	}
+	copy(key.Key[:], rawKey)
+
+	epochBegin, err := ptypes.TimestampProto(key.Epoch.NotBefore)
+	require.NoError(t, err)
+	epochEnd, err := ptypes.TimestampProto(key.Epoch.NotAfter)
+	require.NoError(t, err)
+
+	targetResp := &dkpb.HostHostResponse{
+		EpochBegin: epochBegin,
+		EpochEnd:   epochEnd,
+		Key:        key.Key[:],
+	}
+
+	resp, err := ctrl.KeyToHostHostResp(key)
+	require.NoError(t, err)
+	assert.Equal(t, targetResp, resp)
+}
+
+func SVMetaToProtoRequest(t *testing.T) {
+	now := time.Now().UTC()
+	svReq := drkey.SVMeta{
+		ProtoId:  drkey.Generic,
+		Validity: now,
+	}
+	valTime, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+	targetProtoReq := &dkpb.SVRequest{
+		ProtocolId: dkpb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED,
+		ValTime:    valTime,
+	}
+	protoReq, err := ctrl.SVMetaToProtoRequest(svReq)
+	require.NoError(t, err)
+	require.Equal(t, targetProtoReq, protoReq)
+}
+
+func TestGetSVFromReply(t *testing.T) {
+	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
+	require.NoError(t, err)
+	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
+	require.NoError(t, err)
+	k := xtest.MustParseHexString("d29d00c39398b7588c0d31a4ffc77841")
+	proto := drkey.SCMP
+
+	resp := &dkpb.SVResponse{
+		EpochBegin: epochBegin,
+		EpochEnd:   epochEnd,
+		Key:        k,
+	}
+
+	targetSV := drkey.SV{
+		Epoch:   drkey.NewEpoch(0, 1),
+		ProtoId: proto,
+	}
+	copy(targetSV.Key[:], k)
+	sv, err := ctrl.GetSVFromReply(proto, resp)
+	require.NoError(t, err)
+	require.Equal(t, targetSV, sv)
+}
+
+func TestSVtoProtoResp(t *testing.T) {
+	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
+	require.NoError(t, err)
+	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
+	require.NoError(t, err)
+	k := xtest.MustParseHexString("d29d00c39398b7588c0d31a4ffc77841")
+
+	sv := drkey.SV{
+		Epoch:   drkey.NewEpoch(0, 1),
+		ProtoId: drkey.SCMP,
+	}
+	copy(sv.Key[:], k)
+
+	targetResp := &dkpb.SVResponse{
+		EpochBegin: epochBegin,
+		EpochEnd:   epochEnd,
+		Key:        k,
+	}
+
+	resp, err := ctrl.SVtoProtoResp(sv)
+	require.NoError(t, err)
+	require.Equal(t, targetResp, resp)
 }

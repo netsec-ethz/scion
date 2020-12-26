@@ -52,12 +52,12 @@ mode = "in-process"
 `
 
 const drkeySample = `
-# EpochDuration of the DRKey secret value and of all derived keys. (default "24h")
-epoch_duration = "24h"
+# Number of distinct Lvl1Keys to be prefetched.
+prefetch_entries = 10000
 `
-const drkeyDelegationListSample = `
-# The list of hosts authorized to get a DS per protocol.
-piskes = [ "127.0.0.1", "127.0.0.2"]
+const drkeySVHostListSample = `
+# The list of hosts authorized to get a SV per protocol.
+protocol_scmp = [ "127.0.0.1", "127.0.0.2"]
 `
 
 const serviceSample = `

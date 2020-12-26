@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2021 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,20 +17,18 @@ package drkey
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
 )
 
-func (c *SecretValueStore) SetTimeNowFunction(f func() time.Time) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.timeNowFcn = f
-
-}
-
-func (c *SecretValueStore) CleanExpired() {
-	c.cleanExpired()
-}
-
-func (c *SecretValueStore) Cache() map[int64]drkey.SV {
-	return c.cache
+func NewTestServiceEngine(localIA addr.IA, svdb drkey.SecretValueDB, masterKey []byte,
+	keyDur time.Duration,
+	db drkey.Lvl1DB, fetcher Fetcher, list Lvl1PrefetchListKeeper) *serviceEngine {
+	return &serviceEngine{
+		secretBackend:  newSecretValueBackend(svdb, masterKey, keyDur),
+		LocalIA:        localIA,
+		DB:             db,
+		Fetcher:        fetcher,
+		prefetchKeeper: list,
+	}
 }

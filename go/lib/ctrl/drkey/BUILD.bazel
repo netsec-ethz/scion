@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "lvl1_req.go",
         "lvl2_req.go",
+        "sv_req.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/ctrl/drkey",
     visibility = ["//visibility:public"],
@@ -21,7 +22,6 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
-        "lvl2_req_test.go",
         "protobuf_test.go",
     ],
     embed = [":go_default_library"],

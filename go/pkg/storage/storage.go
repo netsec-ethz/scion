@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/drkey/drkeydbsqlite"
+	"github.com/scionproto/scion/go/lib/drkey/sqlite"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
@@ -50,11 +50,13 @@ const (
 	// BackendSqlite indicates an sqlite backend.
 	BackendSqlite Backend = "sqlite"
 	// DefaultPath indicates the default connection string for a generic database.
-	DefaultPath          = "/share/scion.db"
-	DefaultTrustDBPath   = "/share/data/%s.trust.db"
-	DefaultPathDBPath    = "/share/cache/%s.path.db"
-	DefaultDRKeyDBPath   = "/share/cache/%s.drkey.db"
-	DefaultColibriDBPath = "/share/cache/%s.colibri.db"
+	DefaultPath            = "/share/scion.db"
+	DefaultTrustDBPath     = "/share/data/%s.trust.db"
+	DefaultPathDBPath      = "/share/cache/%s.path.db"
+	DefaultColibriDBPath   = "/share/cache/%s.colibri.db"
+	DefaultDRKeyLvl1DBPath = "/share/cache/%s.drkey_lv1.db"
+	DefaultDRKeyLvl2DBPath = "/share/cache/%s.drkey_lv2.db"
+	DefaultDRKeySVDBPath   = "/share/cache/%s.drkey_sv.db"
 )
 
 // Default samples for various databases.
@@ -68,8 +70,14 @@ var (
 	SampleTrustDB = DBConfig{
 		Connection: DefaultTrustDBPath,
 	}
-	SampleDRKeyDB = DBConfig{
-		Connection: DefaultDRKeyDBPath,
+	SampleDRKeyLvl1DB = DBConfig{
+		Connection: DefaultDRKeyLvl1DBPath,
+	}
+	SampleDRKeyLvl2DB = DBConfig{
+		Connection: DefaultDRKeyLvl2DBPath,
+	}
+	SampleDRKeySVDB = DBConfig{
+		Connection: DefaultDRKeySVDBPath,
 	}
 	SampleColibriDB = DBConfig{
 		Connection: DefaultColibriDBPath,
@@ -246,9 +254,19 @@ func NewTrustStorage(c DBConfig) (TrustDB, error) {
 	return db, nil
 }
 
+func NewDRKeySVStorage(c DBConfig) (drkey.SecretValueDB, error) {
+	log.Info("Connecting DRKeySVDB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := sqlite.NewSVBackend(c.Connection)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+	return db, nil
+}
+
 func NewDRKeyLvl1Storage(c DBConfig) (drkey.Lvl1DB, error) {
-	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
-	db, err := drkeydbsqlite.NewLvl1Backend(c.Connection)
+	log.Info("Connecting DRKeyLvl1DB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := sqlite.NewLvl1Backend(c.Connection)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +276,7 @@ func NewDRKeyLvl1Storage(c DBConfig) (drkey.Lvl1DB, error) {
 
 func NewDRKeyLvl2Storage(c DBConfig) (drkey.Lvl2DB, error) {
 	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
-	db, err := drkeydbsqlite.NewLvl2Backend(c.Connection)
+	db, err := sqlite.NewLvl2Backend(c.Connection)
 	if err != nil {
 		return nil, err
 	}

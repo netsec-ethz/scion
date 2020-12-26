@@ -27,7 +27,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -35,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/daemon/colibri"
+	"github.com/scionproto/scion/go/pkg/daemon/drkey"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/go/pkg/daemon/internal/servers"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -108,15 +108,15 @@ func TrustEngine(
 
 // ServerConfig is the configuration for the daemon API server.
 type ServerConfig struct {
-	IA         addr.IA
-	MTU        uint16
-	Fetcher    fetcher.Fetcher
-	RevCache   revcache.RevCache
-	Engine     trust.Engine
-	Topology   servers.Topology
-	DRKeyStore drkeystorage.ClientStore
-	ColFetcher colibri.Fetcher
-	ColClient  *colibri.DaemonClient
+	IA          addr.IA
+	MTU         uint16
+	Fetcher     fetcher.Fetcher
+	RevCache    revcache.RevCache
+	Engine      trust.Engine
+	Topology    servers.Topology
+	DRKeyClient drkey.ClientEngine
+	ColFetcher  colibri.Fetcher
+	ColClient   *colibri.DaemonClient
 }
 
 // NewServer constructs a daemon API server.
@@ -128,7 +128,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		ASInspector: cfg.Engine.Inspector,
 		RevCache:    cfg.RevCache,
 		Topology:    cfg.Topology,
-		DRKeyStore:  cfg.DRKeyStore,
+		DRKeyClient: cfg.DRKeyClient,
 		ColFetcher:  cfg.ColFetcher,
 		ColClient:   cfg.ColClient,
 		Metrics: servers.Metrics{

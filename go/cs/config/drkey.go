@@ -16,60 +16,54 @@ package config
 
 import (
 	"io"
+	"strings"
 	"time"
+
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/drkey/protocol"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/storage"
 )
 
 const (
 	// DefaultEpochDuration is the default duration for the drkey SV and derived keys
-	DefaultEpochDuration = 24 * time.Hour
+	DefaultEpochDuration   = 24 * time.Hour
+	DefaultPrefetchEntries = 10000
+	EnvVarEpochDuration    = "SCION_TESTING_DRKEY_EPOCH_DURATION"
 )
 
 var _ (config.Config) = (*DRKeyConfig)(nil)
 
 // DRKeyConfig is the configuration for the connection to the trust database.
 type DRKeyConfig struct {
-	// enabled is set to true if we find all the required fields in the configuration.
-	enabled bool
 	// DRKeyDB contains the DRKey DB configuration.
-	DRKeyDB storage.DBConfig `toml:"drkey_db,omitempty"`
-	// EpochDuration is the duration of the keys in this CS.
-	EpochDuration util.DurWrap `toml:"epoch_duration,omitempty"`
-	// AuthorizedDelegations is the DelegationList for this CS.
-	Delegation DelegationList `toml:"delegation,omitempty"`
-
-	//TLS config
-	CertFile string `toml:"cert_file,omitempty"`
-	KeyFile  string `toml:"key_file,omitempty"`
-}
-
-// NewDRKeyConfig returns a pointer to a valid, empty configuration.
-func NewDRKeyConfig() *DRKeyConfig {
-	c := DRKeyConfig{
-		DRKeyDB:    storage.DBConfig{},
-		Delegation: DelegationList{},
-	}
-	return &c
+	Lvl1DB storage.DBConfig `toml:"lvl1_db,omitempty"`
+	// DRKeyDB contains the DRKey DB configuration.
+	SVDB storage.DBConfig `toml:"sv_db,omitempty"`
+	// Delegations is the authorized SVHostList for this CS.
+	Delegation SVHostList `toml:"delegation,omitempty"`
+	// PrefetchEntries is the number of lvl1 keys to be prefetched
+	PrefetchEntries int `toml:"prefetch_entries,omitempty"`
 }
 
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
 func (cfg *DRKeyConfig) InitDefaults() {
-	cfg.enabled = true
-	if cfg.EpochDuration.Duration == 0 {
-		cfg.EpochDuration.Duration = DefaultEpochDuration
+	if cfg.PrefetchEntries == 0 {
+		cfg.PrefetchEntries = DefaultPrefetchEntries
 	}
-	config.InitAll(&cfg.Delegation)
+	config.InitAll(
+		cfg.Lvl1DB.WithDefault(""),
+		cfg.SVDB.WithDefault(""),
+		&cfg.Delegation,
+	)
 }
 
 // Enabled returns true if DRKey is configured. False otherwise.
 func (cfg *DRKeyConfig) Enabled() bool {
-	if cfg.DRKeyDB.Connection == "" {
+	if cfg.Lvl1DB.Connection == "" {
 		return false
 	}
 	return true
@@ -77,7 +71,7 @@ func (cfg *DRKeyConfig) Enabled() bool {
 
 // Validate validates that all values are parsable.
 func (cfg *DRKeyConfig) Validate() error {
-	return config.ValidateAll(&cfg.DRKeyDB, &cfg.Delegation)
+	return config.ValidateAll(&cfg.Lvl1DB, &cfg.SVDB, &cfg.Delegation)
 }
 
 // Sample writes a config sample to the writer.
@@ -87,10 +81,17 @@ func (cfg *DRKeyConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMa
 		config.CtxMap{config.ID: idSample},
 		config.OverrideName(
 			config.FormatData(
-				&cfg.DRKeyDB,
-				storage.SetID(storage.SampleDRKeyDB, idSample).Connection,
+				&cfg.Lvl1DB,
+				storage.SetID(storage.SampleDRKeyLvl1DB, idSample).Connection,
 			),
-			"drkey_db",
+			"lvl1_db",
+		),
+		config.OverrideName(
+			config.FormatData(
+				&cfg.SVDB,
+				storage.SetID(storage.SampleDRKeySVDB, idSample).Connection,
+			),
+			"sv_db",
 		),
 		&cfg.Delegation,
 	)
@@ -101,23 +102,27 @@ func (cfg *DRKeyConfig) ConfigName() string {
 	return "drkey"
 }
 
-// DelegationList configures which endhosts can get delegation secrets, per protocol.
-type DelegationList map[string][]string
+// SVHostList configures which endhosts can get delegation secrets, per protocol.
+type SVHostList map[string][]string
 
-var _ (config.Config) = (*DelegationList)(nil)
+var _ (config.Config) = (*SVHostList)(nil)
 
 // InitDefaults will not add or modify any entry in the config.
-func (cfg *DelegationList) InitDefaults() {
+func (cfg *SVHostList) InitDefaults() {
 	if *cfg == nil {
-		*cfg = make(DelegationList)
+		*cfg = make(SVHostList)
 	}
 }
 
 // Validate validates that the protocols exist, and their addresses are parsable.
-func (cfg *DelegationList) Validate() error {
+func (cfg *SVHostList) Validate() error {
 	for proto, list := range *cfg {
-		if _, found := protocol.KnownDerivations[proto]; !found {
+		protoID, ok := drkey.ProtocolStringToId(strings.ToUpper(proto))
+		if !ok {
 			return serrors.New("Configured protocol not found", "protocol", proto)
+		}
+		if protoID == drkey.Generic {
+			return serrors.New("GENERIC protocol is not allowed")
 		}
 		for _, ip := range list {
 			if h := addr.HostFromIPStr(ip); h == nil {
@@ -129,32 +134,38 @@ func (cfg *DelegationList) Validate() error {
 }
 
 // Sample writes a config sample to the writer.
-func (cfg *DelegationList) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, drkeyDelegationListSample)
+func (cfg *SVHostList) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, drkeySVHostListSample)
 }
 
 // ConfigName is the key in the toml file.
-func (cfg *DelegationList) ConfigName() string {
+func (cfg *SVHostList) ConfigName() string {
 	return "delegation"
 }
 
-// ToMapPerHost will return map where there is a set of supported protocols per host.
-func (cfg *DelegationList) ToMapPerHost() map[[16]byte]map[string]struct{} {
-	m := make(map[[16]byte]map[string]struct{})
+type HostProto struct {
+	Host  netaddr.IP
+	Proto drkey.Protocol
+}
+
+// ToAllowedSet will return map where there is a set of supported (Host,Protocol).
+func (cfg *SVHostList) ToAllowedSet() map[HostProto]struct{} {
+	m := make(map[HostProto]struct{})
 	for proto, ipList := range *cfg {
 		for _, ip := range ipList {
-			host := addr.HostFromIPStr(ip)
-			if host == nil {
+			host, err := netaddr.ParseIP(ip)
+			if err != nil {
 				continue
 			}
-			var rawHost [16]byte
-			copy(rawHost[:], host.IP().To16())
-			protoSet := m[rawHost]
-			if protoSet == nil {
-				protoSet = make(map[string]struct{})
+			protoID, ok := drkey.ProtocolStringToId(strings.ToUpper(proto))
+			if !ok {
+				continue
 			}
-			protoSet[proto] = struct{}{}
-			m[rawHost] = protoSet
+			hostProto := HostProto{
+				Host:  host,
+				Proto: protoID,
+			}
+			m[hostProto] = struct{}{}
 		}
 	}
 	return m

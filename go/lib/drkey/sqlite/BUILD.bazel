@@ -1,0 +1,29 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "base_db.go",
+        "lvl1db.go",
+        "lvl2db.go",
+        "sv_db.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/drkey/sqlite",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/infra/modules/db:go_default_library",
+        "//go/lib/util:go_default_library",
+        "@com_github_mattn_go_sqlite3//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["db_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/drkey/dbtest:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

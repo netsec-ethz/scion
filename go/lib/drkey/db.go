@@ -17,31 +17,44 @@ package drkey
 import (
 	"context"
 	"io"
+	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// BaseDB defines basic interface
-type BaseDB interface {
+var ErrKeyNotFound = serrors.New("Key not found")
+
+// SecretValueDB is the database for Secret Values.
+type SecretValueDB interface {
+	GetSV(ctx context.Context, meta SVMeta) (SV, error)
+	InsertSV(ctx context.Context, key SV) error
+	DeleteExpiredSV(ctx context.Context, cutoff time.Time) (int64, error)
+
 	io.Closer
 	db.LimitSetter
 }
 
 // Lvl1DB is the drkey database interface for level 1.
 type Lvl1DB interface {
-	BaseDB
-	GetLvl1Key(ctx context.Context, key Lvl1Meta, valTime uint32) (Lvl1Key, error)
+	GetLvl1Key(ctx context.Context, meta Lvl1Meta) (Lvl1Key, error)
 	InsertLvl1Key(ctx context.Context, key Lvl1Key) error
-	RemoveOutdatedLvl1Keys(ctx context.Context, cutoff uint32) (int64, error)
-	GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error)
-	GetValidLvl1SrcASes(ctx context.Context, valTime uint32) ([]addr.IA, error)
+	DeleteExpiredLvl1Keys(ctx context.Context, cutoff time.Time) (int64, error)
+
+	io.Closer
+	db.LimitSetter
 }
 
-// Lvl2DB is the drkey database interface for level 2.
+// Lvl2DB is the drkey database interface for end-host keys.
 type Lvl2DB interface {
-	BaseDB
-	GetLvl2Key(ctx context.Context, key Lvl2Meta, valTime uint32) (Lvl2Key, error)
-	InsertLvl2Key(ctx context.Context, key Lvl2Key) error
-	RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error)
+	GetASHostKey(ctx context.Context, meta ASHostMeta) (ASHostKey, error)
+	GetHostASKey(ctx context.Context, meta HostASMeta) (HostASKey, error)
+	GetHostHostKey(ctx context.Context, meta HostHostMeta) (HostHostKey, error)
+	InsertASHostKey(ctx context.Context, key ASHostKey) error
+	InsertHostASKey(ctx context.Context, key HostASKey) error
+	InsertHostHostKey(ctx context.Context, key HostHostKey) error
+	DeleteExpiredLvl2Keys(ctx context.Context, cutoff time.Time) (int64, error)
+
+	io.Closer
+	db.LimitSetter
 }

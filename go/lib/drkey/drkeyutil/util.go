@@ -18,14 +18,10 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/subtle"
-	"sync"
-	"time"
 
 	"github.com/dchest/cmac"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -80,6 +76,8 @@ func MAC(payload []byte, key []byte) ([]byte, error) {
 	return mac.Sum(nil), nil
 }
 
+/*
+TODO(matzf) Rewrite after merge
 // GetLvl2Keys gets the lvl2 keys with the functional options in the arguments.
 // Example of use: keys,err := GetLvl2Keys(AS2AS, "colibri", SlowIAs(slow),FastIAs(fast))
 func GetLvl2Keys(ctx context.Context, conn DRKeyGetLvl2Keyer,
@@ -89,8 +87,8 @@ func GetLvl2Keys(ctx context.Context, conn DRKeyGetLvl2Keyer,
 	opts := &lvl2GetterOptions{
 		ctx:       ctx,
 		connector: conn,
-		keyType:   keyType,
-		protocol:  protocol,
+		//keyType:   keyType,
+		protocol: protocol,
 	}
 	for _, mod := range options {
 		mod(opts)
@@ -220,11 +218,15 @@ func getLvl2Keys(opts *lvl2GetterOptions) ([][]byte, error) {
 
 	return getKeys(opts.ctx, opts.connector, time.Now(), metas)
 }
+*/
 
 type DRKeyGetLvl2Keyer interface {
-	DRKeyGetLvl2Key(context.Context, drkey.Lvl2Meta, time.Time) (drkey.Lvl2Key, error)
+	DRKeyGetASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
+	DRKeyGetHostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
+	DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 }
 
+/*
 func getKeys(ctx context.Context, conn DRKeyGetLvl2Keyer, valTime time.Time,
 	metas []drkey.Lvl2Meta) ([][]byte, error) {
 	keys := make([][]byte, len(metas))
@@ -246,3 +248,4 @@ func getKeys(ctx context.Context, conn DRKeyGetLvl2Keyer, valTime time.Time,
 	wg.Wait()
 	return keys, errs.ToError()
 }
+*/
