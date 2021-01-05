@@ -104,7 +104,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
 		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
 	}
-	client, server, err := nc.initQUICSockets()
+	client, server, err := nc.initQUICSockets(false)
 	if err != nil {
 		return nil, err
 	}
@@ -123,17 +123,10 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	//TLS/QUIC part
 	// Calling initQUICSockets again will fail if nc.QUIC.Address has a port other than 0.
 	// As a workaround, forcefully set the port to 0, and restore the original afterwards.
-	configuredQuicAddress := nc.QUIC.Address
-	host, _, err := net.SplitHostPort(nc.QUIC.Address)
-	if err != nil { // should never happen, as the address has been parsed already
-		return nil, serrors.WrapStr("parsing server QUIC address", err)
-	}
-	nc.QUIC.Address = net.JoinHostPort(host, "0")
-	tlsClient, tlsServer, err := nc.initQUICSockets()
+	tlsClient, tlsServer, err := nc.initQUICSockets(true)
 	if err != nil {
 		return nil, err
 	}
-	nc.QUIC.Address = configuredQuicAddress
 	log.Info("TLS/QUIC server conn initialized", "local_addr", tlsServer.LocalAddr())
 	log.Info("TLS/QUIC client conn initialized", "local_addr", tlsClient.LocalAddr())
 
@@ -292,7 +285,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string, tlsQUICAdress strin
 	return cancel, nil
 }
 
-func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
+func (nc *NetworkConfig) initQUICSockets(ignorePort bool) (net.PacketConn, net.PacketConn, error) {
 	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
@@ -311,6 +304,9 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	serverAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
+	}
+	if ignorePort {
+		serverAddr.Port = 0
 	}
 	server, err := serverNet.Listen(context.Background(), "udp", serverAddr, addr.SvcNone)
 	if err != nil {
