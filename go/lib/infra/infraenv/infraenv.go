@@ -122,7 +122,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 
 	//TLS/QUIC part
 	// Calling initQUICSockets again will fail if nc.QUIC.Address has a port other than 0.
-	// As a workaround, forcefully set the port to 0, and restore the original afterwards.
+	// As a workaround, forcefully set the port to 0 via a parameter.
 	tlsClient, tlsServer, err := nc.initQUICSockets(true)
 	if err != nil {
 		return nil, err
