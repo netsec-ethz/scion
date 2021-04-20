@@ -54,7 +54,10 @@ func withDefaults(cfg BFD) BFD {
 
 var (
 	bfdDefaults = BFD{
-		DetectMult:            3,
+		// XXX(juagargi) patching the default value of DetectMult from 3 to 100 to
+		// workaround a problem where BFD packets are dropped when the router is under heavy
+		// load (issue #4019). Once it's solved, rollback to a value of 3
+		DetectMult:            100,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 200 * time.Millisecond,
 		// Disable indicates if BFD is disabled globally.
