@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	_ "net/http/pprof"
 	"path/filepath"
 	"time"
 
