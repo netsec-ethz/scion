@@ -48,8 +48,8 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 
 	logger.Info("Resolving server", "srcIA", srcIA.String())
 	path, err := f.Router.Route(ctx, srcIA)
-	if err != nil {
-		return nil, serrors.WrapStr("retrieving paths", err)
+	if err != nil || path == nil {
+		return nil, serrors.WrapStr("unable to find path to", err, "IA", srcIA)
 	}
 	remote := &snet.SVCAddr{
 		IA:      srcIA,
