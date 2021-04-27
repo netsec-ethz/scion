@@ -116,7 +116,7 @@ func (d *DRKeyServer) DRKeyLvl2(ctx context.Context,
 	}
 	lvl1Key, err := d.Store.GetLvl1Key(ctx, lvl1Meta, parsedReq.ValTime)
 	if err != nil {
-		logger.Debug("[DRKey gRPC server] Error getting the level 1 key",
+		logger.Error("[DRKey gRPC server] Error getting the level 1 key",
 			"err", err)
 		return nil, err
 	}
