@@ -73,10 +73,6 @@ func main() {
 	application.Run()
 }
 
-const (
-	shutdownWaitTimeout = 5 * time.Second
-)
-
 func realMain() error {
 	if err := setup(); err != nil {
 		return err
