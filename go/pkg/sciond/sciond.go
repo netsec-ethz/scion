@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -105,7 +104,6 @@ func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engin
 // ServerConfig is the configuration for the daemon API server.
 type ServerConfig struct {
 	Fetcher      fetcher.Fetcher
-	PathDB       pathdb.PathDB
 	RevCache     revcache.RevCache
 	Engine       trust.Engine
 	TopoProvider topology.Provider
