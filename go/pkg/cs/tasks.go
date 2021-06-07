@@ -250,31 +250,19 @@ type Tasks struct {
 	Registrars      []*periodic.Runner
 	DRKeyPrefetcher *periodic.Runner
 
-	BeaconCleaner *periodic.Runner
-	PathCleaner   *periodic.Runner
+	PathCleaner *periodic.Runner
 	DRKeyCleaner  *periodic.Runner
 }
 
 func StartTasks(cfg TasksConfig) (*Tasks, error) {
-	beaconCleaner := newBeaconCleaner(cfg.BeaconStore)
 
 	segCleaner := pathdb.NewCleaner(cfg.PathDB, "control_pathstorage_segments")
 	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "control_pathstorage_revocation")
 	return &Tasks{
-		Originator:      cfg.Originator(),
-		Propagator:      cfg.Propagator(),
-		Registrars:      cfg.SegmentWriters(),
+		Originator: cfg.Originator(),
+		Propagator: cfg.Propagator(),
+		Registrars: cfg.SegmentWriters(),
 		DRKeyPrefetcher: cfg.DRKeyPrefetcher(),
-		BeaconCleaner: periodic.Start(
-			periodic.Func{
-				Task: func(ctx context.Context) {
-					beaconCleaner.Run(ctx)
-				},
-				TaskName: "control_beaconstorage_cleaner",
-			},
-			30*time.Second,
-			30*time.Second,
-		),
 		PathCleaner: periodic.Start(
 			periodic.Func{
 				Task: func(ctx context.Context) {
@@ -300,7 +288,6 @@ func (t *Tasks) Kill() {
 		t.Originator,
 		t.Propagator,
 		t.DRKeyPrefetcher,
-		t.BeaconCleaner,
 		t.PathCleaner,
 		t.DRKeyCleaner,
 	})
@@ -308,7 +295,6 @@ func (t *Tasks) Kill() {
 	t.Originator = nil
 	t.Propagator = nil
 	t.DRKeyPrefetcher = nil
-	t.BeaconCleaner = nil
 	t.PathCleaner = nil
 	t.DRKeyCleaner = nil
 	t.Registrars = nil
@@ -348,21 +334,4 @@ type Store interface {
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
 	// MaxExpTime returns the segment maximum expiration time for the given policy.
 	MaxExpTime(policyType beacon.PolicyType) uint8
-	// DeleteExpired deletes expired Beacons from the store.
-	DeleteExpiredBeacons(ctx context.Context) (int, error)
-	// Close closes the store.
-	Close() error
-}
-
-// expiredBeaconsDeleter delets expired beacons from the store.
-type expiredBeaconsDeleter interface {
-	// DeleteExpired deletes expired Beacons from the store.
-	DeleteExpiredBeacons(ctx context.Context) (int, error)
-}
-
-// newBeaconCleaner creates a cleaner task, which deletes expired beacons.
-func newBeaconCleaner(s expiredBeaconsDeleter) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return s.DeleteExpiredBeacons(ctx)
-	}, "control_beaconstorage_beacon")
 }
