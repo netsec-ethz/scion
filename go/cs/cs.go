@@ -53,7 +53,6 @@ import (
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	libmetrics "github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -82,6 +81,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
 	beaconstoragemetrics "github.com/scionproto/scion/go/pkg/storage/beacon/metrics"
+	pathstoragemetrics "github.com/scionproto/scion/go/pkg/storage/path/metrics"
 	truststoragefspersister "github.com/scionproto/scion/go/pkg/storage/trust/fspersister"
 	truststoragemetrics "github.com/scionproto/scion/go/pkg/storage/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -124,7 +124,9 @@ func realMain() error {
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
 	}
-	pathDB = pathdb.WithMetrics(string(storage.BackendSqlite), pathDB)
+	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
+		Driver: string(storage.BackendSqlite),
+	})
 	defer pathDB.Close()
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),

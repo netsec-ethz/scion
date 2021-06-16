@@ -56,6 +56,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
+	pathstoragemetrics "github.com/scionproto/scion/go/pkg/storage/path/metrics"
 	truststoragemetrics "github.com/scionproto/scion/go/pkg/storage/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -89,7 +90,9 @@ func realMain() error {
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
 	}
-	pathDB = pathdb.WithMetrics(string(storage.BackendSqlite), pathDB)
+	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
+		Driver: string(storage.BackendSqlite),
+	})
 	defer pathDB.Close()
 	defer revCache.Close()
 	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
