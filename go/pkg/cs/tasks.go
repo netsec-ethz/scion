@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/drkeystorage"
-	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -44,19 +43,21 @@ import (
 // TasksConfig holds the necessary configuration to start the periodic tasks a
 // CS is expected to run.
 type TasksConfig struct {
-	Public          *net.UDPAddr
-	Intfs           *ifstate.Interfaces
-	OneHopConn      snet.PacketConn
-	TrustDB         trust.DB
-	PathDB          pathdb.DB
-	RevCache        revcache.RevCache
-	BeaconSender    beaconing.BeaconSender
-	SegmentRegister beaconing.RPC
-	BeaconStore     Store
-	Signer          seg.Signer
-	Inspector       trust.Inspector
-	Metrics         *Metrics
-	DRKeyStore      drkeystorage.ServiceStore
+	Public                *net.UDPAddr
+	AllInterfaces         *ifstate.Interfaces
+	PropagationInterfaces func() []*ifstate.Interface
+	OriginationInterfaces func() []*ifstate.Interface
+	OneHopConn            snet.PacketConn
+	TrustDB               trust.DB
+	PathDB                pathdb.DB
+	RevCache              revcache.RevCache
+	BeaconSender          beaconing.BeaconSender
+	SegmentRegister       beaconing.RPC
+	BeaconStore           Store
+	Signer                seg.Signer
+	Inspector             trust.Inspector
+	Metrics               *Metrics
+	DRKeyStore            drkeystorage.ServiceStore
 
 	MACGen       func() hash.Hash
 	TopoProvider topology.Provider
@@ -85,11 +86,12 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		Extender: t.extender("originator", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
-		BeaconSender: t.BeaconSender,
-		IA:           topo.IA(),
-		Intfs:        t.Intfs,
-		Signer:       t.Signer,
-		Tick:         beaconing.NewTick(t.OriginationInterval),
+		BeaconSender:          t.BeaconSender,
+		IA:                    topo.IA(),
+		AllInterfaces:         t.AllInterfaces,
+		OriginationInterfaces: t.OriginationInterfaces,
+		Signer:                t.Signer,
+		Tick:                  beaconing.NewTick(t.OriginationInterval),
 	}
 	if t.Metrics != nil {
 		s.Originated = metrics.NewPromCounter(t.Metrics.BeaconingOriginatedTotal)
@@ -104,14 +106,14 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		Extender: t.extender("propagator", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
-		BeaconSender: t.BeaconSender,
-		Provider:     t.BeaconStore,
-		IA:           topo.IA(),
-		Signer:       t.Signer,
-		Intfs:        t.Intfs,
-		AllowIsdLoop: t.AllowIsdLoop,
-		Core:         topo.Core(),
-		Tick:         beaconing.NewTick(t.PropagationInterval),
+		BeaconSender:          t.BeaconSender,
+		Provider:              t.BeaconStore,
+		IA:                    topo.IA(),
+		Signer:                t.Signer,
+		AllInterfaces:         t.AllInterfaces,
+		PropagationInterfaces: t.PropagationInterfaces,
+		AllowIsdLoop:          t.AllowIsdLoop,
+		Tick:                  beaconing.NewTick(t.PropagationInterval),
 	}
 	if t.Metrics != nil {
 		p.Propagated = metrics.NewPromCounter(t.Metrics.BeaconingPropagatedTotal)
@@ -147,7 +149,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
 			Registered:     registered,
 			Type:           segType,
-			Intfs:          t.Intfs,
+			Intfs:          t.AllInterfaces,
 			Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
 				return t.BeaconStore.MaxExpTime(policyType)
 			}),
@@ -158,7 +160,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 		writer = &hiddenpath.BeaconWriter{
 			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
 			Registered:     registered,
-			Intfs:          t.Intfs,
+			Intfs:          t.AllInterfaces,
 			Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
 				return t.BeaconStore.MaxExpTime(policyType)
 			}),
@@ -179,7 +181,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
 			Registered:     registered,
 			Type:           segType,
-			Intfs:          t.Intfs,
+			Intfs:          t.AllInterfaces,
 			Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
 				return t.BeaconStore.MaxExpTime(policyType)
 			}),
@@ -193,7 +195,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 	}
 	r := &beaconing.WriteScheduler{
 		Provider: t.BeaconStore,
-		Intfs:    t.Intfs,
+		Intfs:    t.AllInterfaces,
 		Type:     segType,
 		Writer:   writer,
 		Tick:     beaconing.NewTick(t.RegistrationInterval),
@@ -208,7 +210,7 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 		IA:         ia,
 		Signer:     t.Signer,
 		MAC:        t.MACGen,
-		Intfs:      t.Intfs,
+		Intfs:      t.AllInterfaces,
 		MTU:        mtu,
 		MaxExpTime: func() uint8 { return uint8(maxExp()) },
 		StaticInfo: t.StaticInfo,
