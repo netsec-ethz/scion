@@ -17,6 +17,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -464,8 +466,8 @@ func realMain() error {
 	trcRunner.TriggerRun()
 
 	ds := discovery.Topology{
-		Provider: itopo.Provider(),
-		Requests: libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
+		Information: topoInformation{},
+		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
 
@@ -627,28 +629,19 @@ func realMain() error {
 	if topo.Core() {
 		propagationFilter = func(intf *ifstate.Interface) bool {
 			topoInfo := intf.TopoInfo()
-			if topoInfo.LinkType == topology.Core {
-				return true
-			}
-			return false
+			return topoInfo.LinkType == topology.Core
 		}
 	} else {
 		propagationFilter = func(intf *ifstate.Interface) bool {
 			topoInfo := intf.TopoInfo()
-			if topoInfo.LinkType == topology.Child {
-				return true
-			}
-			return false
+			return topoInfo.LinkType == topology.Child
 		}
 	}
 
 	var originationFilter func(intf *ifstate.Interface) bool
 	originationFilter = func(intf *ifstate.Interface) bool {
 		topoInfo := intf.TopoInfo()
-		if topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child {
-			return true
-		}
-		return false
+		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
 	tasks, err := cs.StartTasks(cs.TasksConfig{
@@ -759,4 +752,26 @@ func loadMasterSecret(dir string) (keyconf.Master, error) {
 		return keyconf.Master{}, serrors.WrapStr("error getting master secret", err)
 	}
 	return masterKey, nil
+}
+
+type topoInformation struct{}
+
+func (topoInformation) Gateways() ([]topology.GatewayInfo, error) {
+	return itopo.Get().Gateways()
+}
+
+func (topoInformation) HiddenSegmentLookupAddresses() ([]*net.UDPAddr, error) {
+	a, err := itopo.Get().MakeHostInfos(topology.HiddenSegmentLookup)
+	if errors.Is(err, topology.ErrAddressNotFound) {
+		return nil, nil
+	}
+	return a, err
+}
+
+func (topoInformation) HiddenSegmentRegistrationAddresses() ([]*net.UDPAddr, error) {
+	a, err := itopo.Get().MakeHostInfos(topology.HiddenSegmentRegistration)
+	if errors.Is(err, topology.ErrAddressNotFound) {
+		return nil, nil
+	}
+	return a, err
 }
