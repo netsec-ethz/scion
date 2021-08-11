@@ -174,7 +174,7 @@ func realMain() error {
 	trustDB = truststoragefspersister.WrapDB(
 		trustDB,
 		truststoragefspersister.Config{
-			TRCDir: globalCfg.General.ConfigDir,
+			TRCDir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
 			Metrics: truststoragefspersister.Metrics{
 				TRCFileWriteSuccesses: fileWrites.With(
 					prom.LabelResult,
