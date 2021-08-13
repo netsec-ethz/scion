@@ -607,7 +607,7 @@ func realMain() error {
 			}
 		}()
 	}
-	err = cs.StartHTTPEndpoints(globalCfg.General.ID, globalCfg, signer, chainBuilder,
+	err = cs.StartHTTPEndpoints(globalCfg.General.ID, &globalCfg, signer, chainBuilder,
 		globalCfg.Metrics)
 	if err != nil {
 		return serrors.WrapStr("registering status pages", err)
