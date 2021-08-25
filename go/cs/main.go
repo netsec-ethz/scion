@@ -104,7 +104,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	metrics := cs.NewMetrics()
 
 	intfs, err := setup(&globalCfg)
