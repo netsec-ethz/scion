@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich, Anapaya Systems
+// Copyright 2021 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,12 +45,13 @@ const MaxAdmissionEntryValidity = time.Minute
 
 // Store is the reservation store.
 type Store struct {
-	localIA    addr.IA
-	isCore     bool
-	db         backend.DB                      // aka reservation map
-	admitter   admission.Admitter              // the chosen admission entity
-	operator   *coliquic.ServiceClientOperator // dials next colibri service
-	colibriKey []byte                          // colibri secret key
+	localIA       addr.IA
+	isCore        bool
+	db            backend.DB                      // aka reservation map
+	admitter      admission.Admitter              // the chosen admission entity
+	operator      *coliquic.ServiceClientOperator // dials next colibri service
+	authenticator Authenticator                   // source authentication based on drkey
+	colibriKey    []byte                          // colibri secret key
 }
 
 var _ reservationstorage.Store = (*Store)(nil)
@@ -241,20 +242,14 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	if req.IsLastAS() {
 		return s.errNew("cannot initiate a reservation with this AS only in the path")
 	}
-	newSetup := false
-	// if req.Path.RawPath.Type == colpath.PathType {
-	// 	colp := colpath.ColibriPath{}
-	// 	err := colp.DecodeFromBytes(req.Path.RawPath.Raw)
-	// 	for i, hf := range colp.HopFields {
-	// 		s := fmt.Sprintf("%d>%d [%x]", hf.IngressId, hf.EgressId, hf.Mac)
-	// 	}
-	// }
 	if req.ID.IsEmpty() {
 		return serrors.New("bad empty ID")
 	}
 	if req.ID.ASID != s.localIA.AS() {
 		return s.errNew("bad reservation id", "as", req.ID.ASID)
 	}
+
+	newSetup := false
 	if req.ID.IsEmptySuffix() {
 		newSetup = true
 	}
@@ -319,6 +314,11 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 			return s.errWrapStr("initial reservation creation", err, "dst", req.Path.DstIA())
 		}
 		req.ID = rsv.ID // the DB created a new suffix for the rsv.; copy it to the request
+	}
+
+	err = s.authenticator.SegmentRequestInitialMAC(ctx, s.localIA, req)
+	if err != nil {
+		return err
 	}
 
 	var res segment.SegmentSetupResponse
