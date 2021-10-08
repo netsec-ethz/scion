@@ -34,11 +34,10 @@ func newInfo(pather CommandPather) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "info [flags]",
 		Short:   "Show relevant, locally-known info about this SCION host, such as its SCION address",
-		Example: fmt.Sprint(`  %[1]s info`, pather.CommandPath()),
+		Example: fmt.Sprintf(`  %[1]s info`, pather.CommandPath()),
 		Long: `'info' show info about this SCION host
 
 This functionality is intended to work similarly to 'ip addr' or 'ifconfig' and return relevant, locally-known info about this host's relationship with SCION.`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			ctx := context.Background()
@@ -58,7 +57,7 @@ This functionality is intended to work similarly to 'ip addr' or 'ifconfig' and 
 				return err
 			}
 
-			fmt.Printf("One of this host's SCION addresses is %s,%s\n", info.IA, localIP)
+			fmt.Printf("One of this host's SCION addresses is:\n\n    %s,%s\n\n", info.IA, localIP)
 			return nil
 		},
 	}
