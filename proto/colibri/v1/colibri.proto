@@ -98,7 +98,7 @@ message TransparentPath {
 
 // A collection of MAC bytes, computed by the source AS with the original data, and then
 // overwritten at each step of the path by the AS in transit.
-message Authenticator {
+message Authenticators {
     repeated bytes mac = 1;
 }
 
@@ -113,7 +113,7 @@ message Request {
     uint32 timestamp = 3;
     // the path the request will follow.
     TransparentPath path = 4;
-    Authenticator authenticator = 5;
+    Authenticators authenticators = 5;
 }
 
 message Response {
@@ -133,7 +133,7 @@ message Response {
         // a failure field representing a failure message.
         Failure failure = 2;
     }
-    Authenticator authenticator = 3;
+    Authenticators authenticators = 3;
 }
 
 message SegmentSetupRequest {
@@ -181,7 +181,7 @@ message SegmentSetupResponse {
         // if failure, this field will not be null, and will contain the failure message.
         Failure failure = 2;
     }
-    Authenticator authenticator = 3;
+    Authenticators authenticators = 3;
 }
 
 message ConfirmSegmentIndexRequest {
@@ -229,7 +229,7 @@ message ListReservationsRequest {
     uint64 dst_ia = 1;
     // the reservation path type.
     uint32 path_type = 2;
-    Authenticator authenticator = 3;
+    Authenticators authenticators = 3;
 }
 
 message ListReservationsResponse {
@@ -259,7 +259,7 @@ message ListReservationsResponse {
     string error_message = 1;
     // the collection of reservations for the list request.
     repeated ReservationLooks reservations = 2;
-    Authenticator authenticator = 3;
+    Authenticators authenticators = 3;
 }
 
 
@@ -309,7 +309,7 @@ message E2eSetupResponse {
     Failure failure = 1;
     // if successful, the serialized token.
     bytes token = 2;
-    Authenticator authenticator = 3;
+    Authenticators authenticators = 3;
 }
 
 message CleanupE2eIndexRequest {

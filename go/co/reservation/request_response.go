@@ -32,7 +32,8 @@ type MsgId struct {
 // It contains a reference to the reservation it requests, or nil if not yet created.
 type Request struct {
 	MsgId
-	Path *TransparentPath // the path to the destination. It represents the hops of the reservation.
+	Path           *TransparentPath // the path to the destination (hops of the reservation).
+	Authenticators [][]byte         // one MAC per transit AS created by the initiator AS
 }
 
 // NewRequest constructs the segment Request type.
@@ -48,7 +49,8 @@ func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
 			ID:        *id,
 			Index:     idx,
 		},
-		Path: path,
+		Path:           path,
+		Authenticators: make([][]byte, len(path.Steps)-1),
 	}, nil
 }
 
@@ -88,6 +90,16 @@ func (r *Request) Ingress() uint16 {
 func (r *Request) Egress() uint16 {
 	p := r.Path
 	return p.Steps[p.CurrentStep].Egress
+}
+
+// CurrentValidatorField returns the validator field that contains the MAC used to authenticate
+// the request by the initiator AS, for the current in-transit AS.
+// Note that there doesn't exist a field for the initiator AS, as it is itself that authenticates.
+func (r *Request) CurrentValidatorField() []byte {
+	if r.Path.CurrentStep == 0 {
+		return nil
+	}
+	return r.Authenticators[r.Path.CurrentStep-1]
 }
 
 type Response interface {

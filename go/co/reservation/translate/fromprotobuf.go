@@ -154,7 +154,8 @@ func Request(msg *colpb.Request) (*base.Request, error) {
 			Index:     idx,
 			Timestamp: timestamp,
 		},
-		Path: p,
+		Path:           p,
+		Authenticators: msg.Authenticators.Mac,
 	}, nil
 }
 

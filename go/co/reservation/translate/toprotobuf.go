@@ -113,10 +113,11 @@ func PBufRequest(req *base.Request) (*colpb.Request, error) {
 		return nil, err
 	}
 	return &colpb.Request{
-		Id:        PBufID(&req.ID),
-		Index:     uint32(req.Index),
-		Timestamp: util.TimeToSecs(req.Timestamp),
-		Path:      p,
+		Id:             PBufID(&req.ID),
+		Index:          uint32(req.Index),
+		Timestamp:      util.TimeToSecs(req.Timestamp),
+		Path:           p,
+		Authenticators: PBufAuthenticators(req.Authenticators),
 	}, err
 }
 
@@ -199,6 +200,12 @@ func PBufID(id *reservation.ID) *colpb.ReservationID {
 	return &colpb.ReservationID{
 		Asid:   uint64(id.ASID),
 		Suffix: append(id.Suffix[:0:0], id.Suffix...),
+	}
+}
+
+func PBufAuthenticators(auths [][]byte) *colpb.Authenticators {
+	return &colpb.Authenticators{
+		Mac: auths,
 	}
 }
 

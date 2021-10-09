@@ -37,6 +37,7 @@ go_test(
 go_library(
     name = "go_default_library",
     srcs = [
+        "drkey.go",
         "keeper.go",
         "manager.go",
         "store.go",
@@ -56,6 +57,8 @@ go_library(
         "//go/lib/colibri:go_default_library",
         "//go/lib/colibri/coliquic:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
+        "//go/lib/daemon:go_default_library",
+        "//go/lib/drkey:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathpol:go_default_library",
         "//go/lib/periodic:go_default_library",
@@ -65,5 +68,6 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/pkg/proto/colibri:go_default_library",
+        "@com_github_dchest_cmac//:go_default_library",
     ],
 )

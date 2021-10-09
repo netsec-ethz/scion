@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/coliquic"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -57,8 +58,9 @@ type Store struct {
 var _ reservationstorage.Store = (*Store)(nil)
 
 // NewStore creates a new reservation store.
-func NewStore(topo *topology.Loader, router snet.Router, dialer coliquic.GRPCClientDialer,
-	db backend.DB, admitter admission.Admitter, masterKey []byte) (*Store, error) {
+func NewStore(topo *topology.Loader, sd daemon.Connector, router snet.Router,
+	dialer coliquic.GRPCClientDialer, db backend.DB, admitter admission.Admitter,
+	masterKey []byte) (*Store, error) {
 
 	// check that the admitter is well configured
 	cap := admitter.Capacities()
@@ -73,12 +75,13 @@ func NewStore(topo *topology.Loader, router snet.Router, dialer coliquic.GRPCCli
 	}
 	colibriKey := scrypto.DeriveColibriMacKey(masterKey)
 	return &Store{
-		localIA:    topo.IA(),
-		isCore:     topo.Core(),
-		db:         db,
-		admitter:   admitter,
-		operator:   operator,
-		colibriKey: colibriKey,
+		localIA:       topo.IA(),
+		isCore:        topo.Core(),
+		db:            db,
+		admitter:      admitter,
+		operator:      operator,
+		authenticator: NewDrkeyAuthenticator(topo.IA(), sd),
+		colibriKey:    colibriKey,
 	}, nil
 }
 
@@ -316,7 +319,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		req.ID = rsv.ID // the DB created a new suffix for the rsv.; copy it to the request
 	}
 
-	err = s.authenticator.SegmentRequestInitialMAC(ctx, s.localIA, req)
+	err = s.authenticator.ComputeSegmentSetupRequestInitialMAC(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -350,7 +353,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupReq) (
 	segment.SegmentSetupResponse, error) {
 
-	if err := s.validateAuthenticators(&req.Request); err != nil {
+	if err := s.validateSegSetupReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -364,7 +367,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request) (
 	base.Response, error) {
 
-	if err := s.validateAuthenticators(req); err != nil {
+	if err := s.validateReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -433,7 +436,7 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 	base.Response, error) {
 
 	// TODO(juagargi) refactor these functions that share a lot of code
-	if err := s.validateAuthenticators(req); err != nil {
+	if err := s.validateReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -509,7 +512,7 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request) (
 	base.Response, error) {
 
-	if err := s.validateAuthenticators(req); err != nil {
+	if err := s.validateReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -578,7 +581,7 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request
 func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Request) (
 	base.Response, error) {
 
-	if err := s.validateAuthenticators(req); err != nil {
+	if err := s.validateReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -636,7 +639,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 	log.Debug("e2e admission request", "id", req.ID, "src_ia", req.SrcIA, "dst_ia", req.DstIA,
 		"segments", reservation.IDs(req.SegmentRsvs), "path", req.Path)
 
-	if err := s.validateAuthenticators(&req.Request); err != nil {
+	if err := s.validateE2eSetupReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -882,7 +885,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 func (s *Store) CleanupE2EReservation(ctx context.Context, req *base.Request) (
 	base.Response, error) {
 
-	if err := s.validateAuthenticators(req); err != nil {
+	if err := s.validateReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
@@ -964,10 +967,39 @@ func (s *Store) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, t
 	return n, exp, err
 }
 
-// validateAuthenticators checks that the authenticators are correct.
-func (s *Store) validateAuthenticators(req *base.Request) error {
-	// TODO(juagargi) validate request
-	// DRKey authentication of request (will be left undone for later)
+// validateReq checks that the authenticators are correct.
+func (s *Store) validateReq(ctx context.Context, req *base.Request) error {
+	ok, err := s.authenticator.ValidateRequestInitialMAC(ctx, req)
+	if err != nil {
+		return serrors.WrapStr("validating source authentication mac", err)
+	}
+	if !ok {
+		return serrors.New("source authentication invalid")
+	}
+	return nil
+}
+
+// validateSegSetupReq checks that the authenticators are correct.
+func (s *Store) validateSegSetupReq(ctx context.Context, req *segment.SetupReq) error {
+	ok, err := s.authenticator.ValidateSegmentSetupRequestInitialMAC(ctx, req)
+	if err != nil {
+		return serrors.WrapStr("validating source authentication mac", err)
+	}
+	if !ok {
+		return serrors.New("source authentication invalid")
+	}
+	return nil
+}
+
+// validateSegSetupReq checks that the authenticators are correct.
+func (s *Store) validateE2eSetupReq(ctx context.Context, req *e2e.SetupReq) error {
+	ok, err := s.authenticator.ValidateE2eSetupRequestInitialMAC(ctx, req)
+	if err != nil {
+		return serrors.WrapStr("validating source authentication mac", err)
+	}
+	if !ok {
+		return serrors.New("source authentication invalid")
+	}
 	return nil
 }
 
