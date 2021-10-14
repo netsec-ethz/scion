@@ -108,6 +108,7 @@ class GoGenerator(object):
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
         config_dir = '/share/conf' if self.args.docker else base
+        sd_ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
                 'id': name,
@@ -123,6 +124,17 @@ class GoGenerator(object):
             },
             'path_db': {
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
+            },
+            'drkey': {
+                'cert_file': os.path.join(base, 'crypto', 'as',
+                                          f'{topo_id.ISD()}-{topo_id.AS_file()}.pem'),
+                'key_file': os.path.join(base, 'crypto', 'as', 'cp-as.key'),
+                'drkey_db': {
+                    'connection': os.path.join(self.db_dir, '%s.drkey.db' % name),
+                },
+                'delegation':{
+                    'colibri': [str(sd_ip)], # local daemon must be able to get the colibri DS
+                },
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
@@ -260,6 +272,9 @@ class GoGenerator(object):
             },
             'path_db': {
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
+            },
+            'drkey_db': {
+                'connection': os.path.join(self.db_dir, '%s.drkey.db' % name),
             },
             'sd': {
                 'address': socket_address_str(ip, SD_API_PORT),

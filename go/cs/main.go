@@ -48,7 +48,6 @@ import (
 	segreqgrpc "github.com/scionproto/scion/go/cs/segreq/grpc"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/drkeystorage"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -513,64 +512,57 @@ func realMain(ctx context.Context) error {
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
 
 	//DRKey feature
-	var drkeyServStore drkeystorage.ServiceStore
-	var quicTLSServer *grpc.Server
-	if globalCfg.DRKey.Enabled() {
-		masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
-		if err != nil {
-			return serrors.WrapStr("loading master secret in DRKey", err)
-		}
-		svFactory := drkey.NewSecretValueFactory(
-			masterKey.Key0, globalCfg.DRKey.EpochDuration.Duration)
-		drkeyDB, err := storage.NewDRKeyLvl1Storage(globalCfg.DRKey.DRKeyDB)
-		if err != nil {
-			return serrors.WrapStr("initializing DRKey DB", err)
-		}
-		loader := trust.FileLoader{
-			CertFile: globalCfg.DRKey.CertFile,
-			KeyFile:  globalCfg.DRKey.KeyFile,
-		}
-		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
-		drkeyFetcher := drkeygrpc.DRKeyFetcher{
-			Getter: drkeygrpc.Lvl1KeyFetcher{
-				Dialer: &libgrpc.TLSQUICDialer{
-					Rewriter:    nc.AddressRewriter(nil),
-					Dialer:      quicStack.TLSDialer,
-					Credentials: trust.GetTansportCredentials(tlsMgr),
-				},
-				Router: segreq.NewRouter(fetcherCfg),
-			},
-		}
-		drkeyServStore = &drkey.ServiceStore{
-			LocalIA:      topo.IA(),
-			DB:           drkeyDB,
-			SecretValues: svFactory,
-			Fetcher:      drkeyFetcher,
-		}
-		drkeyService := &drkeygrpc.DRKeyServer{
-			LocalIA:    topo.IA(),
-			Store:      drkeyServStore,
-			AllowedDSs: globalCfg.DRKey.Delegation.ToMapPerHost(),
-		}
-		srvConfig := &tls.Config{
-			InsecureSkipVerify:    true,
-			GetCertificate:        tlsMgr.GetCertificate,
-			VerifyPeerCertificate: tlsMgr.VerifyPeerCertificate,
-			ClientAuth:            tls.RequireAnyClientCert,
-		}
-		quicTLSServer = grpc.NewServer(
-			grpc.Creds(credentials.NewTLS(srvConfig)),
-			grpc.ChainUnaryInterceptor(
-				otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
-				libgrpc.LogIDServerInterceptor(),
-			),
-		)
-		cppb.RegisterDRKeyLvl1ServiceServer(quicTLSServer, drkeyService)
-		cppb.RegisterDRKeyLvl2ServiceServer(tcpServer, drkeyService)
-		log.Info("DRKey is enabled")
-	} else {
-		log.Info("DRKey is DISABLED by configuration")
+	masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
+	if err != nil {
+		return serrors.WrapStr("loading master secret in DRKey", err)
 	}
+	svFactory := drkey.NewSecretValueFactory(
+		masterKey.Key0, globalCfg.DRKey.EpochDuration.Duration)
+	drkeyDB, err := storage.NewDRKeyLvl1Storage(globalCfg.DRKey.DRKeyDB)
+	if err != nil {
+		return serrors.WrapStr("initializing DRKey DB", err)
+	}
+	loader := trust.FileLoader{
+		CertFile: globalCfg.DRKey.CertFile,
+		KeyFile:  globalCfg.DRKey.KeyFile,
+	}
+	tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
+	drkeyFetcher := drkeygrpc.DRKeyFetcher{
+		Getter: drkeygrpc.Lvl1KeyFetcher{
+			Dialer: &libgrpc.TLSQUICDialer{
+				Rewriter:    nc.AddressRewriter(nil),
+				Dialer:      quicStack.TLSDialer,
+				Credentials: trust.GetTansportCredentials(tlsMgr),
+			},
+			Router: segreq.NewRouter(fetcherCfg),
+		},
+	}
+	drkeyServStore := &drkey.ServiceStore{
+		LocalIA:      topo.IA(),
+		DB:           drkeyDB,
+		SecretValues: svFactory,
+		Fetcher:      drkeyFetcher,
+	}
+	drkeyService := &drkeygrpc.DRKeyServer{
+		LocalIA:    topo.IA(),
+		Store:      drkeyServStore,
+		AllowedDSs: globalCfg.DRKey.Delegation.ToMapPerHost(),
+	}
+	srvConfig := &tls.Config{
+		InsecureSkipVerify:    true,
+		GetCertificate:        tlsMgr.GetCertificate,
+		VerifyPeerCertificate: tlsMgr.VerifyPeerCertificate,
+		ClientAuth:            tls.RequireAnyClientCert,
+	}
+	quicTLSServer := grpc.NewServer(
+		grpc.Creds(credentials.NewTLS(srvConfig)),
+		grpc.ChainUnaryInterceptor(
+			otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+			libgrpc.LogIDServerInterceptor(),
+		),
+	)
+	cppb.RegisterDRKeyLvl1ServiceServer(quicTLSServer, drkeyService)
+	cppb.RegisterDRKeyLvl2ServiceServer(tcpServer, drkeyService)
 
 	dsHealth := health.NewServer()
 	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)

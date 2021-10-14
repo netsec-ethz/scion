@@ -179,23 +179,18 @@ func realMain(ctx context.Context) error {
 	}, 10*time.Second, 10*time.Second)
 	defer trcLoader.Stop()
 
-	var drkeyStore drkeystorage.ClientStore
-	if globalCfg.DRKeyDB.Connection != "" {
-		drkeyDB, err := storage.NewDRKeyLvl2Storage(globalCfg.DRKeyDB)
-		if err != nil {
-			log.Error("Creating Lvl2 DRKey DB", "err", err)
-		}
-		defer drkeyDB.Close()
-
-		drkeyFetcher := dk_grpc.DRKeyFetcher{
-			Dialer: dialer,
-		}
-		drkeyStore = drkey.NewClientStore(topo.IA(), drkeyDB, drkeyFetcher)
-
-		drkeyCleaner := periodic.Start(drkeystorage.NewStoreCleaner(drkeyStore),
-			time.Hour, 10*time.Minute)
-		defer drkeyCleaner.Stop()
+	drkeyDB, err := storage.NewDRKeyLvl2Storage(globalCfg.DRKeyDB)
+	if err != nil {
+		log.Error("Creating Lvl2 DRKey DB", "err", err)
 	}
+	defer drkeyDB.Close()
+	drkeyFetcher := dk_grpc.DRKeyFetcher{
+		Dialer: dialer,
+	}
+	drkeyStore := drkey.NewClientStore(topo.IA(), drkeyDB, drkeyFetcher)
+	drkeyCleaner := periodic.Start(drkeystorage.NewStoreCleaner(drkeyStore),
+		time.Hour, 10*time.Minute)
+	defer drkeyCleaner.Stop()
 
 	listen := daemon.APIAddress(globalCfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)
