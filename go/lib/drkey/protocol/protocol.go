@@ -35,6 +35,7 @@ type DelegatedDerivation interface {
 }
 
 // KnownDerivations maps the derivation names to their implementations.
+// Add a new derivation by inserting your protocol name and a `Derivation` type in the map.
 var KnownDerivations = make(map[string]Derivation)
 
 // DeriveLvl1 constructs a new level 1 DRKey.

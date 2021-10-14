@@ -186,7 +186,8 @@ func getLvl1(t *testing.T) drkey.Lvl1Key {
 
 func TestExistingImplementations(t *testing.T) {
 	// we test that we have the two implementations we know for now (scmp,piskes)
-	require.Len(t, KnownDerivations, 2)
+	require.Len(t, KnownDerivations, 3)
 	require.Contains(t, KnownDerivations, "scmp")
 	require.Contains(t, KnownDerivations, "piskes")
+	require.Contains(t, KnownDerivations, "colibri")
 }

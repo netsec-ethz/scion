@@ -3,6 +3,7 @@ load("//lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "colibri.go",
         "delegated.go",
         "piskes.go",
         "protocol.go",
