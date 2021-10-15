@@ -57,21 +57,21 @@ type macComputer interface {
 }
 
 type macVerifier interface {
-	// ValidateRequestInitialMAC verifies the validity of the source authentication
+	// ValidateRequest verifies the validity of the source authentication
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
-	// this request. Returns true if valid, false otherwise.
-	ValidateRequestInitialMAC(ctx context.Context, req *base.Request) (bool, error)
-	// ValidateSegmentSetupRequestInitialMAC verifies the validity of the source authentication
+	// this request. If the request is now at the last AS, it also validates the request at
+	// the destination. Returns true if valid, false otherwise.
+	ValidateRequest(ctx context.Context, req *base.Request) (bool, error)
+	// ValidateSegSetupRequest verifies the validity of the source authentication
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
-	// the setup request. Returns true if valid, false otherwise.
-	ValidateSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq) (bool, error)
-	// ValidateE2eSetupRequestInitialMAC verifies the validity of the source authentication
+	// this request. If the request is now at the last AS, it also validates the request at
+	// the destination. Returns true if valid, false otherwise.
+	ValidateSegSetupRequest(ctx context.Context, req *segment.SetupReq) (bool, error)
+	// ValidateE2eSetupRequest verifies the validity of the source authentication
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
-	// the setup request. Returns true if valid, false otherwise.
-	ValidateE2eSetupRequestInitialMAC(ctx context.Context, req *e2e.SetupReq) (bool, error)
-
-	ValidateSegmentSetupRequestAtDestination(ctx context.Context, req *segment.SetupReq) (
-		bool, error)
+	// this request. If the request is now at the last AS, it also validates the request at
+	// the destination. Returns true if valid, false otherwise.
+	ValidateE2eSetupRequest(ctx context.Context, req *e2e.SetupReq) (bool, error)
 }
 
 // DrkeyAuthenticator implements macComputer and macVerifier using DRKey.
@@ -132,22 +132,29 @@ func (a *DrkeyAuthenticator) ComputeE2eSetupRequestTransitMAC(ctx context.Contex
 	return nil
 }
 
-func (a *DrkeyAuthenticator) ValidateRequestInitialMAC(ctx context.Context,
+func (a *DrkeyAuthenticator) ValidateRequest(ctx context.Context,
 	req *base.Request) (bool, error) {
 
 	immutableInput := make([]byte, req.ID.Len()+1+4)
 	inputInitialSegRequest(immutableInput, req)
-	return a.validateSegmentPayloadInitialMAC(ctx, req, immutableInput)
+	ok, err := a.validateSegmentPayloadInitialMAC(ctx, req, immutableInput)
+	if err == nil && ok && req.IsLastAS() {
+		ok, err = a.validateRequestAtDestination(ctx, req)
+	}
+	return ok, err
 }
 
-func (a *DrkeyAuthenticator) ValidateSegmentSetupRequestInitialMAC(ctx context.Context,
+func (a *DrkeyAuthenticator) ValidateSegSetupRequest(ctx context.Context,
 	req *segment.SetupReq) (bool, error) {
 
-	return a.validateSegmentPayloadInitialMAC(ctx, &req.Request, inputInitialSegSetupRequest(req))
-
+	ok, err := a.validateSegmentPayloadInitialMAC(ctx, &req.Request, inputInitialSegSetupRequest(req))
+	if err == nil && ok && req.IsLastAS() {
+		ok, err = a.validateSegmentSetupRequestAtDestination(ctx, req)
+	}
+	return ok, err
 }
 
-func (a *DrkeyAuthenticator) ValidateE2eSetupRequestInitialMAC(ctx context.Context,
+func (a *DrkeyAuthenticator) ValidateE2eSetupRequest(ctx context.Context,
 	req *e2e.SetupReq) (bool, error) {
 
 	// TODO(juagargi) deleteme: implement
@@ -155,34 +162,20 @@ func (a *DrkeyAuthenticator) ValidateE2eSetupRequestInitialMAC(ctx context.Conte
 
 }
 
-func (a *DrkeyAuthenticator) ValidateSegmentSetupRequestAtDestination(ctx context.Context,
+func (a *DrkeyAuthenticator) validateRequestAtDestination(ctx context.Context, req *base.Request) (
+	bool, error) {
+
+	return a.validateAtDestination(ctx, req, func(i int) []byte {
+		return inputTransitSegRequest(req)
+	})
+}
+
+func (a *DrkeyAuthenticator) validateSegmentSetupRequestAtDestination(ctx context.Context,
 	req *segment.SetupReq) (bool, error) {
 
-	if len(req.Authenticators) != len(req.Path.Steps)-1 {
-		return false, serrors.New("insconsistent length in request",
-			"auth_count", len(req.Authenticators), "step_count", len(req.Path.Steps))
-	}
-	for i := 0; i < len(req.Authenticators)-1; i++ {
-		step := req.Path.Steps[i+1]
-		payload := inputTransitSegSetupRequestForStep(req, i+1)
-		key, err := a.getDRKeyAS2AS(ctx, step.IA, a.localIA)
-		if err != nil {
-			return false, serrors.WrapStr("validating source authentic at destination", err)
-		}
-		mac, err := MAC(key, payload)
-		if err != nil {
-			return false, serrors.WrapStr("computing mac validating source at destination", err)
-		}
-		res := subtle.ConstantTimeCompare(mac, req.Authenticators[i])
-		if res != 1 {
-			log.Info("source authentication failed", "id", req.ID,
-				"fast_side", step.IA,
-				"slow_side", a.localIA, "mac", hex.EncodeToString(mac),
-				"expected", hex.EncodeToString(req.Authenticators[i]))
-			return false, nil
-		}
-	}
-	return true, nil
+	return a.validateAtDestination(ctx, &req.Request, func(i int) []byte {
+		return inputTransitSegSetupRequestForStep(req, i)
+	})
 }
 
 func (a *DrkeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Context,
@@ -204,6 +197,38 @@ func (a *DrkeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Contex
 			"slow_side", req.Path.SrcIA(), "mac", hex.EncodeToString(mac),
 			"expected", hex.EncodeToString(req.CurrentValidatorField()))
 		return false, nil
+	}
+	return true, nil
+}
+
+// validateAtDestination
+// payloadFcn takes the index of the path step we want to compute the payload for.
+func (a *DrkeyAuthenticator) validateAtDestination(ctx context.Context, req *base.Request,
+	payloadFcn func(int) []byte) (bool, error) {
+
+	if len(req.Authenticators) != len(req.Path.Steps)-1 {
+		return false, serrors.New("insconsistent length in request",
+			"auth_count", len(req.Authenticators), "step_count", len(req.Path.Steps))
+	}
+	for i := 0; i < len(req.Authenticators)-1; i++ {
+		step := req.Path.Steps[i+1]
+		payload := payloadFcn(i + 1)
+		key, err := a.getDRKeyAS2AS(ctx, step.IA, a.localIA)
+		if err != nil {
+			return false, serrors.WrapStr("validating source authentic at destination", err)
+		}
+		mac, err := MAC(key, payload)
+		if err != nil {
+			return false, serrors.WrapStr("computing mac validating source at destination", err)
+		}
+		res := subtle.ConstantTimeCompare(mac, req.Authenticators[i])
+		if res != 1 {
+			log.Info("source authentication failed", "id", req.ID,
+				"fast_side", step.IA,
+				"slow_side", a.localIA, "mac", hex.EncodeToString(mac),
+				"expected", hex.EncodeToString(req.Authenticators[i]))
+			return false, nil
+		}
 	}
 	return true, nil
 }

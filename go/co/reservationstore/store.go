@@ -398,16 +398,6 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
-	if req.IsLastAS() {
-		ok, err := s.authenticator.ValidateSegmentSetupRequestAtDestination(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, serrors.New("source authentication invalid at destination")
-		}
-	}
-
 	return s.admitSegmentReservation(ctx, req)
 }
 
@@ -1041,7 +1031,7 @@ func (s *Store) authenticateReq(ctx context.Context, req *base.Request) error {
 	if req.IsFirstAS() {
 		return nil
 	}
-	ok, err := s.authenticator.ValidateRequestInitialMAC(ctx, req)
+	ok, err := s.authenticator.ValidateRequest(ctx, req)
 	if err != nil {
 		return serrors.WrapStr("validating source authentication mac", err)
 	}
@@ -1054,7 +1044,7 @@ func (s *Store) authenticateReq(ctx context.Context, req *base.Request) error {
 
 // authenticateSegSetupReq checks that the authenticators are correct.
 func (s *Store) authenticateSegSetupReq(ctx context.Context, req *segment.SetupReq) error {
-	ok, err := s.authenticator.ValidateSegmentSetupRequestInitialMAC(ctx, req)
+	ok, err := s.authenticator.ValidateSegSetupRequest(ctx, req)
 	if err != nil {
 		return serrors.WrapStr("validating source authentication mac", err)
 	}
@@ -1067,7 +1057,7 @@ func (s *Store) authenticateSegSetupReq(ctx context.Context, req *segment.SetupR
 
 // authenticateE2eSetupReq checks that the authenticators are correct.
 func (s *Store) authenticateE2eSetupReq(ctx context.Context, req *e2e.SetupReq) error {
-	ok, err := s.authenticator.ValidateE2eSetupRequestInitialMAC(ctx, req)
+	ok, err := s.authenticator.ValidateE2eSetupRequest(ctx, req)
 	if err != nil {
 		return serrors.WrapStr("validating source authentication mac", err)
 	}
