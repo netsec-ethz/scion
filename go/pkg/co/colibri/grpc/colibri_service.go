@@ -318,17 +318,8 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 	if _, err := checkLocalCaller(ctx); err != nil {
 		return nil, err
 	}
-	pbReq := &colpb.Request{
-		Id:        msg.Id,
-		Index:     msg.Index,
-		Timestamp: util.TimeToSecs(time.Now()),
-		Path:      &colpb.TransparentPath{},
-	}
-	req, err := translate.Request(pbReq)
-	if err != nil {
-		log.Error("translating initial E2E cleanup from daemon to service", "err", err)
-		return nil, err
-	}
+	req := base.NewRequest(time.Now(), translate.ID(msg.Id), reservation.IndexNumber(msg.Index),
+		&base.TransparentPath{})
 	res, err := s.Store.CleanupE2EReservation(ctx, req)
 	if err != nil {
 		var failedStep uint32

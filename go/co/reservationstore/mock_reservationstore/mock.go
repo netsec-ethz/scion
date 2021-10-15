@@ -12,7 +12,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	reservation "github.com/scionproto/scion/go/co/reservation"
 	segment "github.com/scionproto/scion/go/co/reservation/segment"
-	reservationstorage "github.com/scionproto/scion/go/co/reservationstorage"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	snet "github.com/scionproto/scion/go/lib/snet"
 )
@@ -66,6 +65,21 @@ func (m *MockManager) ActivateRequest(arg0 context.Context, arg1 *reservation.Re
 func (mr *MockManagerMockRecorder) ActivateRequest(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateRequest", reflect.TypeOf((*MockManager)(nil).ActivateRequest), arg0, arg1)
+}
+
+// GetReservationsAtSource mocks base method.
+func (m *MockManager) GetReservationsAtSource(arg0 context.Context, arg1 addr.IA) ([]*segment.Reservation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReservationsAtSource", arg0, arg1)
+	ret0, _ := ret[0].([]*segment.Reservation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReservationsAtSource indicates an expected call of GetReservationsAtSource.
+func (mr *MockManagerMockRecorder) GetReservationsAtSource(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReservationsAtSource", reflect.TypeOf((*MockManager)(nil).GetReservationsAtSource), arg0, arg1)
 }
 
 // LocalIA mocks base method.
@@ -163,18 +177,4 @@ func (m *MockManager) SetupRequest(arg0 context.Context, arg1 *segment.SetupReq)
 func (mr *MockManagerMockRecorder) SetupRequest(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupRequest", reflect.TypeOf((*MockManager)(nil).SetupRequest), arg0, arg1)
-}
-
-// Store mocks base method.
-func (m *MockManager) Store() reservationstorage.Store {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Store")
-	ret0, _ := ret[0].(reservationstorage.Store)
-	return ret0
-}
-
-// Store indicates an expected call of Store.
-func (mr *MockManagerMockRecorder) Store() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockManager)(nil).Store))
 }

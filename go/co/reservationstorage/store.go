@@ -50,6 +50,7 @@ type Store interface {
 	// next expiration
 	DeleteExpiredIndices(ctx context.Context, now time.Time) (int, time.Time, error)
 
+	// -----------------------------------------------------------
 	// as the source of reservations:
 
 	// GetReservationsAtSource is used by a reservation manager or keeper to know all
@@ -60,7 +61,20 @@ type Store interface {
 	ListStitchableSegments(ctx context.Context, dst addr.IA) (*colibri.StitchableSegments, error)
 	// InitSegmentReservation starts a new segment reservation.
 	InitSegmentReservation(ctx context.Context, req *sgt.SetupReq) error
+	// InitConfirmSegmentReservation initiates a confirm request.
+	InitConfirmSegmentReservation(ctx context.Context, req *base.Request) (
+		base.Response, error)
 
+	InitActivateSegmentReservation(ctx context.Context, req *base.Request) (
+		base.Response, error)
+
+	InitCleanupSegmentReservation(ctx context.Context, req *base.Request) (
+		base.Response, error)
+
+	InitTearDownSegmentReservation(ctx context.Context, req *base.Request) (
+		base.Response, error)
+
+	// -----------------------------------------------------------
 	// as the destination of reservations:
 
 	// AddAdmissionEntry adds the auto-expiring entry to the admission list.
@@ -75,3 +89,5 @@ type Store interface {
 	ReportSegmentReservationsInDB(ctx context.Context) ([]*sgt.Reservation, error)
 	ReportE2EReservationsInDB(ctx context.Context) ([]*e2e.Reservation, error)
 }
+
+// TODO(juagargi) create a Initiator store, a Transit store and a Destination store interfaces

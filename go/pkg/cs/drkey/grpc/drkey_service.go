@@ -222,6 +222,7 @@ func (d *DRKeyServer) validateLvl2Req(req ctrl.Lvl2Req, peerAddr net.Addr) error
 		return serrors.New("endhost not allowed for DRKey request",
 			"reqType", req.ReqType,
 			"endhost address", localAddr,
+			"protocol", req.Protocol,
 			"srcHost", req.SrcHost.ToHostAddr().String(),
 			"dstHost", req.DstHost.ToHostAddr().String(),
 		)

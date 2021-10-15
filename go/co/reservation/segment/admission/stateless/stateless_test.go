@@ -461,14 +461,10 @@ func newTestRequest(t *testing.T, ingress, egress int,
 
 	ID, err := reservation.IDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
 	require.NoError(t, err)
+	baseReq := base.NewRequest(util.SecsToTime(1), ID, 0,
+		test.NewPath(ingress, "1-ff00:1:1", egress))
 	return &segment.SetupReq{
-		Request: base.Request{
-			MsgId: base.MsgId{
-				ID:        *ID,
-				Timestamp: util.SecsToTime(1),
-			},
-			Path: test.NewPath(ingress, "1-ff00:1:1", egress),
-		},
+		Request:   *baseReq,
 		MinBW:     minBW,
 		MaxBW:     maxBW,
 		SplitCls:  2,

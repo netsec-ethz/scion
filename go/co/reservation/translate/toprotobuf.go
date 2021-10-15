@@ -205,7 +205,7 @@ func PBufID(id *reservation.ID) *colpb.ReservationID {
 
 func PBufAuthenticators(auths [][]byte) *colpb.Authenticators {
 	return &colpb.Authenticators{
-		Mac: auths,
+		Macs: auths,
 	}
 }
 

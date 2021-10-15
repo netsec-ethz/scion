@@ -132,7 +132,7 @@ func (k *keeper) keepDestination(ctx context.Context, dstIA addr.IA, entries []r
 	paths []snet.Path) (time.Time, error) {
 
 	// get reservations once and pass them along.
-	rsvs, err := k.manager.Store().GetReservationsAtSource(ctx, dstIA)
+	rsvs, err := k.manager.GetReservationsAtSource(ctx, dstIA)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -216,14 +216,7 @@ func (k *keeper) activateIndices(ctx context.Context, rsvs []*segment.Reservatio
 			return serrors.New("request to activate, but no index suitable", "id", rsv.ID,
 				"indices", rsv.Indices.String())
 		}
-		reqs[i] = &base.Request{
-			MsgId: base.MsgId{
-				ID:        rsv.ID,
-				Index:     index.Idx,
-				Timestamp: k.manager.Now(),
-			},
-			Path: rsv.PathAtSource.Copy(),
-		}
+		reqs[i] = base.NewRequest(k.manager.Now(), &rsv.ID, index.Idx, rsv.PathAtSource.Copy())
 	}
 	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, reqs))
 	if len(errs) > 0 {
@@ -291,10 +284,8 @@ func (k *keeper) requestNSuccessfulRsvs(ctx context.Context, dstIA addr.IA, entr
 		errs := k.manager.SetupManyRequest(ctx, setups)
 		for i, req := range setups {
 			if errs[i] == nil {
-				needActivation = append(needActivation, &base.Request{
-					MsgId: req.MsgId,
-					Path:  req.Path,
-				})
+				needActivation = append(needActivation, base.NewRequest(k.manager.Now(), &req.ID,
+					req.Index, req.Path))
 			}
 		}
 		errs = filterEmptyErrors(errs)
@@ -391,17 +382,12 @@ func (e *requirements) PrepareSetupRequests(paths []snet.Path,
 		if err != nil {
 			return nil, err
 		}
+		id := reservation.ID{
+			ASID:   localAS,
+			Suffix: make([]byte, reservation.IDSegLen),
+		}
 		req := &seg.SetupReq{
-			Request: base.Request{
-				MsgId: base.MsgId{
-					ID: reservation.ID{
-						ASID:   localAS,
-						Suffix: make([]byte, reservation.IDSegLen),
-					},
-					Timestamp: now,
-				},
-				Path: transp,
-			},
+			Request:        *base.NewRequest(now, &id, 0, transp),
 			ExpirationTime: expTime,
 			// RLC:            rlc,
 			PathType:     e.pathType,
@@ -429,14 +415,8 @@ func (e *requirements) PrepareRenewalRequests(rsvs []*seg.Reservation, now, expT
 		}
 
 		req := &seg.SetupReq{
-			Request: base.Request{
-				MsgId: base.MsgId{
-					ID:        rsv.ID, // new source setup in store
-					Index:     rsv.NextIndexToRenew(),
-					Timestamp: now,
-				},
-				Path: rsv.PathAtSource,
-			},
+			Request: *base.NewRequest(now, &rsv.ID, rsv.NextIndexToRenew(),
+				rsv.PathAtSource),
 			ExpirationTime: expTime,
 			// RLC:            e.RLC,
 			PathType:     rsv.PathType,

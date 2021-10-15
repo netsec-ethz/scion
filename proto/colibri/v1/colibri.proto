@@ -99,7 +99,7 @@ message TransparentPath {
 // A collection of MAC bytes, computed by the source AS with the original data, and then
 // overwritten at each step of the path by the AS in transit.
 message Authenticators {
-    repeated bytes mac = 1;
+    repeated bytes macs = 1;
 }
 
 ////////////////////////////////////////

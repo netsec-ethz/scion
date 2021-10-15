@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	col "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 )
 
 type MsgId struct {
@@ -37,11 +38,19 @@ type Request struct {
 }
 
 // NewRequest constructs the segment Request type.
+// If the authenticators argument is nil, a new and empty authenticators field is constructed.
 func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
-	path *TransparentPath) (*Request, error) {
+	path *TransparentPath) *Request {
 
-	if id == nil {
-		return nil, serrors.New("new segment request with nil ID")
+	var authenticators [][]byte
+	if path == nil {
+		path = &TransparentPath{}
+	}
+	if path.RawPath == nil {
+		path.RawPath = &empty.Path{}
+	}
+	if len(path.Steps) > 0 {
+		authenticators = make([][]byte, len(path.Steps)-1)
 	}
 	return &Request{
 		MsgId: MsgId{
@@ -50,8 +59,8 @@ func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
 			Index:     idx,
 		},
 		Path:           path,
-		Authenticators: make([][]byte, len(path.Steps)-1),
-	}, nil
+		Authenticators: authenticators,
+	}
 }
 
 // Validate ensures the data in the request is consistent. Calling methods on the request
@@ -59,6 +68,10 @@ func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
 func (r *Request) Validate() error {
 	if err := r.Path.Validate(); err != nil {
 		return serrors.WrapStr("bad path in request", err)
+	}
+	if len(r.Authenticators) != len(r.Path.Steps)-1 {
+		return serrors.New("inconsistent number of authenticators",
+			"auth_count", len(r.Authenticators), "path_len", len(r.Path.Steps))
 	}
 	return r.ValidateIgnorePath()
 }

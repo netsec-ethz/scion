@@ -38,9 +38,9 @@ type Manager interface {
 	periodic.Task
 	Now() time.Time
 	LocalIA() addr.IA
-	Store() reservationstorage.Store
 	// TODO(juagargi) move to sub interface, e.g. pather, comms manager,...
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
+	GetReservationsAtSource(ctx context.Context, dst addr.IA) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	SetupManyRequest(ctx context.Context, reqs []*segment.SetupReq) []error
 	ActivateRequest(ctx context.Context, req *base.Request) error
@@ -58,7 +58,7 @@ type manager struct {
 	wakeupAdmissionList time.Time
 	keeper              *keeper // handles new rsvs/indices
 	localIA             addr.IA
-	store               reservationstorage.Store
+	store               reservationstorage.Store // TODO(juagargi) this should be an InitialStore
 	router              snet.Router
 }
 
@@ -228,15 +228,17 @@ func (m *manager) LocalIA() addr.IA {
 	return m.localIA
 }
 
-func (m *manager) Store() reservationstorage.Store {
-	return m.store
-}
-
 func (m *manager) PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
 	paths, err := m.router.AllRoutes(ctx, dst)
 	log.Debug("colibri manager requested paths", "dst", dst, "count", len(paths), "err", err,
 		"paths", paths)
 	return paths, err
+}
+
+func (m *manager) GetReservationsAtSource(ctx context.Context, dst addr.IA) (
+	[]*segment.Reservation, error) {
+
+	return m.store.GetReservationsAtSource(ctx, dst)
 }
 
 func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error {
@@ -246,15 +248,8 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	}
 	rsv := req.Reservation
 	// confirm new index
-	confirmReq := &base.Request{
-		MsgId: base.MsgId{
-			ID:        rsv.ID,
-			Index:     req.Index,
-			Timestamp: m.now(),
-		},
-		Path: req.Path,
-	}
-	res, err := m.store.ConfirmSegmentReservation(ctx, confirmReq)
+	confirmReq := base.NewRequest(m.now(), &rsv.ID, req.Index, req.Path)
+	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq)
 	if err != nil || !res.Success() {
 		log.Info("failed to confirm the index", "id", req.ID, "idx", req.Index,
 			"err", err, "res", res)
@@ -279,7 +274,7 @@ func (m *manager) SetupManyRequest(ctx context.Context, reqs []*segment.SetupReq
 }
 
 func (m *manager) ActivateRequest(ctx context.Context, req *base.Request) error {
-	res, err := m.store.ActivateSegmentReservation(ctx, req)
+	res, err := m.store.InitActivateSegmentReservation(ctx, req)
 	if err != nil {
 		return err
 	}

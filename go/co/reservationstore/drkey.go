@@ -19,6 +19,7 @@ import (
 	"crypto/aes"
 	"crypto/subtle"
 	"encoding/binary"
+	"encoding/hex"
 	"time"
 
 	"github.com/dchest/cmac"
@@ -28,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -38,7 +40,11 @@ type Authenticator interface {
 }
 
 type macComputer interface {
-	// SegmentRequestInitialMAC computes the MAC for the immutable fields of the request,
+	// ComputeRequestInitialMAC computes the MAC for the immutable fields of the basic request,
+	// for each AS in transit. This MAC is only computed at the first AS.
+	// The inital AS is obtained from the first step of the path of the request.
+	ComputeRequestInitialMAC(ctx context.Context, req *base.Request) error
+	// SegmentRequestInitialMAC computes the MAC for the immutable fields of the setup request,
 	// for each AS in transit. This MAC is only computed at the first AS.
 	// The initial AS is obtained from the first step of the path of the request.
 	ComputeSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq) error
@@ -72,26 +78,19 @@ func NewDrkeyAuthenticator(localIA addr.IA, connector daemon.Connector) Authenti
 	}
 }
 
+func (a *DrkeyAuthenticator) ComputeRequestInitialMAC(ctx context.Context,
+	req *base.Request) error {
+
+	payload := make([]byte, req.ID.Len()+1+4)
+	inputInitialSegRequest(payload, req)
+	return a.computeInitialMACforPayload(ctx, payload, req)
+}
+
 func (a *DrkeyAuthenticator) ComputeSegmentSetupRequestInitialMAC(ctx context.Context,
 	req *segment.SetupReq) error {
 
-	keys, err := a.slowAS2ASFromPath(ctx, a.localIA, req.PathAtSource)
-	if err != nil {
-		return err
-	}
-	assert(len(keys) == len(req.PathAtSource.Steps)-1, "bad key set with length %d (should be %d)",
-		len(keys), len(req.PathAtSource.Steps)-1)
-	for i := 0; i < len(req.PathAtSource.Steps); i++ {
-		step := req.PathAtSource.Steps[i+1]
-		key := keys[step.IA]
-
-		payload := inputInitialSegSetupRequest(req)
-		req.Authenticators[i], err = MAC(key, payload)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	payload := inputInitialSegSetupRequest(req)
+	return a.computeInitialMACforPayload(ctx, payload, &req.Request)
 }
 
 func (a *DrkeyAuthenticator) ValidateRequestInitialMAC(ctx context.Context,
@@ -129,19 +128,48 @@ func (a *DrkeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Contex
 	if err != nil {
 		return false, serrors.WrapStr("validating setup request", err)
 	}
-	return subtle.ConstantTimeCompare(mac, req.CurrentValidatorField()) == 0, nil
+	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
+	if res != 1 {
+		log.Info("source authentication failed", "id", req.ID,
+			"fast_side", a.localIA,
+			"slow_side", req.Path.SrcIA(), "mac", hex.EncodeToString(mac),
+			"expected", hex.EncodeToString(req.CurrentValidatorField()))
+		return false, nil
+	}
+	return true, nil
+}
+
+func (a *DrkeyAuthenticator) computeInitialMACforPayload(ctx context.Context, payload []byte,
+	req *base.Request) error {
+
+	keys, err := a.slowAS2ASFromPath(ctx, req.Path)
+	if err != nil {
+		return err
+	}
+	assert(len(keys) == len(req.Path.Steps)-1, "bad key set with length %d (should be %d)",
+		len(keys), len(req.Path.Steps)-1)
+	for i := 1; i < len(req.Path.Steps); i++ {
+		step := req.Path.Steps[i]
+		key := keys[step.IA]
+
+		req.Authenticators[i-1], err = MAC(key, payload)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // slowLvl1FromPath gets the L1 keys from the slow side to all ASes in the path.
-func (a *DrkeyAuthenticator) slowAS2ASFromPath(ctx context.Context, src addr.IA,
-	path *base.TransparentPath) (map[addr.IA][]byte, error) {
+func (a *DrkeyAuthenticator) slowAS2ASFromPath(ctx context.Context, path *base.TransparentPath) (
+	map[addr.IA][]byte, error) {
 
 	keys := make(map[addr.IA][]byte)
 	for _, step := range path.Steps {
-		if step.IA.Equal(src) {
+		if step.IA.Equal(a.localIA) {
 			continue // skip the reservation initiator
 		}
-		key, err := a.getDRKeyAS2AS(ctx, step.IA, src)
+		key, err := a.getDRKeyAS2AS(ctx, step.IA, a.localIA)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +183,7 @@ func (a *DrkeyAuthenticator) getDRKeyAS2AS(ctx context.Context, fast, slow addr.
 
 	meta := drkey.Lvl2Meta{
 		KeyType:  drkey.AS2AS,
-		Protocol: "piskes",
+		Protocol: "colibri",
 		SrcIA:    fast,
 		DstIA:    slow,
 	}
@@ -202,7 +230,6 @@ func MAC(key, payload []byte) ([]byte, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("initializing cmac", err)
 	}
-	// TODO(juagargi) deleteme compute MAC using key and store it in macCodes[i]
 	_, err = mac.Write(payload)
 	if err != nil {
 		return nil, serrors.WrapStr("preparing mac", err)
