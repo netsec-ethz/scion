@@ -398,6 +398,16 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
+	if req.IsLastAS() {
+		ok, err := s.authenticator.ValidateSegmentSetupRequestAtDestination(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, serrors.New("source authentication invalid at destination")
+		}
+	}
+
 	return s.admitSegmentReservation(ctx, req)
 }
 

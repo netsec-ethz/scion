@@ -69,6 +69,9 @@ type macVerifier interface {
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
 	// the setup request. Returns true if valid, false otherwise.
 	ValidateE2eSetupRequestInitialMAC(ctx context.Context, req *e2e.SetupReq) (bool, error)
+
+	ValidateSegmentSetupRequestAtDestination(ctx context.Context, req *segment.SetupReq) (
+		bool, error)
 }
 
 // DrkeyAuthenticator implements macComputer and macVerifier using DRKey.
@@ -150,6 +153,36 @@ func (a *DrkeyAuthenticator) ValidateE2eSetupRequestInitialMAC(ctx context.Conte
 	// TODO(juagargi) deleteme: implement
 	return false, nil
 
+}
+
+func (a *DrkeyAuthenticator) ValidateSegmentSetupRequestAtDestination(ctx context.Context,
+	req *segment.SetupReq) (bool, error) {
+
+	if len(req.Authenticators) != len(req.Path.Steps)-1 {
+		return false, serrors.New("insconsistent length in request",
+			"auth_count", len(req.Authenticators), "step_count", len(req.Path.Steps))
+	}
+	for i := 0; i < len(req.Authenticators)-1; i++ {
+		step := req.Path.Steps[i+1]
+		payload := inputTransitSegSetupRequestForStep(req, i+1)
+		key, err := a.getDRKeyAS2AS(ctx, step.IA, a.localIA)
+		if err != nil {
+			return false, serrors.WrapStr("validating source authentic at destination", err)
+		}
+		mac, err := MAC(key, payload)
+		if err != nil {
+			return false, serrors.WrapStr("computing mac validating source at destination", err)
+		}
+		res := subtle.ConstantTimeCompare(mac, req.Authenticators[i])
+		if res != 1 {
+			log.Info("source authentication failed", "id", req.ID,
+				"fast_side", step.IA,
+				"slow_side", a.localIA, "mac", hex.EncodeToString(mac),
+				"expected", hex.EncodeToString(req.Authenticators[i]))
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (a *DrkeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Context,
@@ -281,8 +314,12 @@ func inputTransitSegRequest(req *base.Request) []byte {
 }
 
 func inputTransitSegSetupRequest(req *segment.SetupReq) []byte {
+	return inputTransitSegSetupRequestForStep(req, req.Path.CurrentStep)
+}
+
+func inputTransitSegSetupRequestForStep(req *segment.SetupReq, step int) []byte {
 	initial := inputInitialSegSetupRequest(req)
-	bead := req.AllocTrail[req.Path.CurrentStep]
+	bead := req.AllocTrail[step]
 	return append(initial, byte(bead.AllocBW), byte(bead.MaxBW))
 }
 
