@@ -48,6 +48,12 @@ type macComputer interface {
 	// for each AS in transit. This MAC is only computed at the first AS.
 	// The initial AS is obtained from the first step of the path of the request.
 	ComputeSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq) error
+
+	ComputeRequestTransitMAC(ctx context.Context, req *base.Request) error
+
+	ComputeSegmentSetupRequestTransitMAC(ctx context.Context, req *segment.SetupReq) error
+
+	ComputeE2eSetupRequestTransitMAC(ctx context.Context, req *e2e.SetupReq) error
 }
 
 type macVerifier interface {
@@ -91,6 +97,36 @@ func (a *DrkeyAuthenticator) ComputeSegmentSetupRequestInitialMAC(ctx context.Co
 
 	payload := inputInitialSegSetupRequest(req)
 	return a.computeInitialMACforPayload(ctx, payload, &req.Request)
+}
+
+func (a *DrkeyAuthenticator) ComputeRequestTransitMAC(ctx context.Context,
+	req *base.Request) error {
+
+	if req.IsFirstAS() || req.IsLastAS() {
+		return nil
+	}
+	payload := inputTransitSegRequest(req)
+	return a.computeTransitMACforPayload(ctx, payload, req)
+}
+
+func (a *DrkeyAuthenticator) ComputeSegmentSetupRequestTransitMAC(ctx context.Context,
+	req *segment.SetupReq) error {
+
+	if req.IsFirstAS() || req.IsLastAS() {
+		return nil
+	}
+	payload := inputTransitSegSetupRequest(req)
+	return a.computeTransitMACforPayload(ctx, payload, &req.Request)
+}
+
+func (a *DrkeyAuthenticator) ComputeE2eSetupRequestTransitMAC(ctx context.Context,
+	req *e2e.SetupReq) error {
+
+	if req.IsFirstAS() || req.IsLastAS() {
+		return nil
+	}
+	// deleteme: implement
+	return nil
 }
 
 func (a *DrkeyAuthenticator) ValidateRequestInitialMAC(ctx context.Context,
@@ -160,6 +196,20 @@ func (a *DrkeyAuthenticator) computeInitialMACforPayload(ctx context.Context, pa
 	return nil
 }
 
+func (a *DrkeyAuthenticator) computeTransitMACforPayload(ctx context.Context, payload []byte,
+	req *base.Request) error {
+
+	key, err := a.getDRKeyAS2AS(ctx, a.localIA, req.Path.DstIA())
+	if err != nil {
+		return err
+	}
+	req.Authenticators[req.Path.CurrentStep-1], err = MAC(key, payload)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // slowLvl1FromPath gets the L1 keys from the slow side to all ASes in the path.
 func (a *DrkeyAuthenticator) slowAS2ASFromPath(ctx context.Context, path *base.TransparentPath) (
 	map[addr.IA][]byte, error) {
@@ -219,6 +269,21 @@ func inputInitialSegSetupRequest(req *segment.SetupReq) []byte {
 	buff[offset+4] = byte(req.SplitCls)
 	buff[offset+5] = byte(req.PathProps)
 	return buff
+}
+
+func inputTransitSegRequest(req *base.Request) []byte {
+	// TODO(juagargi) reason about this function: do we need to add something to the initial
+	// payload?
+	offset := req.ID.Len() + 1 + 4
+	buff := make([]byte, offset)
+	inputInitialSegRequest(buff, req)
+	return buff
+}
+
+func inputTransitSegSetupRequest(req *segment.SetupReq) []byte {
+	initial := inputInitialSegSetupRequest(req)
+	bead := req.AllocTrail[req.Path.CurrentStep]
+	return append(initial, byte(bead.AllocBW), byte(bead.MaxBW))
 }
 
 func MAC(key, payload []byte) ([]byte, error) {

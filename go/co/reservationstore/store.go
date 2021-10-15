@@ -451,6 +451,12 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request
 	if req.IsLastAS() {
 		return &base.ResponseSuccess{}, nil
 	}
+
+	// authenticate request for the destination AS
+	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req); err != nil {
+		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
+	}
+
 	// forward to next colibri service
 	client, err := s.operator.ColibriClient(ctx, req.Path)
 	if err != nil {
@@ -528,6 +534,11 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 	if req.IsLastAS() {
 		return &base.ResponseSuccess{}, nil
 	}
+
+	// authenticate request for the destination AS
+	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req); err != nil {
+		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
+	}
 	// forward to next colibri service
 	client, err := s.operator.ColibriClient(ctx, req.Path)
 	if err != nil {
@@ -597,6 +608,11 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request
 	if req.IsLastAS() {
 		return &base.ResponseSuccess{}, nil
 	}
+
+	// authenticate request for the destination AS
+	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req); err != nil {
+		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
+	}
 	// forward to next colibri service
 	client, err := s.operator.ColibriClient(ctx, req.Path)
 	if err != nil {
@@ -651,6 +667,11 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Reques
 
 	if req.IsLastAS() {
 		return &base.ResponseSuccess{}, nil
+	}
+
+	// authenticate request for the destination AS
+	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req); err != nil {
+		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
 	}
 	// forward to next colibri service
 	client, err := s.operator.ColibriClient(ctx, req.Path)
@@ -1017,6 +1038,7 @@ func (s *Store) authenticateReq(ctx context.Context, req *base.Request) error {
 	if !ok {
 		return serrors.New("source authentication invalid")
 	}
+
 	return nil
 }
 
@@ -1029,6 +1051,7 @@ func (s *Store) authenticateSegSetupReq(ctx context.Context, req *segment.SetupR
 	if !ok {
 		return serrors.New("source authentication invalid")
 	}
+
 	return nil
 }
 
@@ -1041,6 +1064,7 @@ func (s *Store) authenticateE2eSetupReq(ctx context.Context, req *e2e.SetupReq) 
 	if !ok {
 		return serrors.New("source authentication invalid")
 	}
+
 	return nil
 }
 
@@ -1168,6 +1192,11 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 
 func (s *Store) getTokenFromDownstreamAdmission(ctx context.Context, req *segment.SetupReq) (
 	*reservation.Token, error) {
+
+	// authenticate request for the destination AS
+	if err := s.authenticator.ComputeSegmentSetupRequestTransitMAC(ctx, req); err != nil {
+		return nil, serrors.WrapStr("computing in transit seg. setup authenticator", err)
+	}
 
 	client, err := s.operator.ColibriClient(ctx, req.Path)
 	if err != nil {
