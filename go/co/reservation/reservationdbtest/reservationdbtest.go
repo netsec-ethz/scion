@@ -606,7 +606,7 @@ func testNextExpirationTime(ctx context.Context, t *testing.T, newDB func() back
 	re2e := &e2e.Reservation{
 		ID: reservation.ID{
 			ASID:   xtest.MustParseAS("ff00:0:1"),
-			Suffix: make([]byte, reservation.IDE2ELen),
+			Suffix: make([]byte, reservation.IDSuffixE2ELen),
 		},
 		SegmentReservations: []*segment.Reservation{r},
 	}
@@ -626,7 +626,7 @@ func testNextExpirationTime(ctx context.Context, t *testing.T, newDB func() back
 	re2e = &e2e.Reservation{
 		ID: reservation.ID{
 			ASID:   xtest.MustParseAS("ff00:0:1"),
-			Suffix: make([]byte, reservation.IDE2ELen),
+			Suffix: make([]byte, reservation.IDSuffixE2ELen),
 		},
 		SegmentReservations: []*segment.Reservation{r},
 	}
@@ -719,7 +719,7 @@ func testGetE2ERsvFromID(ctx context.Context, t *testing.T, newDB func() backend
 	checkThisRsvs := map[int]*e2e.Reservation{1: nil, 16: nil, 50: nil, 100: nil}
 	for i := 1; i <= 100; i++ {
 		r := newTestE2EReservation(t)
-		r.ID.Suffix = make([]byte, reservation.IDSegLen)
+		r.ID.Suffix = make([]byte, reservation.IDSuffixSegLen)
 		binary.BigEndian.PutUint32(r.ID.Suffix, uint32(i))
 		_, found := checkThisRsvs[i]
 		if found {
@@ -746,7 +746,7 @@ func testGetE2ERsvFromID(ctx context.Context, t *testing.T, newDB func() backend
 	for i, r := range checkThisRsvs {
 		ID := reservation.ID{
 			ASID:   xtest.MustParseAS("ff00:0:1"),
-			Suffix: make([]byte, reservation.IDSegLen),
+			Suffix: make([]byte, reservation.IDSuffixSegLen),
 		}
 		binary.BigEndian.PutUint32(ID.Suffix, uint32(i))
 		rsv, err := db.GetE2ERsvFromID(ctx, &ID)
@@ -790,7 +790,7 @@ func testGetE2ERsvFromID(ctx context.Context, t *testing.T, newDB func() backend
 	require.NoError(t, err)
 	require.Nil(t, rsv)
 
-	require.Len(t, r.ID.Suffix, reservation.IDE2ELen)
+	require.Len(t, r.ID.Suffix, reservation.IDSuffixE2ELen)
 	rand.Read(r.ID.Suffix)
 	t.Logf("Retrieving ID %s", r.ID)
 	err = db.PersistE2ERsv(ctx, r)
@@ -1134,7 +1134,7 @@ func newTestE2EReservation(t *testing.T) *e2e.Reservation {
 	rsv := &e2e.Reservation{
 		ID: reservation.ID{
 			ASID:   xtest.MustParseAS("ff00:0:1"),
-			Suffix: make([]byte, reservation.IDE2ELen),
+			Suffix: make([]byte, reservation.IDSuffixE2ELen),
 		},
 		SegmentReservations: []*segment.Reservation{
 			newTestReservation(t),

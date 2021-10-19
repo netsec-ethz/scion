@@ -93,7 +93,7 @@ func NewReservation(ctx context.Context,
 	setupReq := &colibri.E2EReservationSetup{
 		Id: reservation.ID{
 			ASID:   localIA.AS(),
-			Suffix: make([]byte, reservation.IDE2ELen),
+			Suffix: make([]byte, reservation.IDSuffixE2ELen),
 		},
 		SrcIA:       localIA,
 		DstIA:       dstIA,

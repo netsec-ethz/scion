@@ -175,7 +175,7 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 			if err != nil {
 				return err
 			}
-			rsv.ID.Suffix = make([]byte, reservation.IDSegLen)
+			rsv.ID.Suffix = make([]byte, reservation.IDSuffixSegLen)
 			binary.BigEndian.PutUint32(rsv.ID.Suffix, suffix)
 			// the call to newSuffix guarantees this will be an insert
 			if err := upsertNewSegReservation(ctx, tx, rsv); err != nil {
@@ -646,7 +646,7 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	}
 
 	p := rsv.PathAtSource
-	const query = `INSERT INTO seg_reservation (id_as, id_suffix, 
+	const query = `INSERT INTO seg_reservation (id_as, id_suffix,
 		ingress, egress, path_type, path, end_props,
 		traffic_split, src_ia, dst_ia, active_index)
 		VALUES (?, ?,?,?,?,?,?,?,?,?,?)
@@ -763,7 +763,7 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 		return nil, err
 	}
 	rsv := segment.NewReservation(addr.AS(fields.AsID))
-	rsv.ID.Suffix = make([]byte, reservation.IDSegLen)
+	rsv.ID.Suffix = make([]byte, reservation.IDSuffixSegLen)
 	binary.BigEndian.PutUint32(rsv.ID.Suffix, fields.Suffix)
 	rsv.Ingress = fields.Ingress
 	rsv.Egress = fields.Egress

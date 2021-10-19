@@ -42,7 +42,7 @@ func NewReservation(asid addr.AS) *Reservation {
 	return &Reservation{
 		ID: reservation.ID{
 			ASID:   asid,
-			Suffix: make([]byte, reservation.IDSegLen),
+			Suffix: make([]byte, reservation.IDSuffixSegLen),
 		},
 		activeIndex: -1,
 	}

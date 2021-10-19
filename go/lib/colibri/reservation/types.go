@@ -39,15 +39,15 @@ type ID struct {
 }
 
 const (
-	IDSegLen = 4
-	IDE2ELen = 12
+	IDSuffixSegLen = 4
+	IDSuffixE2ELen = 12
 )
 
 var _ io.Reader = (*ID)(nil)
 
 // NewID returns a new ID
 func NewID(AS addr.AS, suffix []byte) (*ID, error) {
-	if len(suffix) != IDSegLen && len(suffix) != IDE2ELen {
+	if len(suffix) != IDSuffixSegLen && len(suffix) != IDSuffixE2ELen {
 		return nil, serrors.New("wrong suffix length, should be 4 or 12", "actual_len", len(suffix))
 	}
 	id := ID{
@@ -108,11 +108,11 @@ func (id *ID) Copy() *ID {
 }
 
 func (id *ID) IsSegmentID() bool {
-	return len(id.Suffix) == IDSegLen
+	return len(id.Suffix) == IDSuffixSegLen
 }
 
 func (id *ID) IsE2EID() bool {
-	return len(id.Suffix) == IDE2ELen
+	return len(id.Suffix) == IDSuffixE2ELen
 }
 
 // Read serializes this ID into the buffer.

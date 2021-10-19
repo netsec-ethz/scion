@@ -384,7 +384,7 @@ func (e *requirements) PrepareSetupRequests(paths []snet.Path,
 		}
 		id := reservation.ID{
 			ASID:   localAS,
-			Suffix: make([]byte, reservation.IDSegLen),
+			Suffix: make([]byte, reservation.IDSuffixSegLen),
 		}
 		req := &seg.SetupReq{
 			Request:        *base.NewRequest(now, &id, 0, transp),

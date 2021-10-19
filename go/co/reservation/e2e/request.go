@@ -31,9 +31,9 @@ type SetupReq struct {
 	SrcHost                net.IP
 	DstIA                  addr.IA
 	DstHost                net.IP
+	RequestedBW            col.BWCls
 	SegmentRsvs            []col.ID
 	CurrentSegmentRsvIndex int // index in SegmentRsv above. Transfer nodes use the first segment
-	RequestedBW            col.BWCls
 	AllocationTrail        []col.BWCls
 	isTransferOnce         sync.Once
 	isTransfer             bool

@@ -37,20 +37,20 @@ func TestIDRead(t *testing.T) {
 		ASID: xtest.MustParseAS("ffaa:0:1101"),
 	}
 	reference.Suffix = xtest.MustParseHexString("facecafe")
-	raw := make([]byte, 6+IDSegLen)
+	raw := make([]byte, 6+IDSuffixSegLen)
 	n, err := reference.Read(raw)
 	require.NoError(t, err)
-	require.Equal(t, 6+IDSegLen, n)
+	require.Equal(t, 6+IDSuffixSegLen, n)
 	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafe"), raw)
 	require.True(t, reference.IsSegmentID())
 	require.Equal(t, n, reference.Len())
 
 	// E2E
 	reference.Suffix = xtest.MustParseHexString("facecafedeadbeeff00dcafe")
-	raw = make([]byte, 6+IDE2ELen)
+	raw = make([]byte, 6+IDSuffixE2ELen)
 	n, err = reference.Read(raw)
 	require.NoError(t, err)
-	require.Equal(t, 6+IDE2ELen, n)
+	require.Equal(t, 6+IDSuffixE2ELen, n)
 	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00dcafe"), raw)
 	require.True(t, reference.IsE2EID())
 	require.Equal(t, n, reference.Len())
@@ -86,7 +86,7 @@ func TestE2EIDFromRaw(t *testing.T) {
 func TestIDCopy(t *testing.T) {
 	id1 := ID{
 		ASID:   xtest.MustParseAS("ff00:0:111"),
-		Suffix: make([]byte, IDE2ELen),
+		Suffix: make([]byte, IDSuffixE2ELen),
 	}
 	id1.Suffix[1] = 1
 	id2 := id1.Copy()

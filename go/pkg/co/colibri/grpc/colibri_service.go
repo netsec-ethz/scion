@@ -229,14 +229,16 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 	if err != nil {
 		return nil, err
 	}
+	// TODO(juagargi) validate the incoming request
 	now := time.Now()
 	// build a valid E2E setup request now and query the store with it
 	pbReq := &colpb.E2ESetupRequest{
 		Base: &colpb.Request{
-			Id:        msg.Id,
-			Index:     msg.Index,
-			Timestamp: util.TimeToSecs(now),
-			Path:      &colpb.TransparentPath{},
+			Id:             msg.Id,
+			Index:          msg.Index,
+			Timestamp:      util.TimeToSecs(now),
+			Path:           &colpb.TransparentPath{},
+			Authenticators: &colpb.Authenticators{Macs: nil},
 		},
 		RequestedBw: msg.RequestedBw,
 		Params: &colpb.E2ESetupRequest_PathParams{
