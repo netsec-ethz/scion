@@ -67,7 +67,7 @@ var _ snet.Path = (*Reservation)(nil)
 // "more important" to the sorting).
 func NewReservation(ctx context.Context,
 	daemon daemon.Connector,
-	localIA, dstIA addr.IA, dstHost net.IP,
+	localIA addr.IA, srcHost net.IP, dstIA addr.IA, dstHost net.IP,
 	bw reservation.BWCls, index reservation.IndexNumber,
 	lessFcns ...LessFunction) (*Reservation, error) {
 
@@ -89,18 +89,23 @@ func NewReservation(ctx context.Context,
 		})
 	}
 	trip := trips[0]
-	// 3. create setup reservation
+	// 3. compute authenticators
+	authenticators := [][]byte{} // deleteme TODO(juagargi)
+	// 4. create setup reservation
 	setupReq := &colibri.E2EReservationSetup{
-		Id: reservation.ID{
-			ASID:   localIA.AS(),
-			Suffix: make([]byte, reservation.IDSuffixE2ELen),
+		BaseRequest: colibri.BaseRequest{
+			Id: reservation.ID{
+				ASID:   localIA.AS(),
+				Suffix: make([]byte, reservation.IDSuffixE2ELen),
+			},
+			Index:          index,
+			SrcHost:        srcHost,
+			DstHost:        dstHost,
+			Path:           trip.Path(),
+			Authenticators: authenticators,
 		},
-		SrcIA:       localIA,
-		DstIA:       dstIA,
-		DstHost:     dstHost,
-		Index:       index,
-		Segments:    trip.Segments(),
 		RequestedBW: bw,
+		Segments:    trip.Segments(),
 	}
 	rand.Read(setupReq.Id.Suffix) // random suffix
 	return &Reservation{
@@ -156,7 +161,7 @@ func (r *Reservation) Close(ctx context.Context) error {
 	r.runner.Stop()
 	r.runner = nil
 
-	return r.daemon.ColibriCleanupRsv(ctx, &r.request.Id, r.request.Index)
+	return r.daemon.ColibriCleanupRsv(ctx, &r.request.BaseRequest)
 }
 
 func (r *Reservation) CurrentTrip() colibri.FullTrip {

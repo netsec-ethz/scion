@@ -15,11 +15,12 @@
 package e2e
 
 import (
+	"encoding/binary"
+	"fmt"
 	"net"
-	"sync"
 
 	base "github.com/scionproto/scion/go/co/reservation"
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	col "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -27,16 +28,13 @@ import (
 // SetupReq is an e2e setup/renewal request, that has been so far accepted.
 type SetupReq struct {
 	base.Request
-	SrcIA                  addr.IA // necessary to compute the MACs during admission
 	SrcHost                net.IP
-	DstIA                  addr.IA
 	DstHost                net.IP
 	RequestedBW            col.BWCls
 	SegmentRsvs            []col.ID
 	CurrentSegmentRsvIndex int // index in SegmentRsv above. Transfer nodes use the first segment
 	AllocationTrail        []col.BWCls
-	isTransferOnce         sync.Once
-	isTransfer             bool
+	TransferIndices        []int // up to two indices (from Path) where the transfers are
 }
 
 type SetupFailureInfo struct {
@@ -45,13 +43,7 @@ type SetupFailureInfo struct {
 }
 
 func (r *SetupReq) Validate() error {
-	var err error
-	if r.RequestPathNeedsSteps() {
-		err = r.Request.ValidateIgnorePath()
-	} else {
-		err = r.Request.Validate()
-	}
-	if err != nil {
+	if err := r.Request.Validate(); err != nil {
 		return err
 	}
 
@@ -62,47 +54,43 @@ func (r *SetupReq) Validate() error {
 		return serrors.New("invalid number of segment reservations for an e2e request",
 			"count", len(r.SegmentRsvs))
 	}
-	if r.SrcIA.IsZero() || r.SrcHost == nil || r.SrcHost.IsUnspecified() ||
-		r.DstIA.IsZero() || r.DstHost == nil || r.DstHost.IsUnspecified() {
+	if r.SrcHost == nil || r.SrcHost.IsUnspecified() ||
+		r.DstHost == nil || r.DstHost.IsUnspecified() {
 
-		return serrors.New("empty fields not allowed", "src_ia", r.SrcIA, "src_host", r.SrcHost,
-			"dst_ia", r.DstIA, "dst_host", r.DstHost)
+		return serrors.New("empty fields not allowed", "src_host", r.SrcHost, "dst_host", r.DstHost)
 	}
 	return nil
 }
 
-// RequestPathNeedsSteps indicates a request that will need to extend its base.Request.Path.
-// This happens everytime the AS is at the end of the path but there are still segments
-// pending to transit.
-func (r *SetupReq) RequestPathNeedsSteps() bool {
-	return len(r.Path.Steps) == 0 ||
-		(r.IsLastAS() && r.CurrentSegmentRsvIndex < len(r.SegmentRsvs)-1)
-}
-
-// IsTransfer indicates if the node where this being processed is a transfer node or not.
-// A transfer node is that node that stitches two segment reservations when creating a new
-// E2E reservation. It needs at least two segments and to be present right at the end of
-// the current segment. The first or last node in the full request path is never a transfer node.
-func (r *SetupReq) IsTransfer() bool {
-	r.isTransferOnce.Do(func() {
-		if len(r.SegmentRsvs) > 1 && r.CurrentSegmentRsvIndex < len(r.SegmentRsvs)-1 &&
-			r.Path.CurrentStep > 0 && r.Path.CurrentStep == len(r.Path.Steps)-1 {
-			r.isTransfer = true
-		} else {
-			r.isTransfer = false
-		}
-	})
-	return r.isTransfer
-}
-
-// SegmentRsvIDsForThisAS returns the segment reservation ID this AS belongs to. Iff this
-// AS is a transfer AS (stitching point), there will be two reservation IDs returned, in the
-// order of traversal.
-func (r *SetupReq) SegmentRsvIDsForThisAS() []col.ID {
-	indices := make([]col.ID, 1, 2)
-	indices[0] = r.SegmentRsvs[r.CurrentSegmentRsvIndex]
-	if r.IsTransfer() {
-		indices = append(indices, r.SegmentRsvs[r.CurrentSegmentRsvIndex+1])
+func (r *SetupReq) SerializeImmutableFields() []byte {
+	if r == nil {
+		return nil
 	}
-	return indices
+	length := r.ID.Len() + 1 + 4 // ID + index + timestamp
+	// srcIA + srcHost + dstIA + dstHost + BW + seg_reservations
+	length += 8 + 16 + 8 + 16 + 1 + len(r.SegmentRsvs)*(reservation.IDSuffixSegLen+6)
+	buff := make([]byte, length)
+
+	offset := r.ID.Len() + 1 + 4
+	r.Request.Serialize(buff[:offset])
+
+	binary.BigEndian.PutUint64(buff[offset:], uint64(r.Path.SrcIA().IAInt()))
+	offset += 8
+	copy(buff[offset:], r.SrcHost.To16())
+	offset += 16
+	binary.BigEndian.PutUint64(buff[offset:], uint64(r.Path.DstIA().IAInt()))
+	offset += 8
+	copy(buff[offset:], r.DstHost.To16())
+	offset += 16
+	buff[offset] = byte(r.RequestedBW)
+	offset++
+	for _, id := range r.SegmentRsvs {
+		n, _ := id.Read(buff)
+		if n != reservation.IDSuffixSegLen+6 {
+			panic(fmt.Sprintf("inconsistent id length %d (should be %d)",
+				n, reservation.IDSuffixSegLen+6))
+		}
+		offset += reservation.IDSuffixSegLen + 6
+	}
+	return buff
 }

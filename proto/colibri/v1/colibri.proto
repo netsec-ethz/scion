@@ -253,7 +253,7 @@ message ListReservationsResponse {
         // split class
         uint32 splitcls = 8;
         // the path (sequence of AS steps) of this reservation.
-        repeated PathStep path = 9;
+        repeated PathStep path_steps = 9;
     }
     // human readable error message or nil if this response is not an error.
     string error_message = 1;
@@ -270,15 +270,10 @@ message E2eSetupRequest {
         // index of the current segment.
         // If the node is transfer, the first segment it belongs to.
         uint32 current_segment = 2;
-        // source IA. Its ASID part will be identical to the ASID field of the rsv. ID.
-        uint64 src_ia = 3;
-        // encodes the address of the source host.
-        bytes src_host = 4;
-        // The destination IA, used to compute MACs as we pass the request to the next AS.
-        uint64 dst_ia = 5;
+        bytes src_host = 3;
         // encodes the address of the destination host. It must be the same address that the
         // destination used to register itself in its COLIBRI service.
-        bytes dst_host = 6;
+        bytes dst_host = 4;
     }
     message E2eSetupBead {
         // each on path AS writes here the max. BW it's willing to give.
@@ -288,12 +283,12 @@ message E2eSetupRequest {
     // the base request. The path included here is from src to dst, so the full path.
     Request base = 1;
     // the requested bw.
-    uint32 requested_bw = 3;
+    uint32 requested_bw = 2;
     // the parameters of the request.
-    PathParams params = 4;
+    PathParams params = 3;
     // the allocation trail. All on path ASes will write an entry,
     // to know which AS are willing to grant how much.
-    repeated E2eSetupBead allocationtrail = 5;
+    repeated E2eSetupBead allocationtrail = 4;
 }
 
 message E2eSetupResponse {
@@ -346,20 +341,22 @@ message ListStitchablesResponse {
 // The message doesn't have a src_host because the service will automatically use the
 // source address of the TCP connection.
 message SetupReservationRequest {
-    // src IA.
-    uint64 src_ia = 1;
-    // dst IA.
-    uint64 dst_ia = 2;
-    // address of the destination host.
-    bytes dst_host = 3;
     // the E2E reservation ID.
-    ReservationID id = 4;
+    ReservationID id = 1;
     // the E2E index.
-    uint32 index = 5;
+    uint32 index = 2;
+    // address of the source host. Must match the IP used in authenticators.
+    bytes src_host = 3;
+    // address of the destination host.
+    bytes dst_host = 4;
+    // the requested BW.
+    uint32 requested_bw = 5;
     // the SegR IDs to stitch for this EER.
     repeated ReservationID segments = 6;
-    // the requested BW.
-    uint32 requested_bw = 7;
+    // the transport path.
+    repeated PathStep path_steps = 7;
+    // drkey authenticators.
+    Authenticators authenticators = 8;
 }
 
 message SetupReservationResponse {
@@ -384,10 +381,12 @@ message SetupReservationResponse {
 }
 
 message CleanupReservationRequest {
-    // the EER ID to clean.
-    ReservationID id = 1;
-    // the EER index to clean.
-    uint32 index = 2;
+    // the basic request.
+    Request base = 1;
+    // address of the source host.
+    bytes src_host = 2;
+    // address of the destination host.
+    bytes dst_host = 3;
 }
 
 message CleanupReservationResponse {

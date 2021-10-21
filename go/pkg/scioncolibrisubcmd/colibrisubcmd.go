@@ -104,7 +104,7 @@ func humanSegLook(cs ColorScheme, look *colibri.ReservationLooks) string {
 	return strings.Join(cs.KeyValues(
 		"ID", look.Id.String(),
 		"bw", fmt.Sprintf("%3d", look.AllocBW),
-		"steps", humanPathSteps(cs, look.Path),
+		"steps", humanPathSteps(cs, look.PathSteps),
 		"Expiration", humanStatus(cs, look.ExpirationTime.UTC()),
 	), " ")
 }

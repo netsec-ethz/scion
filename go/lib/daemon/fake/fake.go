@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
-	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -205,8 +204,7 @@ func (c connector) ColibriSetupRsv(context.Context, *colibri.E2EReservationSetup
 	panic("not implemented")
 }
 
-func (c connector) ColibriCleanupRsv(context.Context, *reservation.ID,
-	reservation.IndexNumber) error {
+func (c connector) ColibriCleanupRsv(context.Context, *colibri.BaseRequest) error {
 
 	panic("not implemented")
 }

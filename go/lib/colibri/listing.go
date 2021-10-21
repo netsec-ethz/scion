@@ -36,7 +36,7 @@ type ReservationLooks struct {
 	MaxBW          reservation.BWCls
 	AllocBW        reservation.BWCls
 	Split          reservation.SplitCls
-	Path           []base.PathStep
+	PathSteps      []base.PathStep
 }
 
 func (l *ReservationLooks) Copy() *ReservationLooks {

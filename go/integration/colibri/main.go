@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
@@ -76,7 +77,7 @@ func realMain() int {
 		Daemon:  integration.SDConn(),
 		Timeout: timeout.Duration,
 		Metrics: scionConnMetrics,
-		LocalIA: integration.Local.IA,
+		Local:   &integration.Local,
 		Remote:  &remote,
 	}
 	return c.run()
@@ -191,13 +192,13 @@ type client struct {
 	Daemon  daemon.Connector
 	Timeout time.Duration
 	Metrics snet.SCIONNetworkMetrics
-	LocalIA addr.IA
+	Local   *snet.UDPAddr
 	Remote  *snet.UDPAddr
 }
 
 func (c client) run() int {
 	// first check if src and dst are the same
-	if c.LocalIA.Equal(c.Remote.IA) {
+	if c.Local.IA.Equal(c.Remote.IA) {
 		log.Info("dst == src! Skipping test inside local AS")
 		return 0
 	}
@@ -270,7 +271,9 @@ func (c client) run() int {
 		integration.LogFatal("no trips found")
 	}
 	// obtain an reservation
-	rsvID, p, err := c.createRsv(ctx, trips[0].Segments(), 1)
+	requestPath := trips[0].Path()
+	authenticators := c.computeAuthenticators(trips[0])
+	rsvID, p, err := c.createRsv(ctx, trips[0].Segments(), requestPath, authenticators, 1)
 	if err != nil {
 		integration.LogFatal("creating reservation", "err", err)
 	}
@@ -315,7 +318,7 @@ func (c client) run() int {
 		integration.LogFatal("colibri path but empty raw", "path", sraddrRawPath)
 	}
 	// clean reservation up
-	if err = c.cleanRsv(ctx, &rsvID, 0); err != nil {
+	if err = c.cleanRsv(ctx, &rsvID, 0, requestPath, authenticators); err != nil {
 		integration.LogFatal("cleaning reservation up", "err", err)
 	}
 	return 0
@@ -335,18 +338,26 @@ func (c client) listRsvs(ctx context.Context) (
 	}
 }
 
+func (c client) computeAuthenticators(trip *libcol.FullTrip) [][]byte {
+	return nil // deleteme
+}
+
 func (c client) createRsv(ctx context.Context, segments []reservation.ID,
-	requestBW reservation.BWCls) (reservation.ID, snet.Path, error) {
+	path *base.TransparentPath, authenticators [][]byte, requestBW reservation.BWCls) (
+	reservation.ID, snet.Path, error) {
 
 	setupReq := &libcol.E2EReservationSetup{
-		Id: reservation.ID{
-			ASID:   c.LocalIA.AS(),
-			Suffix: make([]byte, 12),
+		BaseRequest: libcol.BaseRequest{
+			Id: reservation.ID{
+				ASID:   c.Local.IA.AS(),
+				Suffix: make([]byte, 12),
+			},
+			Index:          0, // new index
+			SrcHost:        c.Local.Host.IP,
+			DstHost:        c.Remote.Host.IP,
+			Path:           path,
+			Authenticators: authenticators,
 		},
-		SrcIA:       c.LocalIA,
-		DstIA:       c.Remote.IA,
-		DstHost:     c.Remote.Host.IP,
-		Index:       0, // new index
 		Segments:    segments,
 		RequestedBW: requestBW,
 	}
@@ -355,9 +366,17 @@ func (c client) createRsv(ctx context.Context, segments []reservation.ID,
 	return setupReq.Id, p, err
 }
 
-func (c client) cleanRsv(ctx context.Context, id *reservation.ID,
-	idx reservation.IndexNumber) error {
+func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservation.IndexNumber,
+	path *base.TransparentPath, authenticators [][]byte) error {
 
 	log.Debug("cleaning e2e rsv", "id", id)
-	return c.Daemon.ColibriCleanupRsv(ctx, id, idx)
+	req := &libcol.BaseRequest{
+		Id:             *id,
+		Index:          idx,
+		SrcHost:        c.Local.Host.IP,
+		DstHost:        c.Remote.Host.IP,
+		Path:           path,
+		Authenticators: authenticators,
+	}
+	return c.Daemon.ColibriCleanupRsv(ctx, req)
 }

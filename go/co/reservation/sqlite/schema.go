@@ -51,6 +51,7 @@ const (
 	CREATE TABLE e2e_reservation (
 		ROWID	INTEGER,
 		reservation_id	BLOB NOT NULL,
+		path	BLOB,
 		UNIQUE(reservation_id),
 		PRIMARY KEY(ROWID)
 	);

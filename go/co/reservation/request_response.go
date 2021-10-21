@@ -15,12 +15,14 @@
 package reservation
 
 import (
+	"encoding/binary"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	col "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type MsgId struct {
@@ -73,14 +75,18 @@ func (r *Request) Validate() error {
 		return serrors.New("inconsistent number of authenticators",
 			"auth_count", len(r.Authenticators), "path_len", len(r.Path.Steps))
 	}
-	return r.ValidateIgnorePath()
-}
-
-func (r *Request) ValidateIgnorePath() error {
 	if r.ID.ASID == 0 {
 		return serrors.New("bad AS id in request", "asid", r.ID.ASID)
 	}
 	return nil
+}
+
+func (r *Request) Serialize(buff []byte) int {
+	// we assume that buff is at least ID.Len()+5 bytes long. Let it panic otherwise.
+	r.ID.Read(buff)
+	buff[r.ID.Len()] = byte(r.Index)
+	binary.BigEndian.PutUint32(buff[r.ID.Len()+1:], util.TimeToSecs(r.Timestamp))
+	return r.ID.Len() + 1 + 4
 }
 
 func (r *Request) IsFirstAS() bool {

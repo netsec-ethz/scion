@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich, Anapaya Systems
+// Copyright 2021 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,17 +20,15 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
-	"time"
 
 	"github.com/dchest/cmac"
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/e2e"
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
+	drkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
@@ -98,7 +96,7 @@ func (a *DrkeyAuthenticator) ComputeRequestInitialMAC(ctx context.Context,
 	req *base.Request) error {
 
 	payload := make([]byte, req.ID.Len()+1+4)
-	inputInitialBaseRequest(payload, req)
+	req.Serialize(payload)
 	return a.computeInitialMACforPayloadWithSegKeys(ctx, payload, req)
 }
 
@@ -112,8 +110,9 @@ func (a *DrkeyAuthenticator) ComputeSegmentSetupRequestInitialMAC(ctx context.Co
 func (a *DrkeyAuthenticator) ComputeE2eSetupRequestInitialMAC(ctx context.Context,
 	req *e2e.SetupReq) error {
 
-	payload := inputInitialE2eSetupRequest(req)
-	return a.computeInitialMACforPayloadWithE2eKeys(ctx, payload, req)
+	// payload := inputInitialE2eSetupRequest(req)
+	// return a.computeInitialMACforPayloadWithE2eKeys(ctx, payload, req)
+	return nil // deleteme
 }
 
 func (a *DrkeyAuthenticator) ComputeRequestTransitMAC(ctx context.Context,
@@ -150,7 +149,7 @@ func (a *DrkeyAuthenticator) ValidateRequest(ctx context.Context,
 	req *base.Request) (bool, error) {
 
 	immutableInput := make([]byte, req.ID.Len()+1+4)
-	inputInitialBaseRequest(immutableInput, req)
+	req.Serialize(immutableInput)
 	ok, err := a.validateSegmentPayloadInitialMAC(ctx, req, immutableInput)
 	if err == nil && ok && req.IsLastAS() {
 		ok, err = a.validateRequestAtDestination(ctx, req)
@@ -175,7 +174,7 @@ func (a *DrkeyAuthenticator) ValidateE2eSetupRequest(ctx context.Context,
 	req *e2e.SetupReq) (bool, error) {
 
 	// TODO(juagargi) deleteme: implement
-	return false, nil
+	return true, nil
 
 }
 
@@ -345,42 +344,17 @@ func (a *DrkeyAuthenticator) slowKeysFromPath(ctx context.Context, path *base.Tr
 func (a *DrkeyAuthenticator) getDRKeyAS2AS(ctx context.Context, fast, slow addr.IA) (
 	[]byte, error) {
 
-	meta := drkey.Lvl2Meta{
-		KeyType:  drkey.AS2AS,
-		Protocol: "colibri",
-		SrcIA:    fast,
-		DstIA:    slow,
-	}
-
-	lvl2Key, err := a.connector.DRKeyGetLvl2Key(ctx, meta, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	return lvl2Key.Key, nil
+	keys, err := drkut.GetLvl2Keys(ctx, a.connector, drkey.AS2AS, "colibri",
+		drkut.SlowIAs(slow), drkut.FastIAs(fast))
+	return keys[0], err
 }
 
 func (a *DrkeyAuthenticator) getDRKeyAS2Host(ctx context.Context, fast, slowIA addr.IA,
 	slowHost addr.HostAddr) ([]byte, error) {
 
-	meta := drkey.Lvl2Meta{
-		KeyType:  drkey.AS2Host,
-		Protocol: "colibri",
-		SrcIA:    fast,
-		DstIA:    slowIA,
-		DstHost:  slowHost,
-	}
-	lvl2Key, err := a.connector.DRKeyGetLvl2Key(ctx, meta, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	return lvl2Key.Key, nil
-}
-
-func inputInitialBaseRequest(buff []byte, req *base.Request) {
-	assert(len(buff) >= req.ID.Len()+1+4, "logic error: buffer is too small")
-	req.ID.Read(buff)
-	buff[req.ID.Len()] = byte(req.Index)
-	binary.BigEndian.PutUint32(buff[req.ID.Len()+1:], util.TimeToSecs(req.Timestamp))
+	keys, err := drkut.GetLvl2Keys(ctx, a.connector, drkey.AS2Host, "colibri",
+		drkut.SlowIAs(slowIA), drkut.SlowHosts(slowHost), drkut.FastIAs(fast))
+	return keys[0], err
 }
 
 func inputInitialSegSetupRequest(req *segment.SetupReq) []byte {
@@ -390,7 +364,7 @@ func inputInitialSegSetupRequest(req *segment.SetupReq) []byte {
 	buff := make([]byte, len)
 
 	offset := req.ID.Len() + 1 + 4
-	inputInitialBaseRequest(buff[:offset], &req.Request)
+	req.Request.Serialize(buff)
 	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(req.ExpirationTime))
 	offset += 4
 	buff[offset] = byte(req.RLC)
@@ -402,43 +376,12 @@ func inputInitialSegSetupRequest(req *segment.SetupReq) []byte {
 	return buff
 }
 
-func inputInitialE2eSetupRequest(req *e2e.SetupReq) []byte {
-	length := req.ID.Len() + 1 + 4 // ID + index + timestamp
-	// srcIA + srcHost + dstIA + dstHost + BW + seg_reservations
-	length += 8 + 16 + 8 + 16 + 1 + len(req.SegmentRsvs)*(reservation.IDSuffixSegLen+6)
-	buff := make([]byte, length)
-
-	offset := req.ID.Len() + 1 + 4
-	inputInitialBaseRequest(buff[:offset], &req.Request)
-
-	binary.BigEndian.PutUint64(buff[offset:], uint64(req.SrcIA.IAInt()))
-	offset += 8
-	copy(buff[offset:], req.SrcHost.To16())
-	offset += 16
-	binary.BigEndian.PutUint64(buff[offset:], uint64(req.DstIA.IAInt()))
-	offset += 8
-	copy(buff[offset:], req.DstHost.To16())
-	offset += 16
-	buff[offset] = byte(req.RequestedBW)
-	offset++
-	for _, id := range req.SegmentRsvs {
-		n, _ := id.Read(buff)
-		if n != reservation.IDSuffixSegLen+6 {
-			panic(fmt.Sprintf("inconsistent id length %d (should be %d)",
-				n, reservation.IDSuffixSegLen+6))
-		}
-		offset += reservation.IDSuffixSegLen + 6
-	}
-
-	return buff
-}
-
 func inputTransitSegRequest(req *base.Request) []byte {
 	// TODO(juagargi) reason about this function: do we need to add something to the initial
 	// payload?
 	offset := req.ID.Len() + 1 + 4
 	buff := make([]byte, offset)
-	inputInitialBaseRequest(buff, req)
+	req.Serialize(buff)
 	return buff
 }
 

@@ -74,9 +74,7 @@ func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
 	}
 	return &e2e.SetupReq{
 		Request:                *base,
-		SrcIA:                  addr.IA(msg.Params.SrcIa),
 		SrcHost:                msg.Params.SrcHost,
-		DstIA:                  addr.IA(msg.Params.DstIa),
 		DstHost:                msg.Params.DstHost,
 		SegmentRsvs:            segIds,
 		CurrentSegmentRsvIndex: int(msg.Params.CurrentSegment),
@@ -213,7 +211,7 @@ func ReservationLooks(msg []*colpb.ListReservationsResponse_ReservationLooks) (
 			MaxBW:          col.BWCls(l.Maxbw),
 			AllocBW:        col.BWCls(l.Allocbw),
 			Split:          col.SplitCls(l.Splitcls),
-			Path:           TransparentPathSteps(l.Path),
+			PathSteps:      TransparentPathSteps(l.PathSteps),
 		}
 	}
 	return res, nil

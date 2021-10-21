@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -45,6 +46,39 @@ func (t FullTrip) Segments() []reservation.ID {
 		ids[i] = l.Id
 	}
 	return ids
+}
+
+// Path conveniently returns a path containing the path steps for this stitched full trip.
+// The returned path is not valid for packets to traverse (has no spath.Path entries), but
+// correctly represents the path steps that a packet would take if an e2e reservation is
+// made using this trip.
+func (t FullTrip) Path() *base.TransparentPath {
+	return &base.TransparentPath{
+		CurrentStep: 0,
+		Steps:       t.PathSteps(),
+	}
+}
+
+// PathSteps stitches together the path steps from the segment reservations in this trip.
+func (t FullTrip) PathSteps() []base.PathStep {
+	if len(t) == 0 {
+		return []base.PathStep{}
+	}
+	steps := append([]base.PathStep{}, t[0].PathSteps...)
+	for i := 1; i < len(t); i++ {
+		segment := t[i].PathSteps
+		assert(len(segment) > 0, "bad segment rsv. path (empty): %s", t[i])
+		assert(segment[0].Ingress == 0,
+			"bad segment rsv. path (starts with nonzero ingress): %s", t[i])
+		assert(segment[len(segment)-1].Egress == 0,
+			"bad segment rsv. path (ends with nonzero egress", t[i])
+		assert(steps[len(steps)-1].IA.Equal(segment[0].IA),
+			"bad segment rsv. stitching (different IAs at transfer points): i: %s, i+1: %s",
+			steps, segment)
+		steps[len(steps)-1].Egress = segment[0].Egress
+		steps = append(steps, segment[1:]...)
+	}
+	return steps
 }
 
 func (t FullTrip) ExpirationTime() time.Time {
@@ -133,7 +167,7 @@ func (t FullTrip) BW() uint64 {
 func (t FullTrip) NumberOfASes() int {
 	num := 0
 	for _, l := range t {
-		num += len(l.Path)
+		num += len(l.PathSteps)
 	}
 	num -= len(t) - 1 // don't double count stitching points
 	return num
@@ -286,8 +320,9 @@ func segmentsToMap(sgmts []*ReservationLooks) map[addr.IA][]*ReservationLooks {
 // TODO(juagargi) though a violation of the invariant, in this particular algorithm the bug
 // causing the violation could just prevent some solutions from being returned, and not crash
 // the system. Maybe a very noticeable log entry should suffice.
-func assert(cond bool, msg string) {
+func assert(cond bool, msg string, params ...interface{}) {
 	if !cond {
+		msg = fmt.Sprintf(msg, params...)
 		panic(msg)
 	}
 }

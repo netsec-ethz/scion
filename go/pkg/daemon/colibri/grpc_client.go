@@ -53,7 +53,7 @@ func (c *DaemonClient) CleanupReservation(ctx context.Context, req *sdpb.Colibri
 	if req == nil {
 		return nil, serrors.New("bad nil request")
 	}
-	log.Debug("cleaning up e2e reservation", "id", translate.ID(req.Base.Id))
+	log.Debug("cleaning up e2e reservation", "id", translate.ID(req.Base.Base.Id))
 	conn, err := c.Dialer.Dial(ctx, addr.SvcCOL)
 	if err != nil {
 		return nil, err

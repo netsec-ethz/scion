@@ -56,9 +56,7 @@ func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
 		Params: &colpb.E2ESetupRequest_PathParams{
 			Segments:       segs,
 			CurrentSegment: uint32(req.CurrentSegmentRsvIndex),
-			SrcIa:          uint64(req.SrcIA),
 			SrcHost:        req.SrcHost,
-			DstIa:          uint64(req.DstIA),
 			DstHost:        req.DstHost,
 		},
 		Allocationtrail: trail,
@@ -190,7 +188,7 @@ func PBufListReservationLooks(
 			Maxbw:          uint32(l.MaxBW),
 			Allocbw:        uint32(l.AllocBW),
 			Splitcls:       uint32(l.Split),
-			Path:           PBufSteps(l.Path),
+			PathSteps:      PBufSteps(l.PathSteps),
 		}
 	}
 	return looks

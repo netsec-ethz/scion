@@ -39,6 +39,7 @@ func TestNewReservation(t *testing.T) {
 	defer cancelF()
 
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	srcHost := xtest.MustParseIP(t, "192.0.2.1")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
 	dstHost := xtest.MustParseIP(t, "192.0.2.10")
 	ctrl := gomock.NewController(t)
@@ -49,15 +50,16 @@ func TestNewReservation(t *testing.T) {
 			ct.WithUpSegs(1),
 		), nil)
 
-	rsv, err := NewReservation(ctx, daemon, srcIA, dstIA, dstHost, 11, 0, sorting.ByExpiration)
+	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
+		sorting.ByExpiration)
 	require.NoError(t, err)
 	require.True(t, rsv.request.Id.IsE2EID())
 	require.Equal(t, dstIA, rsv.dstIA)
 	require.Nil(t, rsv.colibriPath) // not negotiated yet
 
 	require.NotNil(t, rsv.request) // should be populated
-	require.Equal(t, dstIA, rsv.request.DstIA)
-	require.Equal(t, srcIA, rsv.request.SrcIA)
+	require.Equal(t, dstIA, rsv.request.Path.DstIA())
+	require.Equal(t, srcIA, rsv.request.Path.SrcIA())
 	require.Greater(t, len(rsv.request.Segments), 0)
 }
 
@@ -66,6 +68,7 @@ func TestReservationOpen(t *testing.T) {
 	defer cancelF()
 
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	srcHost := xtest.MustParseIP(t, "192.0.2.1")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
 	dstHost := xtest.MustParseIP(t, "192.0.2.10")
 	ctrl := gomock.NewController(t)
@@ -76,7 +79,8 @@ func TestReservationOpen(t *testing.T) {
 			ct.WithUpSegs(1),
 		), nil)
 
-	rsv, err := NewReservation(ctx, daemon, srcIA, dstIA, dstHost, 11, 0, sorting.ByExpiration)
+	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
+		sorting.ByExpiration)
 	require.NoError(t, err)
 
 	// modify the global task duration for the test
@@ -117,7 +121,7 @@ func TestReservationOpen(t *testing.T) {
 	require.Equal(t, testPaths[2], rsv.colibriPath) // last path available before the error
 
 	// stop and check
-	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, id *reservation.ID, idx reservation.IndexNumber) error {
 			require.Equal(t, rsv.request.Id, *id)
 			require.Equal(t, reservation.NewIndexNumber(timesCalled-1), idx)
@@ -132,6 +136,7 @@ func TestReservationOpenSuccessfully(t *testing.T) {
 	defer cancelF()
 
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	srcHost := xtest.MustParseIP(t, "192.0.2.1")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
 	dstHost := xtest.MustParseIP(t, "192.0.2.10")
 	ctrl := gomock.NewController(t)
@@ -142,7 +147,8 @@ func TestReservationOpenSuccessfully(t *testing.T) {
 			ct.WithUpSegs(1),
 		), nil)
 
-	rsv, err := NewReservation(ctx, daemon, srcIA, dstIA, dstHost, 11, 0, sorting.ByExpiration)
+	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
+		sorting.ByExpiration)
 	require.NoError(t, err)
 	// modify the global task duration for the test
 	rsv.e2eRenewalTaskDuration = reservation.TicksInE2ERsv * 4 * time.Millisecond / 2 // 16ms
@@ -172,7 +178,7 @@ func TestReservationOpenSuccessfully(t *testing.T) {
 	require.Equal(t, timesCalled-1, renewalsCalled)
 
 	// stop and check
-	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any()).Return(nil)
 	err = rsv.Close(ctx)
 	require.NoError(t, err)
 }
@@ -182,6 +188,7 @@ func TestReservationFailOnRenewal(t *testing.T) {
 	defer cancelF()
 
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	srcHost := xtest.MustParseIP(t, "192.0.2.1")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
 	dstHost := xtest.MustParseIP(t, "192.0.2.10")
 	stitchables := ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
@@ -197,7 +204,8 @@ func TestReservationFailOnRenewal(t *testing.T) {
 	)
 
 	trips := colibri.CombineAll(stitchables)
-	rsv, err := NewReservation(ctx, daemon, srcIA, dstIA, dstHost, 11, 0) // unsorted; will use [0]
+	// unsorted; will use [0] :
+	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0)
 	require.NoError(t, err)
 
 	// modify the global task duration for the test

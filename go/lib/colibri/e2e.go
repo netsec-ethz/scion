@@ -20,21 +20,28 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
-// E2EReservationSetup has the necessary data for an endhost to setup/renew an e2e reservation.
-type E2EReservationSetup struct {
-	Id          reservation.ID
-	SrcIA       addr.IA
-	DstIA       addr.IA
-	DstHost     net.IP
-	Index       reservation.IndexNumber
-	Segments    []reservation.ID
-	RequestedBW reservation.BWCls
+// BaseRequest is used for every colibri request through sciond.
+type BaseRequest struct {
+	Id             reservation.ID
+	Index          reservation.IndexNumber
+	SrcHost        net.IP
+	DstHost        net.IP
+	Path           *base.TransparentPath // non nil path. It contains SrcIA and DstIA.
+	Authenticators [][]byte              // per spec., MACs for AS_i on the immutable data
 }
 
+// E2EReservationSetup has the necessary data for an endhost to setup/renew an e2e reservation.
+type E2EReservationSetup struct {
+	BaseRequest
+	RequestedBW reservation.BWCls
+	Segments    []reservation.ID
+}
+
+// deleteme TODO(juagargi) add a NewE2eReservationSetup function that simplifies the creation of the E2EReservationSetup (look at hellocolibri) and `git grep -n E2EReservationSetup` and use the new function.
 type E2EResponseError struct {
 	Message  string
 	FailedAS int

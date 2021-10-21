@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
@@ -695,8 +694,8 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Reques
 func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 	e2e.SetupResponse, error) {
 
-	log.Debug("e2e admission request", "id", req.ID, "src_ia", req.SrcIA, "dst_ia", req.DstIA,
-		"segments", reservation.IDs(req.SegmentRsvs), "path", req.Path)
+	log.Debug("e2e admission request", "id", req.ID, "path", req.Path,
+		"segments", reservation.IDs(req.SegmentRsvs), "curr_segment", req.CurrentSegmentRsvIndex)
 
 	if err := s.authenticateE2eSetupReq(ctx, req); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
@@ -730,19 +729,21 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 	}
 	newSetup := (rsv == nil)
 
-	segRsvIDs := req.SegmentRsvIDsForThisAS()
 	if newSetup {
 		rsv = &e2e.Reservation{
 			ID:                  req.ID,
-			SegmentReservations: make([]*segment.Reservation, len(segRsvIDs)),
+			Path:                req.Path.Copy(),
+			SegmentReservations: make([]*segment.Reservation, 0),
 		}
-		for i, id := range segRsvIDs {
+		for _, id := range req.SegmentRsvs {
 			r, err := tx.GetSegmentRsvFromID(ctx, &id)
-			if err != nil || r == nil {
-				return failedResponse, s.errWrapStr("cannot get segment rsv for e2e admission",
+			if err != nil {
+				return failedResponse, s.errWrapStr("loading segment rsv for e2e admission",
 					err, "e2e_id", req.ID, "seg_id", id)
 			}
-			rsv.SegmentReservations[i] = r
+			if r != nil {
+				rsv.SegmentReservations = append(rsv.SegmentReservations, r)
+			}
 		}
 	} else {
 		if index := rsv.Index(req.Index); index != nil {
@@ -751,25 +752,21 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 				"idx", req.Index).Error()
 			return failedResponse, nil
 		}
-		if len(rsv.SegmentReservations) != len(segRsvIDs) {
-			// when loading, some seg. rsvs. where not found
-			missingSegIDs := make(map[string]struct{})
-			for _, id := range segRsvIDs {
-				missingSegIDs[id.String()] = struct{}{}
-			}
-			for _, r := range rsv.SegmentReservations {
-				delete(missingSegIDs, r.ID.String())
-			}
-			missing := make([]string, len(missingSegIDs))
-			for id := range missingSegIDs {
-				missing = append(missing, id)
-			}
-			failedResponse.Message = s.errNew("could not find all seg. rsv. for an e2e request",
-				"requested", len(segRsvIDs), "found", len(rsv.SegmentReservations),
-				"missing", strings.Join(missing, ", ")).Error()
-			return failedResponse, nil
-		}
+		assert(len(rsv.SegmentReservations) < 3, "logic error, too many segments in AS. ID: %s, "+
+			"seg. ids: %s", req.ID, req.SegmentRsvs)
+		// TODO(juagargi) check rsv.Path and req.Path coincide
 	}
+	isTransfer := false
+	if len(rsv.SegmentReservations) > 1 {
+		isTransfer = true
+		assert(len(rsv.SegmentReservations) == 2, "logic error: too many segments in AS: %v",
+			rsv.SegmentReservations)
+		assert(rsv.SegmentReservations[0].PathAtSource.DstIA().Equal(s.localIA),
+			"logic error: incoming segment in transfer node doesn't end here. Segs: %s, "+
+				"first segment: %s, second segment: %s", req.SegmentRsvs,
+			rsv.SegmentReservations[0].PathAtSource, rsv.SegmentReservations[1].PathAtSource)
+	}
+	log.Info("deleteme e2e admission processing", "is_transfer", isTransfer, "segs", rsv.SegmentReservations)
 
 	// check the seg. reservations
 	expTime := util.MaxFutureTime()
@@ -783,14 +780,6 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			expTime = r.ActiveIndex().Expiration
 		}
 	}
-	// append steps to the request path if necessary
-	if req.RequestPathNeedsSteps() {
-		if err := appendToPath(req, rsv); err != nil {
-			log.Error("appending next segment to request path", "err", err)
-			return nil, serrors.WrapStr("appending next segment to request path", err)
-		}
-	}
-	// now the request has correct steps (current step is sure to exist)
 
 	maxExpTime := time.Now().Add(reservation.E2ERsvDuration)
 	if maxExpTime.Before(expTime) {
@@ -815,20 +804,14 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		free = free + rsv.AllocResv() // don't count this E2E request in the used BW
 	}
 
-	if req.IsTransfer() {
-		// this AS must stitch two segment rsvs. according to the request
-		if len(segRsvIDs) != 2 {
-			failedResponse.Message = s.errNew("e2e setup request with transfer inconsistent",
-				"e2e_id", req.ID, "len_segs", len(segRsvIDs),
-				"trail_len", len(req.AllocationTrail)).Error()
-			return failedResponse, nil
-		}
+	if isTransfer {
 		freeOutgoing, err := freeAfterTransfer(ctx, tx, rsv, !newSetup)
 		if err != nil {
 			failedResponse.Message = s.errWrapStr("cannot compute transfer", err,
 				"id", req.ID).Error()
 			return failedResponse, nil
 		}
+		log.Info("deleteme", "free", free, "free_outgoing", freeOutgoing)
 		if free > freeOutgoing {
 			free = freeOutgoing
 		}
@@ -855,9 +838,9 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			// check white/black (admission) list of endhost
 			admitted = false
 			res, err := tx.CheckAdmissionList(ctx, time.Now(), req.DstHost,
-				req.SrcIA, req.SrcHost.String())
+				req.Path.SrcIA(), req.SrcHost.String())
 			log.Debug("checked admission list", "admit", res, "err", err,
-				"host", req.DstHost.String(), "src_ia", req.SrcIA, "src_host", req.SrcHost)
+				"host", req.DstHost.String(), "src_ia", req.Path.SrcIA(), "src_host", req.SrcHost)
 			switch {
 			case err != nil:
 				notAdmittedMsg = fmt.Sprintf("error in admission list: %s", err)
@@ -881,7 +864,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		}
 		token = index.Token
 	} else { // this is not the last AS
-		if req.IsTransfer() {
+		if isTransfer {
 			// indicate the next node we are using the next segment:
 			req.CurrentSegmentRsvIndex++
 		}
@@ -944,16 +927,18 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 func (s *Store) CleanupE2EReservation(ctx context.Context, req *base.Request) (
 	base.Response, error) {
 
-	if err := s.authenticateReq(ctx, req); err != nil {
-		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
-	}
+	// deleteme uncomment:
+	// if err := s.authenticateReq(ctx, req); err != nil {
+	// 	return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
+	// }
 
+	log.Debug("e2e cleanup request", "id", req.ID, "path", req.Path)
 	failedResponse := &base.ResponseFailure{
 		Message:    "failed to cleanup e2e index",
 		FailedStep: uint8(req.Path.CurrentStep),
 	}
 
-	if err := req.ValidateIgnorePath(); err != nil {
+	if err := req.Validate(); err != nil {
 		failedResponse.Message = "request validation failed: " + s.err(err).Error()
 		return failedResponse, nil
 	}
@@ -989,11 +974,6 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *base.Request) (
 				"id", req.ID.String())
 		}
 	}
-	if rsv != nil && req.IsLastAS() && rsv.DstIA() != req.Path.DstIA() {
-		// we need to append the next segment along the path
-		log.Debug("extending path (in cleanup)", "rsv", rsv, "req_path", req.Path)
-		req.Path.Steps = stitchTransparentPaths(req.Path.Steps, rsv.GetLastSegmentPathSteps())
-	}
 
 	if req.IsLastAS() {
 		return &base.ResponseSuccess{}, nil
@@ -1023,6 +1003,10 @@ func (s *Store) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, t
 		return 0, time.Time{}, serrors.WrapStr("deleting expired indices", err)
 	}
 	exp, err := s.db.NextExpirationTime(ctx)
+	// we will return the next expiration time as earliest(now+16 , exp)
+	if exp.After(time.Now().Add(reservation.E2ERsvDuration)) {
+		exp = time.Now().Add(reservation.E2ERsvDuration)
+	}
 	return n, exp, err
 }
 
@@ -1114,11 +1098,7 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 		rsv.PathType = req.PathType
 		rsv.PathEndProps = req.PathProps
 		rsv.TrafficSplit = req.SplitCls
-		// if req.IsFirstAS() {
-		// 	rsv.PathAtSource = req.PathAtSource
-		// } else {
 		rsv.PathAtSource = req.Path // opaque for all AS but the source AS
-		// }
 		// we are going to extend a bit the information in the path of this reservation: if this
 		// AS is at the beginning of the path or at the end, we can annotate the opaque path with
 		// our IA id:
@@ -1406,57 +1386,15 @@ func freeAfterTransfer(ctx context.Context, tx backend.Transaction, rsv *e2e.Res
 	return uint64(avail), nil
 }
 
-func appendToPath(req *e2e.SetupReq, rsv *e2e.Reservation) error {
-	assert(req.RequestPathNeedsSteps(), "should call the function only when needed")
-
-	var seg *segment.Reservation
-	if len(req.Path.Steps) == 0 {
-		// initial node
-		assert(req.IsFirstAS(), "inconsistency: this node should be the initial one")
-		seg = rsv.SegmentReservations[0]
-	} else {
-		// because this node is not the first one, and needs steps, it must be transfer
-		assert(!req.IsFirstAS(), "inconsistency: node must not be the first one in the path")
-		assert(req.IsTransfer(), "inconsistency: node must be transfer (stitching)")
-		assert(len(rsv.SegmentReservations) == 2, "inconsistency: must have exactly 2 segments")
-		seg = rsv.SegmentReservations[1]
-	}
-	req.Path.Steps = stitchTransparentPaths(req.Path.Steps, seg.PathAtSource.Steps)
-	return nil
-}
-
-func stitchTransparentPaths(a, b []base.PathStep) []base.PathStep {
-	if len(a) == 0 {
-		return append([]base.PathStep{}, b...)
-	}
-	// when stitching two segments, one of the steps has to be merged into the previous one.
-	// TODO(juagargi) remove assertions and ensure validation catches these cases.
-	assert(a[len(a)-1].Egress == 0,
-		fmt.Sprintf("wrong assumption egress not zero but %d", a[len(a)-1].Egress))
-	assert(b[0].Ingress == 0,
-		fmt.Sprintf("wrong assumption ingress not zero but %d", b[0].Ingress))
-	assert(a[len(a)-1].IA.Equal(b[0].IA),
-		fmt.Sprintf("wrong assumption, IAs different, a: %s, b: %s", a[len(a)-1].IA, b[0].IA))
-
-	ret := make([]base.PathStep, 0, len(a)+len(b)-1)
-	ret = append(ret, a...)
-
-	// b = append([]base.PathStep{}, b...)
-	// b[0].Ingress = a[len(a)-1].Ingress
-	ret[len(ret)-1].Egress = b[0].Egress
-	ret = append(ret, b[1:]...)
-	return ret
-}
-
 func reservationsToLooks(rsvs []*segment.Reservation, localIA addr.IA) []*colibri.ReservationLooks {
 	looks := make([]*colibri.ReservationLooks, len(rsvs))
 	for i, r := range rsvs {
 		looks[i] = &colibri.ReservationLooks{
-			Id:    r.ID,
-			SrcIA: localIA,
-			DstIA: r.PathAtSource.DstIA(),
-			Split: r.TrafficSplit,
-			Path:  r.PathAtSource.Steps,
+			Id:        r.ID,
+			SrcIA:     localIA,
+			DstIA:     r.PathAtSource.DstIA(),
+			Split:     r.TrafficSplit,
+			PathSteps: r.PathAtSource.Steps,
 		}
 		if r.ActiveIndex() != nil {
 			looks[i].ExpirationTime = r.ActiveIndex().Expiration

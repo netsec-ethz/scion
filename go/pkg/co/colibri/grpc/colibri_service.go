@@ -237,16 +237,14 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 			Id:             msg.Id,
 			Index:          msg.Index,
 			Timestamp:      util.TimeToSecs(now),
-			Path:           &colpb.TransparentPath{},
-			Authenticators: &colpb.Authenticators{Macs: nil},
+			Path:           &colpb.TransparentPath{Steps: msg.PathSteps},
+			Authenticators: &colpb.Authenticators{Macs: make([][]byte, len(msg.PathSteps)-1)},
 		},
 		RequestedBw: msg.RequestedBw,
 		Params: &colpb.E2ESetupRequest_PathParams{
 			Segments:       msg.Segments,
 			CurrentSegment: 0,
-			SrcIa:          msg.SrcIa,
 			SrcHost:        clientAddr.IP,
-			DstIa:          msg.DstIa,
 			DstHost:        msg.DstHost,
 		},
 		Allocationtrail: nil,
@@ -320,8 +318,10 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 	if _, err := checkLocalCaller(ctx); err != nil {
 		return nil, err
 	}
-	req := base.NewRequest(time.Now(), translate.ID(msg.Id), reservation.IndexNumber(msg.Index),
-		&base.TransparentPath{})
+	log.Info("deleteme from the grave", "path", msg.Base.Path)
+	req := base.NewRequest(time.Now(), translate.ID(msg.Base.Id),
+		reservation.IndexNumber(msg.Base.Index), translate.TransparentPath(msg.Base.Path))
+
 	res, err := s.Store.CleanupE2EReservation(ctx, req)
 	if err != nil {
 		var failedStep uint32

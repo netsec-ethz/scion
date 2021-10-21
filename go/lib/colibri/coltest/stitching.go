@@ -115,7 +115,7 @@ func WithSplit(segType segTypeSelector, idx int, split reservation.SplitCls) Sti
 
 func WithPath(segType segTypeSelector, idx int, path *base.TransparentPath) StitchableMod {
 	return func(generator *stitchableGenerator) {
-		findInGenerator(generator, segType, idx).Path = path.Steps
+		findInGenerator(generator, segType, idx).PathSteps = path.Steps
 	}
 }
 

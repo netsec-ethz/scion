@@ -212,6 +212,14 @@ func (p *TransparentPath) DstIA() addr.IA {
 	return p.Steps[len(p.Steps)-1].IA
 }
 
+func (p *TransparentPath) GetCurrentStep() *PathStep {
+	var curr *PathStep
+	if p.CurrentStep < len(p.Steps) {
+		curr = &p.Steps[p.CurrentStep]
+	}
+	return curr
+}
+
 func (p *TransparentPath) Validate() error {
 	if p == nil {
 		return nil

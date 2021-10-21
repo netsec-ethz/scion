@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri"
 	col "github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
@@ -219,13 +220,14 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	}
 	pbReq := &sdpb.ColibriSetupRsvRequest{
 		Base: &colpb.SetupReservationRequest{
-			Id:          translate.PBufID(&req.Id),
-			SrcIa:       uint64(req.SrcIA),
-			DstIa:       uint64(req.DstIA),
-			DstHost:     req.DstHost,
-			Index:       uint32(req.Index),
-			RequestedBw: uint32(req.RequestedBW),
-			Segments:    pbSegs,
+			Id:             translate.PBufID(&req.Id),
+			Index:          uint32(req.Index),
+			SrcHost:        req.SrcHost,
+			DstHost:        req.DstHost,
+			RequestedBw:    uint32(req.RequestedBW),
+			Segments:       pbSegs,
+			PathSteps:      translate.PBufSteps(req.Path.Steps),
+			Authenticators: &colpb.Authenticators{Macs: req.Authenticators},
 		},
 	}
 	client := sdpb.NewDaemonServiceClient(c.conn)
@@ -258,19 +260,25 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	}, nil
 }
 
-func (c grpcConn) ColibriCleanupRsv(ctx context.Context, id *reservation.ID,
-	idx reservation.IndexNumber) error {
+func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseRequest) error {
 
-	if id == nil {
-		return serrors.New("invalid nil ID")
+	if req == nil {
+		return serrors.New("invalid nil request")
 	}
-	if !id.IsE2EID() {
+	if !req.Id.IsE2EID() {
 		return serrors.New("this id is not for an E2E reservation")
 	}
 	pbReq := &sdpb.ColibriCleanupRsvRequest{
 		Base: &colpb.CleanupReservationRequest{
-			Id:    translate.PBufID(id),
-			Index: uint32(idx),
+			Base: &colpb.Request{
+				Id:             translate.PBufID(&req.Id),
+				Index:          uint32(req.Index),
+				Timestamp:      util.TimeToSecs(time.Now()),
+				Path:           translate.PBufPath(req.Path),
+				Authenticators: &colpb.Authenticators{Macs: req.Authenticators},
+			},
+			SrcHost: req.SrcHost,
+			DstHost: req.DstHost,
 		},
 	}
 	client := sdpb.NewDaemonServiceClient(c.conn)

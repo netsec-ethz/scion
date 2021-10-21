@@ -30,6 +30,7 @@ import (
 // Reservation represents an E2E reservation.
 type Reservation struct {
 	ID                  reservation.ID
+	Path                *base.TransparentPath
 	SegmentReservations []*segment.Reservation // stitched segment reservations
 	Indices             Indices
 }
