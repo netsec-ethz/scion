@@ -19,8 +19,6 @@ package colibri
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
@@ -41,7 +39,6 @@ func createAuthsForBaseRequest(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
 	// MAC and set authenticators inside request
 	payload := make([]byte, minSizeBaseReq(req))
 	serializeBaseRequest(payload, req)
-	fmt.Printf("deleteme immutable from client:\n%s\n", hex.EncodeToString(payload))
 	req.Authenticators, err = dkut.ComputeAuthenticators(payload, keys)
 	return err
 }
@@ -54,7 +51,7 @@ func createAuthsForE2EReservationSetup(ctx context.Context, conn dkut.DRKeyGetLv
 		return err
 	}
 
-	payload := make([]byte, minSizeE2ESeupReq(req))
+	payload := make([]byte, minSizeE2ESetupReq(req))
 	serializeE2EReservationSetup(payload, req)
 	req.Authenticators, err = dkut.ComputeAuthenticators(payload, keys)
 	return err
@@ -81,7 +78,7 @@ func minSizeBaseReq(req *BaseRequest) int {
 		16 + 16 // srcHost + dstHost
 }
 
-func minSizeE2ESeupReq(req *E2EReservationSetup) int {
+func minSizeE2ESetupReq(req *E2EReservationSetup) int {
 	// BaseRequest + BW + Segment reservation IDs
 	return minSizeBaseReq(&req.BaseRequest) + 1 + len(req.Segments)*reservation.IDSegLen
 }
@@ -107,15 +104,15 @@ func serializeBaseRequest(buff []byte, req *BaseRequest) {
 }
 
 func serializeE2EReservationSetup(buff []byte, req *E2EReservationSetup) {
-	minSize := minSizeE2ESeupReq(req)
+	minSize := minSizeE2ESetupReq(req)
 	assert(len(buff) >= minSize, "buffer too short (actual %d < minumum %d)",
 		len(buff), minSize)
 	offset := minSizeBaseReq(&req.BaseRequest)
 	serializeBaseRequest(buff[:offset], &req.BaseRequest)
 
+	// BW and segments:
 	buff[offset] = byte(req.RequestedBW)
 	offset++
-
 	for _, id := range req.Segments {
 		id.Read(buff[offset:]) // ignore errors (length was already checked)
 		offset += reservation.IDSegLen

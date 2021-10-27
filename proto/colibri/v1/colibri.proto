@@ -342,23 +342,26 @@ message ListStitchablesResponse {
 // SetupReservationRequest is sent from the endhost to the colibri service.
 // The message doesn't have a src_host because the service will automatically use the
 // source address of the TCP connection.
+// TODO(juagargi): the previous sentence is no longer true. Should we allow src_host to be
+// nil and thus set by the service?
 message SetupReservationRequest {
     // the E2E reservation ID.
     ReservationID id = 1;
     // the E2E index.
     uint32 index = 2;
+    uint32 timestamp = 3;
     // address of the source host. Must match the IP used in authenticators.
-    bytes src_host = 3;
+    bytes src_host = 4;
     // address of the destination host.
-    bytes dst_host = 4;
+    bytes dst_host = 5;
     // the requested BW.
-    uint32 requested_bw = 5;
+    uint32 requested_bw = 6;
     // the SegR IDs to stitch for this EER.
-    repeated ReservationID segments = 6;
+    repeated ReservationID segments = 7;
     // the transport path.
-    repeated PathStep path_steps = 7;
+    repeated PathStep path_steps = 8;
     // drkey authenticators.
-    Authenticators authenticators = 8;
+    Authenticators authenticators = 9;
 }
 
 message SetupReservationResponse {

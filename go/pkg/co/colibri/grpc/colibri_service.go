@@ -225,23 +225,23 @@ func (s *ColibriService) ListStitchables(ctx context.Context, msg *colpb.ListSti
 func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupReservationRequest) (
 	*colpb.SetupReservationResponse, error) {
 
-	clientAddr, err := checkLocalCaller(ctx)
+	_, err := checkLocalCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	// TODO(juagargi) validate the incoming request
-	now := time.Now()
 	// build a valid E2E setup request now and query the store with it
 	pbReq := &colpb.E2ESetupRequest{
 		Base: &colpb.E2ERequest{
 			Base: &colpb.Request{
 				Id:             msg.Id,
 				Index:          msg.Index,
-				Timestamp:      util.TimeToSecs(now),
+				Timestamp:      msg.Timestamp,
 				Path:           &colpb.TransparentPath{Steps: msg.PathSteps},
-				Authenticators: &colpb.Authenticators{Macs: make([][]byte, len(msg.PathSteps)-1)},
+				Authenticators: &colpb.Authenticators{},
 			},
-			SrcHost: clientAddr.IP,
+			SrcHost: msg.SrcHost,
 			DstHost: msg.DstHost,
 		},
 		RequestedBw: msg.RequestedBw,
@@ -251,6 +251,7 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		},
 		Allocationtrail: nil,
 	}
+	pbReq.Base.Base.Authenticators.Macs = msg.Authenticators.Macs
 	req, err := translate.E2ESetupRequest(pbReq)
 	if err != nil {
 		log.Error("translating initial E2E setup from daemon to service", "err", err)

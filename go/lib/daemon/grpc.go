@@ -222,6 +222,7 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 		Base: &colpb.SetupReservationRequest{
 			Id:             translate.PBufID(&req.Id),
 			Index:          uint32(req.Index),
+			Timestamp:      util.TimeToSecs(req.BaseRequest.TimeStamp),
 			SrcHost:        req.SrcHost,
 			DstHost:        req.DstHost,
 			RequestedBw:    uint32(req.RequestedBW),

@@ -76,30 +76,24 @@ func (r *SetupReq) Len() int {
 	return r.Request.Len() + 1 + len(r.SegmentRsvs)*(reservation.IDSegLen)
 }
 
-func (r *SetupReq) SerializeImmutableFields(buff []byte) {
+func (r *SetupReq) Serialize(buff []byte, writeMutableFields bool) {
 	if r == nil {
 		return
 	}
 
 	offset := r.Request.Len()
-	r.Request.Serialize(buff[:offset], false)
+	r.Request.Serialize(buff[:offset], writeMutableFields)
 	buff[offset] = byte(r.RequestedBW)
 	offset++
 	// segments:
 	for _, id := range r.SegmentRsvs {
-		n, _ := id.Read(buff)
+		n, _ := id.Read(buff[offset:])
 		if n != reservation.IDSegLen {
 			panic(fmt.Sprintf("inconsistent id length %d (should be %d)",
 				n, reservation.IDSegLen))
 		}
 		offset += reservation.IDSegLen
 	}
-}
-
-func (r *SetupReq) ToRawImmutableFields() []byte {
-	buff := make([]byte, r.Len())
-	r.SerializeImmutableFields(buff)
-	return buff
 }
 
 type SetupFailureInfo struct {

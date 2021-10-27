@@ -174,8 +174,14 @@ func (a *DrkeyAuthenticator) ValidateE2eRequest(ctx context.Context, req *e2e.Re
 func (a *DrkeyAuthenticator) ValidateE2eSetupRequest(ctx context.Context,
 	req *e2e.SetupReq) (bool, error) {
 
-	// TODO(juagargi) deleteme: implement
-	return true, nil
+	if req.IsFirstAS() {
+		return true, nil
+	}
+	payload := make([]byte, req.Len())
+	req.Serialize(payload, false)
+
+	ok, err := a.validateE2ePayloadInitialMAC(ctx, &req.Request, payload)
+	return ok, err
 
 }
 
@@ -218,6 +224,8 @@ func (a *DrkeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Contex
 	return true, nil
 }
 
+// validateE2ePayloadInitialMAC obtains the (fast side this) key according to req.Path and
+// uses them to compute the MAC from payload and compare it with the current req.Authenticators.
 func (a *DrkeyAuthenticator) validateE2ePayloadInitialMAC(ctx context.Context,
 	req *e2e.Request, immutableInput []byte) (bool, error) {
 

@@ -26,6 +26,7 @@ import (
 	ct "github.com/scionproto/scion/go/co/reservation/test"
 	"github.com/scionproto/scion/go/lib/addr"
 	libcol "github.com/scionproto/scion/go/lib/colibri"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
@@ -45,12 +46,14 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 				TimeStamp: util.SecsToTime(1),
 				Path:      ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 				SrcHost:   net.ParseIP(srcHost()),
+				DstHost:   net.ParseIP(dstHost()),
 			},
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
 					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
 				SrcHost: net.ParseIP(srcHost()),
+				DstHost: net.ParseIP(dstHost()),
 			},
 		},
 	}
@@ -58,6 +61,7 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 			defer cancelF()
 
@@ -84,6 +88,80 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 			}
 			tc.transitReq.Path.CurrentStep = 1 // second AS, first transit AS
 			ok, err := auth.ValidateE2eRequest(ctx, &tc.transitReq)
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+	}
+}
+
+func TestE2eSetupReqInitialMac(t *testing.T) {
+	cases := map[string]struct {
+		clientReq  libcol.E2EReservationSetup
+		transitReq e2e.SetupReq
+	}{
+		"regular": {
+			clientReq: libcol.E2EReservationSetup{
+				BaseRequest: libcol.BaseRequest{
+					Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
+					Index:     3,
+					TimeStamp: util.SecsToTime(1),
+					Path:      ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+					SrcHost:   net.ParseIP(srcHost()),
+					DstHost:   net.ParseIP(dstHost()),
+				},
+				RequestedBW: 11,
+				Segments: []reservation.ID{
+					*ct.MustParseID("ff00:0:111", "01234567"),
+					*ct.MustParseID("ff00:0:112", "89abcdef"),
+				},
+			},
+			transitReq: e2e.SetupReq{
+				Request: e2e.Request{
+					Request: *base.NewRequest(util.SecsToTime(1),
+						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
+						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+					SrcHost: net.ParseIP(srcHost()),
+					DstHost: net.ParseIP(dstHost()),
+				},
+				RequestedBW: 11,
+				SegmentRsvs: []reservation.ID{
+					*ct.MustParseID("ff00:0:111", "01234567"),
+					*ct.MustParseID("ff00:0:112", "89abcdef"),
+				},
+			},
+		},
+	}
+	mockKeys := mockKeysSameSlowPath()
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			defer cancelF()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			daemon := mock_daemon.NewMockConnector(ctrl)
+			daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+					drkey.Lvl2Key, error) {
+
+					k, ok := mockKeys[meta.SrcIA]
+					require.True(t, ok, "not found %s", meta.SrcIA)
+					return k, nil
+				})
+
+			tc.clientReq.CreateAuthenticators(ctx, daemon)
+			// copy authenticators to transit request, as if they were received
+			for i, a := range tc.clientReq.Authenticators {
+				tc.transitReq.Authenticators[i] = a
+			}
+			auth := DrkeyAuthenticator{
+				localIA:   tc.clientReq.Path.Steps[1].IA,
+				connector: daemon,
+			}
+			tc.transitReq.Path.CurrentStep = 1 // second AS, first transit AS
+			ok, err := auth.ValidateE2eSetupRequest(ctx, &tc.transitReq)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
