@@ -731,6 +731,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 
 	if newSetup {
 		rsv = &e2e.Reservation{
+
 			ID:                  req.ID,
 			Path:                req.Path.Copy(),
 			SegmentReservations: make([]*segment.Reservation, 0),
@@ -924,13 +925,12 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 }
 
 // CleanupE2EReservation will remove an index from an e2e reservation.
-func (s *Store) CleanupE2EReservation(ctx context.Context, req *base.Request) (
+func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 	base.Response, error) {
 
-	// deleteme uncomment:
-	// if err := s.authenticateReq(ctx, req); err != nil {
-	// 	return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
-	// }
+	if err := s.authenticateE2eReq(ctx, req); err != nil {
+		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
+	}
 
 	log.Debug("e2e cleanup request", "id", req.ID, "path", req.Path)
 	failedResponse := &base.ResponseFailure{
@@ -984,7 +984,7 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *base.Request) (
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
-	base, err := translate.PBufRequest(req)
+	base, err := translate.PBufE2ERequest(req)
 	if err != nil {
 		return failedResponse, s.errWrapStr("translation failed", err)
 	}
@@ -1029,6 +1029,19 @@ func (s *Store) authenticateReq(ctx context.Context, req *base.Request) error {
 // authenticateSegSetupReq checks that the authenticators are correct.
 func (s *Store) authenticateSegSetupReq(ctx context.Context, req *segment.SetupReq) error {
 	ok, err := s.authenticator.ValidateSegSetupRequest(ctx, req)
+	if err != nil {
+		return serrors.WrapStr("validating source authentication mac", err)
+	}
+	if !ok {
+		return serrors.New("source authentication invalid")
+	}
+
+	return nil
+}
+
+// authenticateE2eReq checks that the authenticators are correct.
+func (s *Store) authenticateE2eReq(ctx context.Context, req *e2e.Request) error {
+	ok, err := s.authenticator.ValidateE2eRequest(ctx, req)
 	if err != nil {
 		return serrors.WrapStr("validating source authentication mac", err)
 	}

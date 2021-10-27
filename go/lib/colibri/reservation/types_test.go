@@ -37,20 +37,20 @@ func TestIDRead(t *testing.T) {
 		ASID: xtest.MustParseAS("ffaa:0:1101"),
 	}
 	reference.Suffix = xtest.MustParseHexString("facecafe")
-	raw := make([]byte, 6+IDSuffixSegLen)
+	raw := make([]byte, IDSegLen)
 	n, err := reference.Read(raw)
 	require.NoError(t, err)
-	require.Equal(t, 6+IDSuffixSegLen, n)
+	require.Equal(t, IDSegLen, n)
 	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafe"), raw)
 	require.True(t, reference.IsSegmentID())
 	require.Equal(t, n, reference.Len())
 
 	// E2E
 	reference.Suffix = xtest.MustParseHexString("facecafedeadbeeff00dcafe")
-	raw = make([]byte, 6+IDSuffixE2ELen)
+	raw = make([]byte, IDE2ELen)
 	n, err = reference.Read(raw)
 	require.NoError(t, err)
-	require.Equal(t, 6+IDSuffixE2ELen, n)
+	require.Equal(t, IDE2ELen, n)
 	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00dcafe"), raw)
 	require.True(t, reference.IsE2EID())
 	require.Equal(t, n, reference.Len())

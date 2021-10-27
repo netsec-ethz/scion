@@ -41,6 +41,8 @@ type ID struct {
 const (
 	IDSuffixSegLen = 4
 	IDSuffixE2ELen = 12
+	IDSegLen       = 6 + IDSuffixSegLen
+	IDE2ELen       = 6 + IDSuffixE2ELen
 )
 
 var _ io.Reader = (*ID)(nil)
@@ -91,7 +93,7 @@ func (id *ID) Equal(other *ID) bool {
 }
 
 func (id *ID) Validate() error {
-	if len(id.Suffix) != 4 && len(id.Suffix) != 10 {
+	if len(id.Suffix) != IDSuffixSegLen && len(id.Suffix) != IDSuffixE2ELen {
 		return serrors.New("bad suffix", "suffix", hex.EncodeToString(id.Suffix))
 	}
 	return nil

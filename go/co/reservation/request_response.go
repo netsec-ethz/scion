@@ -31,6 +31,16 @@ type MsgId struct {
 	Timestamp time.Time
 }
 
+func (m *MsgId) Len() int {
+	return m.ID.Len() + 1 + 4
+}
+
+func (m *MsgId) Serialize(buff []byte) {
+	m.ID.Read(buff)
+	buff[m.ID.Len()] = byte(m.Index)
+	binary.BigEndian.PutUint32(buff[m.ID.Len()+1:], util.TimeToSecs(m.Timestamp))
+}
+
 // Request is the base struct for any type of COLIBRI segment request.
 // It contains a reference to the reservation it requests, or nil if not yet created.
 type Request struct {
@@ -81,12 +91,14 @@ func (r *Request) Validate() error {
 	return nil
 }
 
-func (r *Request) Serialize(buff []byte) int {
-	// we assume that buff is at least ID.Len()+5 bytes long. Let it panic otherwise.
-	r.ID.Read(buff)
-	buff[r.ID.Len()] = byte(r.Index)
-	binary.BigEndian.PutUint32(buff[r.ID.Len()+1:], util.TimeToSecs(r.Timestamp))
-	return r.ID.Len() + 1 + 4
+func (r *Request) Len() int {
+	return r.MsgId.Len() + r.Path.Len()
+}
+
+func (r *Request) Serialize(buff []byte, writeMutableFields bool) {
+	offset := r.MsgId.Len()
+	r.MsgId.Serialize(buff[:offset])
+	r.Path.Serialize(buff[offset:], writeMutableFields)
 }
 
 func (r *Request) IsFirstAS() bool {

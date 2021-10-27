@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+// NewPath creates a TransparentPath. Use: NewPath(0,"1-ffaa:0:1", 1, 2, "1-ffaa:0:2", 0)
 func NewPath(chain ...interface{}) *base.TransparentPath {
 	if len(chain)%3 != 0 {
 		panic("wrong number of arguments")

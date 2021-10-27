@@ -35,8 +35,20 @@ func PBufSetupReq(req *segment.SetupReq) (*colpb.SegmentSetupRequest, error) {
 	}, nil
 }
 
-func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
+func PBufE2ERequest(req *e2e.Request) (*colpb.E2ERequest, error) {
 	base, err := PBufRequest(&req.Request)
+	if err != nil {
+		return nil, err
+	}
+	return &colpb.E2ERequest{
+		Base:    base,
+		SrcHost: req.SrcHost,
+		DstHost: req.DstHost,
+	}, err
+}
+
+func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
+	base, err := PBufE2ERequest(&req.Request)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +68,6 @@ func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
 		Params: &colpb.E2ESetupRequest_PathParams{
 			Segments:       segs,
 			CurrentSegment: uint32(req.CurrentSegmentRsvIndex),
-			SrcHost:        req.SrcHost,
-			DstHost:        req.DstHost,
 		},
 		Allocationtrail: trail,
 	}, nil

@@ -16,12 +16,10 @@ package reservationstore
 
 import (
 	"context"
-	"crypto/aes"
 	"crypto/subtle"
-	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 
-	"github.com/dchest/cmac"
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/e2e"
 	"github.com/scionproto/scion/go/co/reservation/segment"
@@ -31,7 +29,6 @@ import (
 	drkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 type Authenticator interface {
@@ -48,11 +45,6 @@ type macComputer interface {
 	// for each AS in transit. This MAC is only computed at the first AS.
 	// The initial AS is obtained from the first step of the path of the request.
 	ComputeSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq) error
-
-	// ComputeE2eSetupRequestInitialMAC computes the MAC for the immutable fields of the setup
-	// request, for each AS in transit. This MAC is only computed at the initiator host.
-	// The initiator host is taken from the src host of the request.
-	ComputeE2eSetupRequestInitialMAC(ctx context.Context, req *e2e.SetupReq) error
 
 	ComputeRequestTransitMAC(ctx context.Context, req *base.Request) error
 
@@ -72,6 +64,9 @@ type macVerifier interface {
 	// this request. If the request is now at the last AS, it also validates the request at
 	// the destination. Returns true if valid, false otherwise.
 	ValidateSegSetupRequest(ctx context.Context, req *segment.SetupReq) (bool, error)
+	// Validates a basic E2E request while in a transit AS.
+	// The authenticators were created on the source host.
+	ValidateE2eRequest(ctx context.Context, req *e2e.Request) (bool, error)
 	// ValidateE2eSetupRequest verifies the validity of the source authentication
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
 	// this request. If the request is now at the last AS, it also validates the request at
@@ -95,8 +90,8 @@ func NewDrkeyAuthenticator(localIA addr.IA, connector daemon.Connector) Authenti
 func (a *DrkeyAuthenticator) ComputeRequestInitialMAC(ctx context.Context,
 	req *base.Request) error {
 
-	payload := make([]byte, req.ID.Len()+1+4)
-	req.Serialize(payload)
+	payload := make([]byte, req.Len())
+	req.Serialize(payload, false)
 	return a.computeInitialMACforPayloadWithSegKeys(ctx, payload, req)
 }
 
@@ -105,14 +100,6 @@ func (a *DrkeyAuthenticator) ComputeSegmentSetupRequestInitialMAC(ctx context.Co
 
 	payload := inputInitialSegSetupRequest(req)
 	return a.computeInitialMACforPayloadWithSegKeys(ctx, payload, &req.Request)
-}
-
-func (a *DrkeyAuthenticator) ComputeE2eSetupRequestInitialMAC(ctx context.Context,
-	req *e2e.SetupReq) error {
-
-	// payload := inputInitialE2eSetupRequest(req)
-	// return a.computeInitialMACforPayloadWithE2eKeys(ctx, payload, req)
-	return nil // deleteme
 }
 
 func (a *DrkeyAuthenticator) ComputeRequestTransitMAC(ctx context.Context,
@@ -148,8 +135,9 @@ func (a *DrkeyAuthenticator) ComputeE2eSetupRequestTransitMAC(ctx context.Contex
 func (a *DrkeyAuthenticator) ValidateRequest(ctx context.Context,
 	req *base.Request) (bool, error) {
 
-	immutableInput := make([]byte, req.ID.Len()+1+4)
-	req.Serialize(immutableInput)
+	immutableInput := make([]byte, req.Len())
+	req.Serialize(immutableInput, false)
+
 	ok, err := a.validateSegmentPayloadInitialMAC(ctx, req, immutableInput)
 	if err == nil && ok && req.IsLastAS() {
 		ok, err = a.validateRequestAtDestination(ctx, req)
@@ -167,6 +155,19 @@ func (a *DrkeyAuthenticator) ValidateSegSetupRequest(ctx context.Context,
 	if err == nil && ok && req.IsLastAS() {
 		ok, err = a.validateSegmentSetupRequestAtDestination(ctx, req)
 	}
+	return ok, err
+}
+
+func (a *DrkeyAuthenticator) ValidateE2eRequest(ctx context.Context, req *e2e.Request) (
+	bool, error) {
+
+	if req.IsFirstAS() {
+		return true, nil
+	}
+	payload := make([]byte, req.Len())
+	req.Serialize(payload, false)
+
+	ok, err := a.validateE2ePayloadInitialMAC(ctx, req, payload)
 	return ok, err
 }
 
@@ -202,15 +203,45 @@ func (a *DrkeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Contex
 		return false, serrors.WrapStr("obtaining drkey", err, "fast", a.localIA,
 			"slow", req.Path.SrcIA())
 	}
-	mac, err := MAC(key, immutableInput)
+	mac, err := MAC(immutableInput, key)
 	if err != nil {
-		return false, serrors.WrapStr("validating setup request", err)
+		return false, serrors.WrapStr("validating segment initial request", err)
 	}
 	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
 	if res != 1 {
 		log.Info("source authentication failed", "id", req.ID,
 			"fast_side", a.localIA,
 			"slow_side", req.Path.SrcIA(), "mac", hex.EncodeToString(mac),
+			"expected", hex.EncodeToString(req.CurrentValidatorField()))
+		return false, nil
+	}
+	return true, nil
+}
+
+func (a *DrkeyAuthenticator) validateE2ePayloadInitialMAC(ctx context.Context,
+	req *e2e.Request, immutableInput []byte) (bool, error) {
+
+	key, err := a.getDRKeyAS2Host(ctx, a.localIA, req.Path.SrcIA(), addr.HostFromIP(req.SrcHost))
+	if err != nil {
+		return false, serrors.WrapStr("obtaining drkey", err, "fast", a.localIA,
+			"slow_ia", req.Path.SrcIA(), "slow_host", req.SrcHost)
+	}
+
+	mac, err := MAC(immutableInput, key)
+	if err != nil {
+		return false, serrors.WrapStr("validating e2e initial request", err)
+	}
+	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
+	if res != 1 {
+		log.Info("source authentication failed", "id", req.ID,
+			"fast_side", a.localIA,
+			"slow_ia", req.Path.SrcIA(), "slow_host", req.SrcHost,
+			"mac", hex.EncodeToString(mac),
+			"expected", hex.EncodeToString(req.CurrentValidatorField()))
+		fmt.Println("source authentication failed", "id", req.ID,
+			"fast_side", a.localIA,
+			"slow_ia", req.Path.SrcIA(), "slow_host", req.SrcHost,
+			"mac", hex.EncodeToString(mac),
 			"expected", hex.EncodeToString(req.CurrentValidatorField()))
 		return false, nil
 	}
@@ -233,7 +264,7 @@ func (a *DrkeyAuthenticator) validateAtDestination(ctx context.Context, req *bas
 		if err != nil {
 			return false, serrors.WrapStr("validating source authentic at destination", err)
 		}
-		mac, err := MAC(key, payload)
+		mac, err := MAC(payload, key)
 		if err != nil {
 			return false, serrors.WrapStr("computing mac validating source at destination", err)
 		}
@@ -259,16 +290,6 @@ func (a *DrkeyAuthenticator) computeInitialMACforPayloadWithSegKeys(ctx context.
 	return a.computeInitialMACforPayload(ctx, payload, req, keys)
 }
 
-func (a *DrkeyAuthenticator) computeInitialMACforPayloadWithE2eKeys(ctx context.Context,
-	payload []byte, req *e2e.SetupReq) error {
-
-	keys, err := a.slowAS2HostFromPath(ctx, req)
-	if err != nil {
-		return err
-	}
-	return a.computeInitialMACforPayload(ctx, payload, &req.Request, keys)
-}
-
 func (a *DrkeyAuthenticator) computeInitialMACforPayload(ctx context.Context, payload []byte,
 	req *base.Request, keys [][]byte) error {
 
@@ -276,7 +297,7 @@ func (a *DrkeyAuthenticator) computeInitialMACforPayload(ctx context.Context, pa
 		len(keys), len(req.Path.Steps)-1)
 	var err error
 	for i := 0; i < len(req.Path.Steps)-1; i++ {
-		req.Authenticators[i], err = MAC(keys[i], payload)
+		req.Authenticators[i], err = MAC(payload, keys[i])
 		if err != nil {
 			return err
 		}
@@ -291,7 +312,7 @@ func (a *DrkeyAuthenticator) computeTransitMACforPayload(ctx context.Context, pa
 	if err != nil {
 		return err
 	}
-	req.Authenticators[req.Path.CurrentStep-1], err = MAC(key, payload)
+	req.Authenticators[req.Path.CurrentStep-1], err = MAC(payload, key)
 	if err != nil {
 		return err
 	}
@@ -358,30 +379,18 @@ func (a *DrkeyAuthenticator) getDRKeyAS2Host(ctx context.Context, fast, slowIA a
 }
 
 func inputInitialSegSetupRequest(req *segment.SetupReq) []byte {
-	len := req.ID.Len() + 1 + 4 // ID + index + timestamp
-	// expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
-	len += 4 + 1 + 1 + 1 + 1 + 1 + 1
-	buff := make([]byte, len)
-
-	offset := req.ID.Len() + 1 + 4
-	req.Request.Serialize(buff)
-	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(req.ExpirationTime))
-	offset += 4
-	buff[offset] = byte(req.RLC)
-	buff[offset+1] = byte(req.PathType)
-	buff[offset+2] = byte(req.MinBW)
-	buff[offset+3] = byte(req.MaxBW)
-	buff[offset+4] = byte(req.SplitCls)
-	buff[offset+5] = byte(req.PathProps)
+	buff := make([]byte, req.Len())
+	req.Serialize(buff, false)
 	return buff
 }
 
 func inputTransitSegRequest(req *base.Request) []byte {
 	// TODO(juagargi) reason about this function: do we need to add something to the initial
 	// payload?
-	offset := req.ID.Len() + 1 + 4
-	buff := make([]byte, offset)
-	req.Serialize(buff)
+	// offset := req.ID.Len() + 1 + 4
+	// buff := make([]byte, offset)
+	buff := make([]byte, req.Len())
+	req.Serialize(buff, false)
 	return buff
 }
 
@@ -395,18 +404,6 @@ func inputTransitSegSetupRequestForStep(req *segment.SetupReq, step int) []byte 
 	return append(initial, byte(bead.AllocBW), byte(bead.MaxBW))
 }
 
-func MAC(key, payload []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, serrors.WrapStr("initializing aes cipher", err)
-	}
-	mac, err := cmac.New(block)
-	if err != nil {
-		return nil, serrors.WrapStr("initializing cmac", err)
-	}
-	_, err = mac.Write(payload)
-	if err != nil {
-		return nil, serrors.WrapStr("preparing mac", err)
-	}
-	return mac.Sum(nil), nil
+func MAC(payload, key []byte) ([]byte, error) {
+	return drkut.MAC(payload, key)
 }

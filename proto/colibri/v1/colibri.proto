@@ -263,6 +263,12 @@ message ListReservationsResponse {
 }
 
 
+message E2eRequest {
+    Request base = 1;
+    bytes src_host = 2;
+    bytes dst_host = 3;
+}
+
 message E2eSetupRequest {
     message PathParams {
         // the IDs of the segments to stitch for this e2e reservation, in traversal order.
@@ -270,10 +276,6 @@ message E2eSetupRequest {
         // index of the current segment.
         // If the node is transfer, the first segment it belongs to.
         uint32 current_segment = 2;
-        bytes src_host = 3;
-        // encodes the address of the destination host. It must be the same address that the
-        // destination used to register itself in its COLIBRI service.
-        bytes dst_host = 4;
     }
     message E2eSetupBead {
         // each on path AS writes here the max. BW it's willing to give.
@@ -281,7 +283,7 @@ message E2eSetupRequest {
     }
 
     // the base request. The path included here is from src to dst, so the full path.
-    Request base = 1;
+    E2eRequest base = 1;
     // the requested bw.
     uint32 requested_bw = 2;
     // the parameters of the request.
@@ -309,7 +311,7 @@ message E2eSetupResponse {
 
 message CleanupE2eIndexRequest {
     // the basic request
-    Request base = 1;
+    E2eRequest base = 1;
 }
 
 message CleanupE2eIndexResponse {

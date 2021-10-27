@@ -15,11 +15,13 @@
 package segment
 
 import (
+	"encoding/binary"
 	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // SetupReq is a segment reservation setup request.
@@ -63,6 +65,25 @@ func (r *SetupReq) ValidateForReservation(rsv *Reservation) error {
 		return serrors.New("different path end props.", "req", r.PathProps, "rsv", rsv.PathEndProps)
 	}
 	return nil
+}
+
+func (r *SetupReq) Len() int {
+	// basic_request + expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
+	return r.Request.Len() + 4 + 1 + 1 + 1 + 1 + 1 + 1
+}
+
+func (r *SetupReq) Serialize(buff []byte, writeMutableFields bool) {
+	offset := r.Request.Len()
+	r.Request.Serialize(buff[:offset], writeMutableFields)
+
+	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(r.ExpirationTime))
+	offset += 4
+	buff[offset] = byte(r.RLC)
+	buff[offset+1] = byte(r.PathType)
+	buff[offset+2] = byte(r.MinBW)
+	buff[offset+3] = byte(r.MaxBW)
+	buff[offset+4] = byte(r.SplitCls)
+	buff[offset+5] = byte(r.PathProps)
 }
 
 // PrevBW returns the minimum of the maximum bandwidths already granted by previous ASes.

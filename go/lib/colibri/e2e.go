@@ -17,21 +17,29 @@
 package colibri
 
 import (
+	"context"
 	"net"
 	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	dkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 )
 
 // BaseRequest is used for every colibri request through sciond.
 type BaseRequest struct {
 	Id             reservation.ID
 	Index          reservation.IndexNumber
+	TimeStamp      time.Time // deleteme check this is translated, etc
 	SrcHost        net.IP
 	DstHost        net.IP
 	Path           *base.TransparentPath // non nil path. It contains SrcIA and DstIA.
 	Authenticators [][]byte              // per spec., MACs for AS_i on the immutable data
+}
+
+func (r *BaseRequest) CreateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer) error {
+
+	return createAuthsForBaseRequest(ctx, conn, r)
 }
 
 // E2EReservationSetup has the necessary data for an endhost to setup/renew an e2e reservation.
@@ -41,7 +49,14 @@ type E2EReservationSetup struct {
 	Segments    []reservation.ID
 }
 
-// deleteme TODO(juagargi) add a NewE2eReservationSetup function that simplifies the creation of the E2EReservationSetup (look at hellocolibri) and `git grep -n E2EReservationSetup` and use the new function.
+func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context,
+	conn dkut.DRKeyGetLvl2Keyer) error {
+
+	return createAuthsForE2EReservationSetup(ctx, conn, r)
+}
+
+// deleteme TODO(juagargi) add a NewE2eReservationSetup function that simplifies the creation
+// of the E2EReservationSetup (look at hellocolibri) and `git grep -n E2EReservationSetup` and use the new function.
 type E2EResponseError struct {
 	Message  string
 	FailedAS int

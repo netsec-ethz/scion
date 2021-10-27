@@ -15,7 +15,6 @@
 package e2e
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 
@@ -25,21 +24,31 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+type Request struct {
+	base.Request
+	SrcHost net.IP
+	DstHost net.IP
+}
+
+func (r *Request) Len() int {
+	return r.Request.Len() + 16 + 16
+}
+func (r *Request) Serialize(buff []byte, writeMutableFields bool) {
+	offset := r.Request.Len()
+	r.Request.Serialize(buff[:offset], writeMutableFields)
+	copy(buff[offset:], r.SrcHost.To16())
+	offset += 16
+	copy(buff[offset:], r.DstHost.To16())
+}
+
 // SetupReq is an e2e setup/renewal request, that has been so far accepted.
 type SetupReq struct {
-	base.Request
-	SrcHost                net.IP
-	DstHost                net.IP
+	Request
 	RequestedBW            col.BWCls
 	SegmentRsvs            []col.ID
 	CurrentSegmentRsvIndex int // index in SegmentRsv above. Transfer nodes use the first segment
 	AllocationTrail        []col.BWCls
 	TransferIndices        []int // up to two indices (from Path) where the transfers are
-}
-
-type SetupFailureInfo struct {
-	NodeIndex int
-	Message   string
 }
 
 func (r *SetupReq) Validate() error {
@@ -62,35 +71,38 @@ func (r *SetupReq) Validate() error {
 	return nil
 }
 
-func (r *SetupReq) SerializeImmutableFields() []byte {
+// Len returns the length in bytes necessary to serialize the immutable fields.
+func (r *SetupReq) Len() int {
+	return r.Request.Len() + 1 + len(r.SegmentRsvs)*(reservation.IDSegLen)
+}
+
+func (r *SetupReq) SerializeImmutableFields(buff []byte) {
 	if r == nil {
-		return nil
+		return
 	}
-	length := r.ID.Len() + 1 + 4 // ID + index + timestamp
-	// srcIA + srcHost + dstIA + dstHost + BW + seg_reservations
-	length += 8 + 16 + 8 + 16 + 1 + len(r.SegmentRsvs)*(reservation.IDSuffixSegLen+6)
-	buff := make([]byte, length)
 
-	offset := r.ID.Len() + 1 + 4
-	r.Request.Serialize(buff[:offset])
-
-	binary.BigEndian.PutUint64(buff[offset:], uint64(r.Path.SrcIA().IAInt()))
-	offset += 8
-	copy(buff[offset:], r.SrcHost.To16())
-	offset += 16
-	binary.BigEndian.PutUint64(buff[offset:], uint64(r.Path.DstIA().IAInt()))
-	offset += 8
-	copy(buff[offset:], r.DstHost.To16())
-	offset += 16
+	offset := r.Request.Len()
+	r.Request.Serialize(buff[:offset], false)
 	buff[offset] = byte(r.RequestedBW)
 	offset++
+	// segments:
 	for _, id := range r.SegmentRsvs {
 		n, _ := id.Read(buff)
-		if n != reservation.IDSuffixSegLen+6 {
+		if n != reservation.IDSegLen {
 			panic(fmt.Sprintf("inconsistent id length %d (should be %d)",
-				n, reservation.IDSuffixSegLen+6))
+				n, reservation.IDSegLen))
 		}
-		offset += reservation.IDSuffixSegLen + 6
+		offset += reservation.IDSegLen
 	}
+}
+
+func (r *SetupReq) ToRawImmutableFields() []byte {
+	buff := make([]byte, r.Len())
+	r.SerializeImmutableFields(buff)
 	return buff
+}
+
+type SetupFailureInfo struct {
+	NodeIndex int
+	Message   string
 }

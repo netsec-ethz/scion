@@ -246,9 +246,8 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	if err != nil {
 		return err
 	}
-	rsv := req.Reservation
 	// confirm new index
-	confirmReq := base.NewRequest(m.now(), &rsv.ID, req.Index, req.Path)
+	confirmReq := base.NewRequest(m.now(), &req.Reservation.ID, req.Index, req.Path)
 	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq)
 	if err != nil || !res.Success() {
 		log.Info("failed to confirm the index", "id", req.ID, "idx", req.Index,

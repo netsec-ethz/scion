@@ -312,6 +312,9 @@ func HostFromRaw(b []byte, htype HostAddrType) (HostAddr, error) {
 }
 
 func HostFromIP(ip net.IP) HostAddr {
+	if len(ip) == 0 {
+		return HostNone{}
+	}
 	if ip4 := ip.To4(); ip4 != nil {
 		return HostIPv4(ip4)
 	}

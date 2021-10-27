@@ -17,21 +17,36 @@ package drkeyutil
 import (
 	"context"
 	"crypto/aes"
+	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/dchest/cmac"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// CreateAuthenticators returns the authenticators obtained to apply a MAC function to the
+// ComputeAuthenticators returns the authenticators obtained to apply a MAC function to the
 // passed payload.
-func ComputeMAC(payload []byte, key []byte) ([]byte, error) {
+func ComputeAuthenticators(payload []byte, keys [][]byte) ([][]byte, error) {
+	auths := make([][]byte, len(keys))
+	for i, k := range keys {
+		var err error
+		auths[i], err = MAC(payload, k)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return auths, nil
+}
+
+func MAC(payload []byte, key []byte) ([]byte, error) {
+	fmt.Printf("deleteme >>>>>>>>>>>> MAC(%s, %s)\n",
+		hex.EncodeToString(payload), hex.EncodeToString(key))
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, serrors.WrapStr("initializing aes cipher", err)
@@ -47,7 +62,9 @@ func ComputeMAC(payload []byte, key []byte) ([]byte, error) {
 	return mac.Sum(nil), nil
 }
 
-func GetLvl2Keys(ctx context.Context, conn daemon.Connector,
+// GetLvl2Keys gets the lvl2 keys with the functional options in the arguments.
+// Example of use: keys,err := GetLvl2Keys(AS2AS, "colibri", SlowIAs(slow),FastIAs(fast))
+func GetLvl2Keys(ctx context.Context, conn DRKeyGetLvl2Keyer,
 	keyType drkey.Lvl2KeyType, protocol string,
 	options ...keyOptsModifier) ([][]byte, error) {
 
@@ -95,7 +112,7 @@ type keyOptsModifier func(*lvl2GetterOptions)
 
 type lvl2GetterOptions struct {
 	ctx       context.Context
-	connector daemon.Connector
+	connector DRKeyGetLvl2Keyer
 	keyType   drkey.Lvl2KeyType
 	protocol  string
 	slowIAs   []addr.IA
@@ -137,11 +154,22 @@ func getLvl2Keys(opts *lvl2GetterOptions) ([][]byte, error) {
 			panic("no fast hosts allowed for this key type")
 		}
 	}
+
+	// functions to extend IAs and hosts:
+	extendIAs := func(ias *[]addr.IA, length int) {
+		if len(*ias) < length {
+			master := (*ias)[0]
+			*ias = make([]addr.IA, length)
+			for i := 0; i < length; i++ {
+				(*ias)[i] = master
+			}
+		}
+	}
 	extendHosts := func(hosts *[]addr.HostAddr, length int) {
 		if len(*hosts) < length {
 			var master addr.HostAddr = addr.HostNone{}
 			if len(*hosts) > 0 {
-				master = opts.slowHosts[0]
+				master = (*hosts)[0]
 			}
 			*hosts = make([]addr.HostAddr, length)
 			for i := 0; i < length; i++ {
@@ -149,15 +177,13 @@ func getLvl2Keys(opts *lvl2GetterOptions) ([][]byte, error) {
 			}
 		}
 	}
-	// all okay, we make everything the same length
+	// we make everything the same length
 	length := len(opts.fastIAs)
 	if len(opts.slowIAs) > length {
 		length = len(opts.slowIAs)
-		master := opts.fastIAs[0]
-		opts.fastIAs = make([]addr.IA, length)
-		for i := 0; i < length; i++ {
-			opts.fastIAs[i] = master
-		}
+		extendIAs(&opts.fastIAs, length)
+	} else {
+		extendIAs(&opts.slowIAs, length)
 	}
 	extendHosts(&opts.slowHosts, length)
 	extendHosts(&opts.fastHosts, length)
@@ -177,7 +203,11 @@ func getLvl2Keys(opts *lvl2GetterOptions) ([][]byte, error) {
 	return getKeys(opts.ctx, opts.connector, time.Now(), metas)
 }
 
-func getKeys(ctx context.Context, conn daemon.Connector, valTime time.Time,
+type DRKeyGetLvl2Keyer interface {
+	DRKeyGetLvl2Key(context.Context, drkey.Lvl2Meta, time.Time) (drkey.Lvl2Key, error)
+}
+
+func getKeys(ctx context.Context, conn DRKeyGetLvl2Keyer, valTime time.Time,
 	metas []drkey.Lvl2Meta) ([][]byte, error) {
 	keys := make([][]byte, len(metas))
 	errs := serrors.List{}

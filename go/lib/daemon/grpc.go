@@ -268,13 +268,17 @@ func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseReques
 	if !req.Id.IsE2EID() {
 		return serrors.New("this id is not for an E2E reservation")
 	}
+	p, err := translate.PBufPath(req.Path)
+	if err != nil {
+		return err
+	}
 	pbReq := &sdpb.ColibriCleanupRsvRequest{
 		Base: &colpb.CleanupReservationRequest{
 			Base: &colpb.Request{
 				Id:             translate.PBufID(&req.Id),
 				Index:          uint32(req.Index),
 				Timestamp:      util.TimeToSecs(time.Now()),
-				Path:           translate.PBufPath(req.Path),
+				Path:           p,
 				Authenticators: &colpb.Authenticators{Macs: req.Authenticators},
 			},
 			SrcHost: req.SrcHost,

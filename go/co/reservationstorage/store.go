@@ -43,7 +43,7 @@ type Store interface {
 		base.Response, error)
 	AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		e2e.SetupResponse, error)
-	CleanupE2EReservation(ctx context.Context, req *base.Request) (
+	CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 		base.Response, error)
 
 	// DeleteExpiredIndices returns the number of indices deleted, and the time for the

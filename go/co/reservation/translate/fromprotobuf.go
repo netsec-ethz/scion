@@ -59,8 +59,20 @@ func SetupReq(msg *colpb.SegmentSetupRequest) (*segment.SetupReq, error) {
 	return req, nil
 }
 
-func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
+func E2ERequest(msg *colpb.E2ERequest) (*e2e.Request, error) {
 	base, err := Request(msg.Base)
+	if err != nil {
+		return nil, err
+	}
+	return &e2e.Request{
+		Request: *base,
+		SrcHost: msg.SrcHost,
+		DstHost: msg.DstHost,
+	}, nil
+}
+
+func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
+	base, err := E2ERequest(msg.Base)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +86,6 @@ func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
 	}
 	return &e2e.SetupReq{
 		Request:                *base,
-		SrcHost:                msg.Params.SrcHost,
-		DstHost:                msg.Params.DstHost,
 		SegmentRsvs:            segIds,
 		CurrentSegmentRsvIndex: int(msg.Params.CurrentSegment),
 		RequestedBW:            col.BWCls(msg.RequestedBw),
