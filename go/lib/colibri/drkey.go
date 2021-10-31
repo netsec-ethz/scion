@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/binary"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -95,7 +96,7 @@ func serializeBaseRequest(buff []byte, req *BaseRequest) {
 	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(req.TimeStamp))
 	offset += 4
 	// path:
-	req.Path.Serialize(buff[offset:], false)
+	req.Path.Serialize(buff[offset:], base.SerializeImmutable)
 	offset += req.Path.Len()
 	// src and dst hosts:
 	copy(buff[offset:], req.SrcHost.To16())

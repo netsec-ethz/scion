@@ -33,9 +33,9 @@ type Request struct {
 func (r *Request) Len() int {
 	return r.Request.Len() + 16 + 16
 }
-func (r *Request) Serialize(buff []byte, writeMutableFields bool) {
+func (r *Request) Serialize(buff []byte, options base.SerializeOptions) {
 	offset := r.Request.Len()
-	r.Request.Serialize(buff[:offset], writeMutableFields)
+	r.Request.Serialize(buff[:offset], options)
 	copy(buff[offset:], r.SrcHost.To16())
 	offset += 16
 	copy(buff[offset:], r.DstHost.To16())
@@ -76,13 +76,13 @@ func (r *SetupReq) Len() int {
 	return r.Request.Len() + 1 + len(r.SegmentRsvs)*(reservation.IDSegLen)
 }
 
-func (r *SetupReq) Serialize(buff []byte, writeMutableFields bool) {
+func (r *SetupReq) Serialize(buff []byte, options base.SerializeOptions) {
 	if r == nil {
 		return
 	}
 
 	offset := r.Request.Len()
-	r.Request.Serialize(buff[:offset], writeMutableFields)
+	r.Request.Serialize(buff[:offset], options)
 	buff[offset] = byte(r.RequestedBW)
 	offset++
 	// segments:
@@ -93,6 +93,12 @@ func (r *SetupReq) Serialize(buff []byte, writeMutableFields bool) {
 				n, reservation.IDSegLen))
 		}
 		offset += reservation.IDSegLen
+	}
+	if options >= base.SerializeSemiMutable {
+		for _, alloc := range r.AllocationTrail {
+			buff[offset] = byte(alloc)
+			offset++
+		}
 	}
 }
 

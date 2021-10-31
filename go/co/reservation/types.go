@@ -21,3 +21,11 @@ type Capacities interface {
 	CapacityIngress(ingress uint16) uint64
 	CapacityEgress(egress uint16) uint64
 }
+
+type SerializeOptions int
+
+const (
+	SerializeImmutable   = iota // only immutable fields
+	SerializeSemiMutable        // only semi-immutable fields (e.g. allocation trail)
+	SerializeMutable            // all fields, including e.g. path's current step
+)

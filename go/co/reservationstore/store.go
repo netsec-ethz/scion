@@ -869,6 +869,10 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			// indicate the next node we are using the next segment:
 			req.CurrentSegmentRsvIndex++
 		}
+		if err := s.authenticator.ComputeE2eSetupRequestTransitMAC(ctx, req); err != nil {
+			return nil, serrors.WrapStr("computing in transit e2e setup request authenticator", err)
+		}
+		// authenticate request for the destination AS
 		client, err := s.operator.ColibriClient(ctx, req.Path)
 		if err != nil {
 			log.Debug("error finding a colibri service client", "err", err)
@@ -880,6 +884,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			failedResponse.Message = s.errWrapStr("translation failed", err).Error()
 			return failedResponse, nil
 		}
+		// forward to next colibri service
 		pbRes, err := client.E2ESetup(ctx, pbReq)
 		if err != nil {
 			failedResponse.Message = s.errWrapStr("cannot forward request", err).Error()
@@ -977,6 +982,10 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 
 	if req.IsLastAS() {
 		return &base.ResponseSuccess{}, nil
+	}
+	// authenticate the semi mutable parts of the request, to be validated at the destination
+	if err := s.authenticator.ComputeE2eRequestTransitMAC(ctx, req); err != nil {
+		return nil, serrors.WrapStr("computing in transit e2e base request authenticator", err)
 	}
 	// forward to next colibri service
 	client, err := s.operator.ColibriClient(ctx, req.Path)

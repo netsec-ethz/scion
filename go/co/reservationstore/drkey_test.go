@@ -168,6 +168,133 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 	}
 }
 
+func TestE2eRequestTransitMac(t *testing.T) {
+	cases := map[string]struct {
+		transitReq e2e.Request
+	}{
+		"regular": {
+			transitReq: e2e.Request{
+				Request: *base.NewRequest(util.SecsToTime(1),
+					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
+					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+				SrcHost: net.ParseIP(srcHost()),
+				DstHost: net.ParseIP(dstHost()),
+			},
+		},
+	}
+	mockKeys := mockKeysSameSlowPath()
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			defer cancelF()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			daemon := mock_daemon.NewMockConnector(ctrl)
+			daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+					drkey.Lvl2Key, error) {
+
+					k, ok := mockKeys[meta.SrcIA]
+					require.True(t, ok, "not found %s", meta.SrcIA)
+					return k, nil
+				})
+
+			// at the transit ASes:
+			for step := 1; step < len(tc.transitReq.Path.Steps); step++ {
+				tc.transitReq.Path.CurrentStep = step
+				auth := DrkeyAuthenticator{
+					localIA:   tc.transitReq.Path.Steps[step].IA,
+					connector: daemon,
+				}
+				err := auth.ComputeE2eRequestTransitMAC(ctx, &tc.transitReq)
+				require.NoError(t, err)
+			}
+
+			// at the destination AS:
+			tc.transitReq.Path.CurrentStep = len(tc.transitReq.Path.Steps) - 1
+			auth := DrkeyAuthenticator{
+				localIA:   tc.transitReq.Path.DstIA(),
+				connector: daemon,
+			}
+			ok, err := auth.validateE2eRequestAtDestination(ctx, &tc.transitReq)
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+	}
+}
+
+func TestE2eSetupRequestTransitMac(t *testing.T) {
+	cases := map[string]struct {
+		transitReq e2e.SetupReq
+	}{
+		"regular": {
+			transitReq: e2e.SetupReq{
+				Request: e2e.Request{
+					Request: *base.NewRequest(util.SecsToTime(1),
+						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
+						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+					SrcHost: net.ParseIP(srcHost()),
+					DstHost: net.ParseIP(dstHost()),
+				},
+				RequestedBW: 11,
+				SegmentRsvs: []reservation.ID{
+					*ct.MustParseID("ff00:0:111", "01234567"),
+					*ct.MustParseID("ff00:0:112", "89abcdef"),
+				},
+			},
+		},
+	}
+	mockKeys := mockKeysSameSlowPath()
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			defer cancelF()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			daemon := mock_daemon.NewMockConnector(ctrl)
+			daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+					drkey.Lvl2Key, error) {
+
+					k, ok := mockKeys[meta.SrcIA]
+					require.True(t, ok, "not found %s", meta.SrcIA)
+					return k, nil
+				})
+
+			// at the transit ASes:
+			for step := 0; step < len(tc.transitReq.Path.Steps); step++ {
+				tc.transitReq.AllocationTrail = append(tc.transitReq.AllocationTrail, 11)
+				if step == 0 {
+					continue
+				}
+				tc.transitReq.Path.CurrentStep = step
+				auth := DrkeyAuthenticator{
+					localIA:   tc.transitReq.Path.Steps[step].IA,
+					connector: daemon,
+				}
+				err := auth.ComputeE2eSetupRequestTransitMAC(ctx, &tc.transitReq)
+				require.NoError(t, err)
+			}
+
+			// at the destination AS:
+			tc.transitReq.Path.CurrentStep = len(tc.transitReq.Path.Steps) - 1
+			auth := DrkeyAuthenticator{
+				localIA:   tc.transitReq.Path.DstIA(),
+				connector: daemon,
+			}
+			ok, err := auth.validateE2eSetupRequestAtDestination(ctx, &tc.transitReq)
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+	}
+}
+
 func srcIA() string {
 	return "1-ff00:0:111"
 }

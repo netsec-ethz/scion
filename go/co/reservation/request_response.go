@@ -95,10 +95,10 @@ func (r *Request) Len() int {
 	return r.MsgId.Len() + r.Path.Len()
 }
 
-func (r *Request) Serialize(buff []byte, writeMutableFields bool) {
+func (r *Request) Serialize(buff []byte, options SerializeOptions) {
 	offset := r.MsgId.Len()
 	r.MsgId.Serialize(buff[:offset])
-	r.Path.Serialize(buff[offset:], writeMutableFields)
+	r.Path.Serialize(buff[offset:], options)
 }
 
 func (r *Request) IsFirstAS() bool {

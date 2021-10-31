@@ -72,9 +72,9 @@ func (r *SetupReq) Len() int {
 	return r.Request.Len() + 4 + 1 + 1 + 1 + 1 + 1 + 1
 }
 
-func (r *SetupReq) Serialize(buff []byte, writeMutableFields bool) {
+func (r *SetupReq) Serialize(buff []byte, options base.SerializeOptions) {
 	offset := r.Request.Len()
-	r.Request.Serialize(buff[:offset], writeMutableFields)
+	r.Request.Serialize(buff[:offset], options)
 
 	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(r.ExpirationTime))
 	offset += 4
@@ -84,6 +84,14 @@ func (r *SetupReq) Serialize(buff []byte, writeMutableFields bool) {
 	buff[offset+3] = byte(r.MaxBW)
 	buff[offset+4] = byte(r.SplitCls)
 	buff[offset+5] = byte(r.PathProps)
+	if options >= base.SerializeSemiMutable {
+		offset += 6
+		for _, bead := range r.AllocTrail {
+			buff[offset] = byte(bead.AllocBW)
+			buff[offset+1] = byte(bead.MaxBW)
+			offset += 2
+		}
+	}
 }
 
 // PrevBW returns the minimum of the maximum bandwidths already granted by previous ASes.
