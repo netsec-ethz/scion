@@ -190,17 +190,13 @@ func (d *DRKeyServer) validateLvl2Req(req ctrl.Lvl2Req, peerAddr net.Addr) error
 
 	switch drkey.Lvl2KeyType(req.ReqType) {
 	case drkey.Host2Host:
-		if req.SrcIA == d.LocalIA {
-			if localAddr.Equal(req.SrcHost.ToHostAddr()) {
-				break
-			}
+		if req.SrcIA == d.LocalIA && localAddr.Equal(req.SrcHost.ToHostAddr()) {
+			break
 		}
 		fallthrough
 	case drkey.AS2Host:
-		if req.DstIA == d.LocalIA {
-			if localAddr.Equal(req.DstHost.ToHostAddr()) {
-				break
-			}
+		if req.DstIA == d.LocalIA && localAddr.Equal(req.DstHost.ToHostAddr()) {
+			break
 		}
 		fallthrough
 	case drkey.AS2AS: // deleteme: we should not require access to the delegation list when asking for a host2host
