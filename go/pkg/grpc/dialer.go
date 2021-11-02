@@ -93,6 +93,7 @@ func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientCon
 // for AS internal communication, and is capable of resolving svc addresses.
 type TCPDialer struct {
 	SvcResolver func(addr.HostSVC) []resolver.Address
+	LocalAddr   *net.TCPAddr
 }
 
 // Dial dials a gRPC connection over TCP. It resolves svc addresses.
@@ -111,6 +112,13 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 			grpc.WithResolvers(r),
 			UnaryClientInterceptor(),
 			StreamClientInterceptor(),
+			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+				tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+				if err != nil {
+					return nil, err
+				}
+				return net.DialTCP("tcp", t.LocalAddr, tcpAddr)
+			}),
 		)
 	}
 

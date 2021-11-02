@@ -121,6 +121,8 @@ type SDConfig struct {
 	// Address is the local address to listen on for SCION messages, and to send out messages to
 	// other nodes.
 	Address string `toml:"address,omitempty"`
+	// ForceLocalAddress forces the daemon to dial using the local IP address specified in Address.
+	ForceLocalAddress bool `toml:"force_local_address,omitempty"`
 	// DisableSegVerification indicates that segment verification should be
 	// disabled.
 	DisableSegVerification bool `toml:"disable_seg_verification,omitempty"`

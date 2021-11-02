@@ -199,7 +199,7 @@ func (d *DRKeyServer) validateLvl2Req(req ctrl.Lvl2Req, peerAddr net.Addr) error
 			break
 		}
 		fallthrough
-	case drkey.AS2AS: // deleteme: we should not require access to the delegation list when asking for a host2host
+	case drkey.AS2AS:
 		// check in the allowed endhosts list
 		var rawIP [16]byte
 		copy(rawIP[:], localAddr.IP().To16())

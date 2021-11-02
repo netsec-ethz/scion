@@ -134,6 +134,7 @@ class GoGenerator(object):
                 },
                 'delegation':{
                     'colibri': [str(sd_ip)], # local daemon must be able to get the colibri DS
+                    'piskes': [str(sd_ip)], # local daemon must be able to use piskes
                 },
             },
             'tracing': self._tracing_entry(),
@@ -278,6 +279,7 @@ class GoGenerator(object):
             },
             'sd': {
                 'address': socket_address_str(ip, SD_API_PORT),
+                'force_local_address': True,
             },
             'tracing': self._tracing_entry(),
             'metrics': {

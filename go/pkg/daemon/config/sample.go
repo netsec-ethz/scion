@@ -20,6 +20,10 @@ const sdSample = `
 # Address where the SCION Daemon server API is exposed. (default 127.0.0.1:30255)
 address = "127.0.0.1:30255"
 
+# Do not force daemon to dial using the local IP address specified above in address. This lets
+# the network stack to choose the appropriate address depending on the destination address.
+force_local_address = false
+
 # Disable segment verification of the daemon. This can be done if it runs in
 # the same trust zone as the control service. (default false)
 disable_seg_verification = false

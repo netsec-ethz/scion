@@ -120,7 +120,17 @@ func realMain(ctx context.Context) error {
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 
+	var localAddr *net.TCPAddr
+	if globalCfg.SD.ForceLocalAddress {
+		localAddr, err = net.ResolveTCPAddr("tcp", globalCfg.SD.Address)
+		if err != nil {
+			return serrors.WrapStr("bad local address", err, "local_addr", globalCfg.SD.Address)
+		}
+		localAddr.Port = 0
+	}
+
 	dialer := &libgrpc.TCPDialer{
+		LocalAddr: localAddr,
 		SvcResolver: func(dst addr.HostSVC) []resolver.Address {
 			targets := []resolver.Address{}
 			switch dst.Base() {
