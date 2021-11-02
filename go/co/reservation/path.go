@@ -116,15 +116,7 @@ func (p *TransparentPath) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	strs := make([]string, len(p.Steps))
-	for i, s := range p.Steps {
-		if s.IA.IsZero() {
-			strs[i] = fmt.Sprintf("%d,%d", s.Ingress, s.Egress)
-		} else {
-			strs[i] = fmt.Sprintf("%d,%s,%d", s.Ingress, s.IA, s.Egress)
-		}
-	}
-	str := strings.Join(strs, " > ")
+	str := StepsToString(p.Steps)
 	if len(str) > 0 {
 		str += " "
 	}
@@ -343,4 +335,15 @@ func PathToRaw(p slayers.Path) ([]byte, error) {
 	buff := make([]byte, p.Len())
 	err := p.SerializeTo(buff)
 	return buff, err
+}
+func StepsToString(steps []PathStep) string {
+	strs := make([]string, len(steps))
+	for i, s := range steps {
+		if s.IA.IsZero() {
+			strs[i] = fmt.Sprintf("%d,%d", s.Ingress, s.Egress)
+		} else {
+			strs[i] = fmt.Sprintf("%d,%s,%d", s.Ingress, s.IA, s.Egress)
+		}
+	}
+	return strings.Join(strs, " > ")
 }

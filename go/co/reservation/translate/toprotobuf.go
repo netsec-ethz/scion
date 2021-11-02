@@ -74,15 +74,19 @@ func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
 }
 
 func PBufSetupResponse(res segment.SegmentSetupResponse) *colpb.SegmentSetupResponse {
-	pbRes := &colpb.SegmentSetupResponse{}
+	msg := &colpb.SegmentSetupResponse{}
 
 	switch r := res.(type) {
 	case *segment.SegmentSetupResponseSuccess:
-		pbRes.SuccessFailure = &colpb.SegmentSetupResponse_Token{
+		msg.Timestamp = util.TimeToSecs(r.Timestamp)
+		msg.Authenticators = PBufAuthenticators(r.AuthenticatedResponse.Authenticators)
+		msg.SuccessFailure = &colpb.SegmentSetupResponse_Token{
 			Token: r.Token.ToRaw(),
 		}
 	case *segment.SegmentSetupResponseFailure:
-		pbRes.SuccessFailure = &colpb.SegmentSetupResponse_Failure_{
+		msg.Timestamp = util.TimeToSecs(r.Timestamp)
+		msg.Authenticators = PBufAuthenticators(r.AuthenticatedResponse.Authenticators)
+		msg.SuccessFailure = &colpb.SegmentSetupResponse_Failure_{
 			Failure: &colpb.SegmentSetupResponse_Failure{
 				Request: PBufSetupRequestParams(r.FailedRequest),
 				Failure: &colpb.Response_Failure{
@@ -91,15 +95,19 @@ func PBufSetupResponse(res segment.SegmentSetupResponse) *colpb.SegmentSetupResp
 			},
 		}
 	}
-	return pbRes
+	return msg
 }
 
 func PBufE2ESetupResponse(res e2e.SetupResponse) *colpb.E2ESetupResponse {
 	msg := &colpb.E2ESetupResponse{}
 	switch t := res.(type) {
 	case *e2e.SetupResponseSuccess:
+		msg.Timestamp = util.TimeToSecs(t.Timestamp)
+		msg.Authenticators = PBufAuthenticators(t.Authenticators)
 		msg.Token = t.Token
 	case *e2e.SetupResponseFailure:
+		msg.Timestamp = util.TimeToSecs(t.Timestamp)
+		msg.Authenticators = PBufAuthenticators(t.Authenticators)
 		trail := make([]*colpb.E2ESetupRequest_E2ESetupBead, len(t.AllocTrail))
 		for i, b := range t.AllocTrail {
 			trail[i] = &colpb.E2ESetupRequest_E2ESetupBead{
@@ -153,9 +161,15 @@ func PBufSetupRequestParams(req *segment.SetupReq) *colpb.SegmentSetupRequest_Pa
 func PBufResponse(res base.Response) *colpb.Response {
 	switch r := res.(type) {
 	case *base.ResponseSuccess:
-		return &colpb.Response{SuccessFailure: &colpb.Response_Success_{}}
+		return &colpb.Response{
+			Timestamp:      util.TimeToSecs(r.Timestamp),
+			Authenticators: PBufAuthenticators(r.Authenticators),
+			SuccessFailure: &colpb.Response_Success_{},
+		}
 	case *base.ResponseFailure:
 		return &colpb.Response{
+			Timestamp:      util.TimeToSecs(r.Timestamp),
+			Authenticators: PBufAuthenticators(r.Authenticators),
 			SuccessFailure: &colpb.Response_Failure_{
 				Failure: &colpb.Response_Failure{
 					Message:    r.Message,

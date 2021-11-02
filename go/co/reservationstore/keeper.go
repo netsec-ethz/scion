@@ -458,6 +458,7 @@ func (e requirements) Compliance(rsv *seg.Reservation, atLeastUntil time.Time) C
 		seg.ByExpiration(atLeastUntil),
 		seg.ByMinBW(e.minBW),
 		seg.ByMaxBW(e.maxBW),
+		seg.NotConfirmed(),
 	)
 	if len(indices) == 0 { // no valid index found
 		return NeedsIndices

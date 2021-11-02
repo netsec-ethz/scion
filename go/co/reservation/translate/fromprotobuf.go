@@ -102,6 +102,10 @@ func SetupResponse(msg *colpb.SegmentSetupResponse) (segment.SegmentSetupRespons
 			return nil, err
 		}
 		res = &segment.SegmentSetupResponseSuccess{
+			AuthenticatedResponse: base.AuthenticatedResponse{
+				Timestamp:      util.SecsToTime(msg.Timestamp),
+				Authenticators: msg.Authenticators.Macs,
+			},
 			Token: *tok,
 		}
 	case *colpb.SegmentSetupResponse_Failure_:
@@ -111,6 +115,10 @@ func SetupResponse(msg *colpb.SegmentSetupResponse) (segment.SegmentSetupRespons
 			return nil, err
 		}
 		res = &segment.SegmentSetupResponseFailure{
+			AuthenticatedResponse: base.AuthenticatedResponse{
+				Timestamp:      util.SecsToTime(msg.Timestamp),
+				Authenticators: msg.Authenticators.Macs,
+			},
 			FailedRequest: &segment.SetupReq{ // without base request
 				ExpirationTime:   expTime,
 				RLC:              rlc,
@@ -135,6 +143,10 @@ func E2ESetupResponse(msg *colpb.E2ESetupResponse) (e2e.SetupResponse, error) {
 			trail[i] = col.BWCls(b.Maxbw)
 		}
 		return &e2e.SetupResponseFailure{
+			AuthenticatedResponse: base.AuthenticatedResponse{
+				Timestamp:      util.SecsToTime(msg.Timestamp),
+				Authenticators: msg.Authenticators.Macs,
+			},
 			Message:    msg.Failure.Message,
 			FailedStep: uint8(msg.Failure.FailedStep),
 			AllocTrail: trail,
@@ -142,6 +154,10 @@ func E2ESetupResponse(msg *colpb.E2ESetupResponse) (e2e.SetupResponse, error) {
 	}
 	// success:
 	return &e2e.SetupResponseSuccess{
+		AuthenticatedResponse: base.AuthenticatedResponse{
+			Timestamp:      util.SecsToTime(msg.Timestamp),
+			Authenticators: msg.Authenticators.Macs,
+		},
 		Token: msg.Token,
 	}, nil
 }
@@ -168,13 +184,20 @@ func Request(msg *colpb.Request) (*base.Request, error) {
 }
 
 func Response(msg *colpb.Response) base.Response {
+	authResponse := base.AuthenticatedResponse{
+		Timestamp:      util.SecsToTime(msg.Timestamp),
+		Authenticators: msg.Authenticators.Macs,
+	}
 	switch r := msg.SuccessFailure.(type) {
 	case *colpb.Response_Success_:
-		return &base.ResponseSuccess{}
+		return &base.ResponseSuccess{
+			AuthenticatedResponse: authResponse,
+		}
 	case *colpb.Response_Failure_:
 		return &base.ResponseFailure{
-			Message:    r.Failure.Message,
-			FailedStep: uint8(r.Failure.FailingHop),
+			AuthenticatedResponse: authResponse,
+			FailedStep:            uint8(r.Failure.FailingHop),
+			Message:               r.Failure.Message,
 		}
 	default:
 		panic(fmt.Sprintf("unknown type %s", common.TypeOf(msg.SuccessFailure)))

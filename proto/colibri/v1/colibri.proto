@@ -133,7 +133,8 @@ message Response {
         // a failure field representing a failure message.
         Failure failure = 2;
     }
-    Authenticators authenticators = 3;
+    uint32 timestamp = 3;
+    Authenticators authenticators = 4;
 }
 
 message SegmentSetupRequest {
@@ -181,7 +182,8 @@ message SegmentSetupResponse {
         // if failure, this field will not be null, and will contain the failure message.
         Failure failure = 2;
     }
-    Authenticators authenticators = 3;
+    uint32 timestamp = 3;
+    Authenticators authenticators = 4;
 }
 
 message ConfirmSegmentIndexRequest {
@@ -306,7 +308,8 @@ message E2eSetupResponse {
     Failure failure = 1;
     // if successful, the serialized token.
     bytes token = 2;
-    Authenticators authenticators = 3;
+    uint32 timestamp = 3;
+    Authenticators authenticators = 4;
 }
 
 message CleanupE2eIndexRequest {
@@ -383,6 +386,8 @@ message SetupReservationResponse {
     Failure failure = 1;
     // should be present if failure == nil
     Success success = 2;
+    uint32 timestamp = 3;
+    Authenticators authenticators = 4;
 }
 
 message CleanupReservationRequest {
@@ -403,6 +408,8 @@ message CleanupReservationResponse {
     }
     // failure has the failure message, or nil if all ok.
     Failure failure = 1;
+    uint32 timestamp = 2;
+    Authenticators authenticators = 3;
 }
 
 message AddAdmissionEntryRequest {

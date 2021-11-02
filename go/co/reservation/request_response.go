@@ -135,18 +135,54 @@ func (r *Request) CurrentValidatorField() []byte {
 
 type Response interface {
 	isResponse_SuccessFailure()
+
+	GetAuthenticators() [][]byte
+	SetAuthenticator(currentStep int, authenticator []byte)
 	Success() bool
+	ToRaw() []byte
 }
 
-type ResponseSuccess struct{}
+type AuthenticatedResponse struct {
+	Timestamp      time.Time
+	Authenticators [][]byte
+}
+
+func (r *AuthenticatedResponse) Serialize(buff []byte) {
+	binary.BigEndian.PutUint32(buff, util.TimeToSecs(r.Timestamp))
+}
+func (r *AuthenticatedResponse) GetAuthenticators() [][]byte {
+	return r.Authenticators
+}
+func (r *AuthenticatedResponse) SetAuthenticator(currentStep int, authenticator []byte) {
+	r.Authenticators[currentStep-1] = authenticator
+}
+
+type ResponseSuccess struct {
+	AuthenticatedResponse
+}
 
 func (r *ResponseSuccess) isResponse_SuccessFailure() {}
 func (r *ResponseSuccess) Success() bool              { return true }
+func (r *ResponseSuccess) ToRaw() []byte {
+	buff := make([]byte, 5)
+	buff[0] = 0
+	r.Serialize(buff[1:5])
+	return buff
+}
 
 type ResponseFailure struct {
-	Message    string
+	AuthenticatedResponse
 	FailedStep uint8
+	Message    string
 }
 
 func (r *ResponseFailure) isResponse_SuccessFailure() {}
 func (r *ResponseFailure) Success() bool              { return false }
+func (r *ResponseFailure) ToRaw() []byte {
+	buff := make([]byte, 1+4+1+len(r.Message)) // marker + timestamp + failed_step + message
+	buff[0] = 1
+	r.Serialize(buff[1:5])
+	buff[5] = r.FailedStep
+	copy(buff[6:], []byte(r.Message))
+	return buff
+}

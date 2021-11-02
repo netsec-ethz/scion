@@ -107,14 +107,15 @@ func (m *manager) Run(ctx context.Context) {
 			return
 		}
 		table := make([]string, 0, len(rsvs)+1)
-		table = append(table, fmt.Sprintf("%24s %4s %15s %15s %11s %s",
-			"id", "dir", "src", "dst", "rawpath_type", "path"))
+		table = append(table, fmt.Sprintf("%24s %4s %15s %15s %8s %11s %s",
+			"id", "dir", "src", "dst", "ok_idxs", "rawpath_type", "path"))
 		for _, r := range rsvs {
-			table = append(table, fmt.Sprintf("%24s %4s %15s %15s %11s %s",
+			table = append(table, fmt.Sprintf("%24s %4s %15s %15s %8d %11s %s",
 				r.ID.String(),
 				r.PathType,
 				r.PathAtSource.SrcIA(),
 				r.PathAtSource.DstIA(),
+				len(r.Indices.Filter(segment.NotConfirmed())),
 				r.PathAtSource.RawPath.Type(),
 				r.PathAtSource.String()))
 		}

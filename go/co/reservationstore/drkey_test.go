@@ -72,7 +72,7 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[meta.SrcIA]
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
 					require.True(t, ok, "not found %s", meta.SrcIA)
 					return k, nil
 				})
@@ -146,7 +146,7 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[meta.SrcIA]
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
 					require.True(t, ok, "not found %s", meta.SrcIA)
 					return k, nil
 				})
@@ -197,7 +197,7 @@ func TestE2eRequestTransitMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[meta.SrcIA]
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
 					require.True(t, ok, "not found %s", meta.SrcIA)
 					return k, nil
 				})
@@ -262,7 +262,7 @@ func TestE2eSetupRequestTransitMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[meta.SrcIA]
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
 					require.True(t, ok, "not found %s", meta.SrcIA)
 					return k, nil
 				})
@@ -295,6 +295,65 @@ func TestE2eSetupRequestTransitMac(t *testing.T) {
 	}
 }
 
+func TestComputeAndValidateResponse(t *testing.T) {
+	cases := map[string]struct {
+		res  base.Response
+		path *base.TransparentPath
+	}{
+		"regular": {
+			res: &base.ResponseSuccess{
+				AuthenticatedResponse: base.AuthenticatedResponse{
+					Timestamp:      util.SecsToTime(1),
+					Authenticators: make([][]byte, 2),
+				},
+			},
+			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+		},
+	}
+	mockKeys := mockKeysSameSlowPath()
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			defer cancelF()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			daemon := mock_daemon.NewMockConnector(ctrl)
+			daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+					drkey.Lvl2Key, error) {
+
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
+					require.True(t, ok, "not found %s", meta.SrcIA)
+					return k, nil
+				})
+
+			// at the transit ASes:
+			for step := 1; step < len(tc.path.Steps); step++ {
+				tc.path.CurrentStep = step
+				auth := DrkeyAuthenticator{
+					localIA:   tc.path.Steps[step].IA,
+					connector: daemon,
+				}
+				err := auth.ComputeResponseMAC(ctx, tc.res, tc.path)
+				require.NoError(t, err)
+			}
+
+			// at the initiator AS:
+			auth := DrkeyAuthenticator{
+				localIA:   tc.path.SrcIA(),
+				connector: daemon,
+			}
+			tc.path.CurrentStep = 0
+			ok, err := auth.ValidateResponse(ctx, tc.res, tc.path)
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+	}
+}
+
 func srcIA() string {
 	return "1-ff00:0:111"
 }
@@ -311,17 +370,22 @@ func dstHost() string {
 	return "10.2.2.2"
 }
 
+type fastSlow struct {
+	fast addr.IA
+	slow addr.IA
+}
+
 // mockKeysSameSlowPath uses AS 1-ff00:0:111 as slow path.
-func mockKeysSameSlowPath() map[addr.IA]drkey.Lvl2Key {
+func mockKeysSameSlowPath() map[fastSlow]drkey.Lvl2Key {
 	as1 := xtest.MustParseIA(srcIA())
 	as2 := xtest.MustParseIA("1-ff00:0:110")
 	as3 := xtest.MustParseIA("1-ff00:0:112")
 	host1 := addr.HostFromIPStr(srcHost())
 
-	return map[addr.IA]drkey.Lvl2Key{
-		as1: mockKey(drkey.AS2Host, as1, as1, host1),
-		as2: mockKey(drkey.AS2Host, as2, as1, host1),
-		as3: mockKey(drkey.AS2Host, as3, as1, host1),
+	return map[fastSlow]drkey.Lvl2Key{
+		{fast: as1, slow: as1}: mockKey(drkey.AS2AS, as1, as1, host1),
+		{fast: as2, slow: as1}: mockKey(drkey.AS2AS, as2, as1, host1),
+		{fast: as3, slow: as1}: mockKey(drkey.AS2AS, as3, as1, host1),
 	}
 }
 

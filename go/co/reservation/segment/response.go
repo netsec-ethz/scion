@@ -15,22 +15,48 @@
 package segment
 
 import (
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
 type SegmentSetupResponse interface {
 	isSegmentSetupResponse_Success_Failure()
+
+	GetAuthenticators() [][]byte
+	SetAuthenticator(currentStep int, authenticator []byte)
+	Success() bool
+	ToRaw() []byte
 }
 
 type SegmentSetupResponseSuccess struct {
+	base.AuthenticatedResponse
 	Token reservation.Token
 }
 
 func (*SegmentSetupResponseSuccess) isSegmentSetupResponse_Success_Failure() {}
+func (*SegmentSetupResponseSuccess) Success() bool                           { return true }
+func (r *SegmentSetupResponseSuccess) ToRaw() []byte {
+	buff := make([]byte, 1+4+r.Token.Len())
+	buff[0] = 0
+	r.Serialize(buff[1:5])
+	r.Token.Read(buff[5:])
+	return buff
+}
 
 type SegmentSetupResponseFailure struct {
+	base.AuthenticatedResponse
 	FailedRequest *SetupReq
 	Message       string
 }
 
 func (*SegmentSetupResponseFailure) isSegmentSetupResponse_Success_Failure() {}
+func (*SegmentSetupResponseFailure) Success() bool                           { return false }
+func (r *SegmentSetupResponseFailure) ToRaw() []byte {
+	buff := make([]byte, 1+4+r.FailedRequest.Len()+len(r.Message))
+	buff[0] = 1
+	r.Serialize(buff[1:5])
+	r.FailedRequest.Serialize(buff[5:5+r.FailedRequest.Len()], base.SerializeImmutable)
+	offset := 5 + r.FailedRequest.Len()
+	copy(buff[offset:], []byte(r.Message))
+	return buff
+}

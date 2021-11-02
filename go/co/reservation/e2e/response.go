@@ -15,6 +15,7 @@
 package e2e
 
 import (
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
@@ -23,12 +24,14 @@ type SetupResponse interface {
 }
 
 type SetupResponseSuccess struct {
+	base.AuthenticatedResponse
 	Token []byte
 }
 
 func (*SetupResponseSuccess) isSegmentSetupResponse_Success_Failure() {}
 
 type SetupResponseFailure struct {
+	base.AuthenticatedResponse
 	Message    string
 	FailedStep uint8
 	AllocTrail []reservation.BWCls
