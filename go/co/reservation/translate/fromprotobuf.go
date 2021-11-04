@@ -119,6 +119,7 @@ func SetupResponse(msg *colpb.SegmentSetupResponse) (segment.SegmentSetupRespons
 				Timestamp:      util.SecsToTime(msg.Timestamp),
 				Authenticators: msg.Authenticators.Macs,
 			},
+			FailedStep: uint8(oneof.Failure.Failure.FailingHop),
 			FailedRequest: &segment.SetupReq{ // without base request
 				ExpirationTime:   expTime,
 				RLC:              rlc,

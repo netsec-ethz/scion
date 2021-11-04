@@ -26,12 +26,15 @@ go_test(
         "export_test.go",
         "index_test.go",
         "reservation_test.go",
+        "response_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
+        "//go/co/reservation:go_default_library",
         "//go/co/reservation/segmenttest:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/util:go_default_library",
+        "//go/lib/xtest:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

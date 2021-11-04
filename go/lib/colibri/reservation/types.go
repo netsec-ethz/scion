@@ -708,3 +708,48 @@ func (t *Token) ToRaw() []byte {
 	}
 	return buff
 }
+
+// AddNewHopField adds a new hopfield to the token. Depending on the type of the path (up,
+// down, core, etc) the added hop field will end up at the beginning or end of the list.
+// The function returns a pointer to the new (copied) hop field inside the token.
+func (t *Token) AddNewHopField(hf *HopField) *HopField {
+	switch t.InfoField.PathType {
+	case DownPath:
+		t.HopFields = append(t.HopFields, *hf)
+		hf = &t.HopFields[len(t.HopFields)-1]
+	case UpPath, CorePath, E2EPath:
+		t.HopFields = append([]HopField{*hf}, t.HopFields...)
+		hf = &t.HopFields[0]
+	default:
+		panic(fmt.Sprintf("unknown path type %v", t.InfoField.PathType))
+	}
+	return hf
+}
+
+// GetFirstNHopFields returns the n first (*in order of addition*) hop fields of the token.
+// Depending on the path type (up, down, etc) thoese will be located at the beginning, or at the
+// end of the hop field list in the token.
+// If the existing hop fields are less than n, only those are returned.
+func (t *Token) GetFirstNHopFields(n int) []HopField {
+	if t == nil || len(t.HopFields) == 0 || n <= 0 {
+		return nil
+	}
+	var begin, end int
+	n = min(n, len(t.HopFields))
+	switch t.InfoField.PathType {
+	case DownPath:
+		begin, end = 0, n
+	case UpPath, CorePath, E2EPath:
+		begin, end = len(t.HopFields)-n, len(t.HopFields)
+	default:
+		panic(fmt.Sprintf("unknown path type %v", t.InfoField.PathType))
+	}
+	return t.HopFields[begin:end]
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

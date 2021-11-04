@@ -524,6 +524,67 @@ func TestTokenToRaw(t *testing.T) {
 	require.Equal(t, raw, tok.ToRaw())
 }
 
+func TestTokenGetFirstNHopFields(t *testing.T) {
+	cases := map[string]struct {
+		token    Token
+		n        int
+		expected []HopField
+	}{
+		"empty": {
+			token: Token{
+				InfoField: InfoField{PathType: CorePath},
+				HopFields: []HopField{*newHopField(1, 11, xtest.MustParseHexString("01234567"))},
+			},
+			n:        0,
+			expected: nil,
+		},
+		"last": {
+			token: Token{
+				InfoField: InfoField{PathType: CorePath},
+				HopFields: []HopField{
+					*newHopField(1, 11, xtest.MustParseHexString("01234567")),
+					*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+				},
+			},
+			n:        1,
+			expected: []HopField{*newHopField(2, 11, xtest.MustParseHexString("11234567"))},
+		},
+		"all": {
+			token: Token{
+				InfoField: InfoField{PathType: CorePath},
+				HopFields: []HopField{
+					*newHopField(1, 11, xtest.MustParseHexString("01234567")),
+					*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+				},
+			},
+			n: 2,
+			expected: []HopField{
+				*newHopField(1, 11, xtest.MustParseHexString("01234567")),
+				*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+			},
+		},
+		"last_downpath": {
+			token: Token{
+				InfoField: InfoField{PathType: DownPath},
+				HopFields: []HopField{
+					*newHopField(1, 11, xtest.MustParseHexString("01234567")),
+					*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+				},
+			},
+			n:        1,
+			expected: []HopField{*newHopField(1, 11, xtest.MustParseHexString("01234567"))},
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.token.GetFirstNHopFields(tc.n)
+			require.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func newInfoField() InfoField {
 	return InfoField{
 		ExpirationTick: 384555855,

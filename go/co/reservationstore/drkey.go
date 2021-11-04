@@ -179,7 +179,7 @@ func (a *DrkeyAuthenticator) ComputeSegmentSetupResponseMAC(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	payload := res.ToRaw()
+	payload := res.ToRawAllHFs()
 	mac, err := MAC(payload, key)
 	if err != nil {
 		return err
@@ -270,7 +270,30 @@ func (a *DrkeyAuthenticator) ValidateResponse(ctx context.Context, res base.Resp
 func (a *DrkeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 	res segment.SegmentSetupResponse, path *base.TransparentPath) (bool, error) {
 
-	return true, nil // deleteme
+	stepsLength := len(path.Steps)
+	if failure, ok := res.(*segment.SegmentSetupResponseFailure); ok {
+		// for failure responses, we can only check the validity from the failing node to
+		// the initiator node, as the ones that succeed were using a different response to
+		// compute the authenticators.
+		stepsLength = int(failure.FailedStep)
+	} else if success, ok := res.(*segment.SegmentSetupResponseSuccess); ok {
+		assert(len(success.Token.HopFields) == len(path.Steps),
+			"inconsistent lengths HFs=%d and steps=%d", len(success.Token.HopFields), len(path.Steps))
+	}
+	if stepsLength == 0 {
+		log.Debug("at validateSegmentSetupResponse: no steps to validate (steps_length==0)")
+		return true, nil
+	}
+
+	keys, err := a.slowAS2ASFromPath(ctx, path.Steps[:stepsLength]) // returns stepsLength -1 keys
+	if err != nil {
+		return false, err
+	}
+
+	return validateAuthenticators(keys, res.GetAuthenticators()[:stepsLength-1],
+		func(step int) []byte {
+			return res.ToRaw(step)
+		})
 }
 
 func (a *DrkeyAuthenticator) ValidateE2eSetupResponse(ctx context.Context, res e2e.SetupResponse) (
@@ -470,6 +493,9 @@ func (a *DrkeyAuthenticator) slowAS2ASFromPath(ctx context.Context, steps []base
 	})
 }
 
+// slowKeysFromPath retrieves the drkeys specified in the steps[1]..steps[n-1]. It skips the
+// first step as it is the initiator. The IAs in the steps are used as the fast side of the
+// drkeys, and the function `getKeyWithFastSide` is called with them, to retrieve the drkeys.
 func (a *DrkeyAuthenticator) slowKeysFromPath(ctx context.Context, steps []base.PathStep,
 	getKeyWithFastSide func(ctx context.Context, fast addr.IA) ([]byte, error)) ([][]byte, error) {
 

@@ -25,7 +25,8 @@ type SegmentSetupResponse interface {
 	GetAuthenticators() [][]byte
 	SetAuthenticator(currentStep int, authenticator []byte)
 	Success() bool
-	ToRaw() []byte
+	ToRaw(step int) []byte // returns the response serialized to the `step` node
+	ToRawAllHFs() []byte
 }
 
 type SegmentSetupResponseSuccess struct {
@@ -35,23 +36,44 @@ type SegmentSetupResponseSuccess struct {
 
 func (*SegmentSetupResponseSuccess) isSegmentSetupResponse_Success_Failure() {}
 func (*SegmentSetupResponseSuccess) Success() bool                           { return true }
-func (r *SegmentSetupResponseSuccess) ToRaw() []byte {
-	buff := make([]byte, 1+4+r.Token.Len())
+
+// ToRaw returns the raw representation for this response.
+// The step parameter indicates which step index along the path we want to serialize as.
+// This means that, given a full success response back at the initiator AS, the initiator AS
+// can obtain the raw representation as it was done in the step `step` (removing the
+// hop fields added later).
+// This function is always called when the caller AS has ALREADY added their hop field to the
+// token. Invariant: len(hop_fields) == len(path)
+// TODO(juagargi) this function belongs to the store package, who can control when to call it.
+func (r *SegmentSetupResponseSuccess) ToRaw(step int) []byte {
+	tokenLen := r.Token.Len() - (step * 8) // remove 8 bytes per HF that we won't serialize
+	buff := make([]byte, 1+4+tokenLen)
 	buff[0] = 0
 	r.Serialize(buff[1:5])
-	r.Token.Read(buff[5:])
+	// the token must be serialized _as if_ this Response was located at step `step`:
+	tok := reservation.Token{
+		InfoField: r.Token.InfoField,
+		HopFields: r.Token.GetFirstNHopFields(len(r.Token.HopFields) - step),
+	}
+	tok.Read(buff[5 : 5+tokenLen])
 	return buff
+}
+
+// ToRawAllHFs returns the serialized version of this success response.
+func (r *SegmentSetupResponseSuccess) ToRawAllHFs() []byte {
+	return r.ToRaw(0)
 }
 
 type SegmentSetupResponseFailure struct {
 	base.AuthenticatedResponse
+	FailedStep    uint8
 	FailedRequest *SetupReq
 	Message       string
 }
 
 func (*SegmentSetupResponseFailure) isSegmentSetupResponse_Success_Failure() {}
 func (*SegmentSetupResponseFailure) Success() bool                           { return false }
-func (r *SegmentSetupResponseFailure) ToRaw() []byte {
+func (r *SegmentSetupResponseFailure) ToRaw(step int) []byte {
 	buff := make([]byte, 1+4+r.FailedRequest.Len()+len(r.Message))
 	buff[0] = 1
 	r.Serialize(buff[1:5])
@@ -59,4 +81,7 @@ func (r *SegmentSetupResponseFailure) ToRaw() []byte {
 	offset := 5 + r.FailedRequest.Len()
 	copy(buff[offset:], []byte(r.Message))
 	return buff
+}
+func (r *SegmentSetupResponseFailure) ToRawAllHFs() []byte {
+	return r.ToRaw(1)
 }

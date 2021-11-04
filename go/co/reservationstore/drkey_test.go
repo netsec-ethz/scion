@@ -23,6 +23,7 @@ import (
 	"github.com/golang/mock/gomock"
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/e2e"
+	"github.com/scionproto/scion/go/co/reservation/segment"
 	ct "github.com/scionproto/scion/go/co/reservation/test"
 	"github.com/scionproto/scion/go/lib/addr"
 	libcol "github.com/scionproto/scion/go/lib/colibri"
@@ -57,7 +58,7 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSameSlowPath()
+	mockKeys := mockKeysSlowIsSrc()
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -131,7 +132,7 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSameSlowPath()
+	mockKeys := mockKeysSlowIsSrc()
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -182,7 +183,7 @@ func TestE2eRequestTransitMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSameSlowPath()
+	mockKeys := mockKeysSlowIsDst()
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -198,7 +199,7 @@ func TestE2eRequestTransitMac(t *testing.T) {
 					drkey.Lvl2Key, error) {
 
 					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
+					require.True(t, ok, "not found %s->%s", meta.SrcIA, meta.DstIA)
 					return k, nil
 				})
 
@@ -247,7 +248,7 @@ func TestE2eSetupRequestTransitMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSameSlowPath()
+	mockKeys := mockKeysSlowIsDst()
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -310,7 +311,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 		},
 	}
-	mockKeys := mockKeysSameSlowPath()
+	mockKeys := mockKeysSlowIsSrc()
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -354,6 +355,122 @@ func TestComputeAndValidateResponse(t *testing.T) {
 	}
 }
 
+func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
+	cases := map[string]struct {
+		res                   segment.SegmentSetupResponse
+		path                  *base.TransparentPath
+		lastStepWhichComputes int
+	}{
+		"regular": {
+			res: &segment.SegmentSetupResponseSuccess{
+				AuthenticatedResponse: base.AuthenticatedResponse{
+					Timestamp:      util.SecsToTime(1),
+					Authenticators: make([][]byte, 2),
+				},
+				Token: reservation.Token{
+					InfoField: reservation.InfoField{
+						PathType: reservation.CorePath,
+						Idx:      3,
+						// ...
+					},
+				},
+			},
+			path:                  ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			lastStepWhichComputes: 2,
+		},
+		"failure": {
+			res: &segment.SegmentSetupResponseFailure{
+				AuthenticatedResponse: base.AuthenticatedResponse{
+					Timestamp:      util.SecsToTime(1),
+					Authenticators: make([][]byte, 2),
+				},
+				FailedStep: 2, // failed at 1-ff00:0:112
+				Message:    "test message",
+				FailedRequest: &segment.SetupReq{
+					Request: base.Request{
+						MsgId: base.MsgId{
+							ID:        *ct.MustParseID("ff00:0:111", "01234567"),
+							Index:     1,
+							Timestamp: util.SecsToTime(1),
+						},
+						Path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+							1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0),
+						Authenticators: make([][]byte, 3),
+					},
+					ExpirationTime: util.SecsToTime(300),
+					RLC:            1,
+					PathType:       reservation.CorePath,
+					MinBW:          5,
+					MaxBW:          13,
+					SplitCls:       11,
+					PathAtSource: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+						1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0),
+					PathProps: reservation.StartLocal | reservation.EndTransfer,
+				},
+			},
+			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 2,
+				1, "1-ff00:0:113", 0), // note that we don't have drkeys for 113, but that drkey
+			// should not be requested, as it is beyond the failure step.
+			lastStepWhichComputes: 2,
+		},
+	}
+	mockKeys := mockKeysSlowIsSrc()
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			defer cancelF()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			daemon := mock_daemon.NewMockConnector(ctrl)
+			daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+					drkey.Lvl2Key, error) {
+
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
+					require.True(t, ok, "not found %s", meta.SrcIA)
+					return k, nil
+				})
+
+			// at the transit ASes:
+			// for step := len(tc.path.Steps) - 1; step > 0; step-- {
+			for step := len(tc.path.Steps) - 1; step >= 0; step-- {
+				tc.path.CurrentStep = step
+				// if success, add a hop field
+				if success, ok := tc.res.(*segment.SegmentSetupResponseSuccess); ok {
+					currStep := tc.path.Steps[tc.path.CurrentStep]
+					success.Token.AddNewHopField(&reservation.HopField{
+						Ingress: currStep.Ingress,
+						Egress:  currStep.Egress,
+						Mac:     [4]byte{255, uint8(step), 255, 255},
+					})
+				}
+				if step > tc.lastStepWhichComputes || step == 0 {
+					continue
+				}
+				auth := DrkeyAuthenticator{
+					localIA:   tc.path.Steps[step].IA,
+					connector: daemon,
+				}
+				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.path)
+				require.NoError(t, err)
+			}
+
+			// at the initiator AS:
+			auth := DrkeyAuthenticator{
+				localIA:   tc.path.SrcIA(),
+				connector: daemon,
+			}
+			tc.path.CurrentStep = 0
+			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.path)
+			require.NoError(t, err)
+			require.True(t, ok, "validation failed")
+		})
+	}
+}
+
 func srcIA() string {
 	return "1-ff00:0:111"
 }
@@ -375,8 +492,8 @@ type fastSlow struct {
 	slow addr.IA
 }
 
-// mockKeysSameSlowPath uses AS 1-ff00:0:111 as slow path.
-func mockKeysSameSlowPath() map[fastSlow]drkey.Lvl2Key {
+// mockKeysSlowIsSrc uses AS 1-ff00:0:111 as slow path.
+func mockKeysSlowIsSrc() map[fastSlow]drkey.Lvl2Key {
 	as1 := xtest.MustParseIA(srcIA())
 	as2 := xtest.MustParseIA("1-ff00:0:110")
 	as3 := xtest.MustParseIA("1-ff00:0:112")
@@ -386,6 +503,20 @@ func mockKeysSameSlowPath() map[fastSlow]drkey.Lvl2Key {
 		{fast: as1, slow: as1}: mockKey(drkey.AS2AS, as1, as1, host1),
 		{fast: as2, slow: as1}: mockKey(drkey.AS2AS, as2, as1, host1),
 		{fast: as3, slow: as1}: mockKey(drkey.AS2AS, as3, as1, host1),
+	}
+}
+
+// mockKeysSlowIsDst uses AS 1-ff00:0:112 as slow path.
+func mockKeysSlowIsDst() map[fastSlow]drkey.Lvl2Key {
+	as1 := xtest.MustParseIA("1-ff00:0:111")
+	as2 := xtest.MustParseIA("1-ff00:0:110")
+	as3 := xtest.MustParseIA(dstIA())
+	host3 := addr.HostFromIPStr(dstHost())
+
+	return map[fastSlow]drkey.Lvl2Key{
+		{fast: as1, slow: as3}: mockKey(drkey.AS2AS, as1, as3, host3),
+		{fast: as2, slow: as3}: mockKey(drkey.AS2AS, as2, as3, host3),
+		{fast: as3, slow: as3}: mockKey(drkey.AS2AS, as3, as3, host3),
 	}
 }
 

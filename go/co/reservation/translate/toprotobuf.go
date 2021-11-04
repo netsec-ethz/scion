@@ -90,7 +90,8 @@ func PBufSetupResponse(res segment.SegmentSetupResponse) *colpb.SegmentSetupResp
 			Failure: &colpb.SegmentSetupResponse_Failure{
 				Request: PBufSetupRequestParams(r.FailedRequest),
 				Failure: &colpb.Response_Failure{
-					Message: r.Message,
+					Message:    r.Message,
+					FailingHop: uint32(r.FailedStep),
 				},
 			},
 		}
