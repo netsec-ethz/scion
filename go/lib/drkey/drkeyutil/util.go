@@ -17,6 +17,7 @@ package drkeyutil
 import (
 	"context"
 	"crypto/aes"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -31,7 +32,7 @@ import (
 )
 
 // ComputeAuthenticators returns the authenticators obtained to apply a MAC function to the
-// passed payload.
+// same payload.
 func ComputeAuthenticators(payload []byte, keys [][]byte) ([][]byte, error) {
 	auths := make([][]byte, len(keys))
 	for i, k := range keys {
@@ -42,6 +43,27 @@ func ComputeAuthenticators(payload []byte, keys [][]byte) ([][]byte, error) {
 		}
 	}
 	return auths, nil
+}
+
+// ValidateAuthenticators validates each authenticators[i] against MAC(payload[i], keys[i]).
+// Returns error if the MAC function returns any error, or true/false if each of the authenticators
+// matches the result of each MAC function invocation.
+func ValidateAuthenticators(payloads [][]byte, keys [][]byte, authenticators [][]byte) (
+	bool, error) {
+
+	if len(payloads) != len(keys) || len(keys) != len(authenticators) {
+		return false, serrors.New("wrong lengths (must be the same)")
+	}
+	for i := range keys {
+		mac, err := MAC(payloads[i], keys[i])
+		if err != nil {
+			return false, serrors.WrapStr("MAC function", err)
+		}
+		if subtle.ConstantTimeCompare(mac, authenticators[i]) != 1 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func MAC(payload []byte, key []byte) ([]byte, error) {

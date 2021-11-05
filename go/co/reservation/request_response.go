@@ -153,6 +153,9 @@ func (r *AuthenticatedResponse) Serialize(buff []byte) {
 func (r *AuthenticatedResponse) GetAuthenticators() [][]byte {
 	return r.Authenticators
 }
+
+// SetAuthenticator sets the authenticator to the step-1 position. This is so because
+// it expects to have one less authenticator than steps present in the path.
 func (r *AuthenticatedResponse) SetAuthenticator(currentStep int, authenticator []byte) {
 	r.Authenticators[currentStep-1] = authenticator
 }

@@ -212,7 +212,7 @@ func (c grpcConn) ColibriListRsvs(ctx context.Context, dstIA addr.IA) (
 }
 
 func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSetup) (
-	snet.Path, error) {
+	*col.E2EResponse, error) {
 
 	pbSegs := make([]*colpb.ReservationID, len(req.Segments))
 	for i, r := range req.Segments {
@@ -243,8 +243,9 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 		}
 		return nil, &col.E2ESetupError{
 			E2EResponseError: col.E2EResponseError{
-				Message:  sdRes.Base.Failure.ErrorMessage,
-				FailedAS: int(sdRes.Base.Failure.FailedStep),
+				Authenticators: sdRes.Base.Authenticators.Macs,
+				Message:        sdRes.Base.Failure.ErrorMessage,
+				FailedAS:       int(sdRes.Base.Failure.FailedStep),
 			},
 			AllocationTrail: trail,
 		}
@@ -253,11 +254,14 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	if err != nil {
 		return nil, serrors.WrapStr("parsing next hop", err)
 	}
-	return &path.Path{
-		DataplanePath: path.Colibri{
-			Raw: sdRes.Base.Success.RawPath,
+	return &col.E2EResponse{
+		Authenticators: sdRes.Base.Authenticators.Macs,
+		ColibriPath: &path.Path{
+			DataplanePath: path.Colibri{
+				Raw: sdRes.Base.Success.RawPath,
+			},
+			NextHop: nextHop,
 		},
-		NextHop: nextHop,
 	}, nil
 }
 

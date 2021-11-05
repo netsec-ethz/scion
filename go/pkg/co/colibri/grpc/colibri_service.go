@@ -270,7 +270,9 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 			}
 			failedStep = uint32(failure.FailedStep)
 		}
+		// TODO(juagargi) unify criteria in all RPCs: when error, return error or failure message?
 		return &colpb.SetupReservationResponse{
+			// Authenticators: &colpb.Authenticators{Macs: fai},
 			Failure: &colpb.SetupReservationResponse_Failure{
 				ErrorMessage: err.Error(),
 				FailedStep:   failedStep,
@@ -278,9 +280,12 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 			},
 		}, nil
 	}
-	pbMsg := &colpb.SetupReservationResponse{}
+	pbMsg := &colpb.SetupReservationResponse{
+		Authenticators: &colpb.Authenticators{},
+	}
 	switch res := res.(type) {
 	case *e2e.SetupResponseFailure:
+		pbMsg.Authenticators.Macs = res.Authenticators
 		trail := make([]uint32, len(res.AllocTrail))
 		for i, b := range res.AllocTrail {
 			trail[i] = uint32(b)
@@ -291,6 +296,7 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 			AllocTrail:   trail,
 		}
 	case *e2e.SetupResponseSuccess:
+		pbMsg.Authenticators.Macs = res.Authenticators
 		token, err := reservation.TokenFromRaw(res.Token)
 		if err != nil {
 			return nil, serrors.WrapStr("decoding token in colibri service", err)

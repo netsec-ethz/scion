@@ -102,7 +102,7 @@ func (mr *MockStoreMockRecorder) AdmitSegmentReservation(arg0, arg1 interface{})
 }
 
 // CleanupE2EReservation mocks base method.
-func (m *MockStore) CleanupE2EReservation(arg0 context.Context, arg1 *reservation.Request) (reservation.Response, error) {
+func (m *MockStore) CleanupE2EReservation(arg0 context.Context, arg1 *e2e.Request) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CleanupE2EReservation", arg0, arg1)
 	ret0, _ := ret[0].(reservation.Response)

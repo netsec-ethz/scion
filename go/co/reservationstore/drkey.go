@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/co/reservation/e2e"
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
 	drkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
@@ -45,11 +46,9 @@ type macComputer interface {
 	// for each AS in transit. This MAC is only computed at the first AS.
 	// The initial AS is obtained from the first step of the path of the request.
 	ComputeSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq) error
-
 	ComputeRequestTransitMAC(ctx context.Context, req *base.Request) error
 
 	ComputeSegmentSetupRequestTransitMAC(ctx context.Context, req *segment.SetupReq) error
-
 	ComputeE2eRequestTransitMAC(ctx context.Context, req *e2e.Request) error
 	ComputeE2eSetupRequestTransitMAC(ctx context.Context, req *e2e.SetupReq) error
 
@@ -59,7 +58,8 @@ type macComputer interface {
 	ComputeResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath) error
 	ComputeSegmentSetupResponseMAC(ctx context.Context, res segment.SegmentSetupResponse,
 		path *base.TransparentPath) error
-	ComputeE2eSetupResponseMAC(ctx context.Context, res e2e.SetupResponse) error
+	ComputeE2eSetupResponseMAC(ctx context.Context, res e2e.SetupResponse,
+		path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID) error
 }
 
 type macVerifier interface {
@@ -188,10 +188,24 @@ func (a *DrkeyAuthenticator) ComputeSegmentSetupResponseMAC(ctx context.Context,
 	return nil
 }
 
-func (a *DrkeyAuthenticator) ComputeE2eSetupResponseMAC(ctx context.Context,
-	res e2e.SetupResponse) error {
+func (a *DrkeyAuthenticator) ComputeE2eSetupResponseMAC(ctx context.Context, res e2e.SetupResponse,
+	path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID) error {
 
-	return nil // deleteme
+	key, err := a.getDRKeyAS2Host(ctx, a.localIA, path.SrcIA(), srcHost)
+	if err != nil {
+		return err
+	}
+	payload, err := res.ToRaw(path.CurrentStep, rsvID)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("deleteme MAC for %d\n", path.CurrentStep)
+	mac, err := MAC(payload, key)
+	if err != nil {
+		return err
+	}
+	res.SetAuthenticator(path.CurrentStep, mac)
+	return nil
 }
 
 func (a *DrkeyAuthenticator) ValidateRequest(ctx context.Context,

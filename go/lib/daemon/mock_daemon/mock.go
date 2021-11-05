@@ -117,10 +117,10 @@ func (mr *MockConnectorMockRecorder) ColibriListRsvs(arg0, arg1 interface{}) *go
 }
 
 // ColibriSetupRsv mocks base method.
-func (m *MockConnector) ColibriSetupRsv(arg0 context.Context, arg1 *colibri.E2EReservationSetup) (snet.Path, error) {
+func (m *MockConnector) ColibriSetupRsv(arg0 context.Context, arg1 *colibri.E2EReservationSetup) (*colibri.E2EResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ColibriSetupRsv", arg0, arg1)
-	ret0, _ := ret[0].(snet.Path)
+	ret0, _ := ret[0].(*colibri.E2EResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

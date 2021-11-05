@@ -974,6 +974,11 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		"requested", req.RequestedBW.ToKbps(), "admitted", admitted, "free", free)
 
 	var token *reservation.Token
+	res := &e2e.SetupResponseSuccess{
+		AuthenticatedResponse: base.AuthenticatedResponse{
+			Timestamp: req.Timestamp,
+		},
+	}
 	if req.IsLastAS() {
 		var notAdmittedMsg string
 		if admitted {
@@ -1004,6 +1009,8 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 				AllocTrail: req.AllocationTrail,
 			}, nil
 		}
+		// all ASes in the path will create authenticators for the initiator end-host
+		res.Authenticators = make([][]byte, len(req.Path.Steps)) // same size as path
 		token = index.Token
 	} else { // this is not the last AS
 		if isTransfer {
@@ -1030,20 +1037,21 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			failedResponse.Message = s.errWrapStr("cannot forward request", err).Error()
 			return failedResponse, nil
 		}
-		res, err := translate.E2ESetupResponse(pbRes)
+		downstreamRes, err := translate.E2ESetupResponse(pbRes)
 		if err != nil {
 			return nil, serrors.WrapStr("translating response", err)
 		}
-		success, ok := res.(*e2e.SetupResponseSuccess)
+		success, ok := downstreamRes.(*e2e.SetupResponseSuccess)
 		if !ok {
 			// not admitted
-			return res, nil
+			return downstreamRes, nil
 		}
 		token, err = reservation.TokenFromRaw(success.Token)
 		if err != nil {
 			failedResponse.Message = s.errWrapStr("decoding token from node ahead", err).Error()
 			return failedResponse, nil
 		}
+		res.Authenticators = success.Authenticators
 	}
 	// here the request was admitted and returning back from the down stream admission
 
@@ -1053,8 +1061,8 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
 		return failedResponse, err
 	}
-	index.Token = token
 
+	index.Token = token // copy the link to the reservation
 	if err := tx.PersistE2ERsv(ctx, rsv); err != nil {
 		return failedResponse, s.errWrapStr("cannot persist e2e reservation", err,
 			"id", req.ID.String())
@@ -1063,10 +1071,16 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		return failedResponse, s.errWrapStr("cannot commit transaction", err,
 			"id", req.ID.String())
 	}
+
+	res.Token = token.ToRaw()
+
+	// create authenticators before passing the response to the previous node in the path
+	if err := s.authenticator.ComputeE2eSetupResponseMAC(ctx, res, req.Path,
+		addr.HostFromIP(req.SrcHost), &req.ID); err != nil {
+		return failedResponse, s.errWrapStr("computing authenticators for response", err)
+	}
 	// return the token upstream
-	return &e2e.SetupResponseSuccess{
-		Token: token.ToRaw(),
-	}, nil
+	return res, nil
 }
 
 // CleanupE2EReservation will remove an index from an e2e reservation.

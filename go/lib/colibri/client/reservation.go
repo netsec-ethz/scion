@@ -134,10 +134,11 @@ func (r *Reservation) Open(ctx context.Context,
 	}
 
 	var err error
-	r.colibriPath, err = r.daemon.ColibriSetupRsv(ctx, r.request)
+	res, err := r.daemon.ColibriSetupRsv(ctx, r.request)
 	if err != nil {
 		return serrors.WrapStr("first reservation setup failed", err)
 	}
+	r.colibriPath = res.ColibriPath
 	if successFcn == nil {
 		successFcn = func(*Reservation) {}
 	}
@@ -200,9 +201,9 @@ func (t *renewalTask) Name() string {
 func (t *renewalTask) Run(ctx context.Context) {
 	t.reservation.request.Index = t.reservation.request.Index.Add(1)
 	for {
-		colibriPath, err := t.reservation.daemon.ColibriSetupRsv(ctx, t.reservation.request)
+		res, err := t.reservation.daemon.ColibriSetupRsv(ctx, t.reservation.request)
 		if err == nil {
-			t.reservation.colibriPath = colibriPath
+			t.reservation.colibriPath = res.ColibriPath
 			t.reservation.onSuccess(t.reservation)
 			return
 		}

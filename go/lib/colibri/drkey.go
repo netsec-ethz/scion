@@ -19,20 +19,26 @@ package colibri
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
+	"net"
+	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/drkey"
 	dkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 	"github.com/scionproto/scion/go/lib/serrors"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 func createAuthsForBaseRequest(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
 	req *BaseRequest) error {
 
-	keys, err := getKeys(ctx, conn, req)
+	keys, err := getKeys(ctx, conn, req.Path.Steps, req.SrcHost)
 	if err != nil {
 		return err
 	}
@@ -47,7 +53,7 @@ func createAuthsForBaseRequest(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
 func createAuthsForE2EReservationSetup(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
 	req *E2EReservationSetup) error {
 
-	keys, err := getKeys(ctx, conn, &req.BaseRequest)
+	keys, err := getKeys(ctx, conn, req.Path.Steps, req.SrcHost)
 	if err != nil {
 		return err
 	}
@@ -58,18 +64,58 @@ func createAuthsForE2EReservationSetup(ctx context.Context, conn dkut.DRKeyGetLv
 	return err
 }
 
-func getKeys(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, req *BaseRequest) ([][]byte, error) {
-	if len(req.Path.Steps) < 2 {
+func validateResponseAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	res *E2EResponse, requestPath *base.TransparentPath, srcHost net.IP,
+	reqTimestamp time.Time) error {
+
+	if requestPath == nil {
+		return serrors.New("no path")
+	}
+	if res == nil {
+		return serrors.New("no response")
+	}
+	if len(requestPath.Steps) != len(res.Authenticators) {
+		return serrors.New("wrong lengths: |path| != |authenticators|",
+			"path", len(requestPath.Steps), "authenticators", len(res.Authenticators))
+	}
+
+	keys, err := getKeysWithLocalIA(ctx, conn, requestPath.Steps, requestPath.SrcIA(), srcHost)
+	if err != nil {
+		return err
+	}
+	payloads, err := serializeResponse(res, requestPath, reqTimestamp)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("deleteme    VALIDATION\n")
+	ok, err := dkut.ValidateAuthenticators(payloads, keys, res.Authenticators)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return serrors.New("validation failed for response")
+	}
+	return nil
+}
+
+func getKeys(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.PathStep,
+	srcHost net.IP) ([][]byte, error) {
+
+	if len(steps) < 2 {
 		return nil, serrors.New("wrong path in request")
 	}
-	localIA := req.Path.Steps[0].IA
-	ias := make([]addr.IA, len(req.Path.Steps)-1)
-	for i := 1; i < len(req.Path.Steps); i++ {
-		step := req.Path.Steps[i]
-		ias[i-1] = step.IA
+	return getKeysWithLocalIA(ctx, conn, steps[1:], steps[0].IA, srcHost)
+}
+
+func getKeysWithLocalIA(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.PathStep,
+	srcIA addr.IA, srcHost net.IP) ([][]byte, error) {
+
+	ias := make([]addr.IA, len(steps))
+	for i, step := range steps {
+		ias[i] = step.IA
 	}
 	return dkut.GetLvl2Keys(ctx, conn, drkey.AS2Host, "colibri",
-		dkut.SlowIAs(localIA), dkut.SlowHosts(addr.HostFromIP(req.SrcHost)),
+		dkut.SlowIAs(srcIA), dkut.SlowHosts(addr.HostFromIP(srcHost)),
 		dkut.FastIAs(ias...))
 }
 
@@ -118,4 +164,34 @@ func serializeE2EReservationSetup(buff []byte, req *E2EReservationSetup) {
 		id.Read(buff[offset:]) // ignore errors (length was already checked)
 		offset += reservation.IDSegLen
 	}
+}
+
+// serializeResponse returns the serialized versions of the response, one per AS in the path.
+func serializeResponse(res *E2EResponse, path *base.TransparentPath, timestamp time.Time) (
+	[][]byte, error) {
+
+	colPath, ok := res.ColibriPath.Dataplane().(snetpath.Colibri)
+	if !ok {
+		return nil, serrors.New("unsupported non colibri path type",
+			"path_type", common.TypeOf(res.ColibriPath.Dataplane()))
+	}
+	colibriPath := &colpath.ColibriPath{}
+	if err := colibriPath.DecodeFromBytes(colPath.Raw); err != nil {
+		return nil, serrors.WrapStr("received invalid colibri path", err)
+	}
+
+	timestampBuff := make([]byte, 4)
+	binary.BigEndian.PutUint32(timestampBuff, util.TimeToSecs(timestamp))
+	allHfs := colibriPath.HopFields
+	payloads := make([][]byte, len(allHfs))
+	for i := range path.Steps {
+		colibriPath.InfoField.HFCount = uint8(len(allHfs) - i)
+		colibriPath.HopFields = allHfs[i:]
+		payloads[i] = make([]byte, 4+colibriPath.Len()) // timestamp + path
+		copy(payloads[i][:4], timestampBuff)
+		if err := colibriPath.SerializeTo(payloads[i][4:]); err != nil {
+			return nil, err
+		}
+	}
+	return payloads, nil
 }

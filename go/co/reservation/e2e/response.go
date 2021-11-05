@@ -17,24 +17,67 @@ package e2e
 import (
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type SetupResponse interface {
 	isSegmentSetupResponse_Success_Failure()
+
+	ToRaw(step int, rsvID *reservation.ID) ([]byte, error)
+	SetAuthenticator(currentStep int, authenticator []byte)
 }
 
 type SetupResponseSuccess struct {
-	base.AuthenticatedResponse
-	Token []byte
+	base.AuthenticatedResponse // these authenticators have the same size as the path
+	Token                      []byte
 }
 
 func (*SetupResponseSuccess) isSegmentSetupResponse_Success_Failure() {}
+func (r *SetupResponseSuccess) ToRaw(step int, rsvID *reservation.ID) ([]byte, error) {
+	tok, err := reservation.TokenFromRaw(r.Token)
+	if err != nil {
+		return nil, serrors.WrapStr("loading token", err)
+	}
+	colPath := DeriveColibriPath(rsvID, tok)
+	colPath.InfoField.HFCount = uint8(len(colPath.HopFields))
+
+	buff := make([]byte, 4+colPath.Len())
+	r.AuthenticatedResponse.Serialize(buff[:4])
+	err = colPath.SerializeTo(buff[4:])
+	return buff, err
+}
+
+// SetAuthenticator expects to have the same amount of authenticators as steps in the path.
+func (r *SetupResponseSuccess) SetAuthenticator(step int, authenticator []byte) {
+	r.Authenticators[step] = authenticator
+}
 
 type SetupResponseFailure struct {
 	base.AuthenticatedResponse
-	Message    string
 	FailedStep uint8
+	Message    string
 	AllocTrail []reservation.BWCls
 }
 
 func (*SetupResponseFailure) isSegmentSetupResponse_Success_Failure() {}
+func (r *SetupResponseFailure) ToRaw(step int, rsvID *reservation.ID) ([]byte, error) {
+	messageBytes := ([]byte)(r.Message)
+	// AuthenticatedResponse + FailedStep + Message + AllocTrail
+	buff := make([]byte, 4+1+len(messageBytes)+len(r.AllocTrail)-step)
+	offset := 4
+	r.AuthenticatedResponse.Serialize(buff[:offset])
+	buff[offset] = r.FailedStep
+	offset++
+	copy(buff[offset:], ([]byte)(messageBytes))
+	offset += len(messageBytes)
+	for _, bw := range r.AllocTrail[step:] {
+		buff[offset] = byte(bw)
+		offset++
+	}
+	return buff, nil
+}
+
+// SetAuthenticator expects to have the same amount of authenticators as steps in the path.
+func (r *SetupResponseFailure) SetAuthenticator(step int, authenticator []byte) {
+	r.Authenticators[step] = authenticator
+}

@@ -24,6 +24,7 @@ import (
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	dkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // BaseRequest is used for every colibri request through sciond.
@@ -57,10 +58,27 @@ func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context,
 
 // deleteme TODO(juagargi) add a NewE2eReservationSetup function that simplifies the creation
 // of the E2EReservationSetup (look at hellocolibri) and `git grep -n E2EReservationSetup` and use the new function.
-type E2EResponseError struct {
-	Message  string
-	FailedAS int
+
+// E2EResponse is the response returned by setting up a colibri reservation. See also daemon.
+type E2EResponse struct {
+	Authenticators [][]byte
+	ColibriPath    snet.Path
 }
+
+// ValidateAuthenticators returns nil if the source validation for all hops succeeds.
+func (r *E2EResponse) ValidateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
+
+	return validateResponseAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
+}
+
+type E2EResponseError struct {
+	Authenticators [][]byte
+	Message        string
+	FailedAS       int
+}
+
+// deleteme missing authenticate functions for the base response error and setup response error
 
 func (e *E2EResponseError) Error() string {
 	return e.Message

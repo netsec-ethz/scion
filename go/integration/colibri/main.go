@@ -346,6 +346,7 @@ func (c client) createRsv(ctx context.Context, segments []reservation.ID,
 	path *base.TransparentPath, authenticators [][]byte, requestBW reservation.BWCls) (
 	reservation.ID, snet.Path, error) {
 
+	now := time.Now()
 	setupReq := &libcol.E2EReservationSetup{
 		BaseRequest: libcol.BaseRequest{
 			Id: reservation.ID{
@@ -353,6 +354,7 @@ func (c client) createRsv(ctx context.Context, segments []reservation.ID,
 				Suffix: make([]byte, 12),
 			},
 			Index:          0, // new index
+			TimeStamp:      now,
 			SrcHost:        c.Local.Host.IP,
 			DstHost:        c.Remote.Host.IP,
 			Path:           path,
@@ -362,8 +364,15 @@ func (c client) createRsv(ctx context.Context, segments []reservation.ID,
 		RequestedBW: requestBW,
 	}
 	rand.Read(setupReq.Id.Suffix) // random suffix
-	p, err := c.Daemon.ColibriSetupRsv(ctx, setupReq)
-	return setupReq.Id, p, err
+	res, err := c.Daemon.ColibriSetupRsv(ctx, setupReq)
+	if err != nil {
+		return reservation.ID{}, nil, err
+	}
+	err = res.ValidateAuthenticators(ctx, c.Daemon, path, c.Local.Host.IP, now)
+	if err != nil {
+		return reservation.ID{}, nil, err
+	}
+	return setupReq.Id, res.ColibriPath, nil
 }
 
 func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservation.IndexNumber,

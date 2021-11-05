@@ -30,6 +30,8 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/snet/path"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/stretchr/testify/require"
@@ -435,7 +437,6 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				})
 
 			// at the transit ASes:
-			// for step := len(tc.path.Steps) - 1; step > 0; step-- {
 			for step := len(tc.path.Steps) - 1; step >= 0; step-- {
 				tc.path.CurrentStep = step
 				// if success, add a hop field
@@ -469,6 +470,110 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 			require.True(t, ok, "validation failed")
 		})
 	}
+}
+
+func TestComputeAndValidateE2eSetupResponse(t *testing.T) {
+	cases := map[string]struct {
+		timestamp time.Time
+		response  e2e.SetupResponse
+		rsvID     *reservation.ID
+		path      *base.TransparentPath
+		srcHost   net.IP
+		token     *reservation.Token
+	}{
+		"success": {
+			timestamp: util.SecsToTime(1),
+			response: &e2e.SetupResponseSuccess{
+				AuthenticatedResponse: base.AuthenticatedResponse{
+					Timestamp:      util.SecsToTime(1),
+					Authenticators: make([][]byte, 3), // same size as the path
+				},
+			},
+			rsvID:   ct.MustParseID("ff00:0:111", "01234567890123456789abcd"),
+			path:    ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
+			token: &reservation.Token{
+				InfoField: reservation.InfoField{
+					ExpirationTick: 11,
+					Idx:            1,
+					BWCls:          13,
+					PathType:       reservation.CorePath,
+					RLC:            7,
+				},
+			},
+		},
+	}
+
+	mockKeys := mockKeysSlowIsSrc()
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			defer cancelF()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			daemon := mock_daemon.NewMockConnector(ctrl)
+			daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+					drkey.Lvl2Key, error) {
+
+					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
+					require.True(t, ok, "not found %s", meta.SrcIA)
+					return k, nil
+				})
+
+			// colibri services, all ASes:
+			for i := len(tc.path.Steps) - 1; i >= 0; i-- { // from last to first
+				step := tc.path.Steps[i]
+				tc.path.CurrentStep = i
+				tc.token.AddNewHopField(&reservation.HopField{
+					Ingress: step.Ingress,
+					Egress:  step.Egress,
+					Mac:     [4]byte{255, 255, uint8(i), 255},
+				})
+				if success, ok := tc.response.(*e2e.SetupResponseSuccess); ok {
+					buff := make([]byte, tc.token.Len())
+					_, err := tc.token.Read(buff)
+					require.NoError(t, err)
+					success.Token = buff
+				}
+				auth := DrkeyAuthenticator{
+					localIA:   tc.path.Steps[i].IA,
+					connector: daemon,
+				}
+				err := auth.ComputeE2eSetupResponseMAC(ctx, tc.response, tc.path,
+					addr.HostFromIP(tc.srcHost), tc.rsvID)
+				require.NoError(t, err)
+			}
+
+			// initiator end-host:
+			var authenticators [][]byte
+			if success, ok := tc.response.(*e2e.SetupResponseSuccess); ok {
+				success.Token = tc.token.ToRaw()
+				authenticators = tc.response.(*e2e.SetupResponseSuccess).Authenticators
+				success.Authenticators = authenticators
+			}
+			colibriPath := e2e.DeriveColibriPath(tc.rsvID, tc.token)
+			serializedColPath := make([]byte, colibriPath.Len())
+			err := colibriPath.SerializeTo(serializedColPath)
+			require.NoError(t, err)
+
+			clientRes := &libcol.E2EResponse{
+				Authenticators: authenticators,
+				ColibriPath: path.Path{
+					SPath: spath.Path{
+						Raw:  serializedColPath,
+						Type: colibriPath.Type(),
+					},
+				},
+			}
+			err = clientRes.ValidateAuthenticators(ctx, daemon, tc.path, tc.srcHost, tc.timestamp)
+			require.NoError(t, err)
+		})
+	}
+	// e2e.DeriveColibriPath(id,token)
 }
 
 func srcIA() string {
