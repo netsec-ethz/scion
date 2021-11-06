@@ -35,15 +35,16 @@ func TestCombineAll(t *testing.T) {
 			stitchable: nil,
 			expected:   nil,
 		},
-		"tiny topo": {
+		"tiny_topo": {
 			stitchable: ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
-				ct.WithCoreASes("1-ff00:0:110", "1-ff00:0:120"),
-				ct.WithUpSegs(2),                         // src to core1
-				ct.WithDownSegs(2),                       // from core1 to dst
-				ct.WithCoreSegs(ct.P(2, 3), ct.P(3, 2))), // 2->3 , 3->2
+				ct.WithCoreASes("1-ff00:0:110"),
+				ct.WithUpSegs(2),   // src to core1
+				ct.WithDownSegs(2), // from core1 to dst
+			),
 			expected: ct.NewFullTrips("1-ff00:0:111", "1-ff00:0:112",
 				ct.WithCoresInTrip("1-ff00:0:110"),
-				ct.WithTrips(ct.T(ct.U(0, 2), ct.D(2, 1)))),
+				ct.WithTrips(ct.T(ct.U(0, 2), ct.D(2, 1))),
+			),
 		},
 		"from_core": {
 			stitchable: ct.NewStitchableSegments("1-ff00:0:110", "1-ff00:0:112",

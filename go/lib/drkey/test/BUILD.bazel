@@ -1,0 +1,13 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["mock_keys.go"],
+    importpath = "github.com/scionproto/scion/go/lib/drkey/test",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/xtest:go_default_library",
+    ],
+)

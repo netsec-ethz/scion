@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
+	dkt "github.com/scionproto/scion/go/lib/drkey/test"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
@@ -60,7 +61,7 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSlowIsSrc()
+	mockKeys := mockKeysSlowIsSrcWithHost(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -75,9 +76,7 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			tc.clientReq.CreateAuthenticators(ctx, daemon)
@@ -134,7 +133,7 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSlowIsSrc()
+	mockKeys := mockKeysSlowIsSrcWithHost(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -149,9 +148,7 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			tc.clientReq.CreateAuthenticators(ctx, daemon)
@@ -185,7 +182,7 @@ func TestE2eRequestTransitMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSlowIsDst()
+	mockKeys := mockKeysSlowIsDst(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -200,9 +197,7 @@ func TestE2eRequestTransitMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s->%s", meta.SrcIA, meta.DstIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			// at the transit ASes:
@@ -250,7 +245,7 @@ func TestE2eSetupRequestTransitMac(t *testing.T) {
 			},
 		},
 	}
-	mockKeys := mockKeysSlowIsDst()
+	mockKeys := mockKeysSlowIsDst(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -265,9 +260,7 @@ func TestE2eSetupRequestTransitMac(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			// at the transit ASes:
@@ -313,7 +306,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 		},
 	}
-	mockKeys := mockKeysSlowIsSrc()
+	mockKeys := mockKeysSlowIsSrc(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -328,9 +321,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			// at the transit ASes:
@@ -416,7 +407,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 			lastStepWhichComputes: 2,
 		},
 	}
-	mockKeys := mockKeysSlowIsSrc()
+	mockKeys := mockKeysSlowIsSrc(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -431,9 +422,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			// at the transit ASes:
@@ -504,7 +493,7 @@ func TestComputeAndValidateE2eSetupResponse(t *testing.T) {
 		},
 	}
 
-	mockKeys := mockKeysSlowIsSrc()
+	mockKeys := mockKeysSlowIsSrcWithHost(t)
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
@@ -519,9 +508,7 @@ func TestComputeAndValidateE2eSetupResponse(t *testing.T) {
 				DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
 					drkey.Lvl2Key, error) {
 
-					k, ok := mockKeys[fastSlow{fast: meta.SrcIA, slow: meta.DstIA}]
-					require.True(t, ok, "not found %s", meta.SrcIA)
-					return k, nil
+					return mustFindKey(t, mockKeys, meta)
 				})
 
 			// colibri services, all ASes:
@@ -592,52 +579,37 @@ func dstHost() string {
 	return "10.2.2.2"
 }
 
-type fastSlow struct {
-	fast addr.IA
-	slow addr.IA
+func mockKeysSlowIsSrc(t *testing.T) dkt.KeyMap {
+	return dkt.MockKeys1SlowSide(t, srcIA(),
+		"1-ff00:0:111",
+		"1-ff00:0:110",
+		"1-ff00:0:112",
+	)
 }
 
-// mockKeysSlowIsSrc uses AS 1-ff00:0:111 as slow path.
-func mockKeysSlowIsSrc() map[fastSlow]drkey.Lvl2Key {
-	as1 := xtest.MustParseIA(srcIA())
-	as2 := xtest.MustParseIA("1-ff00:0:110")
-	as3 := xtest.MustParseIA("1-ff00:0:112")
-	host1 := addr.HostFromIPStr(srcHost())
-
-	return map[fastSlow]drkey.Lvl2Key{
-		{fast: as1, slow: as1}: mockKey(drkey.AS2AS, as1, as1, host1),
-		{fast: as2, slow: as1}: mockKey(drkey.AS2AS, as2, as1, host1),
-		{fast: as3, slow: as1}: mockKey(drkey.AS2AS, as3, as1, host1),
-	}
+// mockKeysSlowIsSrcWithHost uses AS 1-ff00:0:111 as slow path.
+func mockKeysSlowIsSrcWithHost(t *testing.T) dkt.KeyMap {
+	return dkt.MockKeys1SlowSideWithHost(t, srcIA(), srcHost(),
+		"1-ff00:0:111",
+		"1-ff00:0:110",
+		"1-ff00:0:112",
+	)
 }
 
 // mockKeysSlowIsDst uses AS 1-ff00:0:112 as slow path.
-func mockKeysSlowIsDst() map[fastSlow]drkey.Lvl2Key {
-	as1 := xtest.MustParseIA("1-ff00:0:111")
-	as2 := xtest.MustParseIA("1-ff00:0:110")
-	as3 := xtest.MustParseIA(dstIA())
-	host3 := addr.HostFromIPStr(dstHost())
-
-	return map[fastSlow]drkey.Lvl2Key{
-		{fast: as1, slow: as3}: mockKey(drkey.AS2AS, as1, as3, host3),
-		{fast: as2, slow: as3}: mockKey(drkey.AS2AS, as2, as3, host3),
-		{fast: as3, slow: as3}: mockKey(drkey.AS2AS, as3, as3, host3),
-	}
+func mockKeysSlowIsDst(t *testing.T) dkt.KeyMap {
+	return dkt.MockKeys1SlowSide(t, dstIA(),
+		"1-ff00:0:111",
+		"1-ff00:0:110",
+		"1-ff00:0:112",
+	)
 }
 
-func mockKey(keyType drkey.Lvl2KeyType, fast, slow addr.IA, slowhost addr.HostAddr) drkey.Lvl2Key {
-	k := xtest.MustParseHexString("0123456789abcdef0123456789abcdef") // 16 bytes
-	fast.Write(k[:8])
-	slow.Write(k[8:])
-	return drkey.Lvl2Key{
-		Lvl2Meta: drkey.Lvl2Meta{
-			KeyType:  keyType,
-			Protocol: "colibri",
-			Epoch:    drkey.NewEpoch(0, 100),
-			SrcIA:    fast,
-			DstIA:    slow,
-			DstHost:  slowhost,
-		},
-		Key: k,
-	}
+func mustFindKey(t *testing.T, mockKeys dkt.KeyMap, meta drkey.Lvl2Meta) (drkey.Lvl2Key, error) {
+	t.Helper()
+	k, ok := dkt.GetKey(mockKeys, meta.SrcIA, meta.DstIA)
+	require.True(t, ok, "not found %s", meta.SrcIA)
+	require.Equal(t, meta.KeyType, k.KeyType, "wrong key type. Expected: %v, got: %v",
+		meta.KeyType, k.KeyType)
+	return k, nil
 }

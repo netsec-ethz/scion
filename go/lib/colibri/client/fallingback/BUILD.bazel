@@ -22,6 +22,8 @@ go_test(
         "//go/lib/colibri/client:go_default_library",
         "//go/lib/colibri/coltest:go_default_library",
         "//go/lib/daemon/mock_daemon:go_default_library",
+        "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/test:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

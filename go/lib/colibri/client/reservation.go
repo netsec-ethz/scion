@@ -89,25 +89,26 @@ func NewReservation(ctx context.Context,
 		})
 	}
 	trip := trips[0]
-	// 3. compute authenticators
-	authenticators := [][]byte{} // deleteme TODO(juagargi)
-	// 4. create setup reservation
+
+	// 3. create reservation setup request
 	setupReq := &colibri.E2EReservationSetup{
 		BaseRequest: colibri.BaseRequest{
 			Id: reservation.ID{
 				ASID:   localIA.AS(),
 				Suffix: make([]byte, reservation.IDSuffixE2ELen),
 			},
-			Index:          index,
-			SrcHost:        srcHost,
-			DstHost:        dstHost,
-			Path:           trip.Path(),
-			Authenticators: authenticators,
+			Index:   index,
+			SrcHost: srcHost,
+			DstHost: dstHost,
+			Path:    trip.Path(),
 		},
 		RequestedBW: bw,
 		Segments:    trip.Segments(),
 	}
 	rand.Read(setupReq.Id.Suffix) // random suffix
+
+	// 4. compute authenticators
+	err = setupReq.CreateAuthenticators(ctx, daemon)
 	return &Reservation{
 		daemon:      daemon,
 		dstIA:       dstIA,
@@ -117,7 +118,7 @@ func NewReservation(ctx context.Context,
 		// Since it's not exported, the compiler should see it's not reassigned via SSA, and just
 		// treat it as a constant when not running a test.
 		e2eRenewalTaskDuration: reservation.TicksInE2ERsv * reservation.DurationPerTick / 2,
-	}, nil
+	}, err
 }
 
 // Open periodically sets up/renews the reservation. Returns error iff the setup failed.

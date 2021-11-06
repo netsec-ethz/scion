@@ -28,6 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/client"
 	ct "github.com/scionproto/scion/go/lib/colibri/coltest"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
+	"github.com/scionproto/scion/go/lib/drkey"
+	dkt "github.com/scionproto/scion/go/lib/drkey/test"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -51,6 +53,20 @@ func TestCaptureTrips(t *testing.T) {
 	defer ctrl.Finish()
 	daemon := mock_daemon.NewMockConnector(ctrl)
 	daemon.EXPECT().ColibriListRsvs(gomock.Any(), gomock.Any()).Return(stitchables, nil)
+
+	mockKeys := dkt.MockKeys1SlowSideWithHost(t, "1-ff00:0:111", "10.1.1.1",
+		"1-ff00:0:111",
+		"1-ff00:0:110",
+		"1-ff00:0:112",
+	)
+	daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
+			drkey.Lvl2Key, error) {
+
+			k, ok := dkt.GetKey(mockKeys, meta.SrcIA, meta.DstIA)
+			require.True(t, ok, "not found %s", meta.SrcIA)
+			return k, nil
+		})
 
 	capturedTrips := make([]*colibri.FullTrip, 0)
 	_, err := client.NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
@@ -83,16 +99,11 @@ func TestToNext(t *testing.T) {
 
 func TestSkipInterface(t *testing.T) {
 	stitchables := ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
-		ct.WithCoreASes("1-ff00:0:110", "1-ff00:0:100"),
-
-		ct.WithUpSegs(1, 2, 3), // 1 direct trip, + 2 thru core (need down segments)
-		ct.WithPath(ct.Up, 0, rt.NewPath(0, "1-ff00:0:111", 2, 2, "1-ff00:0:112", 0)),
-		ct.WithPath(ct.Up, 1, rt.NewPath(0, "1-ff00:0:111", 2, 1, "1-ff00:0:110", 0)),
-		ct.WithPath(ct.Up, 2, rt.NewPath(0, "1-ff00:0:111", 3, 1, "1-ff00:0:100", 0)),
-
-		ct.WithDownSegs(2, 3),
-		ct.WithPath(ct.Down, 0, rt.NewPath(0, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
-		ct.WithPath(ct.Down, 1, rt.NewPath(0, "1-ff00:0:100", 2, 1, "1-ff00:0:112", 0)),
+		ct.WithUpPaths(rt.NewPath(0, "1-ff00:0:111", 2, 2, "1-ff00:0:112", 0),
+			rt.NewPath(0, "1-ff00:0:111", 2, 1, "1-ff00:0:110", 0),
+			rt.NewPath(0, "1-ff00:0:111", 3, 1, "1-ff00:0:100", 0)),
+		ct.WithDownPaths(rt.NewPath(0, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			rt.NewPath(0, "1-ff00:0:100", 2, 1, "1-ff00:0:112", 0)),
 	)
 	capturedTrips := colibri.CombineAll(stitchables)
 

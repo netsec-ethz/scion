@@ -74,7 +74,7 @@ func (t FullTrip) PathSteps() []base.PathStep {
 			"bad segment rsv. path (ends with nonzero egress", t[i])
 		assert(steps[len(steps)-1].IA.Equal(segment[0].IA),
 			"bad segment rsv. stitching (different IAs at transfer points): i: %s, i+1: %s",
-			steps, segment)
+			base.StepsToString(steps), base.StepsToString(segment))
 		steps[len(steps)-1].Egress = segment[0].Egress
 		steps = append(steps, segment[1:]...)
 	}
