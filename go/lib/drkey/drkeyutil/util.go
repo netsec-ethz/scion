@@ -18,8 +18,6 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/subtle"
-	"encoding/hex"
-	"fmt"
 	"sync"
 	"time"
 
@@ -67,8 +65,6 @@ func ValidateAuthenticators(payloads [][]byte, keys [][]byte, authenticators [][
 }
 
 func MAC(payload []byte, key []byte) ([]byte, error) {
-	fmt.Printf("deleteme >>>>>>>>>>>> MAC(%s, %s)\n",
-		hex.EncodeToString(payload), hex.EncodeToString(key))
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, serrors.WrapStr("initializing aes cipher", err)

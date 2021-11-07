@@ -19,7 +19,6 @@ package colibri
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"net"
 	"time"
 
@@ -87,7 +86,6 @@ func validateResponseAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2K
 	if err != nil {
 		return err
 	}
-	fmt.Printf("deleteme    VALIDATION\n")
 	ok, err := dkut.ValidateAuthenticators(payloads, keys, res.Authenticators)
 	if err != nil {
 		return err

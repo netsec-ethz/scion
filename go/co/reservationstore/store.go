@@ -908,7 +908,6 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 				"first segment: %s, second segment: %s", req.SegmentRsvs,
 			rsv.SegmentReservations[0].PathAtSource, rsv.SegmentReservations[1].PathAtSource)
 	}
-	log.Info("deleteme e2e admission processing", "is_transfer", isTransfer, "segs", rsv.SegmentReservations)
 
 	// check the seg. reservations
 	expTime := util.MaxFutureTime()
@@ -953,7 +952,6 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 				"id", req.ID).Error()
 			return failedResponse, nil
 		}
-		log.Info("deleteme", "free", free, "free_outgoing", freeOutgoing)
 		if free > freeOutgoing {
 			free = freeOutgoing
 		}
@@ -1375,7 +1373,6 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 		}
 		success := downstreamRes.(*segment.SegmentSetupResponseSuccess)
 		res.Authenticators = success.Authenticators
-		log.Info("deleteme adding authenticators", "downstream", success.Authenticators, "here", res.Authenticators)
 		res.Token = success.Token
 	}
 

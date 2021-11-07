@@ -31,7 +31,7 @@ import (
 type BaseRequest struct {
 	Id             reservation.ID
 	Index          reservation.IndexNumber
-	TimeStamp      time.Time // deleteme check this is translated, etc
+	TimeStamp      time.Time
 	SrcHost        net.IP
 	DstHost        net.IP
 	Path           *base.TransparentPath // non nil path. It contains SrcIA and DstIA.

@@ -86,7 +86,6 @@ type macVerifier interface {
 		path *base.TransparentPath) (bool, error)
 	ValidateSegmentSetupResponse(ctx context.Context,
 		res segment.SegmentSetupResponse, path *base.TransparentPath) (bool, error)
-	ValidateE2eSetupResponse(ctx context.Context, res e2e.SetupResponse) (bool, error)
 }
 
 // DrkeyAuthenticator implements macComputer and macVerifier using DRKey.
@@ -199,7 +198,6 @@ func (a *DrkeyAuthenticator) ComputeE2eSetupResponseMAC(ctx context.Context, res
 	if err != nil {
 		return err
 	}
-	fmt.Printf("deleteme MAC for %d\n", path.CurrentStep)
 	mac, err := MAC(payload, key)
 	if err != nil {
 		return err
@@ -308,12 +306,6 @@ func (a *DrkeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 		func(step int) []byte {
 			return res.ToRaw(step)
 		})
-}
-
-func (a *DrkeyAuthenticator) ValidateE2eSetupResponse(ctx context.Context, res e2e.SetupResponse) (
-	bool, error) {
-
-	return false, nil // deleteme
 }
 
 func (a *DrkeyAuthenticator) validateRequestAtDestination(ctx context.Context, req *base.Request) (
