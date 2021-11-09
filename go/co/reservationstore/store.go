@@ -1139,6 +1139,7 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 			return failedResponse, s.errWrapStr("cannot commit transaction", err,
 				"id", req.ID.String())
 		}
+		log.Debug("e2e cleanup successful", "id", req.ID, "path", req.Path)
 	}
 
 	if req.IsLastAS() {

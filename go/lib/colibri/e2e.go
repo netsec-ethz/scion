@@ -18,6 +18,7 @@ package colibri
 
 import (
 	"context"
+	"crypto/rand"
 	"net"
 	"time"
 
@@ -56,8 +57,31 @@ func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context,
 	return createAuthsForE2EReservationSetup(ctx, conn, r)
 }
 
-// deleteme TODO(juagargi) add a NewE2eReservationSetup function that simplifies the creation
-// of the E2EReservationSetup (look at hellocolibri) and `git grep -n E2EReservationSetup` and use the new function.
+// NewReservation creates a new E2EReservationSetup, including the authenticator fields.
+func NewReservation(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	fullTrip *FullTrip, srcHost, dstHost net.IP,
+	requestedBW reservation.BWCls) (*E2EReservationSetup, error) {
+
+	p := fullTrip.Path()
+	setupReq := &E2EReservationSetup{
+		BaseRequest: BaseRequest{
+			Id: reservation.ID{
+				ASID:   p.SrcIA().AS(),
+				Suffix: make([]byte, 12),
+			},
+			Index:     0, // new index
+			TimeStamp: time.Now(),
+			SrcHost:   srcHost,
+			DstHost:   dstHost,
+			Path:      p,
+		},
+		RequestedBW: requestedBW,
+		Segments:    fullTrip.Segments(),
+	}
+	rand.Read(setupReq.Id.Suffix) // random suffix
+	err := setupReq.CreateAuthenticators(ctx, conn)
+	return setupReq, err
+}
 
 // E2EResponse is the response returned by setting up a colibri reservation. See also daemon.
 type E2EResponse struct {

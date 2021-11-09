@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -272,7 +271,7 @@ func (c client) run() int {
 	}
 	// obtain an reservation
 	requestPath := trips[0].Path()
-	rsvID, p, err := c.createRsv(ctx, trips[0].Segments(), requestPath, 1)
+	rsvID, p, err := c.createRsv(ctx, trips[0], 1)
 	if err != nil {
 		integration.LogFatal("creating reservation", "err", err)
 	}
@@ -337,28 +336,11 @@ func (c client) listRsvs(ctx context.Context) (
 	}
 }
 
-func (c client) createRsv(ctx context.Context, segments []reservation.ID,
-	path *base.TransparentPath, requestBW reservation.BWCls) (
+func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip, requestBW reservation.BWCls) (
 	reservation.ID, snet.Path, error) {
 
 	now := time.Now()
-	setupReq := &libcol.E2EReservationSetup{
-		BaseRequest: libcol.BaseRequest{
-			Id: reservation.ID{
-				ASID:   c.Local.IA.AS(),
-				Suffix: make([]byte, 12),
-			},
-			Index:     0, // new index
-			TimeStamp: now,
-			SrcHost:   c.Local.Host.IP,
-			DstHost:   c.Remote.Host.IP,
-			Path:      path,
-		},
-		Segments:    segments,
-		RequestedBW: requestBW,
-	}
-	rand.Read(setupReq.Id.Suffix) // random suffix
-	err := setupReq.CreateAuthenticators(ctx, c.Daemon)
+	setupReq, err := libcol.NewReservation(ctx, c.Daemon, fullTrip, c.Local.Host.IP, c.Remote.Host.IP, requestBW)
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
@@ -366,7 +348,7 @@ func (c client) createRsv(ctx context.Context, segments []reservation.ID,
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
-	err = res.ValidateAuthenticators(ctx, c.Daemon, path, c.Local.Host.IP, now)
+	err = res.ValidateAuthenticators(ctx, c.Daemon, fullTrip.Path(), c.Local.Host.IP, now)
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
