@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/hex"
-	"fmt"
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/e2e"
@@ -381,11 +380,6 @@ func (a *DrkeyAuthenticator) validateE2ePayloadInitialMAC(ctx context.Context,
 	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
 	if res != 1 {
 		log.Info("source authentication failed", "id", req.ID,
-			"fast_side", a.localIA,
-			"slow_ia", req.Path.SrcIA(), "slow_host", req.SrcHost,
-			"mac", hex.EncodeToString(mac),
-			"expected", hex.EncodeToString(req.CurrentValidatorField()))
-		fmt.Println("source authentication failed", "id", req.ID,
 			"fast_side", a.localIA,
 			"slow_ia", req.Path.SrcIA(), "slow_host", req.SrcHost,
 			"mac", hex.EncodeToString(mac),
