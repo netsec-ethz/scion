@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 )
 
 // Dialer creates a gRPC client connection to the given target.
@@ -166,6 +167,97 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 		StreamClientInterceptor(),
 	)
 
+}
+
+type ServiceResolver interface {
+	ResolveTrustService(context.Context, addr.IA) (*snet.UDPAddr, error)
+	ResolveDRKeyService(context.Context, addr.IA) (*snet.UDPAddr, error)
+}
+
+type DSResolver struct {
+	Router snet.Router
+	Dialer Dialer
+}
+
+func (r *DSResolver) dialDS(ctx context.Context, ia addr.IA) (*grpc.ClientConn, snet.Path, error) {
+	path, err := r.Router.Route(context.Background(), ia)
+	if err != nil || path == nil {
+		return nil, nil, serrors.New("no route to IA", "ia", ia, "err", err, "path", path)
+	}
+
+	ds := &snet.SVCAddr{
+		IA:      ia,
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     addr.SvcDS,
+	}
+	conn, err := r.Dialer.Dial(ctx, ds)
+	if err != nil {
+		return nil, nil, err
+	}
+	return conn, path, nil
+}
+
+func (r *DSResolver) ResolveTrustService(ctx context.Context, ia addr.IA) (
+	*snet.UDPAddr, error) {
+
+	conn, path, err := r.dialDS(ctx, ia)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := dpb.NewDiscoveryServiceClient(conn)
+	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering colibri services", err)
+	}
+	if len(rep.TrustMaterial) == 0 {
+		return nil, serrors.New("no colibri services discovered", "ia", ia.String())
+	}
+
+	host, err := net.ResolveUDPAddr("udp", rep.TrustMaterial[0])
+	if err != nil {
+		return nil, serrors.WrapStr("parsing udp address for colibri service", err,
+			"udp", rep.TrustMaterial[0])
+	}
+
+	return &snet.UDPAddr{
+		IA:      ia,
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		Host:    host,
+	}, nil
+}
+
+func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ia addr.IA) (
+	*snet.UDPAddr, error) {
+
+	conn, path, err := r.dialDS(ctx, ia)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := dpb.NewDiscoveryServiceClient(conn)
+	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering colibri services", err)
+	}
+	if len(rep.DrkeyInter) == 0 {
+		return nil, serrors.New("no colibri services discovered", "ia", ia.String())
+	}
+
+	host, err := net.ResolveUDPAddr("udp", rep.DrkeyInter[0])
+	if err != nil {
+		return nil, serrors.WrapStr("parsing udp address for colibri service", err,
+			"udp", rep.DrkeyInter[0])
+	}
+
+	return &snet.UDPAddr{
+		IA:      ia,
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		Host:    host,
+	}, nil
 }
 
 // TLSQUICDialer dials a gRPC connection over TLS/QUIC/SCION. This dialer is meant to

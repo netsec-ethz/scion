@@ -36,8 +36,9 @@ type Lvl1KeyGetter interface {
 }
 
 type Lvl1KeyFetcher struct {
-	Dialer sc_grpc.Dialer
-	Router snet.Router
+	Dialer    sc_grpc.Dialer
+	Router    snet.Router
+	Discovery sc_grpc.ServiceResolver
 }
 
 var _ Lvl1KeyGetter = (*Lvl1KeyFetcher)(nil)
@@ -47,15 +48,9 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	logger := log.FromCtx(ctx)
 
 	logger.Info("Resolving server", "srcIA", srcIA.String())
-	path, err := f.Router.Route(ctx, srcIA)
-	if err != nil || path == nil {
-		return nil, serrors.WrapStr("unable to find path to", err, "IA", srcIA)
-	}
-	remote := &snet.SVCAddr{
-		IA:      srcIA,
-		Path:    path.Path(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
+	remote, err := f.Discovery.ResolveDRKeyService(ctx, srcIA)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to discover", err, "IA", srcIA)
 	}
 	conn, err := f.Dialer.Dial(ctx, remote)
 	if err != nil {

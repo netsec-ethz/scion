@@ -25,6 +25,8 @@ service DiscoveryService {
     rpc HiddenSegmentServices(HiddenSegmentServicesRequest) returns (HiddenSegmentServicesResponse) {}
     // Return the colibri services.
     rpc ColibriServices(ColibriServicesRequest) returns (ColibriServicesResponse) {}
+     // Return the CS RPC services addresses
+    rpc CSRPCs(CSRequest) returns (CSResponse) {}
 }
 
 message GatewaysRequest {}
@@ -72,4 +74,15 @@ message ColibriServicesRequest {}
 
 message ColibriServicesResponse {
     repeated string address = 1;
+}
+
+message CSRequest {}
+
+message CSResponse {
+    // The list of lookup service instances.
+    repeated string trust_material = 1;
+    repeated string chain_renewal = 2;
+    repeated string segment_lookup = 3;
+    repeated string segment_registration =4;
+    repeated string drkey_inter =5;
 }

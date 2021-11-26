@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/pkg/grpc"
 )
 
 // Router builds the CS address for crypto material with the subject in a given ISD.
@@ -82,6 +83,48 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 }
 
 func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
+	if destination == r.ISD {
+		return r.ISD, nil
+	}
+	logger := log.FromCtx(ctx)
+	sTRC, err := r.DB.SignedTRC(ctx, cppki.TRCID{ISD: destination})
+	if err != nil {
+		return 0, serrors.WrapStr("error querying DB for TRC", err)
+	}
+	if sTRC.IsZero() {
+		logger.Info("Direct to ISD-local authoritative servers",
+			"reason", "remote TRC not found")
+		return r.ISD, nil
+	}
+	if !sTRC.TRC.Validity.Contains(time.Now()) {
+		logger.Info("Direct to ISD-local authoritative servers",
+			"reason", "remote TRC outside of validity period")
+		return r.ISD, nil
+	}
+	return destination, nil
+}
+
+type DSRouter struct {
+	ISD        addr.ISD
+	DB         DB
+	DSResolver grpc.ServiceResolver
+}
+
+// ChooseServer builds an address for crypto with the subject in a given ISD.
+//  * a local authoritative TrustService if subject is ISD-local.
+//  * a local authoritative TrustService if subject is in remote ISD, but no active TRC is available.
+//  * a remote authoritative TrustService otherwise.
+func (r DSRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
+	dstISD, err := r.dstISD(ctx, subjectISD)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
+	}
+	logger := log.FromCtx(ctx)
+	logger.Debug("Getting paths to any authoritative server", "isd", dstISD)
+	return r.DSResolver.ResolveTrustService(ctx, addr.IA{I: dstISD})
+}
+
+func (r DSRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {
 	if destination == r.ISD {
 		return r.ISD, nil
 	}

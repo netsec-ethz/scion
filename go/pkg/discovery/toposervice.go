@@ -42,6 +42,8 @@ type TopologyInformation interface {
 	HiddenSegmentRegistrationAddresses() ([]*net.UDPAddr, error)
 	// ColibriServices returns all the colibri services in the AS.
 	ColibriServices() ([]*net.UDPAddr, error)
+	TrustMaterialAddress() ([]*net.UDPAddr, error)
+	DRKeyAddress() ([]*net.UDPAddr, error)
 }
 
 // Topology implements a service discovery server based on the topology
@@ -142,6 +144,39 @@ func (t Topology) ColibriServices(ctx context.Context, _ *dpb.ColibriServicesReq
 	logger.Debug("Replied with colibri services", "services", colSrvs)
 	t.updateTelemetry(span, labels.WithResult(prom.Success), nil)
 	return reply, nil
+}
+
+func (t Topology) CSRPCs(ctx context.Context, _ *dpb.CSRequest) (
+	*dpb.CSResponse, error) {
+
+	span := opentracing.SpanFromContext(ctx)
+	labels := requestLabels{ReqType: "gateways"}
+	logger := log.FromCtx(ctx)
+
+	tAddresses, err := t.Information.TrustMaterialAddress()
+	if err != nil {
+		logger.Debug("Failed to list Trust material address", "err", err)
+		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
+		return nil, status.Error(codes.Internal, "failed to list Trust material addresses")
+	}
+	drkeyAddresses, err := t.Information.DRKeyAddress()
+	if err != nil {
+		logger.Debug("Failed to list Trust material address", "err", err)
+		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
+		return nil, status.Error(codes.Internal, "failed to list Trust material addresses")
+	}
+
+	response := &dpb.CSResponse{}
+	for _, a := range tAddresses {
+		response.TrustMaterial = append(response.TrustMaterial, a.String())
+	}
+	for _, a := range drkeyAddresses {
+		response.DrkeyInter = append(response.DrkeyInter, a.String())
+	}
+
+	logger.Debug("Replied with CSRPCs", "response", response.String())
+	t.updateTelemetry(span, labels.WithResult(prom.Success), nil)
+	return response, nil
 }
 
 // RequestsLabels exposes the labels required by the Requests metric.

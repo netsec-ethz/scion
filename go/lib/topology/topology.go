@@ -73,6 +73,8 @@ type (
 		HiddenSegmentLookup       IDAddrMap
 		HiddenSegmentRegistration IDAddrMap
 		SIG                       map[string]GatewayInfo
+		TrustMaterialAddr         IDAddrMap
+		DRKeyAddr                 IDAddrMap
 	}
 
 	// GatewayInfo describes a scion gateway.
@@ -315,6 +317,14 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	t.HiddenSegmentRegistration, err = svcMapFromRaw(raw.HiddenSegmentReg)
 	if err != nil {
 		return serrors.WrapStr("unable to extract hidden segment registration address", err)
+	}
+	t.TrustMaterialAddr, err = svcMapFromRaw(raw.TrustMaterialServ)
+	if err != nil {
+		return serrors.WrapStr("unable to extract trust material service address", err)
+	}
+	t.DRKeyAddr, err = svcMapFromRaw(raw.DRKeyServ)
+	if err != nil {
+		return serrors.WrapStr("unable to extract drkey address service address", err)
 	}
 	return nil
 }

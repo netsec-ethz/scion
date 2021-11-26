@@ -139,6 +139,8 @@ func realMain(ctx context.Context) error {
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.PublicAddress(addr.SvcCS, globalCfg.General.ID),
+		TrustAddr:             topo.PublicTrustMaterial(globalCfg.General.ID),
+		DRKeyAddr:             topo.PublicDRKey(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
 			Address: globalCfg.QUIC.Address,
@@ -262,6 +264,14 @@ func realMain(ctx context.Context) error {
 		ISD:    topo.IA().I,
 		DB:     trustDB,
 		Router: segreq.NewRouter(fetcherCfg),
+	}
+	provider.RouterTRC = trust.DSRouter{
+		ISD: topo.IA().I,
+		DB:  trustDB,
+		DSResolver: &libgrpc.DSResolver{
+			Router: segreq.NewRouter(fetcherCfg),
+			Dialer: dialer,
+		},
 	}
 
 	quicServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
@@ -506,7 +516,10 @@ func realMain(ctx context.Context) error {
 					Dialer:      quicStack.TLSDialer,
 					Credentials: trust.GetTansportCredentials(tlsMgr),
 				},
-				Router: segreq.NewRouter(fetcherCfg),
+				Discovery: &libgrpc.DSResolver{
+					Router: segreq.NewRouter(fetcherCfg),
+					Dialer: dialer,
+				},
 			},
 		}
 		drkeyServStore = &drkey.ServiceStore{
@@ -577,7 +590,7 @@ func realMain(ctx context.Context) error {
 	if globalCfg.DRKey.Enabled() {
 		go func() {
 			defer log.HandlePanic()
-			if err := quicTLSServer.Serve(quicStack.TLSListener); err != nil {
+			if err := quicTLSServer.Serve(quicStack.DRKeyListener); err != nil {
 				fatal.Fatal(err)
 			}
 		}()
@@ -767,4 +780,12 @@ func (topoInformation) ColibriServices() ([]*net.UDPAddr, error) {
 		return nil, nil
 	}
 	return a, err
+}
+
+func (topoInformation) TrustMaterialAddress() ([]*net.UDPAddr, error) {
+	return itopo.Get().TrustMaterials(), nil
+}
+
+func (topoInformation) DRKeyAddress() ([]*net.UDPAddr, error) {
+	return itopo.Get().DRKeys(), nil
 }

@@ -55,6 +55,9 @@ type Topology interface {
 	// if no such server exists.
 	PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr
 
+	PublicTrustMaterial(name string) *net.UDPAddr
+	PublicDRKey(name string) *net.UDPAddr
+
 	// Anycast returns the address for an arbitrary server of the requested type.
 	Anycast(svc addr.HostSVC) (*net.UDPAddr, error)
 	// Multicast returns all addresses for the requested type.
@@ -73,6 +76,9 @@ type Topology interface {
 
 	// Gateways returns an array of all gateways.
 	Gateways() ([]GatewayInfo, error)
+
+	TrustMaterials() []*net.UDPAddr
+	DRKeys() []*net.UDPAddr
 
 	// BR returns information for a specific border router
 	//
@@ -222,6 +228,26 @@ func (t *topologyS) Gateways() ([]GatewayInfo, error) {
 	return ret, nil
 }
 
+func (t *topologyS) TrustMaterials() []*net.UDPAddr {
+	allSCIONaddr := []*net.UDPAddr{}
+	for _, addr := range t.Topology.TrustMaterialAddr {
+		if a := addr.SCIONAddress; a != nil {
+			allSCIONaddr = append(allSCIONaddr, a)
+		}
+	}
+	return allSCIONaddr
+}
+
+func (t *topologyS) DRKeys() []*net.UDPAddr {
+	allSCIONaddr := []*net.UDPAddr{}
+	for _, addr := range t.Topology.DRKeyAddr {
+		if a := addr.SCIONAddress; a != nil {
+			allSCIONaddr = append(allSCIONaddr, a)
+		}
+	}
+	return allSCIONaddr
+}
+
 func (t *topologyS) BR(name string) (BRInfo, bool) {
 	br, ok := t.Topology.BR[name]
 	return br, ok
@@ -229,6 +255,24 @@ func (t *topologyS) BR(name string) (BRInfo, bool) {
 
 func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr {
 	topoAddr := t.topoAddress(svc, name)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.SCIONAddress
+}
+
+func (t *topologyS) PublicTrustMaterial(name string) *net.UDPAddr {
+	topoAddresses := t.Topology.TrustMaterialAddr
+	topoAddr := topoAddresses.GetByID(name)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.SCIONAddress
+}
+
+func (t *topologyS) PublicDRKey(name string) *net.UDPAddr {
+	topoAddresses := t.Topology.DRKeyAddr
+	topoAddr := topoAddresses.GetByID(name)
 	if topoAddr == nil {
 		return nil
 	}

@@ -57,7 +57,9 @@ type NetworkConfig struct {
 	IA addr.IA
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
-	Public *net.UDPAddr
+	Public    *net.UDPAddr
+	TrustAddr *net.UDPAddr
+	DRKeyAddr *net.UDPAddr
 	// ReconnectToDispatcher sets up sockets that automatically reconnect if
 	// the dispatcher closes the connection (e.g., if the dispatcher goes
 	// down).
@@ -81,6 +83,8 @@ type QUICStack struct {
 	Dialer         *squic.ConnDialer
 	TLSListener    *squic.ConnListener
 	TLSDialer      *squic.ConnDialer
+	TrustListener  *squic.ConnListener
+	DRKeyListener  *squic.ConnListener
 	RedirectCloser func()
 }
 
@@ -136,6 +140,26 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("starting service redirection", err)
 	}
 
+	trustServer, err := nc.initQUICSocketTrust()
+	if err != nil {
+		return nil, err
+	}
+	log.Info("Trust server conn initialized", "local_addr", trustServer.LocalAddr())
+	trustListener, err := quic.Listen(trustServer, tlsConfig, nil)
+	if err != nil {
+		return nil, serrors.WrapStr("listening QUIC/SCION for Trust socket", err)
+	}
+
+	drkeyServer, err := nc.initQUICSocketDRKey()
+	if err != nil {
+		return nil, err
+	}
+	log.Info("DRKey server conn initialized", "local_addr", drkeyServer.LocalAddr())
+	drkeyListener, err := quic.Listen(drkeyServer, tlsConfig, nil)
+	if err != nil {
+		return nil, serrors.WrapStr("listening QUIC/SCION for DRKey socket", err)
+	}
+
 	return &QUICStack{
 		Listener: squic.NewConnListener(listener),
 		Dialer: &squic.ConnDialer{
@@ -147,6 +171,8 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 			Conn:      tlsClient,
 			TLSConfig: tlsQuicConfig,
 		},
+		TrustListener:  squic.NewConnListener(trustListener),
+		DRKeyListener:  squic.NewConnListener(drkeyListener),
 		RedirectCloser: cancel,
 	}, nil
 }
@@ -321,6 +347,52 @@ func (nc *NetworkConfig) initQUICSockets(ignorePort bool) (net.PacketConn, net.P
 		return nil, nil, serrors.WrapStr("creating client connection", err)
 	}
 	return client, server, nil
+}
+
+func (nc *NetworkConfig) initQUICSocketTrust() (net.PacketConn, error) {
+	dispatcherService := reliable.NewDispatcher("")
+	if nc.ReconnectToDispatcher {
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+	}
+
+	serverNet := &snet.SCIONNetwork{
+		LocalIA: nc.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcherService,
+			// XXX(roosd): This is essential, the server must not read SCMP
+			// errors. Otherwise, the accept loop will always return that error
+			// on every subsequent call to accept.
+			SCMPHandler: ignoreSCMP{},
+		},
+	}
+	server, err := serverNet.Listen(context.Background(), "udp", nc.TrustAddr, addr.SvcNone)
+	if err != nil {
+		return nil, serrors.WrapStr("creating server connection", err)
+	}
+	return server, nil
+}
+
+func (nc *NetworkConfig) initQUICSocketDRKey() (net.PacketConn, error) {
+	dispatcherService := reliable.NewDispatcher("")
+	if nc.ReconnectToDispatcher {
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+	}
+
+	serverNet := &snet.SCIONNetwork{
+		LocalIA: nc.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcherService,
+			// XXX(roosd): This is essential, the server must not read SCMP
+			// errors. Otherwise, the accept loop will always return that error
+			// on every subsequent call to accept.
+			SCMPHandler: ignoreSCMP{},
+		},
+	}
+	server, err := serverNet.Listen(context.Background(), "udp", nc.DRKeyAddr, addr.SvcNone)
+	if err != nil {
+		return nil, serrors.WrapStr("creating server connection", err)
+	}
+	return server, nil
 }
 
 // NewRouter constructs a path router for paths starting from localIA.
