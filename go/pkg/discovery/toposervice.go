@@ -44,6 +44,8 @@ type TopologyInformation interface {
 	ColibriServices() ([]*net.UDPAddr, error)
 	TrustMaterialAddress() ([]*net.UDPAddr, error)
 	DRKeyAddress() ([]*net.UDPAddr, error)
+	SegLookupAddress() ([]*net.UDPAddr, error)
+	SegRegAddress() ([]*net.UDPAddr, error)
 }
 
 // Topology implements a service discovery server based on the topology
@@ -161,9 +163,22 @@ func (t Topology) CSRPCs(ctx context.Context, _ *dpb.CSRequest) (
 	}
 	drkeyAddresses, err := t.Information.DRKeyAddress()
 	if err != nil {
-		logger.Debug("Failed to list Trust material address", "err", err)
+		logger.Debug("Failed to list DRKey address", "err", err)
 		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
-		return nil, status.Error(codes.Internal, "failed to list Trust material addresses")
+		return nil, status.Error(codes.Internal, "failed to list DRKey addresses")
+	}
+	segLookupAddresses, err := t.Information.SegLookupAddress()
+	if err != nil {
+		logger.Debug("Failed to list Seg lookup address", "err", err)
+		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
+		return nil, status.Error(codes.Internal, "failed to list seg lookup addresses")
+	}
+
+	segRegAddresses, err := t.Information.SegRegAddress()
+	if err != nil {
+		logger.Debug("Failed to list Seg register address", "err", err)
+		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
+		return nil, status.Error(codes.Internal, "failed to list seg register addresses")
 	}
 
 	response := &dpb.CSResponse{}
@@ -172,6 +187,12 @@ func (t Topology) CSRPCs(ctx context.Context, _ *dpb.CSRequest) (
 	}
 	for _, a := range drkeyAddresses {
 		response.DrkeyInter = append(response.DrkeyInter, a.String())
+	}
+	for _, a := range segLookupAddresses {
+		response.SegmentLookup = append(response.SegmentLookup, a.String())
+	}
+	for _, a := range segRegAddresses {
+		response.SegmentRegistration = append(response.SegmentRegistration, a.String())
 	}
 
 	logger.Debug("Replied with CSRPCs", "response", response.String())

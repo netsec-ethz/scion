@@ -74,6 +74,9 @@ type (
 		HiddenSegmentRegistration IDAddrMap
 		SIG                       map[string]GatewayInfo
 		TrustMaterialAddr         IDAddrMap
+		SegLookupAddr             IDAddrMap
+		SegRegistrationAddr       IDAddrMap
+		ChainRenewalAddr          IDAddrMap
 		DRKeyAddr                 IDAddrMap
 	}
 
@@ -321,6 +324,18 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	t.TrustMaterialAddr, err = svcMapFromRaw(raw.TrustMaterialServ)
 	if err != nil {
 		return serrors.WrapStr("unable to extract trust material service address", err)
+	}
+	t.ChainRenewalAddr, err = svcMapFromRaw(raw.ChainRenewalService)
+	if err != nil {
+		return serrors.WrapStr("unable to extract chain renewal service address", err)
+	}
+	t.SegLookupAddr, err = svcMapFromRaw(raw.SegLookupService)
+	if err != nil {
+		return serrors.WrapStr("unable to extract segment lookup service address", err)
+	}
+	t.SegRegistrationAddr, err = svcMapFromRaw(raw.SegRegistrationService)
+	if err != nil {
+		return serrors.WrapStr("unable to extract segment registration address", err)
 	}
 	t.DRKeyAddr, err = svcMapFromRaw(raw.DRKeyServ)
 	if err != nil {

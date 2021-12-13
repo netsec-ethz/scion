@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -57,9 +58,12 @@ type NetworkConfig struct {
 	IA addr.IA
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
-	Public    *net.UDPAddr
-	TrustAddr *net.UDPAddr
-	DRKeyAddr *net.UDPAddr
+	Public                *net.UDPAddr
+	TrustAddr             *net.UDPAddr
+	DRKeyAddr             *net.UDPAddr
+	ChainRenewalAddr      *net.UDPAddr
+	SegLookupAddr         *net.UDPAddr
+	SegRegistrationLookup *net.UDPAddr
 	// ReconnectToDispatcher sets up sockets that automatically reconnect if
 	// the dispatcher closes the connection (e.g., if the dispatcher goes
 	// down).
@@ -85,7 +89,26 @@ type QUICStack struct {
 	TLSDialer      *squic.ConnDialer
 	TrustListener  *squic.ConnListener
 	DRKeyListener  *squic.ConnListener
+	CSListeners    []*squic.ConnListener
 	RedirectCloser func()
+}
+
+func (q *QUICStack) FindListenerIndex(a *net.UDPAddr) (int, error) {
+	ipPort, ok := netaddr.FromStdAddr(a.IP, a.Port, a.Zone)
+	if !ok {
+		return -1, serrors.New("cannot convert addr", "addr", a.String())
+	}
+	for i, lis := range q.CSListeners {
+		lisAddr, err := netaddr.ParseIPPort(lis.Addr().String())
+		if err != nil {
+			return -1, serrors.New("cannot convert listener addr",
+				"addr", lis.Addr().String())
+		}
+		if lisAddr == ipPort {
+			return i, nil
+		}
+	}
+	return -1, serrors.New("address not found in listeners", "addr", a.String())
 }
 
 func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
@@ -94,6 +117,54 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 		Port: nc.Public.Port,
 		Zone: nc.Public.Zone,
 	})
+}
+
+func (nc *NetworkConfig) uniqueQUICAddresses() []*net.UDPAddr {
+	var ipPort netaddr.IPPort
+	var ok bool
+	set := make(map[netaddr.IPPort]struct{})
+	ipPort, ok = netaddr.FromStdAddr(nc.TrustAddr.IP, nc.TrustAddr.Port, nc.TrustAddr.Zone)
+	if ok {
+		set[ipPort] = struct{}{}
+	}
+	ipPort, ok = netaddr.FromStdAddr(nc.ChainRenewalAddr.IP, nc.ChainRenewalAddr.Port, nc.ChainRenewalAddr.Zone)
+	if ok {
+		set[ipPort] = struct{}{}
+	}
+	ipPort, ok = netaddr.FromStdAddr(nc.SegLookupAddr.IP, nc.SegLookupAddr.Port, nc.SegLookupAddr.Zone)
+	if ok {
+		set[ipPort] = struct{}{}
+	}
+	ipPort, ok = netaddr.FromStdAddr(nc.SegRegistrationLookup.IP, nc.SegRegistrationLookup.Port, nc.SegRegistrationLookup.Zone)
+	if ok {
+		set[ipPort] = struct{}{}
+	}
+	addrSlice := []*net.UDPAddr{}
+	for ipPort := range set {
+		addrSlice = append(addrSlice, ipPort.UDPAddr())
+	}
+	return addrSlice
+}
+
+func (nc *NetworkConfig) initCSListeners() ([]*squic.ConnListener, error) {
+	csAddresses := nc.uniqueQUICAddresses()
+	tlsConfig, err := GenerateTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	listeners := make([]*squic.ConnListener, len(csAddresses))
+	for i, a := range csAddresses {
+		server, err := nc.initQUICServerSocket(a)
+		if err != nil {
+			return nil, serrors.WrapStr("initing CS server socket", err, "address", a.String())
+		}
+		lis, err := quic.Listen(server, tlsConfig, nil)
+		if err != nil {
+			return nil, err
+		}
+		listeners[i] = squic.NewConnListener(lis)
+	}
+	return listeners, nil
 }
 
 func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
@@ -140,16 +211,6 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("starting service redirection", err)
 	}
 
-	trustServer, err := nc.initQUICSocketTrust()
-	if err != nil {
-		return nil, err
-	}
-	log.Info("Trust server conn initialized", "local_addr", trustServer.LocalAddr())
-	trustListener, err := quic.Listen(trustServer, tlsConfig, nil)
-	if err != nil {
-		return nil, serrors.WrapStr("listening QUIC/SCION for Trust socket", err)
-	}
-
 	drkeyServer, err := nc.initQUICSocketDRKey()
 	if err != nil {
 		return nil, err
@@ -158,6 +219,11 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	drkeyListener, err := quic.Listen(drkeyServer, tlsConfig, nil)
 	if err != nil {
 		return nil, serrors.WrapStr("listening QUIC/SCION for DRKey socket", err)
+	}
+
+	csListeners, err := nc.initCSListeners()
+	if err != nil {
+		return nil, serrors.WrapStr("listening QUIC/SCION for CS servers sockets", err)
 	}
 
 	return &QUICStack{
@@ -171,8 +237,8 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 			Conn:      tlsClient,
 			TLSConfig: tlsQuicConfig,
 		},
-		TrustListener:  squic.NewConnListener(trustListener),
 		DRKeyListener:  squic.NewConnListener(drkeyListener),
+		CSListeners:    csListeners,
 		RedirectCloser: cancel,
 	}, nil
 }
@@ -366,6 +432,30 @@ func (nc *NetworkConfig) initQUICSocketTrust() (net.PacketConn, error) {
 		},
 	}
 	server, err := serverNet.Listen(context.Background(), "udp", nc.TrustAddr, addr.SvcNone)
+	if err != nil {
+		return nil, serrors.WrapStr("creating server connection", err)
+	}
+	return server, nil
+}
+
+func (nc *NetworkConfig) initQUICServerSocket(lisAddr *net.UDPAddr) (net.PacketConn, error) {
+	dispatcherService := reliable.NewDispatcher("")
+	if nc.ReconnectToDispatcher {
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+	}
+
+	serverNet := &snet.SCIONNetwork{
+		LocalIA: nc.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcherService,
+			// XXX(roosd): This is essential, the server must not read SCMP
+			// errors. Otherwise, the accept loop will always return that error
+			// on every subsequent call to accept.
+			SCMPHandler: ignoreSCMP{},
+		},
+	}
+	log.Debug("initServerSocket", "address", lisAddr.String())
+	server, err := serverNet.Listen(context.Background(), "udp", lisAddr, addr.SvcNone)
 	if err != nil {
 		return nil, serrors.WrapStr("creating server connection", err)
 	}

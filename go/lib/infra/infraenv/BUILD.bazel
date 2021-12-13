@@ -17,6 +17,7 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/sock/reliable/reconnect:go_default_library",
         "//go/lib/svc:go_default_library",
+        "@af_inet_netaddr//:go_default_library",
         "@com_github_lucas_clemente_quic_go//:go_default_library",
     ],
 )

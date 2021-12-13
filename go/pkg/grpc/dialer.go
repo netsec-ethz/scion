@@ -171,7 +171,9 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 
 type ServiceResolver interface {
 	ResolveTrustService(context.Context, addr.IA) (*snet.UDPAddr, error)
+	ResolveTrustServiceWithDS(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 	ResolveDRKeyService(context.Context, addr.IA) (*snet.UDPAddr, error)
+	ResolveSegmentLookupService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 }
 
 type DSResolver struct {
@@ -196,6 +198,68 @@ func (r *DSResolver) dialDS(ctx context.Context, ia addr.IA) (*grpc.ClientConn, 
 		return nil, nil, err
 	}
 	return conn, path, nil
+}
+
+func (r *DSResolver) ResolveTrustServiceWithDS(ctx context.Context, ds *snet.SVCAddr) (
+	*snet.UDPAddr, error) {
+
+	conn, err := r.Dialer.Dial(ctx, ds)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := dpb.NewDiscoveryServiceClient(conn)
+	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering trust material services", err)
+	}
+	if len(rep.TrustMaterial) == 0 {
+		return nil, serrors.New("no trust material services discovered", "ia", ds.IA.String())
+	}
+
+	host, err := net.ResolveUDPAddr("udp", rep.TrustMaterial[0])
+	if err != nil {
+		return nil, serrors.WrapStr("parsing udp address for trust material service", err,
+			"udp", rep.TrustMaterial[0])
+	}
+
+	return &snet.UDPAddr{
+		IA:      ds.IA,
+		Path:    ds.Path,
+		NextHop: ds.NextHop,
+		Host:    host,
+	}, nil
+}
+
+func (r *DSResolver) ResolveSegmentLookupService(ctx context.Context, ds *snet.SVCAddr) (
+	*snet.UDPAddr, error) {
+
+	conn, err := r.Dialer.Dial(ctx, ds)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := dpb.NewDiscoveryServiceClient(conn)
+	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering seg lookup services", err)
+	}
+	if len(rep.SegmentLookup) == 0 {
+		return nil, serrors.New("no seg lookup services discovered", "ia", ds.IA.String())
+	}
+
+	host, err := net.ResolveUDPAddr("udp", rep.SegmentLookup[0])
+	if err != nil {
+		return nil, serrors.WrapStr("parsing udp address for segment lookup", err,
+			"udp", rep.TrustMaterial[0])
+	}
+
+	return &snet.UDPAddr{
+		IA:      ds.IA,
+		Path:    ds.Path,
+		NextHop: ds.NextHop,
+		Host:    host,
+	}, nil
 }
 
 func (r *DSResolver) ResolveTrustService(ctx context.Context, ia addr.IA) (

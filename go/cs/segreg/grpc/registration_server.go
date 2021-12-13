@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/tracing"
+	"github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -42,6 +43,7 @@ var _ cppb.SegmentRegistrationServiceServer
 type RegistrationServer struct {
 	LocalIA    addr.IA
 	SegHandler seghandler.Handler
+	Resolver   grpc.ServiceResolver
 
 	// Requests aggregates all the incoming registration requests. If it is not
 	// initialized, nothing is reported.
@@ -89,16 +91,24 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		}
 	}
 
+	// Resolve for TrustMaterial Service, since we might
+	// need to fetch crypto material from the remote
+	server, err := s.Resolver.ResolveTrustServiceWithDS(ctx, &snet.SVCAddr{
+		IA:      peer.IA,
+		Path:    peer.Path,
+		NextHop: peer.NextHop,
+		SVC:     addr.SvcCS,
+	})
+	if err != nil {
+		return nil, serrors.WrapStr("resolving trust material service", err)
+	}
+	log.FromCtx(ctx).Debug("resolved TrustMaterial service", "addr", server.String())
+
 	res := s.SegHandler.Handle(ctx,
 		seghandler.Segments{
 			Segs: segs,
 		},
-		&snet.SVCAddr{
-			IA:      peer.IA,
-			Path:    peer.Path,
-			NextHop: peer.NextHop,
-			SVC:     addr.SvcCS,
-		},
+		server,
 	)
 	if err := res.Err(); err != nil {
 		s.failMetric(span, labels.WithResult(prom.ErrProcess), err)

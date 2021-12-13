@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -35,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -53,7 +55,8 @@ type FetcherConfig struct {
 	// RevCache is the revocation cache to use.
 	RevCache revcache.RevCache
 	// RPC is the RPC used to request segments.
-	RPC segfetcher.RPC
+	RPC           segfetcher.RPC
+	ServiceSolver grpc.ServiceResolver
 }
 
 // NewFetcher creates a segment fetcher configured for fetching segments from
@@ -102,10 +105,59 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 	return fetcher
 }
 
+func NewFetcherWithDialer(cfg FetcherConfig) *segfetcher.Fetcher {
+	d := &dstProvider{
+		localIA: cfg.IA,
+		segSelector: &SegSelector{
+			PathDB:       cfg.PathDB,
+			RevCache:     cfg.RevCache,
+			TopoProvider: cfg.TopoProvider,
+			Pather: addrutil.Pather{
+				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+					return cfg.TopoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
+				},
+			},
+		},
+		// Recursive/cyclic structure: the dstProvider in the fetcher uses the
+		// fetcher (see notes on dstProvider below).
+	}
+	dWithDS := &dstDiscoveryProvider{
+		dstProvider: d,
+		Resolver:    cfg.ServiceSolver,
+	}
+
+	fetcher := &segfetcher.Fetcher{
+		QueryInterval: cfg.QueryInterval,
+		PathDB:        cfg.PathDB,
+		Resolver: segfetcher.NewResolver(
+			cfg.PathDB,
+			cfg.RevCache,
+			&localInfo{localIA: cfg.IA},
+		),
+		ReplyHandler: &seghandler.Handler{
+			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.Verifier},
+			Storage: &seghandler.DefaultStorage{
+				PathDB:   cfg.PathDB,
+				RevCache: cfg.RevCache,
+			},
+		},
+		Requester: &segfetcher.DefaultRequester{
+			RPC:         cfg.RPC,
+			DstProvider: dWithDS,
+			MaxRetries:  20,
+		},
+		Metrics:         segfetcher.NewFetcherMetrics("control"),
+		ServiceResolver: cfg.ServiceSolver,
+	}
+
+	d.router = newRouter(cfg, fetcher)
+	return fetcher
+}
+
 // NewRouter creates a new Router/Pather/Fetcher, configured for obtaining paths
 // from inside the control service
 func NewRouter(cfg FetcherConfig) snet.Router {
-	fetcher := NewFetcher(cfg)
+	fetcher := NewFetcherWithDialer(cfg)
 	return newRouter(cfg, fetcher)
 }
 
@@ -212,4 +264,63 @@ func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (snet.Path, error
 		EndsAt:   []addr.IA{p.localIA},
 		SegTypes: []seg.Type{seg.TypeUp},
 	})
+}
+
+type dstDiscoveryProvider struct {
+	*dstProvider
+	Resolver grpc.ServiceResolver
+}
+
+func (p *dstDiscoveryProvider) getSVCDiscoveryRemote(ctx context.Context,
+	req segfetcher.Request) (*snet.SVCAddr, error) {
+	// The request is directed to the AS at the start of the requested segment:
+	dst := req.Src
+
+	var path snet.Path
+	switch req.SegType {
+	case seg.TypeCore:
+		// fast/simple path for core segment requests (only up segment required).
+		// Must NOT use the router recursively here;
+		// as it tries to find all paths, including paths through other core ASes,
+		// the router translates a path lookup to a core to the wildcard segment
+		// requests (up localIA->*) and (core *->dst). Looking up the core segment
+		// would then lead to an infinite recursion.
+		up, err := p.upPath(ctx, dst)
+		if err != nil {
+			return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
+		}
+		path = up
+	case seg.TypeDown:
+		// Select a random path (just like we choose a random segment above)
+		// Avoids potentially being stuck with a broken but not revoked path;
+		// allows clients to retry with possibly different path in case of failure.
+		paths, err := p.router.AllRoutes(ctx, dst)
+		if err != nil {
+			return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
+		}
+		if len(paths) == 0 {
+			return nil, segfetcher.ErrNotReachable
+		}
+		path = paths[rand.Intn(len(paths))]
+	default:
+		panic(fmt.Errorf("Unsupported segment type for request forwarding. "+
+			"Up segment should have been resolved locally. SegType: %s", req.SegType))
+	}
+	addr := &snet.SVCAddr{
+		IA:      path.Destination(),
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     addr.SvcDS,
+	}
+	return addr, nil
+}
+
+func (p *dstDiscoveryProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
+	ds, err := p.getSVCDiscoveryRemote(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	ps, err := p.Resolver.ResolveSegmentLookupService(ctx, ds)
+	log.FromCtx(ctx).Debug("Discovering Segment lookup service", "addr", ps.String())
+	return ps, err
 }

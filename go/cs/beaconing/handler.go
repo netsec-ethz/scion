@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/tracing"
+	"github.com/scionproto/scion/go/pkg/grpc"
 )
 
 // BeaconInserter inserts beacons into the beacon store.
@@ -47,6 +48,7 @@ type Handler struct {
 	Inserter   BeaconInserter
 	Verifier   infra.Verifier
 	Interfaces *ifstate.Interfaces
+	Resolver   grpc.ServiceResolver
 
 	BeaconsHandled metrics.Counter
 }
@@ -127,13 +129,24 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	if err != nil {
 		return err
 	}
-	svcToQuery := &snet.SVCAddr{
+	// svcToQuery := &snet.SVCAddr{
+	// 	IA:      peer.IA,
+	// 	Path:    peerPath.Path(),
+	// 	NextHop: peerPath.UnderlayNextHop(),
+	// 	SVC:     addr.SvcCS,
+	// }
+
+	server, err := h.Resolver.ResolveTrustServiceWithDS(ctx, &snet.SVCAddr{
 		IA:      peer.IA,
 		Path:    peerPath.Path(),
 		NextHop: peerPath.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
+		SVC:     addr.SvcDS,
+	})
+	if err != nil {
+		return serrors.WrapStr("resolving trust material service", err)
 	}
-	return segverifier.VerifySegment(ctx, h.Verifier, svcToQuery, segment)
+	log.FromCtx(ctx).Debug("resolved TrustMaterial service", "addr", server.String())
+	return segverifier.VerifySegment(ctx, h.Verifier, server, segment)
 }
 
 func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error) {

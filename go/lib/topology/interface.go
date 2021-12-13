@@ -56,6 +56,9 @@ type Topology interface {
 	PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr
 
 	PublicTrustMaterial(name string) *net.UDPAddr
+	PublicChainRenewal(name string) *net.UDPAddr
+	PublicSegLookup(name string) *net.UDPAddr
+	PublicSegRegistration(name string) *net.UDPAddr
 	PublicDRKey(name string) *net.UDPAddr
 
 	// Anycast returns the address for an arbitrary server of the requested type.
@@ -79,6 +82,8 @@ type Topology interface {
 
 	TrustMaterials() []*net.UDPAddr
 	DRKeys() []*net.UDPAddr
+	SegLookups() []*net.UDPAddr
+	SegRegisters() []*net.UDPAddr
 
 	// BR returns information for a specific border router
 	//
@@ -248,6 +253,26 @@ func (t *topologyS) DRKeys() []*net.UDPAddr {
 	return allSCIONaddr
 }
 
+func (t *topologyS) SegLookups() []*net.UDPAddr {
+	allSCIONaddr := []*net.UDPAddr{}
+	for _, addr := range t.Topology.SegLookupAddr {
+		if a := addr.SCIONAddress; a != nil {
+			allSCIONaddr = append(allSCIONaddr, a)
+		}
+	}
+	return allSCIONaddr
+}
+
+func (t *topologyS) SegRegisters() []*net.UDPAddr {
+	allSCIONaddr := []*net.UDPAddr{}
+	for _, addr := range t.Topology.SegRegistrationAddr {
+		if a := addr.SCIONAddress; a != nil {
+			allSCIONaddr = append(allSCIONaddr, a)
+		}
+	}
+	return allSCIONaddr
+}
+
 func (t *topologyS) BR(name string) (BRInfo, bool) {
 	br, ok := t.Topology.BR[name]
 	return br, ok
@@ -263,6 +288,33 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr {
 
 func (t *topologyS) PublicTrustMaterial(name string) *net.UDPAddr {
 	topoAddresses := t.Topology.TrustMaterialAddr
+	topoAddr := topoAddresses.GetByID(name)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.SCIONAddress
+}
+
+func (t *topologyS) PublicChainRenewal(name string) *net.UDPAddr {
+	topoAddresses := t.Topology.ChainRenewalAddr
+	topoAddr := topoAddresses.GetByID(name)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.SCIONAddress
+}
+
+func (t *topologyS) PublicSegLookup(name string) *net.UDPAddr {
+	topoAddresses := t.Topology.SegLookupAddr
+	topoAddr := topoAddresses.GetByID(name)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.SCIONAddress
+}
+
+func (t *topologyS) PublicSegRegistration(name string) *net.UDPAddr {
+	topoAddresses := t.Topology.SegRegistrationAddr
 	topoAddr := topoAddresses.GetByID(name)
 	if topoAddr == nil {
 		return nil

@@ -16,16 +16,20 @@ package segfetcher
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/pkg/grpc"
 )
 
 const (
@@ -60,8 +64,9 @@ type Fetcher struct {
 	PathDB       pathdb.DB
 	// QueryInterval specifies after how much time segments should be
 	// refetched at the remote server.
-	QueryInterval time.Duration
-	Metrics       metrics.Fetcher
+	QueryInterval   time.Duration
+	Metrics         metrics.Fetcher
+	ServiceResolver grpc.ServiceResolver
 }
 
 // Fetch loads the requested segments from the path DB or requests them from a remote path server.
@@ -110,7 +115,31 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 			f.Metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 			continue
 		}
-		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), reply.Peer)
+		// XXX(JordiSubira): If inter-AS request first resolve TM server address
+		var server net.Addr
+		udpPeer, ok := reply.Peer.(*snet.UDPAddr)
+		if ok {
+			var err error
+			dsPeer := &snet.SVCAddr{
+				IA:      udpPeer.Copy().IA,
+				Path:    udpPeer.Copy().Path,
+				NextHop: udpPeer.Copy().NextHop,
+				SVC:     addr.SvcDS,
+			}
+			server, err = f.ServiceResolver.ResolveTrustServiceWithDS(ctx, dsPeer)
+			if err != nil {
+				return nil, serrors.WrapStr("resolving trust material service using ds", err)
+			}
+			log.FromCtx(ctx).Debug("resolved TrustMaterial service", "addr", dsPeer.String())
+		} else {
+			server, ok = reply.Peer.(*net.TCPAddr)
+			if !ok {
+				return nil, serrors.New("invalid peer address type, expected *net.TCPAddr",
+					"actual", fmt.Sprintf("%T", reply.Peer))
+			}
+		}
+
+		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), server)
 		if err := r.Err(); err != nil {
 			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
 			return segs, serrors.WrapStr("processing reply", err)

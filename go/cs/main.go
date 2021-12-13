@@ -140,6 +140,9 @@ func realMain(ctx context.Context) error {
 		IA:                    topo.IA(),
 		Public:                topo.PublicAddress(addr.SvcCS, globalCfg.General.ID),
 		TrustAddr:             topo.PublicTrustMaterial(globalCfg.General.ID),
+		ChainRenewalAddr:      topo.PublicChainRenewal(globalCfg.General.ID),
+		SegLookupAddr:         topo.PublicSegLookup(globalCfg.General.ID),
+		SegRegistrationLookup: topo.PublicSegRegistration(globalCfg.General.ID),
 		DRKeyAddr:             topo.PublicDRKey(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
@@ -259,6 +262,9 @@ func realMain(ctx context.Context) error {
 		Inspector:    inspector,
 		TopoProvider: itopo.Provider(),
 		Verifier:     verifier,
+		ServiceSolver: &libgrpc.DSResolver{
+			Dialer: dialer,
+		},
 	}
 	provider.Router = trust.AuthRouter{
 		ISD:    topo.IA().I,
@@ -275,6 +281,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	quicServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	gRPCServers := initRPCServers(len(quicStack.CSListeners))
 	tcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 
 	// Register trust material related handlers.
@@ -283,16 +290,25 @@ func realMain(ctx context.Context) error {
 		IA:       topo.IA(),
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
-	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
+	serverIndex, err := quicStack.FindListenerIndex(nc.TrustAddr)
+	if err != nil {
+		return serrors.WrapStr("finding index for Trust server", err)
+	}
+	cppb.RegisterTrustMaterialServiceServer(gRPCServers[serverIndex], trustServer)
+	//cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	cppb.RegisterTrustMaterialServiceServer(tcpServer, trustServer)
 
 	// Handle beaconing.
 	cppb.RegisterSegmentCreationServiceServer(quicServer, &beaconinggrpc.SegmentCreationServer{
 		Handler: &beaconing.Handler{
-			LocalIA:        topo.IA(),
-			Inserter:       beaconStore,
-			Interfaces:     intfs,
-			Verifier:       verifier,
+			LocalIA:    topo.IA(),
+			Inserter:   beaconStore,
+			Interfaces: intfs,
+			Verifier:   verifier,
+			Resolver: &libgrpc.DSResolver{
+				Router: segreq.NewRouter(fetcherCfg),
+				Dialer: dialer,
+			},
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
 	})
@@ -312,7 +328,7 @@ func realMain(ctx context.Context) error {
 		Lookuper: segreq.ForwardingLookup{
 			LocalIA:     topo.IA(),
 			CoreChecker: segreq.CoreChecker{Inspector: inspector},
-			Fetcher:     segreq.NewFetcher(fetcherCfg),
+			Fetcher:     segreq.NewFetcherWithDialer(fetcherCfg),
 			Expander: segreq.WildcardExpander{
 				LocalIA:   topo.IA(),
 				Core:      topo.Core(),
@@ -328,7 +344,12 @@ func realMain(ctx context.Context) error {
 	// Always register a forwarding lookup for AS internal requests.
 	cppb.RegisterSegmentLookupServiceServer(tcpServer, forwardingLookupServer)
 	if topo.Core() {
-		cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
+		// cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
+		serverIndex, err := quicStack.FindListenerIndex(nc.SegLookupAddr)
+		if err != nil {
+			return serrors.WrapStr("finding index for Auth Lookup server", err)
+		}
+		cppb.RegisterSegmentLookupServiceServer(gRPCServers[serverIndex], authLookupServer)
 	}
 
 	// Handle segment registration.
@@ -343,6 +364,10 @@ func realMain(ctx context.Context) error {
 					PathDB:   pathDB,
 					RevCache: revCache,
 				},
+			},
+			Resolver: &libgrpc.DSResolver{
+				Router: segreq.NewRouter(fetcherCfg),
+				Dialer: dialer,
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		})
@@ -587,6 +612,16 @@ func realMain(ctx context.Context) error {
 		}
 	}()
 
+	for i := range gRPCServers {
+		index := i
+		go func() {
+			defer log.HandlePanic()
+			if err := gRPCServers[index].Serve(quicStack.CSListeners[index]); err != nil {
+				fatal.Fatal(err)
+			}
+		}()
+	}
+
 	if globalCfg.DRKey.Enabled() {
 		go func() {
 			defer log.HandlePanic()
@@ -788,4 +823,20 @@ func (topoInformation) TrustMaterialAddress() ([]*net.UDPAddr, error) {
 
 func (topoInformation) DRKeyAddress() ([]*net.UDPAddr, error) {
 	return itopo.Get().DRKeys(), nil
+}
+
+func (topoInformation) SegLookupAddress() ([]*net.UDPAddr, error) {
+	return itopo.Get().SegLookups(), nil
+}
+
+func (topoInformation) SegRegAddress() ([]*net.UDPAddr, error) {
+	return itopo.Get().SegRegisters(), nil
+}
+
+func initRPCServers(len int) []*grpc.Server {
+	servers := make([]*grpc.Server, len)
+	for i := range servers {
+		servers[i] = grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	}
+	return servers
 }
