@@ -330,6 +330,16 @@ The template is expressed in JSON. A valid example:
 			if err != nil {
 				return err
 			}
+			sdConn, err := sds.Connect(ctx)
+			if err != nil {
+				return serrors.WrapStr("connecting to SCION Daemon", err)
+			}
+			dsResolver := &grpc.DSResolver{
+				Dialer: dialer,
+				Router: &snet.BaseRouter{
+					Querier: daemon.Querier{Connector: sdConn, IA: local.IA},
+				},
+			}
 
 			// Sign the request.
 			algo, err := signed.SelectSignatureAlgorithm(privPrev.Public())
@@ -372,7 +382,7 @@ The template is expressed in JSON. A valid example:
 			}
 
 			// Send the request via SCION and extract the chain.
-			rep, err := sendRequest(ctx, remote.IA, dialer, &req)
+			rep, err := sendRequest(ctx, remote.IA, dialer, dsResolver, &req)
 			if err != nil {
 				return err
 			}
@@ -567,16 +577,21 @@ func sendRequest(
 	ctx context.Context,
 	dstIA addr.IA,
 	dialer grpc.Dialer,
+	dsResolver grpc.ServiceResolver,
 	req *cppb.ChainRenewalRequest,
 ) (*cppb.ChainRenewalResponse, error) {
-
-	dstSVC := &snet.SVCAddr{
-		IA:  dstIA,
-		SVC: addr.SvcCS,
-	}
-	conn, err := dialer.Dial(ctx, dstSVC)
+	server, err := dsResolver.ResolveChainRenewalService(ctx, dstIA)
 	if err != nil {
-		return nil, serrors.WrapStr("dialing gRPC connection", err, "remote", dstSVC)
+		return nil, serrors.WrapStr("discovering chain renewal service addr", err)
+	}
+	log.Debug("Discovered chain renewal service addr", "addr", server.String())
+	// csAddr := &snet.SVCAddr{
+	// 	IA:  dstIA,
+	// 	SVC: addr.SvcCS,
+	// }
+	conn, err := dialer.Dial(ctx, server)
+	if err != nil {
+		return nil, serrors.WrapStr("dialing gRPC connection", err, "remote", server)
 	}
 	defer conn.Close()
 	client := cppb.NewChainRenewalServiceClient(conn)

@@ -35,6 +35,21 @@ func (m *MockTopologyInformation) EXPECT() *MockTopologyInformationMockRecorder 
 	return m.recorder
 }
 
+// ChainRenewalAddress mocks base method.
+func (m *MockTopologyInformation) ChainRenewalAddress() ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChainRenewalAddress")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ChainRenewalAddress indicates an expected call of ChainRenewalAddress.
+func (mr *MockTopologyInformationMockRecorder) ChainRenewalAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainRenewalAddress", reflect.TypeOf((*MockTopologyInformation)(nil).ChainRenewalAddress))
+}
+
 // ColibriServices mocks base method.
 func (m *MockTopologyInformation) ColibriServices() ([]*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
@@ -48,6 +63,21 @@ func (m *MockTopologyInformation) ColibriServices() ([]*net.UDPAddr, error) {
 func (mr *MockTopologyInformationMockRecorder) ColibriServices() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ColibriServices", reflect.TypeOf((*MockTopologyInformation)(nil).ColibriServices))
+}
+
+// DRKeyAddress mocks base method.
+func (m *MockTopologyInformation) DRKeyAddress() ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeyAddress")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DRKeyAddress indicates an expected call of DRKeyAddress.
+func (mr *MockTopologyInformationMockRecorder) DRKeyAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyAddress", reflect.TypeOf((*MockTopologyInformation)(nil).DRKeyAddress))
 }
 
 // Gateways mocks base method.
@@ -93,4 +123,49 @@ func (m *MockTopologyInformation) HiddenSegmentRegistrationAddresses() ([]*net.U
 func (mr *MockTopologyInformationMockRecorder) HiddenSegmentRegistrationAddresses() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HiddenSegmentRegistrationAddresses", reflect.TypeOf((*MockTopologyInformation)(nil).HiddenSegmentRegistrationAddresses))
+}
+
+// SegLookupAddress mocks base method.
+func (m *MockTopologyInformation) SegLookupAddress() ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SegLookupAddress")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SegLookupAddress indicates an expected call of SegLookupAddress.
+func (mr *MockTopologyInformationMockRecorder) SegLookupAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SegLookupAddress", reflect.TypeOf((*MockTopologyInformation)(nil).SegLookupAddress))
+}
+
+// SegRegAddress mocks base method.
+func (m *MockTopologyInformation) SegRegAddress() ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SegRegAddress")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SegRegAddress indicates an expected call of SegRegAddress.
+func (mr *MockTopologyInformationMockRecorder) SegRegAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SegRegAddress", reflect.TypeOf((*MockTopologyInformation)(nil).SegRegAddress))
+}
+
+// TrustMaterialAddress mocks base method.
+func (m *MockTopologyInformation) TrustMaterialAddress() ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrustMaterialAddress")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TrustMaterialAddress indicates an expected call of TrustMaterialAddress.
+func (mr *MockTopologyInformationMockRecorder) TrustMaterialAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrustMaterialAddress", reflect.TypeOf((*MockTopologyInformation)(nil).TrustMaterialAddress))
 }

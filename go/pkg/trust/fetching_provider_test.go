@@ -457,11 +457,13 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
+			router := tc.Router(t, mctrl)
 			p := trust.FetchingProvider{
 				DB:       tc.DB(t, mctrl),
 				Recurser: tc.Recurser(t, mctrl),
 				Fetcher:  tc.Fetcher(t, mctrl),
-				Router:   tc.Router(t, mctrl),
+				Router:   router,
+				RouterDS: router,
 			}
 			c, err := p.GetChains(context.Background(), tc.Query, tc.Options...)
 			tc.ErrAssertion(t, err)

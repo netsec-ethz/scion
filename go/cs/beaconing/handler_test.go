@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -36,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/grpc/mock_grpc"
 )
 
 var (
@@ -259,13 +261,21 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 
+			dummyAddr, err := snet.ParseUDPAddr("1-ff00:0:200,[192.168.0.1]:2020")
+			require.NoError(t, err)
+
+			resolver := mock_grpc.NewMockServiceResolver(mctrl)
+			resolver.EXPECT().ResolveTrustServiceWithDS(gomock.Any(),
+				gomock.Any()).AnyTimes().Return(dummyAddr, nil)
+
 			handler := beaconing.Handler{
 				LocalIA:    localIA,
 				Inserter:   tc.Inserter(mctrl),
 				Interfaces: testInterfaces(topoProvider.Get()),
 				Verifier:   tc.Verifier(mctrl),
+				Resolver:   resolver,
 			}
-			err := handler.HandleBeacon(context.Background(),
+			err = handler.HandleBeacon(context.Background(),
 				tc.Beacon(t, mctrl),
 				tc.Peer(),
 			)

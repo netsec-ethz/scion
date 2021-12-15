@@ -142,7 +142,7 @@ func realMain(ctx context.Context) error {
 		TrustAddr:             topo.PublicTrustMaterial(globalCfg.General.ID),
 		ChainRenewalAddr:      topo.PublicChainRenewal(globalCfg.General.ID),
 		SegLookupAddr:         topo.PublicSegLookup(globalCfg.General.ID),
-		SegRegistrationLookup: topo.PublicSegRegistration(globalCfg.General.ID),
+		SegRegistrationAddr:   topo.PublicSegRegistration(globalCfg.General.ID),
 		DRKeyAddr:             topo.PublicDRKey(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
@@ -271,7 +271,7 @@ func realMain(ctx context.Context) error {
 		DB:     trustDB,
 		Router: segreq.NewRouter(fetcherCfg),
 	}
-	provider.RouterTRC = trust.DSRouter{
+	provider.RouterDS = trust.DSRouter{
 		ISD: topo.IA().I,
 		DB:  trustDB,
 		DSResolver: &libgrpc.DSResolver{
@@ -354,7 +354,7 @@ func realMain(ctx context.Context) error {
 
 	// Handle segment registration.
 	if topo.Core() {
-		cppb.RegisterSegmentRegistrationServiceServer(quicServer, &segreggrpc.RegistrationServer{
+		regServer := &segreggrpc.RegistrationServer{
 			LocalIA: topo.IA(),
 			SegHandler: seghandler.Handler{
 				Verifier: &seghandler.DefaultVerifier{
@@ -370,8 +370,13 @@ func realMain(ctx context.Context) error {
 				Dialer: dialer,
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
-		})
-
+		}
+		// cppb.RegisterSegmentRegistrationServiceServer(quicServer, regServer)
+		serverIndex, err := quicStack.FindListenerIndex(nc.SegRegistrationAddr)
+		if err != nil {
+			return serrors.WrapStr("finding index for Auth Lookup server", err)
+		}
+		cppb.RegisterSegmentRegistrationServiceServer(gRPCServers[serverIndex], regServer)
 	}
 
 	signer, err := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
@@ -463,7 +468,12 @@ func realMain(ctx context.Context) error {
 			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
 		}
 
-		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
+		// cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
+		serverIndex, err = quicStack.FindListenerIndex(nc.ChainRenewalAddr)
+		if err != nil {
+			return serrors.WrapStr("finding index for Chain renewal server", err)
+		}
+		cppb.RegisterChainRenewalServiceServer(gRPCServers[serverIndex], renewalServer)
 		cppb.RegisterChainRenewalServiceServer(tcpServer, renewalServer)
 	}
 
@@ -538,7 +548,7 @@ func realMain(ctx context.Context) error {
 			Getter: drkeygrpc.Lvl1KeyFetcher{
 				Dialer: &libgrpc.TLSQUICDialer{
 					Rewriter:    nc.AddressRewriter(nil),
-					Dialer:      quicStack.TLSDialer,
+					Dialer:      quicStack.DRKeyDialer,
 					Credentials: trust.GetTansportCredentials(tlsMgr),
 				},
 				Discovery: &libgrpc.DSResolver{
@@ -707,6 +717,9 @@ func realMain(ctx context.Context) error {
 		MACGen:          macGen,
 		TopoProvider:    itopo.Provider(),
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
+		ServiceResolver: &libgrpc.DSResolver{
+			Dialer: dialer,
+		},
 
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,
@@ -831,6 +844,10 @@ func (topoInformation) SegLookupAddress() ([]*net.UDPAddr, error) {
 
 func (topoInformation) SegRegAddress() ([]*net.UDPAddr, error) {
 	return itopo.Get().SegRegisters(), nil
+}
+
+func (topoInformation) ChainRenewalAddress() ([]*net.UDPAddr, error) {
+	return itopo.Get().ChainRenewals(), nil
 }
 
 func initRPCServers(len int) []*grpc.Server {

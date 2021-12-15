@@ -84,6 +84,7 @@ type Topology interface {
 	DRKeys() []*net.UDPAddr
 	SegLookups() []*net.UDPAddr
 	SegRegisters() []*net.UDPAddr
+	ChainRenewals() []*net.UDPAddr
 
 	// BR returns information for a specific border router
 	//
@@ -266,6 +267,16 @@ func (t *topologyS) SegLookups() []*net.UDPAddr {
 func (t *topologyS) SegRegisters() []*net.UDPAddr {
 	allSCIONaddr := []*net.UDPAddr{}
 	for _, addr := range t.Topology.SegRegistrationAddr {
+		if a := addr.SCIONAddress; a != nil {
+			allSCIONaddr = append(allSCIONaddr, a)
+		}
+	}
+	return allSCIONaddr
+}
+
+func (t *topologyS) ChainRenewals() []*net.UDPAddr {
+	allSCIONaddr := []*net.UDPAddr{}
+	for _, addr := range t.Topology.ChainRenewalAddr {
 		if a := addr.SCIONAddress; a != nil {
 			allSCIONaddr = append(allSCIONaddr, a)
 		}

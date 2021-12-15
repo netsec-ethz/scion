@@ -46,6 +46,7 @@ type TopologyInformation interface {
 	DRKeyAddress() ([]*net.UDPAddr, error)
 	SegLookupAddress() ([]*net.UDPAddr, error)
 	SegRegAddress() ([]*net.UDPAddr, error)
+	ChainRenewalAddress() ([]*net.UDPAddr, error)
 }
 
 // Topology implements a service discovery server based on the topology
@@ -173,12 +174,17 @@ func (t Topology) CSRPCs(ctx context.Context, _ *dpb.CSRequest) (
 		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, status.Error(codes.Internal, "failed to list seg lookup addresses")
 	}
-
 	segRegAddresses, err := t.Information.SegRegAddress()
 	if err != nil {
 		logger.Debug("Failed to list Seg register address", "err", err)
 		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, status.Error(codes.Internal, "failed to list seg register addresses")
+	}
+	chainRenewalAddresses, err := t.Information.ChainRenewalAddress()
+	if err != nil {
+		logger.Debug("Failed to list Chain renewal addresses", "err", err)
+		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
+		return nil, status.Error(codes.Internal, "failed to list chain renewal addresses")
 	}
 
 	response := &dpb.CSResponse{}
@@ -193,6 +199,9 @@ func (t Topology) CSRPCs(ctx context.Context, _ *dpb.CSRequest) (
 	}
 	for _, a := range segRegAddresses {
 		response.SegmentRegistration = append(response.SegmentRegistration, a.String())
+	}
+	for _, a := range chainRenewalAddresses {
+		response.ChainRenewal = append(response.ChainRenewal, a.String())
 	}
 
 	logger.Debug("Replied with CSRPCs", "response", response.String())

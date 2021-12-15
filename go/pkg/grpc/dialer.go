@@ -174,6 +174,8 @@ type ServiceResolver interface {
 	ResolveTrustServiceWithDS(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 	ResolveDRKeyService(context.Context, addr.IA) (*snet.UDPAddr, error)
 	ResolveSegmentLookupService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
+	ResolveSegmentRegService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
+	ResolveChainRenewalService(context.Context, addr.IA) (*snet.UDPAddr, error)
 }
 
 type DSResolver struct {
@@ -211,7 +213,7 @@ func (r *DSResolver) ResolveTrustServiceWithDS(ctx context.Context, ds *snet.SVC
 	client := dpb.NewDiscoveryServiceClient(conn)
 	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
 	if err != nil {
-		return nil, serrors.WrapStr("discovering trust material services", err)
+		return nil, serrors.WrapStr("discovering CS services", err)
 	}
 	if len(rep.TrustMaterial) == 0 {
 		return nil, serrors.New("no trust material services discovered", "ia", ds.IA.String())
@@ -242,7 +244,7 @@ func (r *DSResolver) ResolveSegmentLookupService(ctx context.Context, ds *snet.S
 	client := dpb.NewDiscoveryServiceClient(conn)
 	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
 	if err != nil {
-		return nil, serrors.WrapStr("discovering seg lookup services", err)
+		return nil, serrors.WrapStr("discovering CS services", err)
 	}
 	if len(rep.SegmentLookup) == 0 {
 		return nil, serrors.New("no seg lookup services discovered", "ia", ds.IA.String())
@@ -262,6 +264,67 @@ func (r *DSResolver) ResolveSegmentLookupService(ctx context.Context, ds *snet.S
 	}, nil
 }
 
+func (r *DSResolver) ResolveSegmentRegService(ctx context.Context, ds *snet.SVCAddr) (
+	*snet.UDPAddr, error) {
+
+	conn, err := r.Dialer.Dial(ctx, ds)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := dpb.NewDiscoveryServiceClient(conn)
+	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering CS services", err)
+	}
+	if len(rep.SegmentRegistration) == 0 {
+		return nil, serrors.New("no seg reg services discovered", "ia", ds.IA.String())
+	}
+
+	host, err := net.ResolveUDPAddr("udp", rep.SegmentRegistration[0])
+	if err != nil {
+		return nil, serrors.WrapStr("parsing udp address for segment reg", err,
+			"udp", rep.SegmentRegistration[0])
+	}
+
+	return &snet.UDPAddr{
+		IA:      ds.IA,
+		Path:    ds.Path,
+		NextHop: ds.NextHop,
+		Host:    host,
+	}, nil
+}
+
+func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ia addr.IA) (
+	*snet.UDPAddr, error) {
+	conn, path, err := r.dialDS(ctx, ia)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := dpb.NewDiscoveryServiceClient(conn)
+	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering CS services", err)
+	}
+	if len(rep.ChainRenewal) == 0 {
+		return nil, serrors.New("no chain renewal service discovered", "ia", ia.String())
+	}
+
+	host, err := net.ResolveUDPAddr("udp", rep.ChainRenewal[0])
+	if err != nil {
+		return nil, serrors.WrapStr("parsing udp address for chain renewal service", err,
+			"udp", rep.TrustMaterial[0])
+	}
+
+	return &snet.UDPAddr{
+		IA:      ia,
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		Host:    host,
+	}, nil
+}
+
 func (r *DSResolver) ResolveTrustService(ctx context.Context, ia addr.IA) (
 	*snet.UDPAddr, error) {
 
@@ -273,15 +336,15 @@ func (r *DSResolver) ResolveTrustService(ctx context.Context, ia addr.IA) (
 	client := dpb.NewDiscoveryServiceClient(conn)
 	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
 	if err != nil {
-		return nil, serrors.WrapStr("discovering colibri services", err)
+		return nil, serrors.WrapStr("discovering CS services", err)
 	}
 	if len(rep.TrustMaterial) == 0 {
-		return nil, serrors.New("no colibri services discovered", "ia", ia.String())
+		return nil, serrors.New("no trust material service discovered", "ia", ia.String())
 	}
 
 	host, err := net.ResolveUDPAddr("udp", rep.TrustMaterial[0])
 	if err != nil {
-		return nil, serrors.WrapStr("parsing udp address for colibri service", err,
+		return nil, serrors.WrapStr("parsing udp address for trust material service", err,
 			"udp", rep.TrustMaterial[0])
 	}
 
@@ -304,15 +367,15 @@ func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ia addr.IA) (
 	client := dpb.NewDiscoveryServiceClient(conn)
 	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
 	if err != nil {
-		return nil, serrors.WrapStr("discovering colibri services", err)
+		return nil, serrors.WrapStr("discovering CS services", err)
 	}
 	if len(rep.DrkeyInter) == 0 {
-		return nil, serrors.New("no colibri services discovered", "ia", ia.String())
+		return nil, serrors.New("no drkey service discovered", "ia", ia.String())
 	}
 
 	host, err := net.ResolveUDPAddr("udp", rep.DrkeyInter[0])
 	if err != nil {
-		return nil, serrors.WrapStr("parsing udp address for colibri service", err,
+		return nil, serrors.WrapStr("parsing udp address for drkey service", err,
 			"udp", rep.DrkeyInter[0])
 	}
 

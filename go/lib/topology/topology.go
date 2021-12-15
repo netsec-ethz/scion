@@ -423,6 +423,12 @@ func (t *RWTopology) Copy() *RWTopology {
 		SIG:                       copySIGMap(t.SIG),
 		HiddenSegmentLookup:       t.HiddenSegmentLookup.copy(),
 		HiddenSegmentRegistration: t.HiddenSegmentRegistration.copy(),
+
+		TrustMaterialAddr:   t.TrustMaterialAddr.copy(),
+		SegLookupAddr:       t.SegLookupAddr.copy(),
+		SegRegistrationAddr: t.SegRegistrationAddr.copy(),
+		ChainRenewalAddr:    t.ChainRenewalAddr.copy(),
+		DRKeyAddr:           t.DRKeyAddr.copy(),
 	}
 }
 

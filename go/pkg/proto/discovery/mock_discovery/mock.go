@@ -35,6 +35,21 @@ func (m *MockDiscoveryServiceServer) EXPECT() *MockDiscoveryServiceServerMockRec
 	return m.recorder
 }
 
+// CSRPCs mocks base method.
+func (m *MockDiscoveryServiceServer) CSRPCs(arg0 context.Context, arg1 *discovery.CSRequest) (*discovery.CSResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CSRPCs", arg0, arg1)
+	ret0, _ := ret[0].(*discovery.CSResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CSRPCs indicates an expected call of CSRPCs.
+func (mr *MockDiscoveryServiceServerMockRecorder) CSRPCs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CSRPCs", reflect.TypeOf((*MockDiscoveryServiceServer)(nil).CSRPCs), arg0, arg1)
+}
+
 // ColibriServices mocks base method.
 func (m *MockDiscoveryServiceServer) ColibriServices(arg0 context.Context, arg1 *discovery.ColibriServicesRequest) (*discovery.ColibriServicesResponse, error) {
 	m.ctrl.T.Helper()

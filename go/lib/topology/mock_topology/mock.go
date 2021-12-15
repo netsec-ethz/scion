@@ -95,6 +95,20 @@ func (mr *MockTopologyMockRecorder) CA() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CA", reflect.TypeOf((*MockTopology)(nil).CA))
 }
 
+// ChainRenewals mocks base method.
+func (m *MockTopology) ChainRenewals() []*net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChainRenewals")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	return ret0
+}
+
+// ChainRenewals indicates an expected call of ChainRenewals.
+func (mr *MockTopologyMockRecorder) ChainRenewals() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainRenewals", reflect.TypeOf((*MockTopology)(nil).ChainRenewals))
+}
+
 // Core mocks base method.
 func (m *MockTopology) Core() bool {
 	m.ctrl.T.Helper()
@@ -107,6 +121,20 @@ func (m *MockTopology) Core() bool {
 func (mr *MockTopologyMockRecorder) Core() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Core", reflect.TypeOf((*MockTopology)(nil).Core))
+}
+
+// DRKeys mocks base method.
+func (m *MockTopology) DRKeys() []*net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeys")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	return ret0
+}
+
+// DRKeys indicates an expected call of DRKeys.
+func (mr *MockTopologyMockRecorder) DRKeys() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeys", reflect.TypeOf((*MockTopology)(nil).DRKeys))
 }
 
 // Gateways mocks base method.
@@ -224,6 +252,76 @@ func (mr *MockTopologyMockRecorder) PublicAddress(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicAddress", reflect.TypeOf((*MockTopology)(nil).PublicAddress), arg0, arg1)
 }
 
+// PublicChainRenewal mocks base method.
+func (m *MockTopology) PublicChainRenewal(arg0 string) *net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublicChainRenewal", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	return ret0
+}
+
+// PublicChainRenewal indicates an expected call of PublicChainRenewal.
+func (mr *MockTopologyMockRecorder) PublicChainRenewal(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicChainRenewal", reflect.TypeOf((*MockTopology)(nil).PublicChainRenewal), arg0)
+}
+
+// PublicDRKey mocks base method.
+func (m *MockTopology) PublicDRKey(arg0 string) *net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublicDRKey", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	return ret0
+}
+
+// PublicDRKey indicates an expected call of PublicDRKey.
+func (mr *MockTopologyMockRecorder) PublicDRKey(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicDRKey", reflect.TypeOf((*MockTopology)(nil).PublicDRKey), arg0)
+}
+
+// PublicSegLookup mocks base method.
+func (m *MockTopology) PublicSegLookup(arg0 string) *net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublicSegLookup", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	return ret0
+}
+
+// PublicSegLookup indicates an expected call of PublicSegLookup.
+func (mr *MockTopologyMockRecorder) PublicSegLookup(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicSegLookup", reflect.TypeOf((*MockTopology)(nil).PublicSegLookup), arg0)
+}
+
+// PublicSegRegistration mocks base method.
+func (m *MockTopology) PublicSegRegistration(arg0 string) *net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublicSegRegistration", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	return ret0
+}
+
+// PublicSegRegistration indicates an expected call of PublicSegRegistration.
+func (mr *MockTopologyMockRecorder) PublicSegRegistration(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicSegRegistration", reflect.TypeOf((*MockTopology)(nil).PublicSegRegistration), arg0)
+}
+
+// PublicTrustMaterial mocks base method.
+func (m *MockTopology) PublicTrustMaterial(arg0 string) *net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublicTrustMaterial", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	return ret0
+}
+
+// PublicTrustMaterial indicates an expected call of PublicTrustMaterial.
+func (mr *MockTopologyMockRecorder) PublicTrustMaterial(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicTrustMaterial", reflect.TypeOf((*MockTopology)(nil).PublicTrustMaterial), arg0)
+}
+
 // SVCNames mocks base method.
 func (m *MockTopology) SVCNames(arg0 addr.HostSVC) topology.ServiceNames {
 	m.ctrl.T.Helper()
@@ -236,6 +334,48 @@ func (m *MockTopology) SVCNames(arg0 addr.HostSVC) topology.ServiceNames {
 func (mr *MockTopologyMockRecorder) SVCNames(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SVCNames", reflect.TypeOf((*MockTopology)(nil).SVCNames), arg0)
+}
+
+// SegLookups mocks base method.
+func (m *MockTopology) SegLookups() []*net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SegLookups")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	return ret0
+}
+
+// SegLookups indicates an expected call of SegLookups.
+func (mr *MockTopologyMockRecorder) SegLookups() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SegLookups", reflect.TypeOf((*MockTopology)(nil).SegLookups))
+}
+
+// SegRegisters mocks base method.
+func (m *MockTopology) SegRegisters() []*net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SegRegisters")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	return ret0
+}
+
+// SegRegisters indicates an expected call of SegRegisters.
+func (mr *MockTopologyMockRecorder) SegRegisters() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SegRegisters", reflect.TypeOf((*MockTopology)(nil).SegRegisters))
+}
+
+// TrustMaterials mocks base method.
+func (m *MockTopology) TrustMaterials() []*net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrustMaterials")
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	return ret0
+}
+
+// TrustMaterials indicates an expected call of TrustMaterials.
+func (mr *MockTopologyMockRecorder) TrustMaterials() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrustMaterials", reflect.TypeOf((*MockTopology)(nil).TrustMaterials))
 }
 
 // UnderlayAnycast mocks base method.

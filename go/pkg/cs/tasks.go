@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/cs/drkey"
+	"github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
@@ -52,6 +53,7 @@ type TasksConfig struct {
 	RevCache              revcache.RevCache
 	BeaconSenderFactory   beaconing.SenderFactory
 	SegmentRegister       beaconing.RPC
+	ServiceResolver       grpc.ServiceResolver
 	BeaconStore           Store
 	Signer                seg.Signer
 	Inspector             trust.Inspector
@@ -190,6 +192,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 					return t.TopoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 				},
 			},
+			ServiceResolver: t.ServiceResolver,
 		}
 	}
 	r := &beaconing.WriteScheduler{

@@ -46,7 +46,9 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/grpc/mock_grpc"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -175,6 +177,19 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
+			dummyAddr := xtest.MustParseUDPAddr(t, "192.168.0.1:2020")
+			serviceResolver := mock_grpc.NewMockServiceResolver(mctrl)
+			serviceResolver.EXPECT().ResolveSegmentRegService(gomock.Any(),
+				gomock.Any()).AnyTimes().DoAndReturn(
+				func(_ context.Context, remote *snet.SVCAddr) (*snet.UDPAddr, error) {
+					return &snet.UDPAddr{
+						IA:      remote.IA,
+						Path:    remote.Copy().Path,
+						NextHop: remote.Copy().NextHop,
+						Host:    dummyAddr,
+					}, nil
+				})
+
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.RemoteWriter{
 					Extender: &beaconing.DefaultExtender{
@@ -191,9 +206,10 @@ func TestRegistrarRun(t *testing.T) {
 							return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 						},
 					},
-					RPC:   rpc,
-					Type:  test.segType,
-					Intfs: intfs,
+					RPC:             rpc,
+					Type:            test.segType,
+					Intfs:           intfs,
+					ServiceResolver: serviceResolver,
 				},
 				Intfs:    intfs,
 				Tick:     beaconing.NewTick(time.Hour),
@@ -212,7 +228,7 @@ func TestRegistrarRun(t *testing.T) {
 				})
 			type regMsg struct {
 				Meta seg.Meta
-				Addr *snet.SVCAddr
+				Addr *snet.UDPAddr
 			}
 			segMu := sync.Mutex{}
 			var sent []regMsg
@@ -225,7 +241,7 @@ func TestRegistrarRun(t *testing.T) {
 					defer segMu.Unlock()
 					sent = append(sent, regMsg{
 						Meta: meta,
-						Addr: remote.(*snet.SVCAddr),
+						Addr: remote.(*snet.UDPAddr),
 					})
 					return nil
 				},
@@ -242,7 +258,6 @@ func TestRegistrarRun(t *testing.T) {
 						segVerifier{pubKey: pub}, pseg.MaxIdx()))
 
 					assert.Equal(t, pseg.FirstIA(), s.Addr.IA)
-					assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 
 					var path scion.Decoded
 					if assert.NoError(t, path.DecodeFromBytes(s.Addr.Path.Raw)) {

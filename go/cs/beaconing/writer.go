@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/grpc"
 )
 
 // Pather computes the remote address with a path based on the provided segment.
@@ -151,7 +152,8 @@ type RemoteWriter struct {
 	// RPC is used to send the segment to a remote.
 	RPC RPC
 	// Pather is used to find paths to a remote.
-	Pather Pather
+	Pather          Pather
+	ServiceResolver grpc.ServiceResolver
 }
 
 // Write writes the segment at the source AS of the segment.
@@ -288,13 +290,21 @@ type remoteWriter struct {
 // with the path server.
 func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
-	addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
+	// addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
+	addr, err := r.pather.GetPath(addr.SvcDS, bseg.Segment)
+	if err != nil {
+		logger.Error("Unable to contact DS", "err", err)
+		metrics.CounterInc(r.writer.InternalErrors)
+		return
+	}
+	server, err := r.writer.ServiceResolver.ResolveSegmentRegService(ctx, addr)
 	if err != nil {
 		logger.Error("Unable to choose server", "err", err)
 		metrics.CounterInc(r.writer.InternalErrors)
 		return
 	}
-	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.writer.Type, Segment: bseg.Segment}, addr)
+	logger.Debug("discovered service reg address", "addr", server.String())
+	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.writer.Type, Segment: bseg.Segment}, server)
 }
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
