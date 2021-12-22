@@ -17,6 +17,7 @@ package grpc
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -28,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
@@ -71,6 +73,20 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 	peer, _ := peer.FromContext(ctx)
 	logger := log.FromCtx(ctx).New("peer", peer)
 	ctx = log.CtxWith(ctx, logger)
+
+	// Whitelisting: Only from local ISD
+	udpPeer, ok := peer.Addr.(*snet.UDPAddr)
+	if !ok {
+		err := serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", peer))
+		logger.Debug("Wrong peer type", "err", err)
+		metrics.CounterInc(s.Metrics.BackendErrors)
+		return nil, err
+	}
+	if udpPeer.IA.I != s.IA.I {
+		logger.Debug("ISD do not macth", "peer ISD", udpPeer.IA.I.String(), "local IA", s.IA.I.String())
+		metrics.CounterInc(s.Metrics.BackendErrors)
+		return nil, serrors.New("ISD do not macth", "peer ISD", udpPeer.IA.I.String(), "local IA", s.IA.I.String())
+	}
 
 	if req.CmsSignedRequest == nil {
 		if s.LegacyHandler == nil {

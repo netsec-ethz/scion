@@ -139,6 +139,7 @@ func realMain(ctx context.Context) error {
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.PublicAddress(addr.SvcCS, globalCfg.General.ID),
+		DiscoveryAddr:         topo.PublicAddress(addr.SvcDS, globalCfg.General.ID),
 		TrustAddr:             topo.PublicTrustMaterial(globalCfg.General.ID),
 		ChainRenewalAddr:      topo.PublicChainRenewal(globalCfg.General.ID),
 		SegLookupAddr:         topo.PublicSegLookup(globalCfg.General.ID),
@@ -158,6 +159,7 @@ func realMain(ctx context.Context) error {
 		return serrors.WrapStr("initializing QUIC stack", err)
 	}
 	defer quicStack.RedirectCloser()
+	defer quicStack.RedirectCloserDS()
 	tcpStack, err := nc.TCPStack()
 	if err != nil {
 		return serrors.WrapStr("initializing TCP stack", err)
@@ -523,7 +525,8 @@ func realMain(ctx context.Context) error {
 		Information: topoInformation{},
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
-	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
+	dsServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	dpb.RegisterDiscoveryServiceServer(dsServer, ds)
 
 	//DRKey feature
 	var drkeyServStore drkeystorage.ServiceStore
@@ -618,6 +621,12 @@ func realMain(ctx context.Context) error {
 	go func() {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {
+			fatal.Fatal(err)
+		}
+	}()
+	go func() {
+		defer log.HandlePanic()
+		if err := dsServer.Serve(quicStack.DSListener); err != nil {
 			fatal.Fatal(err)
 		}
 	}()

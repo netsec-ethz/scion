@@ -57,6 +57,17 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 		logger.Debug("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
 		return nil, serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
 	}
+
+	// Whitelist: Check is a neighboring path
+	var raw scion.Raw
+	if err := raw.DecodeFromBytes(peer.Path.Raw); err != nil {
+		return nil, serrors.WrapStr("Decoding path information", err)
+	}
+	if raw.NumHops != 2 || raw.NumINF != 1 {
+		logger.Debug("path must be OHP", "actual", peer.Path.String())
+		return nil, serrors.New("path must be OHP", "actual", peer.Path.String())
+	}
+
 	ingress, err := extractIngressIfID(peer.Path)
 	if err != nil {
 		logger.Debug("Failed to extract ingress interface", "peer", peer, "err", err)

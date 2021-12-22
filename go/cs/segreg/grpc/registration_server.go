@@ -73,6 +73,13 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		s.failMetric(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, err
 	}
+
+	// Whitelisting: Only from local ISD
+	if peer.IA.I != s.LocalIA.I {
+		logger.Debug("ISD do not macth", "peer ISD", peer.IA.I.String(), "local IA", s.LocalIA.I.String())
+		return nil, serrors.New("ISD do not macth", "peer ISD", peer.IA.I.String(), "local IA", s.LocalIA.I.String())
+	}
+
 	labels.Source = peerToLabel(peer.IA, s.LocalIA)
 	labels.Type = classifySegs(logger, req.Segments)
 
@@ -97,7 +104,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		IA:      peer.IA,
 		Path:    peer.Path,
 		NextHop: peer.NextHop,
-		SVC:     addr.SvcCS,
+		SVC:     addr.SvcDS,
 	})
 	if err != nil {
 		return nil, serrors.WrapStr("resolving trust material service", err)
