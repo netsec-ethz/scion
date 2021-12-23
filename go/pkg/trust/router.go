@@ -107,6 +107,7 @@ func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD,
 type DSRouter struct {
 	ISD        addr.ISD
 	DB         DB
+	Router     snet.Router
 	DSResolver grpc.ServiceResolver
 }
 
@@ -121,7 +122,11 @@ func (r DSRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Ad
 	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("Getting paths to any authoritative server", "isd", dstISD)
-	return r.DSResolver.ResolveTrustService(ctx, addr.IA{I: dstISD})
+	ds, err := grpc.RouteToDS(r.Router, addr.IA{I: dstISD})
+	if err != nil {
+		return nil, err
+	}
+	return r.DSResolver.ResolveTrustService(ctx, ds)
 }
 
 func (r DSRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD, error) {

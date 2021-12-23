@@ -100,7 +100,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 
 	// Resolve for TrustMaterial Service, since we might
 	// need to fetch crypto material from the remote
-	server, err := s.Resolver.ResolveTrustServiceWithDS(ctx, &snet.SVCAddr{
+	server, err := s.Resolver.ResolveTrustService(ctx, &snet.SVCAddr{
 		IA:      peer.IA,
 		Path:    peer.Path,
 		NextHop: peer.NextHop,

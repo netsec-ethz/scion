@@ -126,7 +126,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 				NextHop: udpPeer.Copy().NextHop,
 				SVC:     addr.SvcDS,
 			}
-			server, err = f.ServiceResolver.ResolveTrustServiceWithDS(ctx, dsPeer)
+			server, err = f.ServiceResolver.ResolveTrustService(ctx, dsPeer)
 			if err != nil {
 				return nil, serrors.WrapStr("resolving trust material service using ds", err)
 			}

@@ -136,7 +136,7 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	// 	SVC:     addr.SvcCS,
 	// }
 
-	server, err := h.Resolver.ResolveTrustServiceWithDS(ctx, &snet.SVCAddr{
+	server, err := h.Resolver.ResolveTrustService(ctx, &snet.SVCAddr{
 		IA:      peer.IA,
 		Path:    peerPath.Path(),
 		NextHop: peerPath.UnderlayNextHop(),

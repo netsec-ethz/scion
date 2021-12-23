@@ -336,9 +336,9 @@ The template is expressed in JSON. A valid example:
 			}
 			dsResolver := &grpc.DSResolver{
 				Dialer: dialer,
-				Router: &snet.BaseRouter{
-					Querier: daemon.Querier{Connector: sdConn, IA: local.IA},
-				},
+			}
+			dsRouter := &snet.BaseRouter{
+				Querier: daemon.Querier{Connector: sdConn, IA: local.IA},
 			}
 
 			// Sign the request.
@@ -382,7 +382,7 @@ The template is expressed in JSON. A valid example:
 			}
 
 			// Send the request via SCION and extract the chain.
-			rep, err := sendRequest(ctx, remote.IA, dialer, dsResolver, &req)
+			rep, err := sendRequest(ctx, remote.IA, dialer, dsRouter, dsResolver, &req)
 			if err != nil {
 				return err
 			}
@@ -577,10 +577,15 @@ func sendRequest(
 	ctx context.Context,
 	dstIA addr.IA,
 	dialer grpc.Dialer,
+	dsRouter snet.Router,
 	dsResolver grpc.ServiceResolver,
 	req *cppb.ChainRenewalRequest,
 ) (*cppb.ChainRenewalResponse, error) {
-	server, err := dsResolver.ResolveChainRenewalService(ctx, dstIA)
+	ds, err := grpc.RouteToDS(dsRouter, dstIA)
+	if err != nil {
+		return nil, err
+	}
+	server, err := dsResolver.ResolveChainRenewalService(ctx, ds)
 	if err != nil {
 		return nil, serrors.WrapStr("discovering chain renewal service addr", err)
 	}

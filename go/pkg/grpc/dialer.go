@@ -170,12 +170,11 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 }
 
 type ServiceResolver interface {
-	ResolveTrustService(context.Context, addr.IA) (*snet.UDPAddr, error)
-	ResolveTrustServiceWithDS(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
-	ResolveDRKeyService(context.Context, addr.IA) (*snet.UDPAddr, error)
+	ResolveTrustService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
+	ResolveDRKeyService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 	ResolveSegmentLookupService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 	ResolveSegmentRegService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
-	ResolveChainRenewalService(context.Context, addr.IA) (*snet.UDPAddr, error)
+	ResolveChainRenewalService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 }
 
 type DSResolver struct {
@@ -183,26 +182,21 @@ type DSResolver struct {
 	Dialer Dialer
 }
 
-func (r *DSResolver) dialDS(ctx context.Context, ia addr.IA) (*grpc.ClientConn, snet.Path, error) {
-	path, err := r.Router.Route(context.Background(), ia)
+func RouteToDS(router snet.Router, ia addr.IA) (*snet.SVCAddr, error) {
+	path, err := router.Route(context.Background(), ia)
 	if err != nil || path == nil {
-		return nil, nil, serrors.New("no route to IA", "ia", ia, "err", err, "path", path)
+		return nil, serrors.New("no route to IA", "ia", ia, "err", err, "path", path)
 	}
 
-	ds := &snet.SVCAddr{
+	return &snet.SVCAddr{
 		IA:      ia,
 		Path:    path.Path(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcDS,
-	}
-	conn, err := r.Dialer.Dial(ctx, ds)
-	if err != nil {
-		return nil, nil, err
-	}
-	return conn, path, nil
+	}, nil
 }
 
-func (r *DSResolver) ResolveTrustServiceWithDS(ctx context.Context, ds *snet.SVCAddr) (
+func (r *DSResolver) ResolveTrustService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 
 	conn, err := r.Dialer.Dial(ctx, ds)
@@ -295,9 +289,9 @@ func (r *DSResolver) ResolveSegmentRegService(ctx context.Context, ds *snet.SVCA
 	}, nil
 }
 
-func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ia addr.IA) (
+func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
-	conn, path, err := r.dialDS(ctx, ia)
+	conn, err := r.Dialer.Dial(ctx, ds)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +302,7 @@ func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ia addr.IA)
 		return nil, serrors.WrapStr("discovering CS services", err)
 	}
 	if len(rep.ChainRenewal) == 0 {
-		return nil, serrors.New("no chain renewal service discovered", "ia", ia.String())
+		return nil, serrors.New("no chain renewal service discovered", "ia", ds.IA.String())
 	}
 
 	host, err := net.ResolveUDPAddr("udp", rep.ChainRenewal[0])
@@ -318,48 +312,17 @@ func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ia addr.IA)
 	}
 
 	return &snet.UDPAddr{
-		IA:      ia,
-		Path:    path.Path(),
-		NextHop: path.UnderlayNextHop(),
+		IA:      ds.IA,
+		Path:    ds.Path,
+		NextHop: ds.NextHop,
 		Host:    host,
 	}, nil
 }
 
-func (r *DSResolver) ResolveTrustService(ctx context.Context, ia addr.IA) (
+func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 
-	conn, path, err := r.dialDS(ctx, ia)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	client := dpb.NewDiscoveryServiceClient(conn)
-	rep, err := client.CSRPCs(ctx, &dpb.CSRequest{}, RetryProfile...)
-	if err != nil {
-		return nil, serrors.WrapStr("discovering CS services", err)
-	}
-	if len(rep.TrustMaterial) == 0 {
-		return nil, serrors.New("no trust material service discovered", "ia", ia.String())
-	}
-
-	host, err := net.ResolveUDPAddr("udp", rep.TrustMaterial[0])
-	if err != nil {
-		return nil, serrors.WrapStr("parsing udp address for trust material service", err,
-			"udp", rep.TrustMaterial[0])
-	}
-
-	return &snet.UDPAddr{
-		IA:      ia,
-		Path:    path.Path(),
-		NextHop: path.UnderlayNextHop(),
-		Host:    host,
-	}, nil
-}
-
-func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ia addr.IA) (
-	*snet.UDPAddr, error) {
-
-	conn, path, err := r.dialDS(ctx, ia)
+	conn, err := r.Dialer.Dial(ctx, ds)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +333,7 @@ func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ia addr.IA) (
 		return nil, serrors.WrapStr("discovering CS services", err)
 	}
 	if len(rep.DrkeyInter) == 0 {
-		return nil, serrors.New("no drkey service discovered", "ia", ia.String())
+		return nil, serrors.New("no drkey service discovered", "ia", ds.IA.String())
 	}
 
 	host, err := net.ResolveUDPAddr("udp", rep.DrkeyInter[0])
@@ -380,9 +343,9 @@ func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ia addr.IA) (
 	}
 
 	return &snet.UDPAddr{
-		IA:      ia,
-		Path:    path.Path(),
-		NextHop: path.UnderlayNextHop(),
+		IA:      ds.IA,
+		Path:    ds.Path,
+		NextHop: ds.NextHop,
 		Host:    host,
 	}, nil
 }

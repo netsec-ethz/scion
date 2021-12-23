@@ -48,7 +48,11 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	logger := log.FromCtx(ctx)
 
 	logger.Info("Resolving server", "srcIA", srcIA.String())
-	remote, err := f.Discovery.ResolveDRKeyService(ctx, srcIA)
+	ds, err := sc_grpc.RouteToDS(f.Router, srcIA)
+	if err != nil {
+		return nil, err
+	}
+	remote, err := f.Discovery.ResolveDRKeyService(ctx, ds)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to discover", err, "IA", srcIA)
 	}

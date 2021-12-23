@@ -274,10 +274,10 @@ func realMain(ctx context.Context) error {
 		Router: segreq.NewRouter(fetcherCfg),
 	}
 	provider.RouterDS = trust.DSRouter{
-		ISD: topo.IA().I,
-		DB:  trustDB,
+		ISD:    topo.IA().I,
+		DB:     trustDB,
+		Router: segreq.NewRouter(fetcherCfg),
 		DSResolver: &libgrpc.DSResolver{
-			Router: segreq.NewRouter(fetcherCfg),
 			Dialer: dialer,
 		},
 	}
@@ -308,7 +308,6 @@ func realMain(ctx context.Context) error {
 			Interfaces: intfs,
 			Verifier:   verifier,
 			Resolver: &libgrpc.DSResolver{
-				Router: segreq.NewRouter(fetcherCfg),
 				Dialer: dialer,
 			},
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
@@ -368,7 +367,6 @@ func realMain(ctx context.Context) error {
 				},
 			},
 			Resolver: &libgrpc.DSResolver{
-				Router: segreq.NewRouter(fetcherCfg),
 				Dialer: dialer,
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
@@ -554,8 +552,9 @@ func realMain(ctx context.Context) error {
 					Dialer:      quicStack.DRKeyDialer,
 					Credentials: trust.GetTansportCredentials(tlsMgr),
 				},
+
+				Router: segreq.NewRouter(fetcherCfg),
 				Discovery: &libgrpc.DSResolver{
-					Router: segreq.NewRouter(fetcherCfg),
 					Dialer: dialer,
 				},
 			},
