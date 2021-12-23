@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "dialer.go",
         "interceptor.go",
+        "service_resolver.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/grpc",
     visibility = ["//visibility:public"],

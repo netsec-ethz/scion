@@ -83,9 +83,9 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 		return nil, err
 	}
 	if udpPeer.IA.I != s.IA.I {
-		logger.Debug("ISD do not macth", "peer ISD", udpPeer.IA.I.String(), "local IA", s.IA.I.String())
+		logger.Debug("ISD do not macth", "peer ISD", udpPeer.IA.I.String(), "local ISD", s.IA.I.String())
 		metrics.CounterInc(s.Metrics.BackendErrors)
-		return nil, serrors.New("ISD do not macth", "peer ISD", udpPeer.IA.I.String(), "local IA", s.IA.I.String())
+		return nil, serrors.New("ISD do not macth", "peer ISD", udpPeer.IA.I.String(), "local ISD", s.IA.I.String())
 	}
 
 	if req.CmsSignedRequest == nil {

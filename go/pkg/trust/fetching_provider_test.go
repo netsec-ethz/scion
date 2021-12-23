@@ -463,7 +463,6 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				Recurser: tc.Recurser(t, mctrl),
 				Fetcher:  tc.Fetcher(t, mctrl),
 				Router:   router,
-				RouterDS: router,
 			}
 			c, err := p.GetChains(context.Background(), tc.Query, tc.Options...)
 			tc.ErrAssertion(t, err)

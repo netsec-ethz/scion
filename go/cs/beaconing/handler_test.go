@@ -265,7 +265,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			require.NoError(t, err)
 
 			resolver := mock_grpc.NewMockServiceResolver(mctrl)
-			resolver.EXPECT().ResolveTrustServiceWithDS(gomock.Any(),
+			resolver.EXPECT().ResolveTrustService(gomock.Any(),
 				gomock.Any()).AnyTimes().Return(dummyAddr, nil)
 
 			handler := beaconing.Handler{

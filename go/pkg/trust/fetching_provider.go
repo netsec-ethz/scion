@@ -54,7 +54,6 @@ type FetchingProvider struct {
 	Recurser Recurser
 	Fetcher  Fetcher
 	Router   Router
-	RouterDS Router
 }
 
 // GetChains returns certificate chains that match the chain query. If no chain
@@ -131,7 +130,7 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		return nil, serrors.WrapStr("recursion not allowed", err)
 	}
 	if o.server == nil {
-		if o.server, err = p.RouterDS.ChooseServer(ctx, query.IA.I); err != nil {
+		if o.server, err = p.Router.ChooseServer(ctx, query.IA.I); err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
 			return nil, serrors.WrapStr("choosing server", err)
 		}

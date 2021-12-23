@@ -30,10 +30,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/peer"
 
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/ca/renewal/grpc"
@@ -60,6 +62,10 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+	dummyPeer := &snet.UDPAddr{
+		IA:   xtest.MustParseIA("1-ff00:0:111"),
+		Host: xtest.MustParseUDPAddr(t, "192.168.0.1:33333"),
+	}
 
 	tests := map[string]struct {
 		request       func(t *testing.T) *cppb.ChainRenewalRequest
@@ -210,6 +216,7 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 			ctr := metrics.NewTestCounter()
 			defer ctrl.Finish()
 			s := &grpc.RenewalServer{
+				IA:            xtest.MustParseIA("1-ff00:0:110"),
 				LegacyHandler: tc.legacyHandler(ctrl),
 				CMSHandler:    tc.cmsHandler(ctrl),
 				CMSSigner:     tc.cmsSigner(ctrl),
@@ -218,7 +225,11 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 					Success:       ctr.With("test_tag", "ok_success"),
 				},
 			}
-			_, err := s.ChainRenewal(context.Background(), tc.request(t))
+
+			ctx := peer.NewContext(context.Background(), &peer.Peer{
+				Addr: dummyPeer,
+			})
+			_, err := s.ChainRenewal(ctx, tc.request(t))
 			tc.assertion(t, err)
 			for _, res := range []string{
 				"err_backend",

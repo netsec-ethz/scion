@@ -7,7 +7,6 @@ package mock_grpc
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	addr "github.com/scionproto/scion/go/lib/addr"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	grpc "google.golang.org/grpc"
 	net "net"
@@ -76,7 +75,7 @@ func (m *MockServiceResolver) EXPECT() *MockServiceResolverMockRecorder {
 }
 
 // ResolveChainRenewalService mocks base method
-func (m *MockServiceResolver) ResolveChainRenewalService(arg0 context.Context, arg1 addr.IA) (*snet.UDPAddr, error) {
+func (m *MockServiceResolver) ResolveChainRenewalService(arg0 context.Context, arg1 *snet.SVCAddr) (*snet.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveChainRenewalService", arg0, arg1)
 	ret0, _ := ret[0].(*snet.UDPAddr)
@@ -91,7 +90,7 @@ func (mr *MockServiceResolverMockRecorder) ResolveChainRenewalService(arg0, arg1
 }
 
 // ResolveDRKeyService mocks base method
-func (m *MockServiceResolver) ResolveDRKeyService(arg0 context.Context, arg1 addr.IA) (*snet.UDPAddr, error) {
+func (m *MockServiceResolver) ResolveDRKeyService(arg0 context.Context, arg1 *snet.SVCAddr) (*snet.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveDRKeyService", arg0, arg1)
 	ret0, _ := ret[0].(*snet.UDPAddr)
@@ -136,7 +135,7 @@ func (mr *MockServiceResolverMockRecorder) ResolveSegmentRegService(arg0, arg1 i
 }
 
 // ResolveTrustService mocks base method
-func (m *MockServiceResolver) ResolveTrustService(arg0 context.Context, arg1 addr.IA) (*snet.UDPAddr, error) {
+func (m *MockServiceResolver) ResolveTrustService(arg0 context.Context, arg1 *snet.SVCAddr) (*snet.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveTrustService", arg0, arg1)
 	ret0, _ := ret[0].(*snet.UDPAddr)
@@ -148,19 +147,4 @@ func (m *MockServiceResolver) ResolveTrustService(arg0 context.Context, arg1 add
 func (mr *MockServiceResolverMockRecorder) ResolveTrustService(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveTrustService", reflect.TypeOf((*MockServiceResolver)(nil).ResolveTrustService), arg0, arg1)
-}
-
-// ResolveTrustServiceWithDS mocks base method
-func (m *MockServiceResolver) ResolveTrustServiceWithDS(arg0 context.Context, arg1 *snet.SVCAddr) (*snet.UDPAddr, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveTrustServiceWithDS", arg0, arg1)
-	ret0, _ := ret[0].(*snet.UDPAddr)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveTrustServiceWithDS indicates an expected call of ResolveTrustServiceWithDS
-func (mr *MockServiceResolverMockRecorder) ResolveTrustServiceWithDS(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveTrustServiceWithDS", reflect.TypeOf((*MockServiceResolver)(nil).ResolveTrustServiceWithDS), arg0, arg1)
 }

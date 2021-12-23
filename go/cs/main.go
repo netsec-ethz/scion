@@ -268,12 +268,7 @@ func realMain(ctx context.Context) error {
 			Dialer: dialer,
 		},
 	}
-	provider.Router = trust.AuthRouter{
-		ISD:    topo.IA().I,
-		DB:     trustDB,
-		Router: segreq.NewRouter(fetcherCfg),
-	}
-	provider.RouterDS = trust.DSRouter{
+	provider.Router = trust.DSRouter{
 		ISD:    topo.IA().I,
 		DB:     trustDB,
 		Router: segreq.NewRouter(fetcherCfg),
