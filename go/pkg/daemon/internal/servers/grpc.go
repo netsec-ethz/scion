@@ -290,7 +290,7 @@ func (s *DaemonServer) services(ctx context.Context,
 		Services: make(map[string]*sdpb.ListService),
 	}
 	topo := s.TopoProvider.Get()
-	serviceTypes := []topology.ServiceType{topology.Control, topology.Gateway}
+	serviceTypes := []topology.ServiceType{topology.Control, topology.Discovery, topology.Gateway}
 	for _, t := range serviceTypes {
 		list := &sdpb.ListService{}
 		svcHosts, err := topo.MakeHostInfos(t)

@@ -85,7 +85,7 @@ func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*ne
 
 func checkSVC(svc addr.HostSVC) error {
 	switch svc {
-	case addr.SvcCS, addr.SvcSIG:
+	case addr.SvcCS, addr.SvcSIG, addr.SvcDS:
 		return nil
 	default:
 		return serrors.New("invalid svc type", "svc", svc)
