@@ -25,7 +25,7 @@ import (
 )
 
 type ColibriProvider interface {
-	BootstrapLvl1Key(ctx context.Context, segments []lib_res.ID) (drkey.Lvl1Key, error)
+	BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) (*drkey.Lvl1Key, error)
 
 	// SetupUpSegR establishes a SegR from A to C using segments = {upSegR + NR}.
 	// The SegRSetup request travels through a EER established
@@ -38,17 +38,14 @@ type ColibriProvider interface {
 	//
 	// Postcondition:
 	// - if no error, a SegR from A to C has been allocated.
-	SetupUpSegR(ctx context.Context, segs []lib_res.ID, dst addr.IA) (lib_res.ID, error)
-	TearDownSeg(ctx context.Context, seg lib_res.ID) error
-	// The internal lookupRes() to other AS must be forward via EER to the remote
-	// colibri service
-	ListStitchableSegments(ctx context.Context, dst addr.IA) (*colibri.StitchableSegments, error)
-	LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (lib_res.ID, error)
+	SetupUpSegR(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (*colibri.ReservationLooks, error)
+	TearDownSeg(ctx context.Context, seg *colibri.ReservationLooks) error
+	LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error)
 
 	// GetLvl1 returns a lvl1 key from persitance. If it is not in persistance
 	// it tries to fetch it from the remote CS via best-effort
 	GetLvl1(context.Context, drkey.Lvl1Meta, uint32) (*drkey.Lvl1Key, error)
-	StoreLvl1(context.Context, drkey.Lvl1Key) error
+	StoreLvl1(context.Context, *drkey.Lvl1Key) error
 }
 
 type Provider struct {
@@ -57,7 +54,7 @@ type Provider struct {
 	Mgr          reservationstore.Manager
 }
 
-func (p *Provider) BootstrapLvl1Key(ctx context.Context, dstIA addr.IA, segments []lib_res.ID) (drkey.Lvl1Key, error) {
+func (p *Provider) BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) (drkey.Lvl1Key, error) {
 	panic("not implemented")
 	// prepare pb.Lvl1Req
 	// lvl1:= Lvl1Req{
@@ -69,10 +66,10 @@ func (p *Provider) BootstrapLvl1Key(ctx context.Context, dstIA addr.IA, segments
 	// return Mgr.Lvl1(ctx, lvl1req)
 }
 
-func (p *Provider) SetupUpSegR(ctx context.Context, segs []lib_res.ID, dst addr.IA) (lib_res.ID, error) {
+func (p *Provider) SetupUpSegR(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (lib_res.ID, error) {
 
 	// Create EER to dst. We let the EER expire without explicitely tearing it down.
-	_, path, err := p.createEER(ctx, segs, dst, 5)
+	_, path, err := p.createEER(ctx, trip.Segments(), dst, 5)
 
 	if err != nil {
 		return lib_res.ID{}, serrors.WrapStr("creating EER to send SetupRequest", err)
@@ -213,7 +210,7 @@ func (p *Provider) pathFromE2EResp(resID lib_res.ID, resp e2e.SetupResponse) (sn
 	}, nil
 }
 
-func (b *Bootstrapper) cleanRsv(ctx context.Context, id *lib_res.ID,
+func (p *Provider) cleanRsv(ctx context.Context, id *lib_res.ID,
 	idx lib_res.IndexNumber) error {
 
 	// log.Debug("cleaning e2e rsv", "id", id)
