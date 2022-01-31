@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
 type ColibriProvider interface {
@@ -48,22 +49,58 @@ type ColibriProvider interface {
 	StoreLvl1(context.Context, *drkey.Lvl1Key) error
 }
 
-type Provider struct {
-	localIA      addr.IA
-	TopoProvider topology.Provider
-	Mgr          reservationstore.Manager
+type ExtendedReservationManager interface {
+	reservationstore.Manager
+	Lvl1(context.Context, *cryptopb.SignedMessage) (*cryptopb.SignedMessage, error)
 }
 
-func (p *Provider) BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) (drkey.Lvl1Key, error) {
-	panic("not implemented")
-	// prepare pb.Lvl1Req
-	// lvl1:= Lvl1Req{
-	// 	certificate x509.certificate
-	// 	valTime uint32
-	//  Path      *TransparentPath
-	// }
+type Lvl1Req struct {
+	Pubkey  []byte
+	ValTime time.Time
+	Path    *reservation.TransparentPath
+}
 
-	// return Mgr.Lvl1(ctx, lvl1req)
+type Lvl1Resp struct {
+	Pubkey []byte
+	Chiper []byte
+}
+
+// type AsymServerProvider interface {
+// 	GenerateKeyPair() ([]byte, []byte, error)
+// 	Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
+// 		associatedData ...[]byte) (Lvl1Req, error)
+// 	EncryptAndSign(lvl1Key drkey.Lvl1Key) (*cryptopb.SignedMessage, error)
+// }
+
+type AsymClientProvider interface {
+	GenerateKeyPair() ([]byte, []byte, error)
+	Sign(ctx context.Context, request Lvl1Req) (*cryptopb.SignedMessage, error)
+	VerifyAndDecrypt(ctx context.Context, privKey []byte, signedMsg *cryptopb.SignedMessage,
+		associatedData ...[]byte) (*drkey.Lvl1Key, error)
+}
+
+type Provider struct {
+	localIA        addr.IA
+	TopoProvider   topology.Provider
+	Mgr            ExtendedReservationManager
+	CryptoProvider AsymClientProvider
+}
+
+func (p *Provider) BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) (*drkey.Lvl1Key, error) {
+
+	pubKey, privKey, err := p.CryptoProvider.GenerateKeyPair()
+	if err != nil {
+		return nil, err
+	}
+
+	lvl1req := Lvl1Req{
+		Pubkey:  pubKey,
+		ValTime: time.Now(),
+		// Populate path from trip
+	}
+	signedLvl1Req, err := p.CryptoProvider.Sign(ctx, lvl1req)
+	signedLvl1Resp, err := p.Mgr.Lvl1(ctx, signedLvl1Req)
+	return p.CryptoProvider.VerifyAndDecrypt(ctx, privKey, signedLvl1Resp)
 }
 
 func (p *Provider) SetupUpSegR(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (lib_res.ID, error) {
@@ -124,6 +161,7 @@ func (p *Provider) SetupUpSegR(ctx context.Context, trip colibri.FullTrip, dst a
 		return lib_res.ID{}, serrors.New("No reservations after bootstrap segR", "dst", dst)
 	}
 
+	// TODO(JordiSubira): Check if segReservation.Id == segSetupReq.Request.MsgId.ID
 	return segReservations[0].Id, nil
 }
 
