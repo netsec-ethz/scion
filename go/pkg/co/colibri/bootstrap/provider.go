@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"crypto/rand"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"strconv"
@@ -26,7 +27,7 @@ import (
 )
 
 type ColibriProvider interface {
-	BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) (*drkey.Lvl1Key, error)
+	BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl1Key, error)
 
 	// SetupUpSegR establishes a SegR from A to C using segments = {upSegR + NR}.
 	// The SegRSetup request travels through a EER established
@@ -45,7 +46,7 @@ type ColibriProvider interface {
 
 	// GetLvl1 returns a lvl1 key from persitance. If it is not in persistance
 	// it tries to fetch it from the remote CS via best-effort
-	GetLvl1(context.Context, drkey.Lvl1Meta, uint32) (*drkey.Lvl1Key, error)
+	GetLvl1(context.Context, drkey.Lvl1Meta, time.Time) (*drkey.Lvl1Key, error)
 	StoreLvl1(context.Context, *drkey.Lvl1Key) error
 }
 
@@ -55,14 +56,17 @@ type ExtendedReservationManager interface {
 }
 
 type Lvl1Req struct {
-	Pubkey  []byte
-	ValTime time.Time
-	Path    *reservation.TransparentPath
+	EphPubkey   []byte           // PubKey for deriving/encrypting Lvl1Key message in KEM/DEM
+	Certificate x509.Certificate //include certificate to check signature
+	ValTime     time.Time
+
+	SegmentRsvs []lib_res.ID
 }
 
 type Lvl1Resp struct {
-	Pubkey []byte
-	Chiper []byte
+	EphPubkey   []byte           // PubKey for deriving/encrypting Lvl1Key message in KEM/DEM
+	Certificate x509.Certificate //include certificate to check signature
+	Chiper      []byte
 }
 
 // type AsymServerProvider interface {
@@ -86,7 +90,7 @@ type Provider struct {
 	CryptoProvider AsymClientProvider
 }
 
-func (p *Provider) BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) (*drkey.Lvl1Key, error) {
+func (p *Provider) BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl1Key, error) {
 
 	pubKey, privKey, err := p.CryptoProvider.GenerateKeyPair()
 	if err != nil {
@@ -94,9 +98,9 @@ func (p *Provider) BootstrapLvl1Key(ctx context.Context, trip colibri.FullTrip) 
 	}
 
 	lvl1req := Lvl1Req{
-		Pubkey:  pubKey,
-		ValTime: time.Now(),
-		// Populate path from trip
+		EphPubkey:   pubKey,
+		ValTime:     valTime,
+		SegmentRsvs: trip.Segments(),
 	}
 	signedLvl1Req, err := p.CryptoProvider.Sign(ctx, lvl1req)
 	signedLvl1Resp, err := p.Mgr.Lvl1(ctx, signedLvl1Req)

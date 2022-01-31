@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,7 @@ import (
 	lib_res "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/mock_bootstrap"
@@ -27,8 +29,8 @@ var (
 	isd101 = xtest.MustParseIA("1-1:ff00:101")
 	isd100 = xtest.MustParseIA("1-1:ff00:100")
 	isd110 = xtest.MustParseIA("1-1:ff00:110")
-	isd111 = xtest.MustParseIA("1-1:ff00:110")
-	isd112 = xtest.MustParseIA("1-1:ff00:110")
+	isd111 = xtest.MustParseIA("1-1:ff00:111")
+	isd112 = xtest.MustParseIA("1-1:ff00:112")
 )
 
 func TestTelescopeFromLocal(t *testing.T) {
@@ -93,9 +95,8 @@ func TestTelescopeFromLocal(t *testing.T) {
 			return nrIDs[key], nil
 		})
 
-	//
-	provider.EXPECT().BootstrapLvl1Key(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
-		func(_ context.Context, trip colibri.FullTrip) (*drkey.Lvl1Key, error) {
+	provider.EXPECT().BootstrapLvl1Key(gomock.Any(), gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, trip colibri.FullTrip, _ time.Time) (*drkey.Lvl1Key, error) {
 			var srcIAid string
 			segments := trip.Segments()
 			if len(segments) > 1 {
@@ -123,7 +124,7 @@ func TestTelescopeFromLocal(t *testing.T) {
 			return fmt.Errorf("invalid lvl1Key")
 		})
 	provider.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(_ context.Context, lvl1meta drkey.Lvl1Meta, _ uint32) (*drkey.Lvl1Key, error) {
+		func(_ context.Context, lvl1meta drkey.Lvl1Meta, _ time.Time) (*drkey.Lvl1Key, error) {
 			srcIA := lvl1meta.SrcIA
 			key, ok := lvl1KeyMap[srcIA]
 			if ok {
@@ -171,11 +172,14 @@ func TestTelescopeFromLocal(t *testing.T) {
 }
 
 func TestBootstrapKey(t *testing.T) {
+	now := time.Now()
 	cases := []struct {
 		name          string
 		trip          colibri.FullTrip
-		provider      func(ctrl *gomock.Controller) bootstrap.ColibriProvider //func(context.Context, drkey.Lvl1Meta, uint32) (*drkey.Lvl1Key, error))
-		expectedError error
+		valTime       time.Time
+		colProvider   func(ctrl *gomock.Controller) bootstrap.ColibriProvider
+		drkeyProvider func(ctrl *gomock.Controller) bootstrap.DRKeyProvider
+		errAssertion  assert.ErrorAssertionFunc
 	}{
 		{
 			name: "available_keys",
@@ -217,16 +221,21 @@ func TestBootstrapKey(t *testing.T) {
 					},
 				},
 			},
-			provider: func(ctrl *gomock.Controller) bootstrap.ColibriProvider {
+			valTime: now,
+			colProvider: func(ctrl *gomock.Controller) bootstrap.ColibriProvider {
 				p := mock_bootstrap.NewMockColibriProvider(ctrl)
-				p.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(
-					&drkey.Lvl1Key{}, nil)
 
-				p.EXPECT().BootstrapLvl1Key(gomock.Any(), gomock.Any()).Return(
+				p.EXPECT().BootstrapLvl1Key(gomock.Any(), gomock.Any(), gomock.Any()).Return(
 					&drkey.Lvl1Key{}, nil)
 				return p
 			},
-			expectedError: nil,
+			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {
+				p := mock_bootstrap.NewMockDRKeyProvider(ctrl)
+				p.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(
+					&drkey.Lvl1Key{}, nil)
+				return p
+			},
+			errAssertion: assert.NoError,
 		},
 		{
 			name: "error_int_key",
@@ -268,21 +277,21 @@ func TestBootstrapKey(t *testing.T) {
 					},
 				},
 			},
-			provider: func(ctrl *gomock.Controller) bootstrap.ColibriProvider {
-				p := mock_bootstrap.NewMockColibriProvider(ctrl)
+			valTime: now,
+			colProvider: func(ctrl *gomock.Controller) bootstrap.ColibriProvider {
+				return mock_bootstrap.NewMockColibriProvider(ctrl)
+			},
+			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {
+				p := mock_bootstrap.NewMockDRKeyProvider(ctrl)
 				p.EXPECT().GetLvl1(gomock.Any(), drkey.Lvl1Meta{SrcIA: isd110}, gomock.Any()).Return(
-					nil, &bootstrap.BootstrapError{
-						MissingIA: isd110,
-					},
+					nil, serrors.New("No key via best-effort. Abort."),
 				)
 				p.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(
 					&drkey.Lvl1Key{}, nil)
 
 				return p
 			},
-			expectedError: &bootstrap.BootstrapError{
-				MissingIA: isd110,
-			},
+			errAssertion: assert.Error,
 		},
 	}
 	for _, c := range cases {
@@ -291,15 +300,12 @@ func TestBootstrapKey(t *testing.T) {
 			defer mctrl.Finish()
 
 			b := bootstrap.BootstrapProvider{
-				ColProvider: c.provider(mctrl),
+				ColProvider:   c.colProvider(mctrl),
+				DRKeyProvider: c.drkeyProvider(mctrl),
 			}
 
-			_, err := b.BootstrapKey(context.Background(), c.trip)
-			if c.expectedError != nil {
-				assert.Equal(t, c.expectedError, err)
-			} else {
-				require.NoError(t, err)
-			}
+			_, err := b.BootstrapKey(context.Background(), c.trip, c.valTime)
+			c.errAssertion(t, err)
 
 		})
 	}

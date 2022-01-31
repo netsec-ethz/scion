@@ -9,11 +9,10 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
+
+var ErrMissingKey = serrors.New("Problem getting key for intermediate AS")
 
 type Bootstrapper interface {
 	TelescopeFromLocal(ctx context.Context, ases []seg.ASEntry, index int) (*colibri.ReservationLooks, error)
@@ -21,11 +20,13 @@ type Bootstrapper interface {
 }
 
 type BootstrapProvider struct {
-	localIA      addr.IA
-	TopoProvider topology.Provider
-	ColProvider  ColibriProvider
-	Fetcher      *segfetcher.Fetcher
-	Splitter     segfetcher.Splitter
+	localIA     addr.IA
+	ColProvider ColibriProvider
+	// The DRKeyProvider will be used to grab keys for intermediate keys
+	// with whatever strategy the caller has decided. It is possible to reuse
+	// the BootstrapProvider for resolving intermediate keys, provided that
+	// the trip is always trimmed.
+	DRKeyProvider DRKeyProvider
 }
 
 type BootstrapError struct {
@@ -36,30 +37,34 @@ func (e *BootstrapError) Error() string {
 	return fmt.Sprintf("Key for intermediate IA missing; ia = %s", e.MissingIA.String())
 }
 
-// bootstrapIntermediateKeys checks what Lvl1Keys for intermediate ASes are missing. It tries to fetch them
-// via best-effort. If best-effort fails for some intermediate AS (AS-I) it returns an error. Callers might
-// check whether keys for AS-I can be securely bootrstaped (i.e. they are in the bootstrap set {BS}
-// for the target AS and reuse this method.
-func (b *BootstrapProvider) BootstrapKey(ctx context.Context, trip colibri.FullTrip) (*drkey.Lvl1Key, error) {
+// BootstrapKey checks that Lvl1Keys for intermediate ASes are not missing.
+// This is a safety check. If we call BootstrapLvl1Key without having intermediate keys in cache
+// the call will fail and so will the bootstrap request. The Lvl1Req payload must be authenticated
+// at every hop B_i expect for the last one with K^Col_{A->B_i}.
+func (b *BootstrapProvider) BootstrapKey(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl1Key, error) {
+	if len(trip) < 1 {
+		return nil, serrors.New("Invalid provided trip to bootstrap a lvl1key")
+	}
+	path := trip[len(trip)-1].Path
+	lastStep := path[len(path)-1]
 
-	logger := log.FromCtx(ctx)
 	for _, segR := range trip {
 		for _, step := range segR.Path {
-			lvl1Meta := drkey.Lvl1Meta{
-				SrcIA: step.IA,
-				DstIA: b.localIA,
-			}
-			_, err := b.ColProvider.GetLvl1(ctx, lvl1Meta, util.TimeToSecs(time.Now()))
-			if err != nil {
-				logger.Error("Key for intermediate IA missing", "ia", step.IA)
-
-				return nil, &BootstrapError{MissingIA: step.IA}
+			if step != lastStep {
+				lvl1Meta := drkey.Lvl1Meta{
+					SrcIA: step.IA,
+					DstIA: b.localIA,
+				}
+				_, err := b.DRKeyProvider.GetLvl1(ctx, lvl1Meta, valTime)
+				if err != nil {
+					return nil, serrors.Wrap(ErrMissingKey, err)
+				}
 			}
 		}
 	}
 	// At this point we can create a Lvl1Req since we have all intermediate keys to authenticate
 	// the payload.
-	return b.ColProvider.BootstrapLvl1Key(ctx, trip)
+	return b.ColProvider.BootstrapLvl1Key(ctx, trip, valTime)
 }
 
 func (b *BootstrapProvider) TelescopeFromLocal(ctx context.Context, ases []seg.ASEntry) (*colibri.ReservationLooks, error) {
@@ -103,12 +108,13 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 		stichingSeg = []*colibri.ReservationLooks{previousSegID, nr}
 	}
 
-	key, err := b.ColProvider.GetLvl1(ctx, lvl1Meta, util.TimeToSecs(time.Now()))
+	now := time.Now()
+	key, err := b.ColProvider.GetLvl1(ctx, lvl1Meta, now)
 	if err != nil {
 		return nil, err
 	}
 	if key == nil {
-		_, err = b.bootstrapLvl1Key(ctx, b.localIA, stichingSeg)
+		_, err = b.bootstrapLvl1Key(ctx, b.localIA, stichingSeg, now)
 		if err != nil {
 			return nil, err
 		}
@@ -130,8 +136,9 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 // bootstrapLvl1Key must receive as an input a valid sequence of segments throughout which it
 // will convey the Colibri Lvl1Request. If succesful, the key will be stored in persistance,
 // to be used in the future.
-func (b *BootstrapProvider) bootstrapLvl1Key(ctx context.Context, dst addr.IA, segments []*colibri.ReservationLooks) (*drkey.Lvl1Key, error) {
-	lvl1Key, err := b.ColProvider.BootstrapLvl1Key(ctx, segments)
+func (b *BootstrapProvider) bootstrapLvl1Key(ctx context.Context, dst addr.IA,
+	segments []*colibri.ReservationLooks, valTime time.Time) (*drkey.Lvl1Key, error) {
+	lvl1Key, err := b.ColProvider.BootstrapLvl1Key(ctx, segments, valTime)
 	if err != nil {
 		return nil, err
 	}
