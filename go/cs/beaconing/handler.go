@@ -16,6 +16,7 @@ package beaconing
 
 import (
 	"context"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -145,8 +146,11 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	if err != nil {
 		return serrors.WrapStr("resolving trust material service", err)
 	}
-	log.FromCtx(ctx).Debug("resolved TrustMaterial service", "addr", server.String())
-	return segverifier.VerifySegment(ctx, h.Verifier, server, segment)
+	t0 := time.Now()
+	err = segverifier.VerifySegment(ctx, h.Verifier, server, segment)
+	durationRequest := time.Since(t0)
+	log.FromCtx(ctx).Debug("[INSTRUMENTING] Beaconing verify segment", "duration", durationRequest.String())
+	return err
 }
 
 func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error) {

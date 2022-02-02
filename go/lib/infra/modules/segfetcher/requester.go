@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -121,11 +122,17 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	// by using longer lived grpc connections over different paths and thereby
 	// explicitly keeping track of the path health.
 	try := func(ctx context.Context) (SegmentsReply, error) {
+		t0 := time.Now()
 		dst, err := r.DstProvider.Dst(ctx, req)
+		durationRequest := time.Since(t0)
+		// log.FromCtx(ctx).Debug("[INSTRUMENTING] Resolve seg lookup service", "duration", durationRequest.String())
 		if err != nil {
 			return SegmentsReply{Peer: dst}, err
 		}
-		return r.RPC.Segments(ctx, req, dst)
+		segs, err := r.RPC.Segments(ctx, req, dst)
+		durationRequest = time.Since(t0)
+		log.FromCtx(ctx).Debug("[INSTRUMENTING] Segment lookup", "duration", durationRequest.String())
+		return segs, err
 	}
 	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.MaxRetries+1; tryIndex++ {
 		r, err := try(ctx)

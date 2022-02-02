@@ -48,6 +48,7 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	logger := log.FromCtx(ctx)
 
 	logger.Info("Resolving server", "srcIA", srcIA.String())
+	t0 := time.Now()
 	ds, err := sc_grpc.RouteToDS(f.Router, srcIA)
 	if err != nil {
 		return nil, err
@@ -63,6 +64,8 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	defer conn.Close()
 	client := cppb.NewDRKeyLvl1ServiceClient(conn)
 	rep, err := client.DRKeyLvl1(ctx, req)
+	durationRequest := time.Since(t0)
+	logger.Debug("[INSTRUMENTING] DRKey Lvl1Fetching request", "duration", durationRequest.String())
 	if err != nil {
 		return nil, serrors.WrapStr("requesting level 1 key", err)
 	}
