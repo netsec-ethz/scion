@@ -31,13 +31,15 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["bootstrapper_test.go"],
+    srcs = [
+        "bootstrapper_test.go",
+        "export_test.go",
+    ],
+    embed = [":go_default_library"],
     deps = [
-        ":go_default_library",
         "//go/co/reservation:go_default_library",
         "//go/co/reservation/segment:go_default_library",
         "//go/co/reservationstorage/mock_reservationstorage:go_default_library",
-        "//go/co/reservationstore/mock_reservationstore:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/colibri:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",

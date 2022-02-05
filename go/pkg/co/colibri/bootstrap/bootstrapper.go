@@ -22,23 +22,23 @@ var ErrMissingKey = serrors.New("Problem getting key for intermediate AS")
 
 type ExtendedReservationManager interface {
 	reservationstore.Manager
-	Lvl1(context.Context, *cryptopb.SignedMessage) (*cryptopb.SignedMessage, error)
+	DRKey(context.Context, *cryptopb.SignedMessage) (*cryptopb.SignedMessage, error)
 	LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error)
 
-	GetLvl1(context.Context, drkey.Lvl1Meta, time.Time) (*drkey.Lvl1Key, error)
-	StoreLvl1(context.Context, *drkey.Lvl1Key) error
+	GetDRKey(context.Context, drkey.Lvl2Meta, time.Time) (*drkey.Lvl2Key, error)
+	StoreDRkey(context.Context, *drkey.Lvl2Key) error
 }
 
-type Lvl1Req struct {
-	EphPubkey   []byte           // PubKey for deriving/encrypting Lvl1Key message in KEM/DEM
+type DRKeyReq struct {
+	EphPubkey   []byte           // PubKey for deriving/encrypting DRKey message in KEM/DEM
 	Certificate x509.Certificate // include certificate to check signature
 	ValTime     time.Time
 
 	SegmentRsvs []lib_res.ID
 }
 
-type Lvl1Resp struct {
-	EphPubkey   []byte           // PubKey for deriving/encrypting Lvl1Key message in KEM/DEM
+type DRKeyResp struct {
+	EphPubkey   []byte           // PubKey for deriving/encrypting DRKey message in KEM/DEM
 	Certificate x509.Certificate // include certificate to check signature
 	Chiper      []byte
 }
@@ -46,25 +46,26 @@ type Lvl1Resp struct {
 // type AsymServerProvider interface {
 // 	GenerateKeyPair() ([]byte, []byte, error)
 // 	Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
-// 		associatedData ...[]byte) (Lvl1Req, error)
-// 	EncryptAndSign(lvl1Key drkey.Lvl1Key) (*cryptopb.SignedMessage, error)
+// 		associatedData ...[]byte) (DRKeyReq, error)
+// 	EncryptAndSign(key drkey.DRKey) (*cryptopb.SignedMessage, error)
 // }
 
 type AsymClientProvider interface {
 	GenerateKeyPair() ([]byte, []byte, error)
-	Sign(ctx context.Context, request Lvl1Req) (*cryptopb.SignedMessage, error)
+	Sign(ctx context.Context, request DRKeyReq) (*cryptopb.SignedMessage, error)
 	VerifyAndDecrypt(ctx context.Context, targetIA addr.IA, privKey []byte,
-		signedMsg *cryptopb.SignedMessage, associatedData ...[]byte) (*drkey.Lvl1Key, error)
+		signedMsg *cryptopb.SignedMessage, associatedData ...[]byte) (*drkey.Lvl2Key, error)
 }
 
 type Bootstrapper interface {
-	TelescopeFromLocal(ctx context.Context, ases []seg.ASEntry, index int) (*colibri.ReservationLooks, error)
-	BootstrapKey(ctx context.Context, segments []*colibri.ReservationLooks) (drkey.Lvl1Key, error)
+	TelescopeUpstream(ctx context.Context, ases []seg.ASEntry, index int) (*colibri.ReservationLooks, error)
+	BootstrapKey(ctx context.Context, segments []*colibri.ReservationLooks) (drkey.Lvl2Key, error)
 }
 
 type BootstrapProvider struct {
-	localIA addr.IA
-	builder SetReqBuilder
+	localIA   addr.IA
+	localHost addr.HostAddr
+	builder   SetReqBuilder
 
 	Mgr ExtendedReservationManager
 	// The DRKeyProvider will be used to grab keys for intermediate keys
@@ -75,7 +76,7 @@ type BootstrapProvider struct {
 	CryptoProvider AsymClientProvider
 }
 
-func NewBootstrapProvider(topo topology.Topology, mgr ExtendedReservationManager,
+func NewBootstrapProvider(localHost addr.HostAddr, topo topology.Topology, mgr ExtendedReservationManager,
 	drkeyProvider DRKeyProvider, cryptoProvider AsymClientProvider) *BootstrapProvider {
 	return &BootstrapProvider{
 		localIA: topo.IA(),
@@ -91,13 +92,14 @@ func NewBootstrapProvider(topo topology.Topology, mgr ExtendedReservationManager
 	}
 }
 
-// BootstrapKey checks that Lvl1Keys for intermediate ASes are not missing.
-// This is a safety check. If we call BootstrapLvl1Key without having intermediate keys in cache
-// the call will fail and so will the bootstrap request. The Lvl1Req payload must be authenticated
-// at every hop B_i expect for the last one with K^Col_{A->B_i}.
-func (b *BootstrapProvider) BootstrapKey(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl1Key, error) {
+// BootstrapKey checks that DRKeys for intermediate ASes are not missing.
+// If missing it uses the DRKeyProvider interface to get them. This is necessary because
+// the DRKey request payload must be authenticated at every hop B_i expect for the last
+// one with K^Col_{A->B_i}.
+func (b *BootstrapProvider) BootstrapKey(ctx context.Context, trip colibri.FullTrip,
+	valTime time.Time) (*drkey.Lvl2Key, error) {
 	if len(trip) < 1 {
-		return nil, serrors.New("Invalid provided trip to bootstrap a lvl1key")
+		return nil, serrors.New("Invalid provided trip to bootstrap a DRKey")
 	}
 	path := trip[len(trip)-1].Path
 	lastStep := path[len(path)-1]
@@ -105,23 +107,24 @@ func (b *BootstrapProvider) BootstrapKey(ctx context.Context, trip colibri.FullT
 	for _, segR := range trip {
 		for _, step := range segR.Path {
 			if step != lastStep {
-				lvl1Meta := drkey.Lvl1Meta{
-					SrcIA: step.IA,
-					DstIA: b.localIA,
+				lvl2Meta := drkey.Lvl2Meta{
+					SrcIA:   step.IA,
+					DstIA:   b.localIA,
+					DstHost: b.localHost,
 				}
-				_, err := b.DRKeyProvider.GetLvl1(ctx, lvl1Meta, valTime)
+				_, err := b.DRKeyProvider.GetKey(ctx, lvl2Meta, valTime)
 				if err != nil {
 					return nil, serrors.Wrap(ErrMissingKey, err)
 				}
 			}
 		}
 	}
-	// At this point we can create a Lvl1Req since we have all intermediate keys to authenticate
+	// At this point we can create a request since we have all intermediate keys to authenticate
 	// the payload.
-	return b.sendLvl1Req(ctx, trip, valTime)
+	return b.sendDRKeyReq(ctx, trip, valTime)
 }
 
-func (b *BootstrapProvider) TelescopeFromLocal(ctx context.Context, ases []seg.ASEntry) (*colibri.ReservationLooks, error) {
+func (b *BootstrapProvider) TelescopeUpstream(ctx context.Context, ases []seg.ASEntry) (*colibri.ReservationLooks, error) {
 	segRInfo, err := b.telescopeFromLocal(ctx, ases, len(ases)-1)
 	if err != nil {
 		return nil, serrors.WrapStr("telescoping from local", err)
@@ -153,9 +156,11 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 		}
 	}
 	as := ases[index]
-	lvl1Meta := drkey.Lvl1Meta{
-		SrcIA: as.Local,
-		DstIA: b.localIA,
+	lvl2Meta := drkey.Lvl2Meta{
+		KeyType: drkey.AS2Host,
+		SrcIA:   as.Local,
+		DstIA:   b.localIA,
+		DstHost: b.localHost,
 	}
 
 	nr, err := b.lookupNR(ctx, ases[index-1].Local, ases[index].Local)
@@ -172,12 +177,12 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 	}
 
 	now := time.Now()
-	key, err := b.Mgr.GetLvl1(ctx, lvl1Meta, now)
+	key, err := b.Mgr.GetDRKey(ctx, lvl2Meta, now)
 	if err != nil {
 		return segRInfo{}, err
 	}
 	if key == nil {
-		_, err = b.bootstrapLvl1Key(ctx, b.localIA, stichingSeg, now)
+		_, err = b.bootstrapDRKey(ctx, b.localIA, stichingSeg, now)
 		if err != nil {
 			return segRInfo{}, err
 		}
@@ -207,37 +212,37 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 	}, nil
 }
 
-// bootstrapLvl1Key must receive as an input a valid sequence of segments throughout which it
-// will convey the Colibri Lvl1Request. If succesful, the key will be stored in persistance,
+// bootstrapDRKey must receive as an input a valid sequence of segments throughout which it
+// will convey the Colibri DRKey request. If succesful, the key will be stored in persistance,
 // to be used in the future.
-func (b *BootstrapProvider) bootstrapLvl1Key(ctx context.Context, dst addr.IA,
-	segments []*colibri.ReservationLooks, valTime time.Time) (*drkey.Lvl1Key, error) {
-	lvl1Key, err := b.sendLvl1Req(ctx, segments, valTime)
+func (b *BootstrapProvider) bootstrapDRKey(ctx context.Context, dst addr.IA,
+	segments []*colibri.ReservationLooks, valTime time.Time) (*drkey.Lvl2Key, error) {
+	key, err := b.sendDRKeyReq(ctx, segments, valTime)
 	if err != nil {
 		return nil, err
 	}
-	err = b.Mgr.StoreLvl1(ctx, lvl1Key)
+	err = b.Mgr.StoreDRkey(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	return lvl1Key, nil
+	return key, nil
 }
 
-func (b *BootstrapProvider) sendLvl1Req(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl1Key, error) {
+func (b *BootstrapProvider) sendDRKeyReq(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl2Key, error) {
 
 	pubKey, privKey, err := b.CryptoProvider.GenerateKeyPair()
 	if err != nil {
 		return nil, err
 	}
 
-	lvl1req := Lvl1Req{
+	req := DRKeyReq{
 		EphPubkey:   pubKey,
 		ValTime:     valTime,
 		SegmentRsvs: trip.Segments(),
 	}
-	signedLvl1Req, err := b.CryptoProvider.Sign(ctx, lvl1req)
-	signedLvl1Resp, err := b.Mgr.Lvl1(ctx, signedLvl1Req)
-	return b.CryptoProvider.VerifyAndDecrypt(ctx, trip.DstIA(), privKey, signedLvl1Resp)
+	signedReq, err := b.CryptoProvider.Sign(ctx, req)
+	signedResp, err := b.Mgr.DRKey(ctx, signedReq)
+	return b.CryptoProvider.VerifyAndDecrypt(ctx, trip.DstIA(), privKey, signedResp)
 }
 
 func (b *BootstrapProvider) sendSetupUpSegR(ctx context.Context, segSetupReq *segment.SetupReq) (*colibri.ReservationLooks, error) {

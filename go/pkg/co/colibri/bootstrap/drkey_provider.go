@@ -8,5 +8,5 @@ import (
 )
 
 type DRKeyProvider interface {
-	GetLvl1(ctx context.Context, meta drkey.Lvl1Meta, valTime time.Time) (*drkey.Lvl1Key, error)
+	GetKey(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error)
 }

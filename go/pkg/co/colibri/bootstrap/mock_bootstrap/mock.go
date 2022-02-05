@@ -61,7 +61,7 @@ func (mr *MockAsymClientProviderMockRecorder) GenerateKeyPair() *gomock.Call {
 }
 
 // Sign mocks base method.
-func (m *MockAsymClientProvider) Sign(arg0 context.Context, arg1 bootstrap.Lvl1Req) (*crypto.SignedMessage, error) {
+func (m *MockAsymClientProvider) Sign(arg0 context.Context, arg1 bootstrap.DRKeyReq) (*crypto.SignedMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sign", arg0, arg1)
 	ret0, _ := ret[0].(*crypto.SignedMessage)
@@ -76,14 +76,14 @@ func (mr *MockAsymClientProviderMockRecorder) Sign(arg0, arg1 interface{}) *gomo
 }
 
 // VerifyAndDecrypt mocks base method.
-func (m *MockAsymClientProvider) VerifyAndDecrypt(arg0 context.Context, arg1 addr.IA, arg2 []byte, arg3 *crypto.SignedMessage, arg4 ...[]byte) (*drkey.Lvl1Key, error) {
+func (m *MockAsymClientProvider) VerifyAndDecrypt(arg0 context.Context, arg1 addr.IA, arg2 []byte, arg3 *crypto.SignedMessage, arg4 ...[]byte) (*drkey.Lvl2Key, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1, arg2, arg3}
 	for _, a := range arg4 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "VerifyAndDecrypt", varargs...)
-	ret0, _ := ret[0].(*drkey.Lvl1Key)
+	ret0, _ := ret[0].(*drkey.Lvl2Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -146,19 +146,34 @@ func (mr *MockExtendedReservationManagerMockRecorder) ActivateRequest(arg0, arg1
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateRequest", reflect.TypeOf((*MockExtendedReservationManager)(nil).ActivateRequest), arg0, arg1)
 }
 
-// GetLvl1 mocks base method.
-func (m *MockExtendedReservationManager) GetLvl1(arg0 context.Context, arg1 drkey.Lvl1Meta, arg2 time.Time) (*drkey.Lvl1Key, error) {
+// DRKey mocks base method.
+func (m *MockExtendedReservationManager) DRKey(arg0 context.Context, arg1 *crypto.SignedMessage) (*crypto.SignedMessage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLvl1", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*drkey.Lvl1Key)
+	ret := m.ctrl.Call(m, "DRKey", arg0, arg1)
+	ret0, _ := ret[0].(*crypto.SignedMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLvl1 indicates an expected call of GetLvl1.
-func (mr *MockExtendedReservationManagerMockRecorder) GetLvl1(arg0, arg1, arg2 interface{}) *gomock.Call {
+// DRKey indicates an expected call of DRKey.
+func (mr *MockExtendedReservationManagerMockRecorder) DRKey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLvl1", reflect.TypeOf((*MockExtendedReservationManager)(nil).GetLvl1), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKey", reflect.TypeOf((*MockExtendedReservationManager)(nil).DRKey), arg0, arg1)
+}
+
+// GetDRKey mocks base method.
+func (m *MockExtendedReservationManager) GetDRKey(arg0 context.Context, arg1 drkey.Lvl2Meta, arg2 time.Time) (*drkey.Lvl2Key, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDRKey", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*drkey.Lvl2Key)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDRKey indicates an expected call of GetDRKey.
+func (mr *MockExtendedReservationManagerMockRecorder) GetDRKey(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKey", reflect.TypeOf((*MockExtendedReservationManager)(nil).GetDRKey), arg0, arg1, arg2)
 }
 
 // LocalIA mocks base method.
@@ -188,21 +203,6 @@ func (m *MockExtendedReservationManager) LookupNR(arg0 context.Context, arg1, ar
 func (mr *MockExtendedReservationManagerMockRecorder) LookupNR(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupNR", reflect.TypeOf((*MockExtendedReservationManager)(nil).LookupNR), arg0, arg1, arg2)
-}
-
-// Lvl1 mocks base method.
-func (m *MockExtendedReservationManager) Lvl1(arg0 context.Context, arg1 *crypto.SignedMessage) (*crypto.SignedMessage, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Lvl1", arg0, arg1)
-	ret0, _ := ret[0].(*crypto.SignedMessage)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Lvl1 indicates an expected call of Lvl1.
-func (mr *MockExtendedReservationManagerMockRecorder) Lvl1(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Lvl1", reflect.TypeOf((*MockExtendedReservationManager)(nil).Lvl1), arg0, arg1)
 }
 
 // Name mocks base method.
@@ -302,18 +302,18 @@ func (mr *MockExtendedReservationManagerMockRecorder) Store() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockExtendedReservationManager)(nil).Store))
 }
 
-// StoreLvl1 mocks base method.
-func (m *MockExtendedReservationManager) StoreLvl1(arg0 context.Context, arg1 *drkey.Lvl1Key) error {
+// StoreDRkey mocks base method.
+func (m *MockExtendedReservationManager) StoreDRkey(arg0 context.Context, arg1 *drkey.Lvl2Key) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreLvl1", arg0, arg1)
+	ret := m.ctrl.Call(m, "StoreDRkey", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// StoreLvl1 indicates an expected call of StoreLvl1.
-func (mr *MockExtendedReservationManagerMockRecorder) StoreLvl1(arg0, arg1 interface{}) *gomock.Call {
+// StoreDRkey indicates an expected call of StoreDRkey.
+func (mr *MockExtendedReservationManagerMockRecorder) StoreDRkey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreLvl1", reflect.TypeOf((*MockExtendedReservationManager)(nil).StoreLvl1), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreDRkey", reflect.TypeOf((*MockExtendedReservationManager)(nil).StoreDRkey), arg0, arg1)
 }
 
 // MockSetReqBuilder is a mock of SetReqBuilder interface.
@@ -377,17 +377,17 @@ func (m *MockDRKeyProvider) EXPECT() *MockDRKeyProviderMockRecorder {
 	return m.recorder
 }
 
-// GetLvl1 mocks base method.
-func (m *MockDRKeyProvider) GetLvl1(arg0 context.Context, arg1 drkey.Lvl1Meta, arg2 time.Time) (*drkey.Lvl1Key, error) {
+// GetKey mocks base method.
+func (m *MockDRKeyProvider) GetKey(arg0 context.Context, arg1 drkey.Lvl2Meta, arg2 time.Time) (*drkey.Lvl2Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLvl1", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*drkey.Lvl1Key)
+	ret := m.ctrl.Call(m, "GetKey", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*drkey.Lvl2Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLvl1 indicates an expected call of GetLvl1.
-func (mr *MockDRKeyProviderMockRecorder) GetLvl1(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetKey indicates an expected call of GetKey.
+func (mr *MockDRKeyProviderMockRecorder) GetKey(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLvl1", reflect.TypeOf((*MockDRKeyProvider)(nil).GetLvl1), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKey", reflect.TypeOf((*MockDRKeyProvider)(nil).GetKey), arg0, arg1, arg2)
 }
