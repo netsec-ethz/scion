@@ -3,7 +3,6 @@ package bootstrap_test
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -12,75 +11,112 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/co/reservation"
+	"github.com/scionproto/scion/go/co/reservation/segment"
+	"github.com/scionproto/scion/go/co/reservationstorage/mock_reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	lib_res "github.com/scionproto/scion/go/lib/colibri/reservation"
+	rsv "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/mock_bootstrap"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
 var (
-	isd103 = xtest.MustParseIA("1-1:ff00:103")
-	isd102 = xtest.MustParseIA("1-1:ff00:102")
-	isd101 = xtest.MustParseIA("1-1:ff00:101")
-	isd100 = xtest.MustParseIA("1-1:ff00:100")
-	isd110 = xtest.MustParseIA("1-1:ff00:110")
-	isd111 = xtest.MustParseIA("1-1:ff00:111")
-	isd112 = xtest.MustParseIA("1-1:ff00:112")
+	ia103 = xtest.MustParseIA("1-1:ff00:103")
+	ia102 = xtest.MustParseIA("1-1:ff00:102")
+	ia101 = xtest.MustParseIA("1-1:ff00:101")
+	ia100 = xtest.MustParseIA("1-1:ff00:100")
+	ia110 = xtest.MustParseIA("1-1:ff00:110")
+	ia111 = xtest.MustParseIA("1-1:ff00:111")
+	ia112 = xtest.MustParseIA("1-1:ff00:112")
 )
 
 func TestTelescopeFromLocal(t *testing.T) {
 
 	ases := []seg.ASEntry{
 		{
-			Local: isd103,
+			Local: ia103,
 		},
 		{
-			Local: isd102,
+			Local: ia102,
 		},
 		{
-			Local: isd101,
+			Local: ia101,
 		},
 		// Core AS
 		{
-			Local: isd100,
+			Local: ia100,
 		},
 	}
-	targetSegID := lib_res.ID{
-		ASID:   isd103.A,
-		Suffix: []byte{0, 0, 103, 100},
+	targetSeg := &colibri.ReservationLooks{
+		SrcIA: ia103,
+		DstIA: ia100,
 	}
 
 	nrIDs := map[string]*colibri.ReservationLooks{
 		"nr-1:ff00:103-1:ff00:102": {
 			Id: lib_res.ID{
-				ASID:   isd103.A,
+				ASID:   ia103.A,
 				Suffix: []byte{0, 0, 103, 102},
+			},
+			SrcIA: ia103,
+			DstIA: ia102,
+			Path: []reservation.PathStep{
+				{
+					IA: ia103,
+				},
+				// omit paths in the middle
+				{
+					IA: ia102,
+				},
 			},
 		},
 		"nr-1:ff00:102-1:ff00:101": {
 			Id: lib_res.ID{
-				ASID:   isd103.A,
+				ASID:   ia103.A,
 				Suffix: []byte{0, 0, 102, 101},
+			},
+			SrcIA: ia102,
+			DstIA: ia101,
+			Path: []reservation.PathStep{
+				{
+					IA: ia102,
+				},
+				// omit paths in the middle
+				{
+					IA: ia101,
+				},
 			},
 		},
 		"nr-1:ff00:101-1:ff00:100": {
 			Id: lib_res.ID{
-				ASID:   isd103.A,
+				ASID:   ia103.A,
 				Suffix: []byte{0, 0, 101, 100},
+			},
+			SrcIA: ia101,
+			DstIA: ia100,
+			Path: []reservation.PathStep{
+				{
+					IA: ia101,
+				},
+				// omit paths in the middle
+				{
+					IA: ia100,
+				},
 			},
 		},
 	}
 	segRs := map[string]*colibri.ReservationLooks{}
 	lvl1KeyMap := map[addr.IA]*drkey.Lvl1Key{
-		isd102: {
+		ia102: {
 			Lvl1Meta: drkey.Lvl1Meta{
-				SrcIA: isd102,
-				DstIA: isd103,
+				SrcIA: ia102,
+				DstIA: ia103,
 			},
 		},
 	}
@@ -88,31 +124,89 @@ func TestTelescopeFromLocal(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 
-	provider := mock_bootstrap.NewMockColibriProvider(mctrl)
-	provider.EXPECT().LookupNR(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+	mgr := mock_bootstrap.NewMockExtendedReservationManager(mctrl)
+	storeMgr := mock_reservationstorage.NewMockStore(mctrl)
+
+	mgr.EXPECT().Store().AnyTimes().Return(storeMgr)
+	mgr.EXPECT().SetupRequest(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(_ context.Context, req *segment.SetupReq) error {
+			srcIA := req.Path.SrcIA()
+			dstIA := req.Path.DstIA()
+			key := "seg-" + srcIA.String() + "-" + dstIA.String()
+			segR := &colibri.ReservationLooks{
+				Id:    req.ID,
+				SrcIA: srcIA,
+				DstIA: dstIA,
+				Path: []reservation.PathStep{
+					{
+						IA: srcIA,
+					},
+					// omit paths in the middle
+					{
+						IA: dstIA,
+					},
+				},
+			}
+			segRs[key] = segR
+			return nil
+		})
+	storeMgr.EXPECT().TearDownSegmentReservation(gomock.Any(), gomock.Any()).Return(nil, nil)
+	storeMgr.EXPECT().ListReservations(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(ctx context.Context, dstIA addr.IA, _ rsv.PathType) ([]*colibri.ReservationLooks, error) {
+			key := "seg-" + ia103.String() + "-" + dstIA.String()
+			segR, ok := segRs[key]
+			require.True(t, ok)
+			return []*colibri.ReservationLooks{segR}, nil
+		})
+
+	builder := mock_bootstrap.NewMockSetReqBuilder(mctrl)
+	builder.EXPECT().BuildSetReq(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(_ context.Context, trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
+			transparentPath := reservation.TransparentPath{
+				Steps: []reservation.PathStep{
+					{
+						IA: trip.SrcIA(),
+					},
+					// omit paths in the middle
+					{
+						IA: trip.DstIA(),
+					},
+				},
+			}
+			return &segment.SetupReq{
+				Request: reservation.Request{
+					Path: &transparentPath,
+				},
+			}, nil
+		})
+
+	cryptoProvider := mock_bootstrap.NewMockAsymClientProvider(mctrl)
+
+	mgr.EXPECT().LookupNR(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 		func(_ context.Context, src addr.IA, dstIA addr.IA) (*colibri.ReservationLooks, error) {
 			key := "nr-" + src.A.String() + "-" + dstIA.A.String()
 			return nrIDs[key], nil
 		})
 
-	provider.EXPECT().BootstrapLvl1Key(gomock.Any(), gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
-		func(_ context.Context, trip colibri.FullTrip, _ time.Time) (*drkey.Lvl1Key, error) {
-			var srcIAid string
-			segments := trip.Segments()
-			if len(segments) > 1 {
-				require.Equal(t, segments[0].Suffix[3], segments[1].Suffix[2])
-				srcIAid = strconv.Itoa(int(segments[1].Suffix[3]))
-			} else {
-				srcIAid = strconv.Itoa(int(segments[0].Suffix[3]))
-			}
+	cryptoProvider.EXPECT().GenerateKeyPair().Times(2).Return(nil, nil, nil)
+	cryptoProvider.EXPECT().Sign(gomock.Any(), gomock.Any()).Times(2).Return(nil, nil)
+
+	mgr.EXPECT().Lvl1(gomock.Any(), gomock.Any()).Times(2).Return(nil, nil)
+
+	cryptoProvider.EXPECT().VerifyAndDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
+		gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, targetIA addr.IA, _ []byte,
+			_ *cryptopb.SignedMessage, _ ...[]byte) (*drkey.Lvl1Key, error) {
+
 			return &drkey.Lvl1Key{
 				Lvl1Meta: drkey.Lvl1Meta{
-					SrcIA: xtest.MustParseIA("1-1:ff00:" + srcIAid),
-					DstIA: isd103,
+					SrcIA: targetIA,
+					DstIA: ia103,
 				},
 			}, nil
 		})
-	provider.EXPECT().StoreLvl1(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+
+	mgr.EXPECT().StoreLvl1(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 		func(_ context.Context, lvl1Key *drkey.Lvl1Key) error {
 			if lvl1Key != nil {
 				srcIA := lvl1Key.SrcIA
@@ -123,7 +217,7 @@ func TestTelescopeFromLocal(t *testing.T) {
 			}
 			return fmt.Errorf("invalid lvl1Key")
 		})
-	provider.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+	mgr.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 		func(_ context.Context, lvl1meta drkey.Lvl1Meta, _ time.Time) (*drkey.Lvl1Key, error) {
 			srcIA := lvl1meta.SrcIA
 			key, ok := lvl1KeyMap[srcIA]
@@ -133,53 +227,25 @@ func TestTelescopeFromLocal(t *testing.T) {
 			return nil, nil
 		})
 
-	provider.EXPECT().TearDownSeg(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(ctx context.Context, seg *colibri.ReservationLooks) error {
-			srcAS := seg.Id.ASID
-			dstAS := "1:ff00:" + strconv.Itoa(int(seg.Id.Suffix[3]))
-			key := "seg-" + srcAS.String() + "-" + dstAS
-			require.Contains(t, segRs, key)
-			return nil
-		})
-
-	provider.EXPECT().SetupUpSegR(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (*colibri.ReservationLooks, error) {
-			segs := trip.Segments()
-			require.Len(t, segs, 2)
-			require.Equal(t, segs[0].Suffix[3], segs[1].Suffix[2])
-
-			srcAS := segs[0].ASID
-			dstAS := "1:ff00:" + strconv.Itoa(int(segs[1].Suffix[3]))
-			key := "seg-" + srcAS.String() + "-" + dstAS
-			segR := &colibri.ReservationLooks{
-				Id: lib_res.ID{
-					ASID:   srcAS,
-					Suffix: []byte{0, 0, segs[0].Suffix[2], segs[1].Suffix[3]},
-				},
-			}
-			segRs[key] = segR
-			return segR, nil
-		})
-
-	b := bootstrap.BootstrapProvider{
-		ColProvider: provider,
-	}
+	b := bootstrap.NewTestBootstrapProvider(ia103, builder, mgr, nil, cryptoProvider)
 
 	seg, err := b.TelescopeFromLocal(context.Background(), ases)
 	require.NoError(t, err)
-	require.Equal(t, seg.Id, targetSegID)
+	require.Equal(t, targetSeg.SrcIA, seg.SrcIA)
+	require.Equal(t, targetSeg.DstIA, seg.DstIA)
 
 }
 
 func TestBootstrapKey(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
-		name          string
-		trip          colibri.FullTrip
-		valTime       time.Time
-		colProvider   func(ctrl *gomock.Controller) bootstrap.ColibriProvider
-		drkeyProvider func(ctrl *gomock.Controller) bootstrap.DRKeyProvider
-		errAssertion  assert.ErrorAssertionFunc
+		name           string
+		trip           colibri.FullTrip
+		valTime        time.Time
+		mgr            func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager
+		cryptoProvider func(ctrl *gomock.Controller) bootstrap.AsymClientProvider
+		drkeyProvider  func(ctrl *gomock.Controller) bootstrap.DRKeyProvider
+		errAssertion   assert.ErrorAssertionFunc
 	}{
 		{
 			name: "available_keys",
@@ -187,46 +253,53 @@ func TestBootstrapKey(t *testing.T) {
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
-							IA: isd103,
+							IA: ia103,
 						},
 						{
-							IA: isd102,
+							IA: ia102,
 						},
 						{
-							IA: isd101,
+							IA: ia101,
 						},
 						{
-							IA: isd100,
-						},
-					},
-				},
-				&colibri.ReservationLooks{
-					Path: []reservation.PathStep{
-						{
-							IA: isd100,
-						},
-						{
-							IA: isd110,
+							IA: ia100,
 						},
 					},
 				},
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
-							IA: isd111,
+							IA: ia100,
 						},
 						{
-							IA: isd112,
+							IA: ia110,
+						},
+					},
+				},
+				&colibri.ReservationLooks{
+					Path: []reservation.PathStep{
+						{
+							IA: ia111,
+						},
+						{
+							IA: ia112,
 						},
 					},
 				},
 			},
 			valTime: now,
-			colProvider: func(ctrl *gomock.Controller) bootstrap.ColibriProvider {
-				p := mock_bootstrap.NewMockColibriProvider(ctrl)
+			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.AsymClientProvider {
+				c := mock_bootstrap.NewMockAsymClientProvider(ctrl)
+				c.EXPECT().Sign(gomock.Any(), gomock.Any()).Return(nil, nil)
+				c.EXPECT().VerifyAndDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
+					gomock.Any(), gomock.Any()).Return(&drkey.Lvl1Key{}, nil)
+				return c
+			},
+			mgr: func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager {
+				p := mock_bootstrap.NewMockExtendedReservationManager(ctrl)
 
-				p.EXPECT().BootstrapLvl1Key(gomock.Any(), gomock.Any(), gomock.Any()).Return(
-					&drkey.Lvl1Key{}, nil)
+				p.EXPECT().Lvl1(gomock.Any(), gomock.Any()).Return(
+					nil, nil)
 				return p
 			},
 			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {
@@ -243,47 +316,50 @@ func TestBootstrapKey(t *testing.T) {
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
-							IA: isd103,
+							IA: ia103,
 						},
 						{
-							IA: isd102,
+							IA: ia102,
 						},
 						{
-							IA: isd101,
+							IA: ia101,
 						},
 						{
-							IA: isd100,
-						},
-					},
-				},
-				&colibri.ReservationLooks{
-					Path: []reservation.PathStep{
-						{
-							IA: isd100,
-						},
-						{
-							IA: isd110,
+							IA: ia100,
 						},
 					},
 				},
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
-							IA: isd111,
+							IA: ia100,
 						},
 						{
-							IA: isd112,
+							IA: ia110,
+						},
+					},
+				},
+				&colibri.ReservationLooks{
+					Path: []reservation.PathStep{
+						{
+							IA: ia111,
+						},
+						{
+							IA: ia112,
 						},
 					},
 				},
 			},
 			valTime: now,
-			colProvider: func(ctrl *gomock.Controller) bootstrap.ColibriProvider {
-				return mock_bootstrap.NewMockColibriProvider(ctrl)
+			mgr: func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager {
+				return nil
+			},
+			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.AsymClientProvider {
+				return nil
 			},
 			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {
 				p := mock_bootstrap.NewMockDRKeyProvider(ctrl)
-				p.EXPECT().GetLvl1(gomock.Any(), drkey.Lvl1Meta{SrcIA: isd110}, gomock.Any()).Return(
+				p.EXPECT().GetLvl1(gomock.Any(), drkey.Lvl1Meta{SrcIA: ia110}, gomock.Any()).Return(
 					nil, serrors.New("No key via best-effort. Abort."),
 				)
 				p.EXPECT().GetLvl1(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(
@@ -300,8 +376,9 @@ func TestBootstrapKey(t *testing.T) {
 			defer mctrl.Finish()
 
 			b := bootstrap.BootstrapProvider{
-				ColProvider:   c.colProvider(mctrl),
-				DRKeyProvider: c.drkeyProvider(mctrl),
+				Mgr:            c.mgr(mctrl),
+				CryptoProvider: c.cryptoProvider(mctrl),
+				DRKeyProvider:  c.drkeyProvider(mctrl),
 			}
 
 			_, err := b.BootstrapKey(context.Background(), c.trip, c.valTime)
