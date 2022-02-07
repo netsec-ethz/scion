@@ -1,0 +1,63 @@
+// Copyright 2022 ETH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/colibri";
+
+package proto.colibri.v1;
+
+import "proto/colibri/v1/colibri.proto";
+import "proto/crypto/v1/signed.proto";
+import "proto/control_plane/v1/cppki.proto";
+import "google/protobuf/timestamp.proto";
+
+service DRKey {
+    // RenewChain creates a chain from the chain request.
+    rpc DRKey(DRKeyRequest) returns (DRKeyResponse) {}
+}
+
+message DRKeyRequest {
+    proto.control_plane.v1.Chain chain = 1;
+    repeated ReservationID segments = 2;
+    uint32 current_segment = 3; // index of the current segment.
+                                // If the node is transfer, the first segment it belongs to.
+    proto.crypto.v1.SignedMessage signed_request = 4;
+}
+
+message DRKeyRequestBody {
+    // PubKey for deriving/encrypting DRKey message in KEM/DEM
+    bytes eph_pubkey = 1;
+	google.protobuf.Timestamp valTime  = 2;
+}
+
+message DRKeyResponse {
+    proto.control_plane.v1.Chain chain = 1;
+    proto.crypto.v1.SignedMessage signed_response = 2;
+}
+
+message DRKeyResponseBody {
+    bytes eph_pubkey = 1;
+    bytes nonce = 2;
+    bytes cipher = 3;
+}
+
+message ASHostResponse{
+    // Begin of validity period of DRKey.
+    google.protobuf.Timestamp epoch_begin = 1;
+    // End of validity period of DRKey.
+    google.protobuf.Timestamp epoch_end = 2;
+    // Lvl2 key.
+    bytes key = 3;
+  }

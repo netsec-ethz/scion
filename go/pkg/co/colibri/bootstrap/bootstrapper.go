@@ -15,14 +15,14 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
-	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
+	pb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
 var ErrMissingKey = serrors.New("Problem getting key for intermediate AS")
 
 type ExtendedReservationManager interface {
 	reservationstore.Manager
-	DRKey(context.Context, *cryptopb.SignedMessage) (*cryptopb.SignedMessage, error)
+	DRKey(context.Context, *pb.DRKeyRequest) (*pb.DRKeyResponse, error)
 	LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error)
 
 	GetDRKey(context.Context, drkey.Lvl2Meta, time.Time) (*drkey.Lvl2Key, error)
@@ -30,31 +30,10 @@ type ExtendedReservationManager interface {
 }
 
 type DRKeyReq struct {
-	EphPubkey   []byte           // PubKey for deriving/encrypting DRKey message in KEM/DEM
-	Certificate x509.Certificate // include certificate to check signature
+	Chain       []x509.Certificate // include certificate to check signature
+	EphPubkey   []byte             // PubKey for deriving/encrypting DRKey message in KEM/DEM
 	ValTime     time.Time
-
 	SegmentRsvs []lib_res.ID
-}
-
-type DRKeyResp struct {
-	EphPubkey   []byte           // PubKey for deriving/encrypting DRKey message in KEM/DEM
-	Certificate x509.Certificate // include certificate to check signature
-	Chiper      []byte
-}
-
-// type AsymServerProvider interface {
-// 	GenerateKeyPair() ([]byte, []byte, error)
-// 	Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
-// 		associatedData ...[]byte) (DRKeyReq, error)
-// 	EncryptAndSign(key drkey.DRKey) (*cryptopb.SignedMessage, error)
-// }
-
-type AsymClientProvider interface {
-	GenerateKeyPair() ([]byte, []byte, error)
-	Sign(ctx context.Context, request DRKeyReq) (*cryptopb.SignedMessage, error)
-	VerifyAndDecrypt(ctx context.Context, targetIA addr.IA, privKey []byte,
-		signedMsg *cryptopb.SignedMessage, associatedData ...[]byte) (*drkey.Lvl2Key, error)
 }
 
 type Bootstrapper interface {
@@ -73,11 +52,11 @@ type BootstrapProvider struct {
 	// the BootstrapProvider for resolving intermediate keys, provided that
 	// the trip is always trimmed.
 	DRKeyProvider  DRKeyProvider
-	CryptoProvider AsymClientProvider
+	CryptoProvider ClientCryptoProvider
 }
 
 func NewBootstrapProvider(localHost addr.HostAddr, topo topology.Topology, mgr ExtendedReservationManager,
-	drkeyProvider DRKeyProvider, cryptoProvider AsymClientProvider) *BootstrapProvider {
+	drkeyProvider DRKeyProvider, cryptoProvider ClientCryptoProvider) *BootstrapProvider {
 	return &BootstrapProvider{
 		localIA: topo.IA(),
 		builder: &builder{
@@ -241,8 +220,14 @@ func (b *BootstrapProvider) sendDRKeyReq(ctx context.Context, trip colibri.FullT
 		SegmentRsvs: trip.Segments(),
 	}
 	signedReq, err := b.CryptoProvider.Sign(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	signedResp, err := b.Mgr.DRKey(ctx, signedReq)
-	return b.CryptoProvider.VerifyAndDecrypt(ctx, trip.DstIA(), privKey, signedResp)
+	if err != nil {
+		return nil, err
+	}
+	return b.CryptoProvider.VerifyDecrypt(ctx, privKey, trip.DstIA(), signedResp)
 }
 
 func (b *BootstrapProvider) sendSetupUpSegR(ctx context.Context, segSetupReq *segment.SetupReq) (*colibri.ReservationLooks, error) {

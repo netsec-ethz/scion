@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/mock_bootstrap"
-	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
+	pb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
 var (
@@ -182,7 +182,7 @@ func TestTelescopeUpstream(t *testing.T) {
 			}, nil
 		})
 
-	cryptoProvider := mock_bootstrap.NewMockAsymClientProvider(mctrl)
+	cryptoProvider := mock_bootstrap.NewMockClientCryptoProvider(mctrl)
 
 	mgr.EXPECT().LookupNR(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 		func(_ context.Context, src addr.IA, dstIA addr.IA) (*colibri.ReservationLooks, error) {
@@ -195,10 +195,10 @@ func TestTelescopeUpstream(t *testing.T) {
 
 	mgr.EXPECT().DRKey(gomock.Any(), gomock.Any()).Times(2).Return(nil, nil)
 
-	cryptoProvider.EXPECT().VerifyAndDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
-		gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
-		func(_ context.Context, targetIA addr.IA, _ []byte,
-			_ *cryptopb.SignedMessage, _ ...[]byte) (*drkey.Lvl2Key, error) {
+	cryptoProvider.EXPECT().VerifyDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
+		gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, _ []byte, targetIA addr.IA,
+			_ *pb.DRKeyResponse) (*drkey.Lvl2Key, error) {
 
 			return &drkey.Lvl2Key{
 				Lvl2Meta: drkey.Lvl2Meta{
@@ -246,7 +246,7 @@ func TestBootstrapKey(t *testing.T) {
 		trip           colibri.FullTrip
 		valTime        time.Time
 		mgr            func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager
-		cryptoProvider func(ctrl *gomock.Controller) bootstrap.AsymClientProvider
+		cryptoProvider func(ctrl *gomock.Controller) bootstrap.ClientCryptoProvider
 		drkeyProvider  func(ctrl *gomock.Controller) bootstrap.DRKeyProvider
 		errAssertion   assert.ErrorAssertionFunc
 	}{
@@ -291,12 +291,12 @@ func TestBootstrapKey(t *testing.T) {
 				},
 			},
 			valTime: now,
-			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.AsymClientProvider {
-				c := mock_bootstrap.NewMockAsymClientProvider(ctrl)
+			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.ClientCryptoProvider {
+				c := mock_bootstrap.NewMockClientCryptoProvider(ctrl)
 				c.EXPECT().GenerateKeyPair().Return(nil, nil, nil)
 				c.EXPECT().Sign(gomock.Any(), gomock.Any()).Return(nil, nil)
-				c.EXPECT().VerifyAndDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
-					gomock.Any(), gomock.Any()).Return(&drkey.Lvl2Key{}, nil)
+				c.EXPECT().VerifyDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
+					gomock.Any()).Return(&drkey.Lvl2Key{}, nil)
 				return c
 			},
 			mgr: func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager {
@@ -358,7 +358,7 @@ func TestBootstrapKey(t *testing.T) {
 			mgr: func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager {
 				return nil
 			},
-			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.AsymClientProvider {
+			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.ClientCryptoProvider {
 				return nil
 			},
 			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {

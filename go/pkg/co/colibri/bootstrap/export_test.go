@@ -5,7 +5,7 @@ import (
 )
 
 func NewTestBootstrapProvider(localIA addr.IA, builder SetReqBuilder, mgr ExtendedReservationManager,
-	drkeyProvider DRKeyProvider, cryptoProvider AsymClientProvider) *BootstrapProvider {
+	drkeyProvider DRKeyProvider, cryptoProvider ClientCryptoProvider) *BootstrapProvider {
 	return &BootstrapProvider{
 		localIA:        localIA,
 		builder:        builder,

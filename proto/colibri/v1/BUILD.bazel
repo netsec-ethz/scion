@@ -4,10 +4,12 @@ proto_library(
     name = "colibri",
     srcs = [
         "colibri.proto",
+        "drkey.proto",
     ],
     visibility = ["//visibility:public"],
     deps = [
         "//proto/control_plane/v1:control_plane",
+        "//proto/crypto/v1:crypto",
         "@com_google_protobuf//:timestamp_proto",
     ],
 )
