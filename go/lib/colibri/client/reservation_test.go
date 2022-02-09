@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	// TODO(juagargi) unify test packages
-
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/client/sorting"
 	ct "github.com/scionproto/scion/go/lib/colibri/coltest"

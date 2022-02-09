@@ -501,8 +501,8 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request
 		if req.IsFirstAS() {
 			ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path)
 			if !ok || err != nil {
-				return failedResponse, s.errNew("validation of response failed", "ok", ok, "err", err,
-					"id", req.ID)
+				return failedResponse, s.errNew("validation of response failed", "ok", ok,
+					"err", err, "id", req.ID)
 			}
 		} else {
 			// create authenticators before passing the response to the previous node in the path
@@ -1379,8 +1379,8 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 
 	// update token with new hop field
 	step := req.Path.Steps[req.Path.CurrentStep]
-	err = s.computeMAC(rsv.ID.Suffix, &res.Token, req.ID.ASID, req.ID.ASID, step.Ingress, step.Egress)
-	if err != nil {
+	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, req.ID.ASID, req.ID.ASID,
+		step.Ingress, step.Egress); err != nil {
 		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
 		return updateResponse(failedResponse)
 	}

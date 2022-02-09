@@ -49,9 +49,10 @@ func TestE2eBaseReqInitialMac(t *testing.T) {
 				Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
 				Index:     3,
 				TimeStamp: util.SecsToTime(1),
-				Path:      ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
-				SrcHost:   net.ParseIP(srcHost()),
-				DstHost:   net.ParseIP(dstHost()),
+				Path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+					1, "1-ff00:0:112", 0),
+				SrcHost: net.ParseIP(srcHost()),
+				DstHost: net.ParseIP(dstHost()),
 			},
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
@@ -108,9 +109,10 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 					Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
 					Index:     3,
 					TimeStamp: util.SecsToTime(1),
-					Path:      ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
-					SrcHost:   net.ParseIP(srcHost()),
-					DstHost:   net.ParseIP(dstHost()),
+					Path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+						1, "1-ff00:0:112", 0),
+					SrcHost: net.ParseIP(srcHost()),
+					DstHost: net.ParseIP(dstHost()),
 				},
 				RequestedBW: 11,
 				Segments: []reservation.ID{
@@ -122,7 +124,8 @@ func TestE2eSetupReqInitialMac(t *testing.T) {
 				Request: e2e.Request{
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+							1, "1-ff00:0:112", 0)),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 				},
@@ -234,7 +237,8 @@ func TestE2eSetupRequestTransitMac(t *testing.T) {
 				Request: e2e.Request{
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+							1, "1-ff00:0:112", 0)),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 				},
@@ -369,7 +373,8 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					},
 				},
 			},
-			path:                  ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				1, "1-ff00:0:112", 0),
 			lastStepWhichComputes: 2,
 		},
 		"failure": {
@@ -471,8 +476,9 @@ func TestComputeAndValidateE2eResponseError(t *testing.T) {
 	}{
 		"failure": {
 			timestamp: util.SecsToTime(1),
-			path:      ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
-			srcHost:   xtest.MustParseIP(t, "10.1.1.1"),
+			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				1, "1-ff00:0:112", 0),
+			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 			response: &base.ResponseFailure{
 				AuthenticatedResponse: base.AuthenticatedResponse{
 					Timestamp:      util.SecsToTime(1),
@@ -665,7 +671,8 @@ func TestComputeAndValidateE2eSetupResponse(t *testing.T) {
 						},
 					},
 				}
-				err = clientRes.ValidateAuthenticators(ctx, daemon, tc.path, tc.srcHost, tc.timestamp)
+				err = clientRes.ValidateAuthenticators(ctx, daemon, tc.path, tc.srcHost,
+					tc.timestamp)
 				require.NoError(t, err)
 			case *e2e.SetupResponseFailure:
 				clientRes := &libcol.E2ESetupError{

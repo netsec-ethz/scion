@@ -336,11 +336,12 @@ func (c client) listRsvs(ctx context.Context) (
 	}
 }
 
-func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip, requestBW reservation.BWCls) (
-	reservation.ID, snet.Path, error) {
+func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
+	requestBW reservation.BWCls) (reservation.ID, snet.Path, error) {
 
 	now := time.Now()
-	setupReq, err := libcol.NewReservation(ctx, c.Daemon, fullTrip, c.Local.Host.IP, c.Remote.Host.IP, requestBW)
+	setupReq, err := libcol.NewReservation(ctx, c.Daemon, fullTrip, c.Local.Host.IP,
+		c.Remote.Host.IP, requestBW)
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}

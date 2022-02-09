@@ -96,9 +96,9 @@ message TransparentPath {
     bytes raw_path = 4;
 }
 
-// A collection of MAC bytes, computed by the source AS with the original data, and then
-// overwritten at each step of the path by the AS in transit.
 message Authenticators {
+    // A collection of MAC bytes, computed by the source AS with the original data, and then
+    // overwritten at each step of the path by the AS in transit.
     repeated bytes macs = 1;
 }
 
@@ -113,6 +113,7 @@ message Request {
     uint32 timestamp = 3;
     // the path the request will follow.
     TransparentPath path = 4;
+    // drkey authenticators.
     Authenticators authenticators = 5;
 }
 
@@ -133,7 +134,9 @@ message Response {
         // a failure field representing a failure message.
         Failure failure = 2;
     }
+    // the timestamp when the response was issued.
     uint32 timestamp = 3;
+    // drkey authenticators.
     Authenticators authenticators = 4;
 }
 
@@ -182,7 +185,9 @@ message SegmentSetupResponse {
         // if failure, this field will not be null, and will contain the failure message.
         Failure failure = 2;
     }
+    // the timestamp when the response was issued.
     uint32 timestamp = 3;
+    // drkey authenticators.
     Authenticators authenticators = 4;
 }
 
@@ -231,6 +236,7 @@ message ListReservationsRequest {
     uint64 dst_ia = 1;
     // the reservation path type.
     uint32 path_type = 2;
+    // drkey authenticators.
     Authenticators authenticators = 3;
 }
 
@@ -261,13 +267,17 @@ message ListReservationsResponse {
     string error_message = 1;
     // the collection of reservations for the list request.
     repeated ReservationLooks reservations = 2;
+    // drkey authenticators.
     Authenticators authenticators = 3;
 }
 
 
 message E2eRequest {
+    // the basic request
     Request base = 1;
+    // address of the source host.
     bytes src_host = 2;
+    // address of the destination host.
     bytes dst_host = 3;
 }
 
@@ -308,7 +318,9 @@ message E2eSetupResponse {
     Failure failure = 1;
     // if successful, the serialized token.
     bytes token = 2;
+    // the timestamp when the response was issued.
     uint32 timestamp = 3;
+    // drkey authenticators.
     Authenticators authenticators = 4;
 }
 
@@ -352,6 +364,7 @@ message SetupReservationRequest {
     ReservationID id = 1;
     // the E2E index.
     uint32 index = 2;
+    // the timestamp when the request was issued.
     uint32 timestamp = 3;
     // address of the source host. Must match the IP used in authenticators.
     bytes src_host = 4;
@@ -386,7 +399,9 @@ message SetupReservationResponse {
     Failure failure = 1;
     // should be present if failure == nil
     Success success = 2;
+    // the timestamp when the response was issued.
     uint32 timestamp = 3;
+    // drkey authenticators.
     Authenticators authenticators = 4;
 }
 
@@ -408,7 +423,9 @@ message CleanupReservationResponse {
     }
     // failure has the failure message, or nil if all ok.
     Failure failure = 1;
+    // the timestamp when the response was issued.
     uint32 timestamp = 2;
+    // drkey authenticators.
     Authenticators authenticators = 3;
 }
 

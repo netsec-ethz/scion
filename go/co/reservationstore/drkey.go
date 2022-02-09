@@ -39,7 +39,7 @@ type Authenticator interface {
 type macComputer interface {
 	// ComputeRequestInitialMAC computes the MAC for the immutable fields of the basic request,
 	// for each AS in transit. This MAC is only computed at the first AS.
-	// The inital AS is obtained from the first step of the path of the request.
+	// The initial AS is obtained from the first step of the path of the request.
 	ComputeRequestInitialMAC(ctx context.Context, req *base.Request) error
 	// SegmentRequestInitialMAC computes the MAC for the immutable fields of the setup request,
 	// for each AS in transit. This MAC is only computed at the first AS.
@@ -244,7 +244,8 @@ func (a *DrkeyAuthenticator) ValidateSegSetupRequest(ctx context.Context,
 	if req.IsFirstAS() {
 		return true, nil
 	}
-	ok, err := a.validateSegmentPayloadInitialMAC(ctx, &req.Request, inputInitialSegSetupRequest(req))
+	ok, err := a.validateSegmentPayloadInitialMAC(ctx, &req.Request,
+		inputInitialSegSetupRequest(req))
 	if err == nil && ok && req.IsLastAS() {
 		ok, err = a.validateSegmentSetupRequestAtDestination(ctx, req)
 	}
@@ -309,7 +310,8 @@ func (a *DrkeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 		stepsLength = int(failure.FailedStep)
 	} else if success, ok := res.(*segment.SegmentSetupResponseSuccess); ok {
 		assert(len(success.Token.HopFields) == len(path.Steps),
-			"inconsistent lengths HFs=%d and steps=%d", len(success.Token.HopFields), len(path.Steps))
+			"inconsistent lengths HFs=%d and steps=%d", len(success.Token.HopFields),
+			len(path.Steps))
 	}
 	if stepsLength == 0 {
 		log.Debug("at validateSegmentSetupResponse: no steps to validate (steps_length==0)")
@@ -602,8 +604,8 @@ func inputTransitE2eSetupRequest(req *e2e.SetupReq) []byte {
 	return buff
 }
 
-// inputTransitE2eSetupRequestForStep serializes the semi mutable fields of req as if it were located
-// at step `step`.
+// inputTransitE2eSetupRequestForStep serializes the semi mutable fields of req as if it
+// were located at step `step`.
 func inputTransitE2eSetupRequestForStep(req *e2e.SetupReq, step int) []byte {
 	buff := inputTransitE2eSetupRequest(req)
 	remainingSteps := len(req.AllocationTrail) - step - 1

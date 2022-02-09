@@ -160,7 +160,7 @@ func minSizeE2ESetupReq(req *E2EReservationSetup) int {
 
 func serializeBaseRequest(buff []byte, req *BaseRequest) {
 	minSize := minSizeBaseReq(req)
-	assert(len(buff) >= minSize, "buffer too short (actual %d < minumum %d)",
+	assert(len(buff) >= minSize, "buffer too short (actual %d < minimum %d)",
 		len(buff), minSize)
 	offset := req.Id.Len()
 	// ID, index and timestamp:
@@ -180,7 +180,7 @@ func serializeBaseRequest(buff []byte, req *BaseRequest) {
 
 func serializeE2EReservationSetup(buff []byte, req *E2EReservationSetup) {
 	minSize := minSizeE2ESetupReq(req)
-	assert(len(buff) >= minSize, "buffer too short (actual %d < minumum %d)",
+	assert(len(buff) >= minSize, "buffer too short (actual %d < minimum %d)",
 		len(buff), minSize)
 	offset := minSizeBaseReq(&req.BaseRequest)
 	serializeBaseRequest(buff[:offset], &req.BaseRequest)

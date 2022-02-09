@@ -132,9 +132,9 @@ class GoGenerator(object):
                 'drkey_db': {
                     'connection': os.path.join(self.db_dir, '%s.drkey.db' % name),
                 },
-                'delegation':{
-                    'colibri': [str(sd_ip)], # local daemon must be able to get the colibri DS
-                    'piskes': [str(sd_ip)], # local daemon must be able to use piskes
+                'delegation': {
+                    'colibri': [str(sd_ip)],  # local daemon must be able to get the colibri DS
+                    'piskes': [str(sd_ip)],   # local daemon must be able to use piskes
                 },
             },
             'tracing': self._tracing_entry(),
