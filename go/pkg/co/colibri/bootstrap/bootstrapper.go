@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"time"
 
 	"github.com/scionproto/scion/go/co/reservation"
@@ -11,10 +12,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	lib_res "github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 	pb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
@@ -24,9 +25,6 @@ type ExtendedReservationManager interface {
 	reservationstore.Manager
 	DRKey(context.Context, *pb.DRKeyRequest) (*pb.DRKeyResponse, error)
 	LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error)
-
-	GetDRKey(context.Context, drkey.Lvl2Meta, time.Time) (*drkey.Lvl2Key, error)
-	StoreDRkey(context.Context, *drkey.Lvl2Key) error
 }
 
 type DRKeyReq struct {
@@ -37,8 +35,11 @@ type DRKeyReq struct {
 }
 
 type Bootstrapper interface {
-	TelescopeUpstream(ctx context.Context, ases []seg.ASEntry, index int) (*colibri.ReservationLooks, error)
-	BootstrapKey(ctx context.Context, segments []*colibri.ReservationLooks) (drkey.Lvl2Key, error)
+	// BootstrapKey(ctx context.Context, trip *colibri.FullTrip,
+	// 	valTime time.Time) (*drkey.Lvl2Key, error)
+	SendDRKeyReq(ctx context.Context, trip *colibri.FullTrip,
+		valTime time.Time) (*drkey.Lvl2Key, error)
+	TelescopeUpstream(ctx context.Context, ases []addr.IA) (*colibri.ReservationLooks, error)
 }
 
 type BootstrapProvider struct {
@@ -46,64 +47,29 @@ type BootstrapProvider struct {
 	localHost addr.HostAddr
 	builder   SetReqBuilder
 
-	Mgr ExtendedReservationManager
-	// The DRKeyProvider will be used to grab keys for intermediate keys
-	// with whatever strategy the caller has decided. It is possible to reuse
-	// the BootstrapProvider for resolving intermediate keys, provided that
-	// the trip is always trimmed.
-	DRKeyProvider  DRKeyProvider
+	Mgr            ExtendedReservationManager
 	CryptoProvider ClientCryptoProvider
+	Lvl2DB         drkey.Lvl2DB
 }
 
-func NewBootstrapProvider(localHost addr.HostAddr, topo topology.Topology, mgr ExtendedReservationManager,
-	drkeyProvider DRKeyProvider, cryptoProvider ClientCryptoProvider) *BootstrapProvider {
+func NewBootstrapProvider(localHost addr.HostAddr, topo topology.Topology,
+	db drkey.Lvl2DB, mgr ExtendedReservationManager,
+	cryptoProvider ClientCryptoProvider) *BootstrapProvider {
 	return &BootstrapProvider{
-		localIA: topo.IA(),
+		localIA:   topo.IA(),
+		localHost: localHost,
 		builder: &builder{
 			localIA: topo.IA(),
 			topo:    topo,
 			Mgr:     mgr,
 		},
-
 		Mgr:            mgr,
-		DRKeyProvider:  drkeyProvider,
+		Lvl2DB:         db,
 		CryptoProvider: cryptoProvider,
 	}
 }
 
-// BootstrapKey checks that DRKeys for intermediate ASes are not missing.
-// If missing it uses the DRKeyProvider interface to get them. This is necessary because
-// the DRKey request payload must be authenticated at every hop B_i expect for the last
-// one with K^Col_{A->B_i}.
-func (b *BootstrapProvider) BootstrapKey(ctx context.Context, trip colibri.FullTrip,
-	valTime time.Time) (*drkey.Lvl2Key, error) {
-	if len(trip) < 1 {
-		return nil, serrors.New("Invalid provided trip to bootstrap a DRKey")
-	}
-	path := trip[len(trip)-1].Path
-	lastStep := path[len(path)-1]
-
-	for _, segR := range trip {
-		for _, step := range segR.Path {
-			if step != lastStep {
-				lvl2Meta := drkey.Lvl2Meta{
-					SrcIA:   step.IA,
-					DstIA:   b.localIA,
-					DstHost: b.localHost,
-				}
-				_, err := b.DRKeyProvider.GetKey(ctx, lvl2Meta, valTime)
-				if err != nil {
-					return nil, serrors.Wrap(ErrMissingKey, err)
-				}
-			}
-		}
-	}
-	// At this point we can create a request since we have all intermediate keys to authenticate
-	// the payload.
-	return b.sendDRKeyReq(ctx, trip, valTime)
-}
-
-func (b *BootstrapProvider) TelescopeUpstream(ctx context.Context, ases []seg.ASEntry) (*colibri.ReservationLooks, error) {
+func (b *BootstrapProvider) TelescopeUpstream(ctx context.Context, ases []addr.IA) (*colibri.ReservationLooks, error) {
 	segRInfo, err := b.telescopeFromLocal(ctx, ases, len(ases)-1)
 	if err != nil {
 		return nil, serrors.WrapStr("telescoping from local", err)
@@ -125,7 +91,7 @@ type segRInfo struct {
 // - Check if a key for AS = ases[index] exist at rest. If not the key is fetched using the
 //   previousSegID + NR (neighbor reservation from ases[index-1] tot ases[index]).
 // - the previousSeg is freed and a segR from ases[0] up to ases[index] is returned
-func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.ASEntry, index int) (segRInfo, error) {
+func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []addr.IA, index int) (segRInfo, error) {
 	var previousSegInfo segRInfo
 	var err error
 	if index > 1 {
@@ -137,12 +103,14 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 	as := ases[index]
 	lvl2Meta := drkey.Lvl2Meta{
 		KeyType: drkey.AS2Host,
-		SrcIA:   as.Local,
+		SrcIA:   as,
 		DstIA:   b.localIA,
 		DstHost: b.localHost,
 	}
 
-	nr, err := b.lookupNR(ctx, ases[index-1].Local, ases[index].Local)
+	// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
+	// stronger guarantees. Similar to what is done in the Bootstrapper.SendDRKeyReq
+	nr, err := b.lookupNR(ctx, ases[index-1], ases[index])
 	if err != nil {
 		return segRInfo{}, err
 	}
@@ -156,12 +124,12 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 	}
 
 	now := time.Now()
-	key, err := b.Mgr.GetDRKey(ctx, lvl2Meta, now)
-	if err != nil {
+	_, err = b.Lvl2DB.GetLvl2Key(ctx, lvl2Meta, util.TimeToSecs(now))
+	if err != nil && err != sql.ErrNoRows {
 		return segRInfo{}, err
 	}
-	if key == nil {
-		_, err = b.bootstrapDRKey(ctx, b.localIA, stichingSeg, now)
+	if err == sql.ErrNoRows {
+		_, err = b.SendDRKeyReq(ctx, stichingSeg, now)
 		if err != nil {
 			return segRInfo{}, err
 		}
@@ -173,7 +141,7 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 		}, nil
 	}
 
-	setupReq, err := b.builder.BuildSetReq(ctx, stichingSeg, ases[index].Local)
+	setupReq, err := b.builder.BuildSetReq(ctx, stichingSeg, ases[index])
 	if err != nil {
 		return segRInfo{}, serrors.WrapStr("building SegR setup request", err)
 	}
@@ -191,23 +159,7 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []seg.A
 	}, nil
 }
 
-// bootstrapDRKey must receive as an input a valid sequence of segments throughout which it
-// will convey the Colibri DRKey request. If succesful, the key will be stored in persistance,
-// to be used in the future.
-func (b *BootstrapProvider) bootstrapDRKey(ctx context.Context, dst addr.IA,
-	segments []*colibri.ReservationLooks, valTime time.Time) (*drkey.Lvl2Key, error) {
-	key, err := b.sendDRKeyReq(ctx, segments, valTime)
-	if err != nil {
-		return nil, err
-	}
-	err = b.Mgr.StoreDRkey(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
-func (b *BootstrapProvider) sendDRKeyReq(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl2Key, error) {
+func (b *BootstrapProvider) SendDRKeyReq(ctx context.Context, trip colibri.FullTrip, valTime time.Time) (*drkey.Lvl2Key, error) {
 
 	pubKey, privKey, err := b.CryptoProvider.GenerateKeyPair()
 	if err != nil {
@@ -227,7 +179,15 @@ func (b *BootstrapProvider) sendDRKeyReq(ctx context.Context, trip colibri.FullT
 	if err != nil {
 		return nil, err
 	}
-	return b.CryptoProvider.VerifyDecrypt(ctx, privKey, trip.DstIA(), signedResp)
+	key, err := b.CryptoProvider.VerifyDecrypt(ctx, privKey, trip.DstIA(), signedResp)
+	if err != nil {
+		return nil, err
+	}
+	err = b.Lvl2DB.InsertLvl2Key(ctx, *key)
+	if err != nil {
+		return nil, err
+	}
+	return key, err
 }
 
 func (b *BootstrapProvider) sendSetupUpSegR(ctx context.Context, segSetupReq *segment.SetupReq) (*colibri.ReservationLooks, error) {
@@ -238,6 +198,9 @@ func (b *BootstrapProvider) sendSetupUpSegR(ctx context.Context, segSetupReq *se
 	}
 
 	// At this point we have establish a segR from local AS to dst
+
+	// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
+	// stronger guarantees. Similar to what is done in the Bootstrapper.SendDRKeyReq
 	segReservations, err := b.Mgr.Store().ListReservations(ctx, segSetupReq.Path.DstIA(), lib_res.UpPath)
 	if err != nil {
 		return nil, serrors.WrapStr("listing reservations to dst", err)

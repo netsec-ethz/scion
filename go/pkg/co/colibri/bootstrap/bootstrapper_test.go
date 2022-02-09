@@ -2,7 +2,7 @@ package bootstrap_test
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -17,8 +17,8 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri"
 	lib_res "github.com/scionproto/scion/go/lib/colibri/reservation"
 	rsv "github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/mock_drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap"
@@ -39,21 +39,7 @@ var (
 func TestTelescopeUpstream(t *testing.T) {
 
 	localHost := addr.HostFromIPStr("127.0.0.1")
-	ases := []seg.ASEntry{
-		{
-			Local: ia103,
-		},
-		{
-			Local: ia102,
-		},
-		{
-			Local: ia101,
-		},
-		// Core AS
-		{
-			Local: ia100,
-		},
-	}
+	ases := []addr.IA{ia103, ia102, ia101, ia100}
 	targetSeg := &colibri.ReservationLooks{
 		SrcIA: ia103,
 		DstIA: ia100,
@@ -113,7 +99,7 @@ func TestTelescopeUpstream(t *testing.T) {
 		},
 	}
 	segRs := map[string]*colibri.ReservationLooks{}
-	keyMap := map[addr.IA]*drkey.Lvl2Key{
+	keyMap := map[addr.IA]drkey.Lvl2Key{
 		ia102: {
 			Lvl2Meta: drkey.Lvl2Meta{
 				SrcIA:   ia102,
@@ -209,28 +195,27 @@ func TestTelescopeUpstream(t *testing.T) {
 			}, nil
 		})
 
-	mgr.EXPECT().StoreDRkey(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(_ context.Context, key *drkey.Lvl2Key) error {
-			if key != nil {
-				srcIA := key.SrcIA
-				_, ok := keyMap[srcIA]
-				require.False(t, ok)
-				keyMap[srcIA] = key
-				return nil
-			}
-			return fmt.Errorf("invalid key")
+	lvl2db := mock_drkey.NewMockLvl2DB(mctrl)
+	lvl2db.EXPECT().InsertLvl2Key(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(_ context.Context, key drkey.Lvl2Key) error {
+
+			srcIA := key.SrcIA
+			_, ok := keyMap[srcIA]
+			require.False(t, ok)
+			keyMap[srcIA] = key
+			return nil
 		})
-	mgr.EXPECT().GetDRKey(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(_ context.Context, meta drkey.Lvl2Meta, _ time.Time) (*drkey.Lvl2Key, error) {
+	lvl2db.EXPECT().GetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(_ context.Context, meta drkey.Lvl2Meta, _ uint32) (drkey.Lvl2Key, error) {
 			srcIA := meta.SrcIA
 			key, ok := keyMap[srcIA]
 			if ok {
 				return key, nil
 			}
-			return nil, nil
+			return drkey.Lvl2Key{}, sql.ErrNoRows
 		})
 
-	b := bootstrap.NewTestBootstrapProvider(ia103, builder, mgr, nil, cryptoProvider)
+	b := bootstrap.NewTestBootstrapProvider(ia103, builder, mgr, lvl2db, cryptoProvider)
 
 	seg, err := b.TelescopeUpstream(context.Background(), ases)
 	require.NoError(t, err)
@@ -246,8 +231,8 @@ func TestBootstrapKey(t *testing.T) {
 		trip           colibri.FullTrip
 		valTime        time.Time
 		mgr            func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager
+		db             func(ctrl *gomock.Controller) drkey.Lvl2DB
 		cryptoProvider func(ctrl *gomock.Controller) bootstrap.ClientCryptoProvider
-		drkeyProvider  func(ctrl *gomock.Controller) bootstrap.DRKeyProvider
 		errAssertion   assert.ErrorAssertionFunc
 	}{
 		{
@@ -306,11 +291,11 @@ func TestBootstrapKey(t *testing.T) {
 					nil, nil)
 				return p
 			},
-			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {
-				p := mock_bootstrap.NewMockDRKeyProvider(ctrl)
-				p.EXPECT().GetKey(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(
-					&drkey.Lvl2Key{}, nil)
-				return p
+			db: func(ctrl *gomock.Controller) drkey.Lvl2DB {
+				db := mock_drkey.NewMockLvl2DB(ctrl)
+
+				db.EXPECT().InsertLvl2Key(gomock.Any(), gomock.Any()).Return(nil)
+				return db
 			},
 			errAssertion: assert.NoError,
 		},
@@ -356,20 +341,22 @@ func TestBootstrapKey(t *testing.T) {
 			},
 			valTime: now,
 			mgr: func(ctrl *gomock.Controller) bootstrap.ExtendedReservationManager {
-				return nil
+				p := mock_bootstrap.NewMockExtendedReservationManager(ctrl)
+
+				p.EXPECT().DRKey(gomock.Any(), gomock.Any()).Return(
+					nil, nil)
+				return p
 			},
 			cryptoProvider: func(ctrl *gomock.Controller) bootstrap.ClientCryptoProvider {
-				return nil
+				c := mock_bootstrap.NewMockClientCryptoProvider(ctrl)
+				c.EXPECT().GenerateKeyPair().Return(nil, nil, nil)
+				c.EXPECT().Sign(gomock.Any(), gomock.Any()).Return(nil, nil)
+				c.EXPECT().VerifyDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
+					gomock.Any()).Return(nil, serrors.New("Invalid verification"))
+				return c
 			},
-			drkeyProvider: func(ctrl *gomock.Controller) bootstrap.DRKeyProvider {
-				p := mock_bootstrap.NewMockDRKeyProvider(ctrl)
-				p.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia110}, gomock.Any()).Return(
-					nil, serrors.New("No key via best-effort. Abort."),
-				)
-				p.EXPECT().GetKey(gomock.Any(), gomock.Any(), gomock.Any()).Times(5).Return(
-					&drkey.Lvl2Key{}, nil)
-
-				return p
+			db: func(ctrl *gomock.Controller) drkey.Lvl2DB {
+				return mock_drkey.NewMockLvl2DB(ctrl)
 			},
 			errAssertion: assert.Error,
 		},
@@ -382,10 +369,10 @@ func TestBootstrapKey(t *testing.T) {
 			b := bootstrap.BootstrapProvider{
 				Mgr:            c.mgr(mctrl),
 				CryptoProvider: c.cryptoProvider(mctrl),
-				DRKeyProvider:  c.drkeyProvider(mctrl),
+				Lvl2DB:         c.db(mctrl),
 			}
 
-			_, err := b.BootstrapKey(context.Background(), c.trip, c.valTime)
+			_, err := b.SendDRKeyReq(context.Background(), c.trip, c.valTime)
 			c.errAssertion(t, err)
 
 		})

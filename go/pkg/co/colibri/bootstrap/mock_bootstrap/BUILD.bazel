@@ -5,10 +5,12 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = [
+        "Bootstrapper",
         "ClientCryptoProvider",
         "ExtendedReservationManager",
         "SetReqBuilder",
         "DRKeyProvider",
+        "UpSegProvider",
     ],
     library = "//go/pkg/co/colibri/bootstrap:go_default_library",
     package = "mock_bootstrap",
