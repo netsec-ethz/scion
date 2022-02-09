@@ -98,19 +98,29 @@ func (r *E2EResponse) ValidateAuthenticators(ctx context.Context, conn dkut.DRKe
 
 type E2EResponseError struct {
 	Authenticators [][]byte
-	Message        string
 	FailedAS       int
+	Message        string
 }
-
-// deleteme missing authenticate functions for the base response error and setup response error
 
 func (e *E2EResponseError) Error() string {
 	return e.Message
 }
 
+func (r *E2EResponseError) ValidateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
+
+	return validateResponseErrorAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
+}
+
 type E2ESetupError struct {
 	E2EResponseError
 	AllocationTrail []reservation.BWCls
+}
+
+func (r *E2ESetupError) ValidateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
+
+	return validateSetupErrorAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
 }
 
 // AdmissionEntry contains the fields which will be inserted into the admission list of the host

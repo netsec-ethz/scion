@@ -67,33 +67,63 @@ func validateResponseAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2K
 	res *E2EResponse, requestPath *base.TransparentPath, srcHost net.IP,
 	reqTimestamp time.Time) error {
 
-	if requestPath == nil {
-		return serrors.New("no path")
+	if err := checkValidAuthenticatorsAndPath(res, requestPath); err != nil {
+		return err
 	}
-	if res == nil {
-		return serrors.New("no response")
-	}
-	if len(requestPath.Steps) != len(res.Authenticators) {
-		return serrors.New("wrong lengths: |path| != |authenticators|",
-			"path", len(requestPath.Steps), "authenticators", len(res.Authenticators))
-	}
-
-	keys, err := getKeysWithLocalIA(ctx, conn, requestPath.Steps, requestPath.SrcIA(), srcHost)
-	if err != nil {
+	if err := checkEqualLength(res.Authenticators, requestPath); err != nil {
 		return err
 	}
 	payloads, err := serializeResponse(res, requestPath, reqTimestamp)
 	if err != nil {
 		return err
 	}
-	ok, err := dkut.ValidateAuthenticators(payloads, keys, res.Authenticators)
-	if err != nil {
+	return validateBasic(ctx, conn, payloads, res.Authenticators, requestPath, srcHost)
+}
+
+func validateResponseErrorAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	res *E2EResponseError, requestPath *base.TransparentPath, srcHost net.IP,
+	reqTimestamp time.Time) error {
+
+	if err := checkValidAuthenticatorsAndPath(res, requestPath); err != nil {
 		return err
 	}
-	if !ok {
-		return serrors.New("validation failed for response")
+	if err := checkEqualLength(res.Authenticators, requestPath); err != nil {
+		return err
 	}
-	return nil
+	// because a failure can originate at any on-path-AS, skip ASes before its origin:
+	originalAuthenticators := res.Authenticators
+	originalSteps := requestPath.Steps
+	defer func() {
+		res.Authenticators = originalAuthenticators
+		requestPath.Steps = originalSteps
+	}()
+	res.Authenticators = res.Authenticators[:res.FailedAS+1]
+	requestPath.Steps = requestPath.Steps[:res.FailedAS+1]
+	payloads := serializeResponseError(res, reqTimestamp)
+	return validateBasic(ctx, conn, payloads, res.Authenticators, requestPath, srcHost)
+}
+
+func validateSetupErrorAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+	res *E2ESetupError, requestPath *base.TransparentPath, srcHost net.IP,
+	reqTimestamp time.Time) error {
+
+	if err := checkValidAuthenticatorsAndPath(res, requestPath); err != nil {
+		return err
+	}
+	if err := checkEqualLength(res.Authenticators, requestPath); err != nil {
+		return err
+	}
+	// because a failure can originate at any on-path AS, skip ASes before its origin:
+	originalAuthenticators := res.Authenticators
+	originalSteps := requestPath.Steps
+	defer func() {
+		res.Authenticators = originalAuthenticators
+		requestPath.Steps = originalSteps
+	}()
+	res.Authenticators = res.Authenticators[:res.FailedAS+1]
+	requestPath.Steps = requestPath.Steps[:res.FailedAS+1]
+	payloads := serializeSetupError(res, reqTimestamp)
+	return validateBasic(ctx, conn, payloads, res.Authenticators, requestPath, srcHost)
 }
 
 func getKeys(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.PathStep,
@@ -185,11 +215,87 @@ func serializeResponse(res *E2EResponse, path *base.TransparentPath, timestamp t
 	for i := range path.Steps {
 		colibriPath.InfoField.HFCount = uint8(len(allHfs) - i)
 		colibriPath.HopFields = allHfs[i:]
-		payloads[i] = make([]byte, 4+colibriPath.Len()) // timestamp + path
-		copy(payloads[i][:4], timestampBuff)
-		if err := colibriPath.SerializeTo(payloads[i][4:]); err != nil {
+		payloads[i] = make([]byte, 1+4+colibriPath.Len()) // marker + timestamp + path
+		payloads[i][0] = 0                                // success marker
+		copy(payloads[i][1:5], timestampBuff)
+		if err := colibriPath.SerializeTo(payloads[i][5:]); err != nil {
 			return nil, err
 		}
 	}
 	return payloads, nil
+}
+
+// serializeResponseError serializes the response error and returns one payload per AS in the path.
+func serializeResponseError(res *E2EResponseError, timestamp time.Time) [][]byte {
+	message := ([]byte(res.Message))
+	// failure marker + timestamp + failedAS (as uint8) + message
+	payload := make([]byte, 1+4+1+len(message))
+	payload[0] = 1 // failure marker
+	binary.BigEndian.PutUint32(payload[1:5], util.TimeToSecs(timestamp))
+	payload[5] = uint8(res.FailedAS)
+	copy(payload[6:], message)
+
+	payloads := make([][]byte, len(res.Authenticators))
+	for i := range payloads {
+		payloads[i] = payload
+	}
+	return payloads
+}
+
+// serializeSetupError serializes the setup error and returns one payload per AS in the path.
+func serializeSetupError(res *E2ESetupError, timestamp time.Time) [][]byte {
+	message := ([]byte(res.Message))
+	// failure marker + timestamp + failedAS (as uint8) + message
+	payload := make([]byte, 1+4+1+len(message))
+	payload[0] = 1 // failure marker
+	binary.BigEndian.PutUint32(payload[1:5], util.TimeToSecs(timestamp))
+	payload[5] = uint8(res.FailedAS)
+	copy(payload[6:], message)
+
+	payloads := make([][]byte, len(res.Authenticators))
+	for i := range payloads {
+		trail := res.AllocationTrail[i:]
+		// append trail to payload (convoluted due to the type cast to byte):
+		payloads[i] = append(payload, make([]byte, len(trail))...)
+		for j := range trail {
+			payloads[i][len(payload)+j] = byte(trail[j])
+		}
+	}
+	return payloads
+}
+
+func validateBasic(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, payloads [][]byte,
+	authenticators [][]byte, requestPath *base.TransparentPath, srcHost net.IP) error {
+
+	keys, err := getKeysWithLocalIA(ctx, conn, requestPath.Steps, requestPath.SrcIA(), srcHost)
+	if err != nil {
+		return err
+	}
+
+	ok, err := dkut.ValidateAuthenticators(payloads, keys, authenticators)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return serrors.New("validation failed for response")
+	}
+	return nil
+}
+
+func checkValidAuthenticatorsAndPath(res interface{}, path *base.TransparentPath) error {
+	if res == nil {
+		return serrors.New("no response")
+	}
+	if path == nil {
+		return serrors.New("no path")
+	}
+	return nil
+}
+
+func checkEqualLength(authenticators [][]byte, path *base.TransparentPath) error {
+	if len(path.Steps) != len(authenticators) {
+		return serrors.New("wrong lengths: |path| != |authenticators|",
+			"path", len(path.Steps), "authenticators", len(authenticators))
+	}
+	return nil
 }

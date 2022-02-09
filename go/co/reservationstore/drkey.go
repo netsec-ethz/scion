@@ -57,6 +57,8 @@ type macComputer interface {
 	ComputeResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath) error
 	ComputeSegmentSetupResponseMAC(ctx context.Context, res segment.SegmentSetupResponse,
 		path *base.TransparentPath) error
+	ComputeE2eResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath,
+		srcHost addr.HostAddr) error
 	ComputeE2eSetupResponseMAC(ctx context.Context, res e2e.SetupResponse,
 		path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID) error
 }
@@ -183,6 +185,24 @@ func (a *DrkeyAuthenticator) ComputeSegmentSetupResponseMAC(ctx context.Context,
 		return err
 	}
 	res.SetAuthenticator(path.CurrentStep, mac)
+	return nil
+}
+
+func (a *DrkeyAuthenticator) ComputeE2eResponseMAC(ctx context.Context, res base.Response,
+	path *base.TransparentPath, srcHost addr.HostAddr) error {
+
+	key, err := a.getDRKeyAS2Host(ctx, a.localIA, path.SrcIA(), srcHost)
+	if err != nil {
+		return err
+	}
+	payload := res.ToRaw()
+	mac, err := MAC(payload, key)
+	if err != nil {
+		return err
+	}
+	// because base.Response.SetAuthenticator will use step-1 for the auth position, but we
+	// actually want the [step] position, add one:
+	res.SetAuthenticator(path.CurrentStep+1, mac)
 	return nil
 }
 

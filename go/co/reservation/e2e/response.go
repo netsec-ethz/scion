@@ -41,9 +41,11 @@ func (r *SetupResponseSuccess) ToRaw(step int, rsvID *reservation.ID) ([]byte, e
 	colPath := DeriveColibriPath(rsvID, tok)
 	colPath.InfoField.HFCount = uint8(len(colPath.HopFields))
 
-	buff := make([]byte, 4+colPath.Len())
-	r.AuthenticatedResponse.Serialize(buff[:4])
-	err = colPath.SerializeTo(buff[4:])
+	// marker + authenticated response + path
+	buff := make([]byte, 1+4+colPath.Len())
+	buff[0] = 0 // success marker
+	r.AuthenticatedResponse.Serialize(buff[1:5])
+	err = colPath.SerializeTo(buff[5:])
 	return buff, err
 }
 
@@ -62,10 +64,11 @@ type SetupResponseFailure struct {
 func (*SetupResponseFailure) isSegmentSetupResponse_Success_Failure() {}
 func (r *SetupResponseFailure) ToRaw(step int, rsvID *reservation.ID) ([]byte, error) {
 	messageBytes := ([]byte)(r.Message)
-	// AuthenticatedResponse + FailedStep + Message + AllocTrail
-	buff := make([]byte, 4+1+len(messageBytes)+len(r.AllocTrail)-step)
-	offset := 4
-	r.AuthenticatedResponse.Serialize(buff[:offset])
+	// marker + AuthenticatedResponse + FailedStep + Message + AllocTrail
+	buff := make([]byte, 1+4+1+len(messageBytes)+len(r.AllocTrail)-step)
+	buff[0] = 1 // failure marker
+	offset := 5
+	r.AuthenticatedResponse.Serialize(buff[1:offset])
 	buff[offset] = r.FailedStep
 	offset++
 	copy(buff[offset:], ([]byte)(messageBytes))
