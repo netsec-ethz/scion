@@ -1,0 +1,41 @@
+--- # Default topology
+ASes:
+  "1-ff00:0:110":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+    underlay: UDP/IPv6
+  "1-ff00:0:120":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+  "1-ff00:0:130":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+    underlay: UDP/IPv6
+  "1-ff00:0:111":
+    cert_issuer: 1-ff00:0:110
+    underlay: UDP/IPv6
+  "1-ff00:0:112":
+    cert_issuer: 1-ff00:0:110
+    mtu: 1450
+  "1-ff00:0:121":
+    cert_issuer: 1-ff00:0:120
+  "1-ff00:0:131":
+    cert_issuer: 1-ff00:0:130
+  "1-ff00:0:132":
+    cert_issuer: 1-ff00:0:130
+links:
+  - {a: "1-ff00:0:110#1",     b: "1-ff00:0:120-A#6",   linkAtoB: CORE}
+  - {a: "1-ff00:0:110#2",     b: "1-ff00:0:130-A#104", linkAtoB: CORE, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:120-A#1",   b: "1-ff00:0:130-B#105", linkAtoB: CORE}
+  - {a: "1-ff00:0:110#5",     b: "1-ff00:0:111-B#104", linkAtoB: CHILD}
+  - {a: "1-ff00:0:120-B#4",   b: "1-ff00:0:121#3",     linkAtoB: CHILD}
+  - {a: "1-ff00:0:130-A#111", b: "1-ff00:0:131#479",   linkAtoB: CHILD}
+  - {a: "1-ff00:0:111-A#103", b: "1-ff00:0:112#494",   linkAtoB: CHILD}
+  - {a: "1-ff00:0:121#1",     b: "1-ff00:0:112#480",   linkAtoB: CHILD}
+  - {a: "1-ff00:0:131#478",   b: "1-ff00:0:132#2",     linkAtoB: CHILD}

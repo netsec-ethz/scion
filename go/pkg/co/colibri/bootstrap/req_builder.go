@@ -11,7 +11,7 @@ import (
 	"github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/e2e"
 	"github.com/scionproto/scion/go/co/reservation/segment"
-	"github.com/scionproto/scion/go/co/reservationstore"
+	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	lib_res "github.com/scionproto/scion/go/lib/colibri/reservation"
@@ -31,7 +31,7 @@ type builder struct {
 	localIA addr.IA
 	topo    topology.Topology
 
-	Mgr reservationstore.Manager
+	Store reservationstorage.Store
 }
 
 func (b *builder) BuildSetReq(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
@@ -57,7 +57,7 @@ func (b *builder) BuildSetReq(ctx context.Context, trip colibri.FullTrip, dst ad
 		Request: reservation.Request{
 			MsgId: reservation.MsgId{
 				ID: lib_res.ID{
-					ASID:   b.Mgr.LocalIA().A,
+					ASID:   b.localIA.A,
 					Suffix: suffix,
 				},
 				Index:     0,
@@ -85,14 +85,14 @@ func (b *builder) createEER(ctx context.Context, segments []lib_res.ID, dst addr
 		Request: reservation.Request{
 			MsgId: reservation.MsgId{
 				ID: lib_res.ID{
-					ASID:   b.Mgr.LocalIA().A,
+					ASID:   b.localIA.A,
 					Suffix: suffix,
 				},
 				Index:     0,
 				Timestamp: time.Now(),
 			},
 		},
-		SrcIA:   b.Mgr.LocalIA(),
+		SrcIA:   b.localIA,
 		DstIA:   dst,
 		DstHost: net.IPv4(127, 0, 0, 1), // dst.Host.IP
 		// at the moment we use lo address to indicate it is a reservation to the same COLIBRI service
@@ -101,7 +101,7 @@ func (b *builder) createEER(ctx context.Context, segments []lib_res.ID, dst addr
 		RequestedBW:            requestBW,
 		AllocationTrail:        nil,
 	}
-	resp, err := b.Mgr.Store().AdmitE2EReservation(ctx, setupRequest)
+	resp, err := b.Store.AdmitE2EReservation(ctx, setupRequest)
 	if err != nil {
 		return setupRequest.ID, nil, err
 	}
@@ -145,5 +145,26 @@ func (b *builder) pathFromE2EResp(resID lib_res.ID, resp e2e.SetupResponse) (sne
 			Type: colPath.Type(),
 		},
 		NextHop: addr,
+	}, nil
+}
+
+type FakeBuilder struct{}
+
+func (f FakeBuilder) BuildSetReq(_ context.Context, trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
+	transparentPath := reservation.TransparentPath{
+		Steps: []reservation.PathStep{
+			{
+				IA: trip.SrcIA(),
+			},
+			// omit paths in the middle
+			{
+				IA: trip.DstIA(),
+			},
+		},
+	}
+	return &segment.SetupReq{
+		Request: reservation.Request{
+			Path: &transparentPath,
+		},
 	}, nil
 }

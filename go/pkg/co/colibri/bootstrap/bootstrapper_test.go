@@ -65,7 +65,7 @@ func TestTelescopeUpstream(t *testing.T) {
 		},
 		"nr-1:ff00:102-1:ff00:101": {
 			Id: lib_res.ID{
-				ASID:   ia103.A,
+				ASID:   ia102.A,
 				Suffix: []byte{0, 0, 102, 101},
 			},
 			SrcIA: ia102,
@@ -82,7 +82,7 @@ func TestTelescopeUpstream(t *testing.T) {
 		},
 		"nr-1:ff00:101-1:ff00:100": {
 			Id: lib_res.ID{
-				ASID:   ia103.A,
+				ASID:   ia101.A,
 				Suffix: []byte{0, 0, 101, 100},
 			},
 			SrcIA: ia101,

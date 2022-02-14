@@ -8,11 +8,12 @@ import (
 
 	"github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/segment"
-	"github.com/scionproto/scion/go/co/reservationstore"
+	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	lib_res "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -22,7 +23,8 @@ import (
 var ErrMissingKey = serrors.New("Problem getting key for intermediate AS")
 
 type ExtendedReservationManager interface {
-	reservationstore.Manager
+	Store() reservationstorage.Store
+	SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	DRKey(context.Context, *pb.DRKeyRequest) (*pb.DRKeyResponse, error)
 	LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error)
 }
@@ -37,16 +39,18 @@ type DRKeyReq struct {
 type Bootstrapper interface {
 	// BootstrapKey(ctx context.Context, trip *colibri.FullTrip,
 	// 	valTime time.Time) (*drkey.Lvl2Key, error)
-	SendDRKeyReq(ctx context.Context, trip *colibri.FullTrip,
+	SendDRKeyReq(ctx context.Context, trip colibri.FullTrip,
 		valTime time.Time) (*drkey.Lvl2Key, error)
 	TelescopeUpstream(ctx context.Context, ases []addr.IA) (*colibri.ReservationLooks, error)
 }
 
 type BootstrapProvider struct {
-	localIA   addr.IA
-	localHost addr.HostAddr
-	builder   SetReqBuilder
-
+	//TODO(JordiSubira): Make fields private once integration with
+	// COLIBRI is possible. At the moment, this allows init in the
+	// integration test.
+	LocalIA        addr.IA
+	LocalHost      addr.HostAddr
+	Builder        SetReqBuilder
 	Mgr            ExtendedReservationManager
 	CryptoProvider ClientCryptoProvider
 	Lvl2DB         drkey.Lvl2DB
@@ -56,12 +60,12 @@ func NewBootstrapProvider(localHost addr.HostAddr, topo topology.Topology,
 	db drkey.Lvl2DB, mgr ExtendedReservationManager,
 	cryptoProvider ClientCryptoProvider) *BootstrapProvider {
 	return &BootstrapProvider{
-		localIA:   topo.IA(),
-		localHost: localHost,
-		builder: &builder{
+		LocalIA:   topo.IA(),
+		LocalHost: localHost,
+		Builder: &builder{
 			localIA: topo.IA(),
 			topo:    topo,
-			Mgr:     mgr,
+			Store:   mgr.Store(),
 		},
 		Mgr:            mgr,
 		Lvl2DB:         db,
@@ -92,6 +96,7 @@ type segRInfo struct {
 //   previousSegID + NR (neighbor reservation from ases[index-1] tot ases[index]).
 // - the previousSeg is freed and a segR from ases[0] up to ases[index] is returned
 func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []addr.IA, index int) (segRInfo, error) {
+	logger := log.FromCtx(ctx)
 	var previousSegInfo segRInfo
 	var err error
 	if index > 1 {
@@ -104,8 +109,8 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []addr.
 	lvl2Meta := drkey.Lvl2Meta{
 		KeyType: drkey.AS2Host,
 		SrcIA:   as,
-		DstIA:   b.localIA,
-		DstHost: b.localHost,
+		DstIA:   b.LocalIA,
+		DstHost: b.LocalHost,
 	}
 
 	// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
@@ -124,11 +129,14 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []addr.
 	}
 
 	now := time.Now()
+
 	_, err = b.Lvl2DB.GetLvl2Key(ctx, lvl2Meta, util.TimeToSecs(now))
 	if err != nil && err != sql.ErrNoRows {
 		return segRInfo{}, err
 	}
 	if err == sql.ErrNoRows {
+		logger.Debug("Lvl2 key not in persistance, send request over trip",
+			"dstIA", lvl2Meta.SrcIA)
 		_, err = b.SendDRKeyReq(ctx, stichingSeg, now)
 		if err != nil {
 			return segRInfo{}, err
@@ -141,7 +149,7 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []addr.
 		}, nil
 	}
 
-	setupReq, err := b.builder.BuildSetReq(ctx, stichingSeg, ases[index])
+	setupReq, err := b.Builder.BuildSetReq(ctx, stichingSeg, ases[index])
 	if err != nil {
 		return segRInfo{}, serrors.WrapStr("building SegR setup request", err)
 	}
@@ -153,6 +161,9 @@ func (b *BootstrapProvider) telescopeFromLocal(ctx context.Context, ases []addr.
 	}
 
 	reservation, err := b.sendSetupUpSegR(ctx, setupReq)
+	if err != nil {
+		return segRInfo{}, serrors.WrapStr("sending setup request", err)
+	}
 	return segRInfo{
 		Reservation: reservation,
 		SegSetupR:   setupReq,

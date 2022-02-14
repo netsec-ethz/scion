@@ -20,7 +20,7 @@ var (
 )
 
 func VerifyPeerCertificate(targetIA addr.IA, rawCerts [][]byte,
-	db trust.DB) (*x509.Certificate, error) {
+	trcs []cppki.SignedTRC) (*x509.Certificate, error) {
 	chain := make([]*x509.Certificate, len(rawCerts))
 	for i, asn1Data := range rawCerts {
 		cert, err := x509.ParseCertificate(asn1Data)
@@ -36,12 +36,12 @@ func VerifyPeerCertificate(targetIA addr.IA, rawCerts [][]byte,
 	if ia != targetIA {
 		return nil, serrors.New("IA mismatch", "targetIA", targetIA, "extractedIA", ia)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-	trcs, err := activeTRCs(ctx, db, ia.I)
-	if err != nil {
-		return nil, serrors.WrapStr("loading TRCs", err)
-	}
+	// ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	// defer cancel()
+	// trcs, err := activeTRCs(ctx, db, ia.I)
+	// if err != nil {
+	// 	return nil, serrors.WrapStr("loading TRCs", err)
+	// }
 	if err := verifyChain(chain, trcs); err != nil {
 		return nil, serrors.WrapStr("verifying chains", err)
 	}

@@ -61,6 +61,7 @@ pkg_tar(
         "//go/integration/end2end_integration",
         "//go/integration/scion_integration",
         "//go/integration/colibri",
+        "//go/integration/bootstrapper",
         "//go/lib/xtest/graphupdater",
         "//go/pktgen",
         "//go/tools/buildkite_artifacts",

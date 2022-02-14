@@ -8,8 +8,8 @@ import (
 func NewTestBootstrapProvider(localIA addr.IA, builder SetReqBuilder, mgr ExtendedReservationManager,
 	db drkey.Lvl2DB, cryptoProvider ClientCryptoProvider) *BootstrapProvider {
 	return &BootstrapProvider{
-		localIA:        localIA,
-		builder:        builder,
+		LocalIA:        localIA,
+		Builder:        builder,
 		Mgr:            mgr,
 		Lvl2DB:         db,
 		CryptoProvider: cryptoProvider,

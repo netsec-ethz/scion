@@ -10,13 +10,11 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	reservation "github.com/scionproto/scion/go/co/reservation"
 	segment "github.com/scionproto/scion/go/co/reservation/segment"
 	reservationstorage "github.com/scionproto/scion/go/co/reservationstorage"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	colibri "github.com/scionproto/scion/go/lib/colibri"
 	drkey "github.com/scionproto/scion/go/lib/drkey"
-	snet "github.com/scionproto/scion/go/lib/snet"
 	bootstrap "github.com/scionproto/scion/go/pkg/co/colibri/bootstrap"
 	colibri0 "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
@@ -45,7 +43,7 @@ func (m *MockBootstrapper) EXPECT() *MockBootstrapperMockRecorder {
 }
 
 // SendDRKeyReq mocks base method.
-func (m *MockBootstrapper) SendDRKeyReq(arg0 context.Context, arg1 *colibri.FullTrip, arg2 time.Time) (*drkey.Lvl2Key, error) {
+func (m *MockBootstrapper) SendDRKeyReq(arg0 context.Context, arg1 colibri.FullTrip, arg2 time.Time) (*drkey.Lvl2Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendDRKeyReq", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*drkey.Lvl2Key)
@@ -166,34 +164,6 @@ func (m *MockExtendedReservationManager) EXPECT() *MockExtendedReservationManage
 	return m.recorder
 }
 
-// ActivateManyRequest mocks base method.
-func (m *MockExtendedReservationManager) ActivateManyRequest(arg0 context.Context, arg1 []*reservation.Request) []error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivateManyRequest", arg0, arg1)
-	ret0, _ := ret[0].([]error)
-	return ret0
-}
-
-// ActivateManyRequest indicates an expected call of ActivateManyRequest.
-func (mr *MockExtendedReservationManagerMockRecorder) ActivateManyRequest(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateManyRequest", reflect.TypeOf((*MockExtendedReservationManager)(nil).ActivateManyRequest), arg0, arg1)
-}
-
-// ActivateRequest mocks base method.
-func (m *MockExtendedReservationManager) ActivateRequest(arg0 context.Context, arg1 *reservation.Request) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivateRequest", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ActivateRequest indicates an expected call of ActivateRequest.
-func (mr *MockExtendedReservationManagerMockRecorder) ActivateRequest(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateRequest", reflect.TypeOf((*MockExtendedReservationManager)(nil).ActivateRequest), arg0, arg1)
-}
-
 // DRKey mocks base method.
 func (m *MockExtendedReservationManager) DRKey(arg0 context.Context, arg1 *colibri0.DRKeyRequest) (*colibri0.DRKeyResponse, error) {
 	m.ctrl.T.Helper()
@@ -209,35 +179,6 @@ func (mr *MockExtendedReservationManagerMockRecorder) DRKey(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKey", reflect.TypeOf((*MockExtendedReservationManager)(nil).DRKey), arg0, arg1)
 }
 
-// GetDRKey mocks base method.
-func (m *MockExtendedReservationManager) GetDRKey(arg0 context.Context, arg1 drkey.Lvl2Meta, arg2 time.Time) (*drkey.Lvl2Key, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDRKey", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*drkey.Lvl2Key)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDRKey indicates an expected call of GetDRKey.
-func (mr *MockExtendedReservationManagerMockRecorder) GetDRKey(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDRKey", reflect.TypeOf((*MockExtendedReservationManager)(nil).GetDRKey), arg0, arg1, arg2)
-}
-
-// LocalIA mocks base method.
-func (m *MockExtendedReservationManager) LocalIA() addr.IA {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LocalIA")
-	ret0, _ := ret[0].(addr.IA)
-	return ret0
-}
-
-// LocalIA indicates an expected call of LocalIA.
-func (mr *MockExtendedReservationManagerMockRecorder) LocalIA() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalIA", reflect.TypeOf((*MockExtendedReservationManager)(nil).LocalIA))
-}
-
 // LookupNR mocks base method.
 func (m *MockExtendedReservationManager) LookupNR(arg0 context.Context, arg1, arg2 addr.IA) (*colibri.ReservationLooks, error) {
 	m.ctrl.T.Helper()
@@ -251,75 +192,6 @@ func (m *MockExtendedReservationManager) LookupNR(arg0 context.Context, arg1, ar
 func (mr *MockExtendedReservationManagerMockRecorder) LookupNR(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupNR", reflect.TypeOf((*MockExtendedReservationManager)(nil).LookupNR), arg0, arg1, arg2)
-}
-
-// Name mocks base method.
-func (m *MockExtendedReservationManager) Name() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Name")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// Name indicates an expected call of Name.
-func (mr *MockExtendedReservationManagerMockRecorder) Name() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockExtendedReservationManager)(nil).Name))
-}
-
-// Now mocks base method.
-func (m *MockExtendedReservationManager) Now() time.Time {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Now")
-	ret0, _ := ret[0].(time.Time)
-	return ret0
-}
-
-// Now indicates an expected call of Now.
-func (mr *MockExtendedReservationManagerMockRecorder) Now() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Now", reflect.TypeOf((*MockExtendedReservationManager)(nil).Now))
-}
-
-// PathsTo mocks base method.
-func (m *MockExtendedReservationManager) PathsTo(arg0 context.Context, arg1 addr.IA) ([]snet.Path, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PathsTo", arg0, arg1)
-	ret0, _ := ret[0].([]snet.Path)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PathsTo indicates an expected call of PathsTo.
-func (mr *MockExtendedReservationManagerMockRecorder) PathsTo(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PathsTo", reflect.TypeOf((*MockExtendedReservationManager)(nil).PathsTo), arg0, arg1)
-}
-
-// Run mocks base method.
-func (m *MockExtendedReservationManager) Run(arg0 context.Context) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Run", arg0)
-}
-
-// Run indicates an expected call of Run.
-func (mr *MockExtendedReservationManagerMockRecorder) Run(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockExtendedReservationManager)(nil).Run), arg0)
-}
-
-// SetupManyRequest mocks base method.
-func (m *MockExtendedReservationManager) SetupManyRequest(arg0 context.Context, arg1 []*segment.SetupReq) []error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetupManyRequest", arg0, arg1)
-	ret0, _ := ret[0].([]error)
-	return ret0
-}
-
-// SetupManyRequest indicates an expected call of SetupManyRequest.
-func (mr *MockExtendedReservationManagerMockRecorder) SetupManyRequest(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupManyRequest", reflect.TypeOf((*MockExtendedReservationManager)(nil).SetupManyRequest), arg0, arg1)
 }
 
 // SetupRequest mocks base method.
@@ -348,20 +220,6 @@ func (m *MockExtendedReservationManager) Store() reservationstorage.Store {
 func (mr *MockExtendedReservationManagerMockRecorder) Store() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockExtendedReservationManager)(nil).Store))
-}
-
-// StoreDRkey mocks base method.
-func (m *MockExtendedReservationManager) StoreDRkey(arg0 context.Context, arg1 *drkey.Lvl2Key) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreDRkey", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreDRkey indicates an expected call of StoreDRkey.
-func (mr *MockExtendedReservationManagerMockRecorder) StoreDRkey(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreDRkey", reflect.TypeOf((*MockExtendedReservationManager)(nil).StoreDRkey), arg0, arg1)
 }
 
 // MockSetReqBuilder is a mock of SetReqBuilder interface.

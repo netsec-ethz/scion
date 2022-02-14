@@ -14,6 +14,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/crypto"
 	pb "github.com/scionproto/scion/go/pkg/proto/colibri"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -31,19 +32,22 @@ type ClientCryptoProvider interface {
 		resp *pb.DRKeyResponse) (*drkey.Lvl2Key, error)
 }
 
-var _ ClientCryptoProvider = cryptoProvider{}
+var _ ClientCryptoProvider = CryptoProvider{}
 
-type cryptoProvider struct {
-	localIA addr.IA
-	signer  trust.Signer
-	db      trust.DB
+type CryptoProvider struct {
+	// TODO(JordiSubira): Allow the crypto provider to dynamically load trust material.
+
+	LocalIA   addr.IA
+	LocalHost addr.HostAddr
+	Signer    trust.Signer
+	TRCs      []cppki.SignedTRC
 }
 
-func (p cryptoProvider) GenerateKeyPair() ([]byte, []byte, error) {
+func (p CryptoProvider) GenerateKeyPair() ([]byte, []byte, error) {
 	return crypto.GenKeyPair()
 }
 
-func (p cryptoProvider) Sign(ctx context.Context, request DRKeyReq) (*pb.DRKeyRequest, error) {
+func (p CryptoProvider) Sign(ctx context.Context, request DRKeyReq) (*pb.DRKeyRequest, error) {
 	pbReqBody, err := drkeyReqToPb(request)
 	if err != nil {
 		return nil, err
@@ -52,11 +56,11 @@ func (p cryptoProvider) Sign(ctx context.Context, request DRKeyReq) (*pb.DRKeyRe
 	if err != nil {
 		return nil, err
 	}
-	signedMsg, err := p.signer.Sign(ctx, rawBody)
+	signedMsg, err := p.Signer.Sign(ctx, rawBody)
 	if err != nil {
 		return nil, err
 	}
-	chain := p.signer.Chain
+	chain := p.Signer.Chain
 	pbChain := &cppb.Chain{
 		AsCert: chain[0].Raw,
 		CaCert: chain[1].Raw,
@@ -85,13 +89,13 @@ func drkeyReqToPb(request DRKeyReq) (*pb.DRKeyRequestBody, error) {
 	}, nil
 }
 
-func (p cryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
+func (p CryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
 	targetIA addr.IA, resp *pb.DRKeyResponse) (*drkey.Lvl2Key, error) {
 	rawCerts := [][]byte{
 		resp.Chain.AsCert,
 		resp.Chain.CaCert,
 	}
-	asCert, err := crypto.VerifyPeerCertificate(targetIA, rawCerts, p.db)
+	asCert, err := crypto.VerifyPeerCertificate(targetIA, rawCerts, p.TRCs)
 	if err != nil {
 		return nil, serrors.WrapStr("verifying chain", err)
 	}
@@ -113,10 +117,10 @@ func (p cryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
 	if err != nil {
 		return nil, serrors.WrapStr("parsing raw key", err)
 	}
-	return pbASHostToKey(p.localIA, targetIA, &pbResp)
+	return pbASHostToKey(p.LocalIA, targetIA, p.LocalHost, &pbResp)
 }
 
-func pbASHostToKey(localIA addr.IA, targetIA addr.IA, rep *pb.ASHostResponse) (*drkey.Lvl2Key, error) {
+func pbASHostToKey(localIA addr.IA, targetIA addr.IA, localHost addr.HostAddr, rep *pb.ASHostResponse) (*drkey.Lvl2Key, error) {
 	epochBegin, err := ptypes.Timestamp(rep.EpochBegin)
 	if err != nil {
 		return nil, serrors.WrapStr("invalid EpochBegin from response", err)
@@ -139,6 +143,71 @@ func pbASHostToKey(localIA addr.IA, targetIA addr.IA, rep *pb.ASHostResponse) (*
 			Epoch:    epoch,
 			SrcIA:    targetIA,
 			DstIA:    localIA,
+			DstHost:  localHost,
 		},
+		Key: rep.Key,
 	}, nil
+}
+
+type FakeCryptoProvider struct {
+	LocalIA   addr.IA
+	LocalHost addr.HostAddr
+}
+
+func (p FakeCryptoProvider) GenerateKeyPair() ([]byte, []byte, error) {
+	return crypto.GenKeyPair()
+}
+
+func (p FakeCryptoProvider) Sign(ctx context.Context, request DRKeyReq) (*pb.DRKeyRequest, error) {
+	pbReqBody, err := drkeyReqToPb(request)
+	if err != nil {
+		return nil, err
+	}
+	rawBody, err := proto.Marshal(pbReqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	rawHdrAndBody, err := proto.Marshal(&cryptopb.HeaderAndBodyInternal{
+		Body: rawBody,
+	})
+	if err != nil {
+		return nil, serrors.WrapStr("packing signature input", err)
+	}
+	signedMsg := &cryptopb.SignedMessage{
+		HeaderAndBody: rawHdrAndBody,
+	}
+	segs := make([]*pb.ReservationID, len(request.SegmentRsvs))
+	for i, id := range request.SegmentRsvs {
+		segs[i] = translate.PBufID(&id)
+	}
+	return &pb.DRKeyRequest{
+		SignedRequest:  signedMsg,
+		Segments:       segs,
+		CurrentSegment: 0,
+	}, nil
+}
+
+func (p FakeCryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
+	targetIA addr.IA, resp *pb.DRKeyResponse) (*drkey.Lvl2Key, error) {
+
+	body, err := signed.ExtractUnverifiedBody(resp.SignedResponse)
+	if err != nil {
+		return nil, serrors.WrapStr("verifying message", err)
+	}
+
+	// extract EphPubKey and cipher and decrypt
+	var respBody pb.DRKeyResponseBody
+	err = proto.Unmarshal(body, &respBody)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing response body", err)
+	}
+
+	rawResp, err := crypto.Decrypt(respBody.Cipher, respBody.Nonce, respBody.EphPubkey, privKey)
+	var pbResp pb.ASHostResponse
+	err = proto.Unmarshal(rawResp, &pbResp)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing raw key", err)
+	}
+	return pbASHostToKey(p.LocalIA, targetIA, p.LocalHost, &pbResp)
 }

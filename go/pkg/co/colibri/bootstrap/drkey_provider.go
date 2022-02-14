@@ -2,16 +2,19 @@ package bootstrap
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/grpc"
 )
 
@@ -27,19 +30,20 @@ type Pather interface {
 	Paths(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 }
 
-type upSegProvider struct {
-	pather Pather
+type UpPathProvider struct {
+	Pather Pather
 }
 
-func (u *upSegProvider) UpSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error) {
+func (u *UpPathProvider) UpSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error) {
 	logger := log.FromCtx(ctx)
-	paths, err := u.pather.Paths(ctx, dst)
+	paths, err := u.Pather.Paths(ctx, dst)
 	if err != nil {
 		return nil, serrors.WrapStr("requesting paths to dst", err)
 	}
+	// logger.Debug("Paths to destination", "len", len(paths))
 	upSegs := [][]addr.IA{}
 	for _, path := range paths {
-		ases, err := upstreamIAs(path)
+		ases, err := upstreamIAs(ctx, path)
 		if err != nil {
 			logger.Debug("Error extracting upstream AS list", "err", err)
 			continue
@@ -49,7 +53,7 @@ func (u *upSegProvider) UpSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA,
 	return upSegs, nil
 }
 
-func upstreamIAs(path snet.Path) ([]addr.IA, error) {
+func upstreamIAs(ctx context.Context, path snet.Path) ([]addr.IA, error) {
 	var dp scion.Decoded
 	err := dp.DecodeFromBytes(path.Path().Raw)
 	if err != nil {
@@ -57,16 +61,22 @@ func upstreamIAs(path snet.Path) ([]addr.IA, error) {
 	}
 	upSegLen := int(dp.PathMeta.SegLen[0])
 	interfaces := path.Metadata().Interfaces
+
+	// log.FromCtx(ctx).Debug("Printing path", "interfaces", interfaces, "SegLens", dp.PathMeta.SegLen)
+
 	ias := make([]addr.IA, upSegLen)
-	for i := 0; i < upSegLen; i++ {
-		ias[i] = interfaces[i].IA
+	if upSegLen > 0 {
+		ias[0] = interfaces[0].IA
+	}
+	for i := 1; i < upSegLen; i++ {
+		ias[i] = interfaces[i*2-1].IA
 	}
 	return ias, nil
 }
 
 type DRKeyBootstrapper struct {
 	LocalIA      addr.IA
-	localHost    addr.HostAddr
+	LocalHost    addr.HostAddr
 	Provider     DRKeyProvider
 	ColStore     reservationstorage.Store
 	Bootstrapper Bootstrapper
@@ -75,9 +85,10 @@ type DRKeyBootstrapper struct {
 
 func (e *DRKeyBootstrapper) GetKey(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error) {
 	// First try using best-effort
+	log.FromCtx(ctx).Debug("Fetching key in best-effort", "targetIA", meta.SrcIA)
 	key, err := e.Provider.GetKey(ctx, meta, valTime)
 	if err != nil {
-		log.FromCtx(ctx).Debug("Best effort did not work, trying bootstrap mechanism", "err", err)
+		log.FromCtx(ctx).Debug("Best effort did not work, trying bootstrap mechanism", "targetIA", meta.SrcIA, "err", err)
 		return e.simpleExploration(ctx, meta, valTime)
 	}
 	return key, nil
@@ -93,13 +104,18 @@ func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lv
 
 	for _, ias := range upSegs {
 		lastUpHop := ias[len(ias)-1]
-		reservations, err := e.ColStore.ListStitchableSegments(ctx, lastUpHop)
-		if err != nil || reservations == nil || len(reservations.Up) <= 0 {
+		logger.Debug("Listing reservations from source", "srcIA", e.LocalIA, "coreIA", lastUpHop)
+		reservations, err := e.ColStore.ListReservations(ctx, lastUpHop, reservation.UpPath)
+		if err != nil || reservations == nil || len(reservations) <= 0 {
+			logger.Debug("No reservations from source, trying telescope method",
+				"srcIA", e.LocalIA, "coreIA", lastUpHop)
 			_, err := e.Bootstrapper.TelescopeUpstream(ctx, ias)
 			if err != nil {
 				logger.Debug("Error telescoping, we try other upSeg", "err", err)
 				continue
 			}
+			logger.Debug("Telescope successful for",
+				"srcIA", e.LocalIA, "coreIA", lastUpHop)
 		}
 
 		// If dstIA is in upstream we must have a valid key at this point
@@ -111,6 +127,7 @@ func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lv
 
 		// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
 		// stronger guarantees. Similar to what is done in the Bootstrapper.SendDRKeyReq
+		logger.Debug("Listing stichable from source", "srcIA", e.LocalIA, "dstIA", meta.SrcIA)
 		stichable, err := e.ColStore.ListStitchableSegments(ctx, meta.SrcIA)
 		if err != nil {
 			serrors.WrapStr("listing stichable segments err", err, "remote as", meta.DstIA)
@@ -123,8 +140,10 @@ func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lv
 				logger.Debug("Error bootstrapping, we try other trip", "err", err)
 				continue
 			}
+			logger.Debug("Key fetched", "targetIA", meta.SrcIA)
 			return key, nil
 		}
+		logger.Debug("No trip worked for the current upSeg", "srcIA", e.LocalIA, "dstIA", meta.SrcIA, "upSeg", ias)
 	}
 	return nil, serrors.New("Unable to bootstrap key using any available path")
 }
@@ -137,13 +156,16 @@ func (e *DRKeyBootstrapper) bootstrapKey(ctx context.Context, trip colibri.FullT
 	lastSeg := trip[len(trip)-1].Path
 	lastStep := lastSeg[len(lastSeg)-1]
 
+	logger := log.FromCtx(ctx)
+	logger.Debug("Starting to search for drkey in trip", "trip", trip)
+
 	for _, segR := range trip {
 		for i, step := range segR.Path {
 			if step != lastStep && i > 0 {
 				lvl2Meta := drkey.Lvl2Meta{
 					SrcIA:   step.IA,
 					DstIA:   e.LocalIA,
-					DstHost: e.localHost,
+					DstHost: e.LocalHost,
 				}
 				_, err := e.GetKey(ctx, lvl2Meta, valTime)
 				if err != nil {
@@ -154,31 +176,70 @@ func (e *DRKeyBootstrapper) bootstrapKey(ctx context.Context, trip colibri.FullT
 	}
 	// At this point we can create a request since we have all intermediate keys to authenticate
 	// the payload.
-	return e.Bootstrapper.SendDRKeyReq(ctx, &trip, valTime)
+	log.FromCtx(ctx).Debug("All intermediate keys fetched, sending DRKey request over trip",
+		"dstIA", trip.DstIA(), "trip", trip)
+	return e.Bootstrapper.SendDRKeyReq(ctx, trip, valTime)
 }
 
 type BestEffortProvider struct {
+	DB      drkey.Lvl2DB
 	Fetcher grpc.DRKeyFetcher
 }
 
 func (p *BestEffortProvider) GetKey(ctx context.Context, meta drkey.Lvl2Meta,
 	valTime time.Time) (*drkey.Lvl2Key, error) {
+	// TODO(JordiSubira): First try DB lookup
 	return p.Fetcher.GetDRKeyLvl2(ctx, meta, valTime)
 }
 
-type FakeProvider struct{}
+type FakeProvider struct {
+	DB FakeDB
+}
 
 func (p *FakeProvider) GetKey(ctx context.Context, meta drkey.Lvl2Meta,
-	_ time.Time) (*drkey.Lvl2Key, error) {
-	return &drkey.Lvl2Key{
-		Lvl2Meta: drkey.Lvl2Meta{
-			KeyType:  drkey.AS2Host,
-			Protocol: "colibri",
-			Epoch:    drkey.NewEpoch(0, 100),
-			SrcIA:    meta.SrcIA,
-			DstIA:    meta.DstIA,
-			DstHost:  meta.DstHost,
-		},
-		Key: drkey.DRKey([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
-	}, nil
+	valTime time.Time) (*drkey.Lvl2Key, error) {
+
+	key, err := p.DB.GetLvl2Key(ctx, meta, util.TimeToSecs(valTime))
+	if err != nil {
+		return nil, err
+	}
+	return &key, nil
+}
+
+type FakeDB struct {
+	storage map[addr.IA]drkey.Lvl2Key
+}
+
+func NewFakeDB(localIA addr.IA, localHost addr.HostAddr, dstList []addr.IA) FakeDB {
+	m := map[addr.IA]drkey.Lvl2Key{}
+	for _, ia := range dstList {
+		m[ia] = fakeKey(ia, localIA, localHost)
+	}
+	return FakeDB{
+		storage: m,
+	}
+}
+
+func (db FakeDB) GetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, _ uint32) (drkey.Lvl2Key, error) {
+	key, ok := db.storage[meta.SrcIA]
+	if ok {
+		return key, nil
+	}
+	return drkey.Lvl2Key{}, sql.ErrNoRows
+}
+func (db FakeDB) InsertLvl2Key(ctx context.Context, key drkey.Lvl2Key) error {
+	db.storage[key.SrcIA] = key
+	return nil
+}
+func (db FakeDB) RemoveOutdatedLvl2Keys(ctx context.Context, cutoff uint32) (int64, error) {
+	panic("not implemented")
+}
+func (db FakeDB) Close() error {
+	panic("not implemented")
+}
+func (db FakeDB) SetMaxOpenConns(maxOpenConns int) {
+	panic("not implemented")
+}
+func (db FakeDB) SetMaxIdleConns(maxIdleConns int) {
+	panic("not implemented")
 }
