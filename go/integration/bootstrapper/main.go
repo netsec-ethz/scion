@@ -117,7 +117,7 @@ type pather struct {
 	daemon  daemon.Connector
 }
 
-func (p pather) Paths(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
+func (p *pather) Paths(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
 	return p.daemon.Paths(ctx, dst, p.localIA, daemon.PathReqFlags{})
 }
 
@@ -163,12 +163,10 @@ func realMain() int {
 			},
 			Lvl2DB: db,
 		},
-		SegProvider: &bootstrap.UpPathProvider{
-			Pather: pather{
-				localIA: integration.Local.IA,
-				daemon:  integration.SDConn(),
-			},
-		},
+		SegProvider: bootstrap.NewSegProvider(&pather{
+			localIA: integration.Local.IA,
+			daemon:  integration.SDConn(),
+		}),
 	}
 	ctx := log.CtxWith(context.Background(), log.Root())
 	metaF := drkey.Lvl2Meta{SrcIA: ia1_F, DstIA: ia1_A}

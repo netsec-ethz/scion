@@ -10,7 +10,7 @@ gomock(
         "ExtendedReservationManager",
         "SetReqBuilder",
         "DRKeyProvider",
-        "UpSegProvider",
+        "SegProvider",
     ],
     library = "//go/pkg/co/colibri/bootstrap:go_default_library",
     package = "mock_bootstrap",

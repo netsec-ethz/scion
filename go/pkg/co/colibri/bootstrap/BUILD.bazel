@@ -21,7 +21,6 @@ go_library(
         "//go/lib/colibri:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/common:go_default_library",
-        "//go/lib/ctrl/drkey:go_default_library",
         "//go/lib/drkey:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",

@@ -22,21 +22,27 @@ type DRKeyProvider interface {
 	GetKey(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error)
 }
 
-type UpSegProvider interface {
-	UpSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error)
+type SegProvider interface {
+	FirstSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error)
 }
 
 type Pather interface {
 	Paths(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 }
 
-type UpPathProvider struct {
-	Pather Pather
+type segProvider struct {
+	pather Pather
 }
 
-func (u *UpPathProvider) UpSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error) {
+func NewSegProvider(pather Pather) *segProvider {
+	return &segProvider{
+		pather: pather,
+	}
+}
+
+func (p *segProvider) FirstSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error) {
 	logger := log.FromCtx(ctx)
-	paths, err := u.Pather.Paths(ctx, dst)
+	paths, err := p.pather.Paths(ctx, dst)
 	if err != nil {
 		return nil, serrors.WrapStr("requesting paths to dst", err)
 	}
@@ -80,12 +86,12 @@ type DRKeyBootstrapper struct {
 	Provider     DRKeyProvider
 	ColStore     reservationstorage.Store
 	Bootstrapper Bootstrapper
-	SegProvider  UpSegProvider
+	SegProvider  SegProvider
 }
 
 func (e *DRKeyBootstrapper) GetKey(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error) {
 	// First try using best-effort
-	log.FromCtx(ctx).Debug("Fetching key in best-effort", "targetIA", meta.SrcIA)
+	log.FromCtx(ctx).Debug("Fetching key via persistance/best-effort", "targetIA", meta.SrcIA)
 	key, err := e.Provider.GetKey(ctx, meta, valTime)
 	if err != nil {
 		log.FromCtx(ctx).Debug("Best effort did not work, trying bootstrap mechanism", "targetIA", meta.SrcIA, "err", err)
@@ -97,7 +103,7 @@ func (e *DRKeyBootstrapper) GetKey(ctx context.Context, meta drkey.Lvl2Meta, val
 func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error) {
 	logger := log.FromCtx(ctx)
 
-	upSegs, err := e.SegProvider.UpSegIAs(ctx, meta.SrcIA)
+	upSegs, err := e.SegProvider.FirstSegIAs(ctx, meta.SrcIA)
 	if err != nil {
 		return nil, err
 	}
