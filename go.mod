@@ -1,6 +1,7 @@
 module github.com/scionproto/scion
 
 require (
+	github.com/BurntSushi/toml v0.3.1
 	github.com/antlr/antlr4 v0.0.0-20181218183524-be58ebffde8e
 	github.com/bazelbuild/rules_go v0.29.0
 	github.com/buildkite/go-buildkite/v2 v2.8.1
