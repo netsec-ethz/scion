@@ -384,7 +384,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 				})
 			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any()).AnyTimes()
 			// build requests from paths (tested elsewhere)
-			requests, err := tc.requirements.PrepareSetupRequests(tc.paths, localIA.A,
+			requests, err := tc.requirements.PrepareSetupRequests(tc.paths, localIA.AS(),
 				now, now.Add(time.Hour))
 			require.NoError(t, err)
 			// call and check
@@ -712,7 +712,7 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 			t.Parallel()
 			now := util.SecsToTime(10)
 			localIA := xtest.MustParseIA("1-ff00:0:1")
-			requests, err := tc.requirements.PrepareSetupRequests(tc.paths, localIA.A,
+			requests, err := tc.requirements.PrepareSetupRequests(tc.paths, localIA.AS(),
 				now, now.Add(time.Hour))
 			require.NoError(t, err)
 			require.Len(t, requests, tc.expected)

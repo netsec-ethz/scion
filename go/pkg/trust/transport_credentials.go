@@ -90,7 +90,7 @@ func (e *nonTempWrapper) Temporary() bool {
 
 func verifyConnection(cs tls.ConnectionState, serverName string) error {
 	serverNameIA := strings.Split(serverName, ",")[0]
-	serverIA, err := addr.IAFromString(serverNameIA)
+	serverIA, err := addr.ParseIA(serverNameIA)
 	if err != nil {
 		return serrors.WrapStr("extracting IA from server name", err)
 	}

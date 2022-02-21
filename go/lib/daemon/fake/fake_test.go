@@ -17,19 +17,18 @@ package fake_test
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/daemon/fake"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -62,11 +61,11 @@ func TestJSONConversion(t *testing.T) {
 	require.NoError(t, err)
 	bytes = append(bytes, '\n')
 	if *update {
-		err = ioutil.WriteFile("testdata/sd.json", bytes, 0644)
+		err = os.WriteFile("testdata/sd.json", bytes, 0644)
 		require.NoError(t, err)
 	}
 
-	loadedBytes, err := ioutil.ReadFile("testdata/sd.json")
+	loadedBytes, err := os.ReadFile("testdata/sd.json")
 	require.NoError(t, err)
 	assert.Equal(t, bytes, loadedBytes)
 
@@ -136,7 +135,7 @@ func TestPaths(t *testing.T) {
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
 	assert.Equal(t, entry0PathInterfaces, paths[0].Metadata().Interfaces)
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, spath.Path{}, paths[0].Path())
+	assert.Equal(t, path.SCION{}, paths[0].Dataplane())
 	assert.Equal(t, paths[0].Destination(), paths[0].Metadata().Interfaces[1].IA)
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
 	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU)
@@ -158,7 +157,7 @@ func TestPaths(t *testing.T) {
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
 	assert.Equal(t, entry1PathInterfaces, paths[0].Metadata().Interfaces)
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, spath.Path{}, paths[0].Path())
+	assert.Equal(t, path.SCION{}, paths[0].Dataplane())
 	assert.Equal(t, 2, len(paths[0].Metadata().Interfaces))
 	assert.Equal(t, paths[0].Destination(), paths[0].Metadata().Interfaces[1].IA)
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())
@@ -170,7 +169,7 @@ func TestPaths(t *testing.T) {
 
 func TestASInfo(t *testing.T) {
 	c := fake.New(&fake.Script{})
-	assert.PanicsWithValue(t, "not implemented", func() { c.ASInfo(nil, addr.IA{}) })
+	assert.PanicsWithValue(t, "not implemented", func() { c.ASInfo(nil, 0) })
 }
 
 func TestIFInfo(t *testing.T) {

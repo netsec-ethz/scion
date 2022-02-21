@@ -15,6 +15,8 @@
 package protocol
 
 import (
+	"encoding/binary"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -42,7 +44,7 @@ func DeriveLvl1(meta drkey.Lvl1Meta, sv drkey.SV) (drkey.Lvl1Key, error) {
 		return drkey.Lvl1Key{}, err
 	}
 	all := make([]byte, addr.IABytes)
-	meta.DstIA.Write(all)
+	binary.BigEndian.PutUint64(all, uint64(meta.DstIA))
 	mac.Write(all)
 	return drkey.Lvl1Key{
 		Lvl1Meta: meta,

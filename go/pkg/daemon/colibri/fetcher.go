@@ -71,7 +71,7 @@ func (f *defaultFetcher) ListReservations(ctx context.Context, req *sdpb.Colibri
 func (f *defaultFetcher) listReservations(ctx context.Context, req *sdpb.ColibriListRsvsRequest) (
 	*sdpb.ColibriListRsvsResponse, error) {
 
-	dstIA := addr.IAInt(req.Base.DstIa).IA()
+	dstIA := addr.IA(req.Base.DstIa)
 	f.sheperd(dstIA, req)
 
 	if res, ok := f.cache.ListReservations(ctx, dstIA); ok {

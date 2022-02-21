@@ -60,7 +60,7 @@ colibri will exit with code 1.
 On other errors, colibri will exit with code 2.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dst, err := addr.IAFromString(args[0])
+			dst, err := addr.ParseIA(args[0])
 			if err != nil {
 				return serrors.WrapStr("invalid destination ISD-AS", err)
 			}

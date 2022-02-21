@@ -21,7 +21,6 @@ go_test(
     srcs = ["lvl2_fetching_test.go"],
     deps = [
         ":go_default_library",
-        "//go/lib/addr:go_default_library",
         "//go/lib/drkey:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/pkg/grpc/mock_grpc:go_default_library",

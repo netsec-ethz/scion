@@ -17,8 +17,8 @@ package fake
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
+	"os"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // New creates a new fake SCION Daemon implementation using the data in the script.
@@ -48,7 +47,7 @@ func New(script *Script) daemon.Connector {
 // NewFromFile creates a new fake SCION Daemon implementation using the JSON
 // representation in the file.
 func NewFromFile(file string) (daemon.Connector, error) {
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to read script from file", err)
 	}
@@ -94,9 +93,9 @@ func (p Path) Path(creationTime time.Time) snet.Path {
 	}
 	lifetime := time.Duration(p.JSONExpirationTimestamp) * time.Second
 	return snetpath.Path{
-		Dst:     ifaces[len(ifaces)-1].IA,
-		SPath:   spath.Path{},
-		NextHop: (*net.UDPAddr)(p.JSONNextHop),
+		Dst:           ifaces[len(ifaces)-1].IA,
+		DataplanePath: snetpath.SCION{},
+		NextHop:       (*net.UDPAddr)(p.JSONNextHop),
 		Meta: snet.PathMetadata{
 			Interfaces: ifaces,
 			MTU:        1472,

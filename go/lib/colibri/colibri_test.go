@@ -47,7 +47,7 @@ func TestMACInput(t *testing.T) {
 	libcolibri.MACInputStatic(buffer, c.InfoField.ResIdSuffix, c.InfoField.ExpTick,
 		reservation.BWCls(c.InfoField.BwCls), reservation.RLC(c.InfoField.Rlc),
 		c.InfoField.C, c.InfoField.R, reservation.IndexNumber(c.InfoField.Ver),
-		s.SrcIA.A, s.DstIA.A, c.HopFields[0].IngressId, c.HopFields[0].EgressId)
+		s.SrcIA.AS(), s.DstIA.AS(), c.HopFields[0].IngressId, c.HopFields[0].EgressId)
 	assert.Equal(t, want, buffer)
 }
 
@@ -170,7 +170,7 @@ func TestStaticHVFVerification(t *testing.T) {
 	privateKey := []byte("a_random_key_123")
 	var mac [4]byte
 	err := libcolibri.MACStatic(mac[:], privateKey, c.InfoField,
-		c.HopFields[c.InfoField.CurrHF], s.SrcIA.A, s.DstIA.A)
+		c.HopFields[c.InfoField.CurrHF], s.SrcIA.AS(), s.DstIA.AS())
 	assert.NoError(t, err)
 	c.HopFields[c.InfoField.CurrHF].Mac = mac[:]
 

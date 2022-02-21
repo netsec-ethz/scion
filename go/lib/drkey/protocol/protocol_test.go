@@ -166,8 +166,8 @@ func getLvl1(t *testing.T) drkey.Lvl1Key {
 	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
 	svTgtKey := xtest.MustParseHexString("47bfbb7d94706dc9e79825e5a837b006")
 	epoch := drkey.NewEpoch(0, 1)
-	srcIA, _ := addr.IAFromString("1-ff00:0:111")
-	dstIA, _ := addr.IAFromString("1-ff00:0:112")
+	srcIA, _ := addr.ParseIA("1-ff00:0:111")
+	dstIA, _ := addr.ParseIA("1-ff00:0:112")
 	sv, err := drkey.DeriveSV(meta, asSecret)
 	require.NoError(t, err)
 	require.EqualValues(t, svTgtKey, sv.Key)

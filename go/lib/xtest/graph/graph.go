@@ -22,7 +22,6 @@
 package graph
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -43,6 +42,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -105,7 +105,7 @@ func (g *Graph) Add(ia string) {
 	g.signers[isdas] = NewSigner(
 		WithIA(isdas),
 		WithTRCID(cppki.TRCID{
-			ISD:    isdas.I,
+			ISD:    isdas.ISD(),
 			Serial: 1,
 			Base:   1,
 		}),
@@ -279,9 +279,10 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 		case i == len(ifids):
 			outIF = 0
 			remoteOutIF = 0
-			outIA = addr.IA{}
+			outIA = 0
 		}
 
+		mac := [path.MacLen]byte{byte(i)}
 		asEntry := seg.ASEntry{
 			Local: currIA,
 			Next:  outIA,
@@ -291,7 +292,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 					ExpTime:     63,
 					ConsIngress: inIF,
 					ConsEgress:  outIF,
-					MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+					MAC:         mac,
 				},
 				IngressMTU: 1280,
 			},
@@ -318,7 +319,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 						ExpTime:     63,
 						ConsIngress: peeringLocalIF,
 						ConsEgress:  outIF,
-						MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+						MAC:         mac,
 					},
 				})
 			}
@@ -473,7 +474,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	}
 
 	id := &cppb.VerificationKeyID{
-		IsdAs:        uint64(s.IA.IAInt()),
+		IsdAs:        uint64(s.IA),
 		TrcBase:      uint64(s.TRCID.Base),
 		TrcSerial:    uint64(s.TRCID.Serial),
 		SubjectKeyId: skid,
@@ -554,7 +555,7 @@ func (s *solution) Len() int {
 }
 
 func MustParseIA(ia string) addr.IA {
-	isdas, err := addr.IAFromString(ia)
+	isdas, err := addr.ParseIA(ia)
 	if err != nil {
 		panic(err)
 	}

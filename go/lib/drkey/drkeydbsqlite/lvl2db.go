@@ -95,8 +95,8 @@ func (b *Lvl2Backend) GetLvl2Key(ctx context.Context, key drkey.Lvl2Meta,
 	var epochEnd int
 	var bytes []byte
 
-	err := b.getLvl2KeyStmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
-		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost, valTime,
+	err := b.getLvl2KeyStmt.QueryRowContext(ctx, key.Protocol, key.KeyType, key.SrcIA.ISD(),
+		key.SrcIA.AS(), key.DstIA.ISD(), key.DstIA.AS(), key.SrcHost, key.DstHost, valTime,
 		valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -127,8 +127,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertLvl2Key inserts a second-level DRKey.
 func (b *Lvl2Backend) InsertLvl2Key(ctx context.Context, key drkey.Lvl2Key) error {
-	_, err := b.insertLvl2KeyStmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.I,
-		key.SrcIA.A, key.DstIA.I, key.DstIA.A, key.SrcHost, key.DstHost,
+	_, err := b.insertLvl2KeyStmt.ExecContext(ctx, key.Protocol, key.KeyType, key.SrcIA.ISD(),
+		key.SrcIA.AS(), key.DstIA.ISD(), key.DstIA.AS(), key.SrcHost, key.DstHost,
 		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()), key.Key)
 	if err != nil {
 		return err

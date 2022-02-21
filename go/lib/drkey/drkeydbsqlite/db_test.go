@@ -16,6 +16,7 @@ package drkeydbsqlite
 
 import (
 	"context"
+	"encoding/binary"
 	"io/ioutil"
 	"net"
 	"os"
@@ -60,8 +61,8 @@ func TestDRKeyLvl1(t *testing.T) {
 
 	drkeyLvl1, err := protocol.DeriveLvl1(drkey.Lvl1Meta{
 		Epoch: epoch,
-		SrcIA: addr.IAFromRaw(rawSrcIA),
-		DstIA: addr.IAFromRaw(rawDstIA)}, sv)
+		SrcIA: addr.IA(binary.BigEndian.Uint64(rawSrcIA)),
+		DstIA: addr.IA(binary.BigEndian.Uint64(rawDstIA))}, sv)
 	require.NoError(t, err)
 
 	err = db.InsertLvl1Key(ctx, drkeyLvl1)
@@ -93,8 +94,8 @@ func TestDRKeyLvl2(t *testing.T) {
 	db, cleanF := newLvl2Database(t)
 	defer cleanF()
 
-	srcIA := addr.IAFromRaw(rawSrcIA)
-	dstIA := addr.IAFromRaw(rawDstIA)
+	srcIA := addr.IA(binary.BigEndian.Uint64(rawSrcIA))
+	dstIA := addr.IA(binary.BigEndian.Uint64(rawDstIA))
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
 			NotBefore: time.Now(),
@@ -155,8 +156,8 @@ func TestGetMentionedASes(t *testing.T) {
 		{"2-ff00:0:211", "1-ff00:0:113", 1},
 	}
 	for _, p := range pairsL1 {
-		srcIA, _ := addr.IAFromString(p[0].(string))
-		dstIA, _ := addr.IAFromString(p[1].(string))
+		srcIA, _ := addr.ParseIA(p[0].(string))
+		dstIA, _ := addr.ParseIA(p[1].(string))
 		begin := time.Unix(0, 0)
 		epoch := drkey.Epoch{
 			Validity: cppki.Validity{
@@ -198,7 +199,7 @@ func TestGetMentionedASes(t *testing.T) {
 }
 
 func ia(iaStr string) addr.IA {
-	ia, err := addr.IAFromString(iaStr)
+	ia, err := addr.ParseIA(iaStr)
 	if err != nil {
 		panic("Invalid value")
 	}

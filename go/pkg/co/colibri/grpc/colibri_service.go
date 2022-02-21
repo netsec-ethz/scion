@@ -28,12 +28,10 @@ import (
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
-	"github.com/scionproto/scion/go/lib/colibri/coliquic"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
@@ -156,7 +154,7 @@ func (s *ColibriService) CleanupSegmentIndex(ctx context.Context,
 func (s *ColibriService) ListReservations(ctx context.Context, msg *colpb.ListReservationsRequest) (
 	*colpb.ListReservationsResponse, error) {
 
-	dstIA := addr.IAInt(msg.DstIa).IA()
+	dstIA := addr.IA(msg.DstIa)
 	looks, err := s.Store.ListReservations(ctx, dstIA, reservation.PathType(msg.PathType))
 	if err != nil {
 		log.Error("colibri store while listing rsvs", "err", err)
@@ -212,7 +210,7 @@ func (s *ColibriService) ListStitchables(ctx context.Context, msg *colpb.ListSti
 		return nil, err
 	}
 
-	dstIA := addr.IAInt(msg.DstIa).IA()
+	dstIA := addr.IA(msg.DstIa)
 	stitchables, err := s.Store.ListStitchableSegments(ctx, dstIA)
 	if err != nil {
 		log.Error("colibri store while listing stitchables", "err", err)
@@ -306,7 +304,7 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		}
 		// nexthop holds the interface id until the daemon resolves it with the topology
 		pbMsg.Success = &colpb.SetupReservationResponse_Success{
-			Spath:   rawPath,
+			RawPath: rawPath,
 			NextHop: egressId,
 		}
 	}
@@ -320,13 +318,16 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 	if _, err := checkLocalCaller(ctx); err != nil {
 		return nil, err
 	}
-	req := &base.Request{
-		MsgId: base.MsgId{
-			ID:        *translate.ID(msg.Id),
-			Index:     reservation.IndexNumber(msg.Index),
-			Timestamp: time.Now(),
-		},
-		Path: &base.TransparentPath{},
+	pbReq := &colpb.Request{
+		Id:        msg.Id,
+		Index:     msg.Index,
+		Timestamp: util.TimeToSecs(time.Now()),
+		Path:      &colpb.TransparentPath{},
+	}
+	req, err := translate.Request(pbReq)
+	if err != nil {
+		log.Error("translating initial E2E cleanup from daemon to service", "err", err)
+		return nil, err
 	}
 	res, err := s.Store.CleanupE2EReservation(ctx, req)
 	if err != nil {
@@ -378,28 +379,6 @@ func (s *ColibriService) AddAdmissionEntry(ctx context.Context,
 	return &colpb.AddAdmissionEntryResponse{
 		ValidUntil: util.TimeToSecs(validUntil),
 	}, err
-}
-
-// extractPath returns the PacketPath, ingress and egress used with this RPC.
-func extractPath(ctx context.Context) (base.PacketPath, error) {
-	// TODO(juagargi) move from PacketPath to TransparentPath
-	// TODO(juagargi) call this function to check that the transport path matches that
-	// of base.Request.Path if the transport path is of colibri type.
-	p, ok := peer.FromContext(ctx)
-	if !ok || p == nil {
-		return nil, serrors.New("no peer found")
-	}
-	raddr, ok := p.Addr.(*snet.UDPAddr)
-	if !ok || raddr == nil {
-		return nil, serrors.New("no valid scion address found", "addr", p.Addr)
-	}
-	path, err := base.NewPacketPath(raddr.Path)
-	if err != nil {
-		return path, err
-	}
-	usage, ok, err := coliquic.UsageFromContext(ctx)
-	_, _, _ = usage, ok, err
-	return path, err
 }
 
 // checkLocalCaller prevents the service from doing anything if the caller is not from the local AS.

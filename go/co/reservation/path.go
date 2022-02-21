@@ -22,35 +22,43 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	slayers "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
+	spath "github.com/scionproto/scion/go/lib/snet/path"
 )
 
 // TransparentPath is used in e.g. setup requests, where the IAs should not be visible.
+// They are visible now (as the TransparentPath name implies), but this should change in the future.
 type TransparentPath struct {
 	CurrentStep int
 	Steps       []PathStep // could contain IAs
-	Spath       spath.Path // from slayers
+	RawPath     slayers.Path
 }
 
-func TransparentPathFromSnet(path snet.Path) (*TransparentPath, error) {
-	if path == nil {
+// TODO(juagargi) since the introduction the DataplanePath the implementation of TransparentPath
+// has changed significantly. Too many panic calls. It should actually be a snet.Path exposing
+// extra things like current step.
+
+func TransparentPathFromSnet(p snet.Path) (*TransparentPath, error) {
+	if p == nil {
 		return nil, nil
 	}
-	transp, err := TransparentPathFromInterfaces(path.Metadata().Interfaces)
+	transp, err := TransparentPathFromInterfaces(p.Metadata().Interfaces)
 	if err != nil {
 		return transp, err
 	}
-	transp.Spath = spath.Path{
-		Type: path.Path().Type,
-		Raw:  append([]byte{}, path.Path().Raw...),
-	}
-	return transp, nil
+
+	transp.RawPath, err = PathFromDataplanePath(p.Dataplane())
+	return transp, err
 }
 
 // TransparentPathFromInterfaces constructs an TransparentPath given a list of snet.PathInterface .
-// from a scion path e.g. 1-1#1, 1-2#33, 1-2#44, i-3#2
+// from a scion path e.g. 1-1#1, 1-2#33, 1-2#44, i-3#2.
 func TransparentPathFromInterfaces(ifaces []snet.PathInterface) (*TransparentPath, error) {
 	if len(ifaces)%2 != 0 {
 		return nil, serrors.New("wrong number of interfaces, not even", "ifaces", ifaces)
@@ -86,10 +94,21 @@ func (p *TransparentPath) Interfaces() []snet.PathInterface {
 }
 
 func (p *TransparentPath) Copy() *TransparentPath {
+	var rp slayers.Path
+	if p.RawPath != nil {
+		buff := make([]byte, p.RawPath.Len())
+		if err := p.RawPath.SerializeTo(buff); err != nil {
+			panic(fmt.Sprintf("cannot copy path, SerializeTo failed: %s", err))
+		}
+		rp = PathFromType(p.RawPath.Type())
+		if err := rp.DecodeFromBytes(buff); err != nil {
+			panic(fmt.Sprintf("cannot copy path, DecodeFromBytes failed: %s", err))
+		}
+	}
 	return &TransparentPath{
 		Steps:       append(p.Steps[:0:0], p.Steps...),
 		CurrentStep: p.CurrentStep,
-		Spath:       p.Spath.Copy(),
+		RawPath:     rp,
 	}
 }
 
@@ -117,8 +136,13 @@ func (p *TransparentPath) ToRaw() []byte {
 	if p == nil {
 		return []byte{}
 	}
-	// currentStep + len(steps) + steps + spath_type + spath_raw
-	length := 2 + 2 + len(p.Steps)*pathStepLen + 1 + len(p.Spath.Raw)
+	// currentStep + len(steps) + steps + path_type + rawpath
+	if p.RawPath == nil {
+		// disallow existence of TransparentPath with RawPath==nil
+		p.RawPath = &empty.Path{}
+	}
+	rawPath := p.RawPath
+	length := 2 + 2 + len(p.Steps)*pathStepLen + 1 + rawPath.Len()
 	buff := make([]byte, length)
 	initialBuff := buff
 	binary.BigEndian.PutUint16(buff, uint16(p.CurrentStep))
@@ -128,13 +152,12 @@ func (p *TransparentPath) ToRaw() []byte {
 	for _, step := range p.Steps {
 		binary.BigEndian.PutUint16(buff, step.Ingress)
 		binary.BigEndian.PutUint16(buff[2:], step.Egress)
-		binary.BigEndian.PutUint64(buff[4:], uint64(step.IA.IAInt()))
+		binary.BigEndian.PutUint64(buff[4:], uint64(step.IA))
 		buff = buff[12:]
 	}
-	buff[0] = byte(p.Spath.Type)
-	n := copy(buff[1:], p.Spath.Raw)
-	if n != len(p.Spath.Raw) {
-		panic("internal logic error")
+	buff[0] = byte(rawPath.Type())
+	if err := rawPath.SerializeTo(buff[1:]); err != nil {
+		panic(fmt.Sprintf("cannot serialize path: %s", err))
 	}
 	return initialBuff
 }
@@ -143,7 +166,7 @@ func TransparentPathFromRaw(raw []byte) (*TransparentPath, error) {
 	if len(raw) == 0 {
 		return nil, nil
 	}
-	// currentStep + len(steps) + steps + spath_type + spath_raw
+	// currentStep + len(steps) + steps + path_type + rawpath
 	if len(raw) < 5 {
 		return nil, serrors.New("buffer too small")
 	}
@@ -159,33 +182,32 @@ func TransparentPathFromRaw(raw []byte) (*TransparentPath, error) {
 	for i := 0; i < stepCount; i++ {
 		steps[i].Ingress = binary.BigEndian.Uint16(raw)
 		steps[i].Egress = binary.BigEndian.Uint16(raw[2:])
-		steps[i].IA = addr.IAInt(binary.BigEndian.Uint64(raw[4:])).IA()
+		steps[i].IA = addr.IA(binary.BigEndian.Uint64(raw[4:]))
 		raw = raw[12:]
 	}
-	rawSpath := append([]byte{}, raw[1:]...)
-	if len(rawSpath) == 0 {
-		rawSpath = nil
+	rp := PathFromType(slayers.Type(raw[0]))
+	if rp != nil {
+		if err := rp.DecodeFromBytes(raw[1:]); err != nil {
+			return nil, err
+		}
 	}
 	return &TransparentPath{
 		CurrentStep: currStep,
 		Steps:       steps,
-		Spath: spath.Path{
-			Type: slayerspath.Type(raw[0]),
-			Raw:  rawSpath,
-		},
+		RawPath:     rp,
 	}, nil
 }
 
 func (p *TransparentPath) SrcIA() addr.IA {
 	if p == nil {
-		return addr.IA{}
+		return 0
 	}
 	return p.Steps[0].IA
 }
 
 func (p *TransparentPath) DstIA() addr.IA {
 	if p == nil || len(p.Steps) == 0 {
-		return addr.IA{}
+		return 0
 	}
 	return p.Steps[len(p.Steps)-1].IA
 }
@@ -218,7 +240,14 @@ func (p *TransparentPath) Reverse() error {
 	if p.CurrentStep < len(rev) { // if curr step is past the last item, leave it as is.
 		p.CurrentStep = len(rev) - p.CurrentStep - 1
 	}
-	return p.Spath.Reverse()
+	// step for UTs: comparisons between empty slices and nil slices always fail.
+	// if the raw path is nil, then don't reverse anything.
+	if p.RawPath == nil {
+		return nil
+	}
+	var err error
+	p.RawPath, err = p.RawPath.Reverse()
+	return err
 }
 
 // PathStep is one hop of the TransparentPath.
@@ -231,3 +260,65 @@ type PathStep struct {
 }
 
 const pathStepLen = 2 + 2 + 8
+
+func PathFromDataplanePath(p snet.DataplanePath) (slayers.Path, error) {
+	// at the moment there is no easy way, without knowing the internals of each DataplanePath,
+	// of constructing its equivalent slayers.path.Path
+	switch p := p.(type) {
+	case spath.Empty, nil:
+		return &empty.Path{}, nil
+	case spath.OneHop:
+		return &onehop.Path{
+			Info:      p.Info,
+			FirstHop:  p.FirstHop,
+			SecondHop: p.SecondHop,
+		}, nil
+	case path.SCION:
+		sp := &scion.Raw{}
+		if err := sp.DecodeFromBytes(p.Raw); err != nil {
+			return nil, err
+		}
+		return sp, nil
+	case path.Colibri:
+		cp := &colibri.ColibriPathMinimal{}
+		if err := cp.DecodeFromBytes(p.Raw); err != nil {
+			return nil, err
+		}
+		return cp, nil
+	case snet.RawReplyPath:
+		return p.Path, nil
+	case snet.RawPath:
+		rp := PathFromType(p.PathType)
+		if err := rp.DecodeFromBytes(p.Raw); err != nil {
+			fmt.Printf("deleteme error %s\n", err)
+			return nil, err
+		}
+		return rp, nil
+	default:
+		return nil, serrors.New("unknown path type", "type", common.TypeOf(p))
+	}
+}
+
+func PathFromType(pt slayers.Type) slayers.Path {
+	switch pt {
+	case empty.PathType:
+		return &empty.Path{}
+	case onehop.PathType:
+		return &onehop.Path{}
+	case scion.PathType:
+		return &scion.Raw{}
+	case colibri.PathType:
+		return &colibri.ColibriPathMinimal{}
+	default:
+		panic(fmt.Sprintf("unknown path type %s", pt))
+	}
+}
+
+func PathToRaw(p slayers.Path) ([]byte, error) {
+	if p == nil {
+		return nil, nil
+	}
+	buff := make([]byte, p.Len())
+	err := p.SerializeTo(buff)
+	return buff, err
+}

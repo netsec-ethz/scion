@@ -31,11 +31,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
-	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -73,9 +70,9 @@ type grpcConn struct {
 }
 
 func (c grpcConn) LocalIA(ctx context.Context) (addr.IA, error) {
-	asInfo, err := c.ASInfo(ctx, addr.IA{})
+	asInfo, err := c.ASInfo(ctx, 0)
 	if err != nil {
-		return addr.IA{}, err
+		return 0, err
 	}
 	ia := asInfo.IA
 	return ia, nil
@@ -86,8 +83,8 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Paths(ctx, &sdpb.PathsRequest{
-		SourceIsdAs:      uint64(src.IAInt()),
-		DestinationIsdAs: uint64(dst.IAInt()),
+		SourceIsdAs:      uint64(src),
+		DestinationIsdAs: uint64(dst),
 		Hidden:           f.Hidden,
 		Refresh:          f.Refresh,
 	})
@@ -102,14 +99,14 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 
 func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
 	client := sdpb.NewDaemonServiceClient(c.conn)
-	response, err := client.AS(ctx, &sdpb.ASRequest{IsdAs: uint64(ia.IAInt())})
+	response, err := client.AS(ctx, &sdpb.ASRequest{IsdAs: uint64(ia)})
 	if err != nil {
 		c.metrics.incAS(err)
 		return ASInfo{}, err
 	}
 	c.metrics.incAS(nil)
 	return ASInfo{
-		IA:  addr.IAInt(response.IsdAs).IA(),
+		IA:  addr.IA(response.IsdAs),
 		MTU: uint16(response.Mtu),
 	}, nil
 }
@@ -194,7 +191,7 @@ func (c grpcConn) ColibriListRsvs(ctx context.Context, dstIA addr.IA) (
 
 	req := &sdpb.ColibriListRsvsRequest{
 		Base: &colpb.ListStitchablesRequest{
-			DstIa: uint64(dstIA.IAInt()),
+			DstIa: uint64(dstIA),
 		},
 	}
 	client := sdpb.NewDaemonServiceClient(c.conn)
@@ -223,8 +220,8 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	pbReq := &sdpb.ColibriSetupRsvRequest{
 		Base: &colpb.SetupReservationRequest{
 			Id:          translate.PBufID(&req.Id),
-			SrcIa:       uint64(req.SrcIA.IAInt()),
-			DstIa:       uint64(req.DstIA.IAInt()),
+			SrcIa:       uint64(req.SrcIA),
+			DstIa:       uint64(req.DstIA),
 			DstHost:     req.DstHost,
 			Index:       uint32(req.Index),
 			RequestedBw: uint32(req.RequestedBW),
@@ -254,9 +251,8 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 		return nil, serrors.WrapStr("parsing next hop", err)
 	}
 	return &path.Path{
-		SPath: spath.Path{
-			Raw:  sdRes.Base.Success.Spath,
-			Type: colpath.PathType,
+		DataplanePath: path.Colibri{
+			Raw: sdRes.Base.Success.RawPath,
 		},
 		NextHop: nextHop,
 	}, nil
@@ -335,6 +331,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 				MTU:    uint16(p.Mtu),
 				Expiry: expiry,
 			},
+			DataplanePath: path.Empty{},
 		}, nil
 	}
 	underlayA, err := net.ResolveUDPAddr("udp", p.Interface.Address.Address)
@@ -345,7 +342,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
 			ID: common.IFIDType(pi.Id),
-			IA: addr.IAInt(pi.IsdAs).IA(),
+			IA: addr.IA(pi.IsdAs),
 		}
 	}
 	latency := make([]time.Duration, len(p.Latency))
@@ -366,8 +363,10 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	}
 
 	return path.Path{
-		Dst:     dst,
-		SPath:   spath.Path{Raw: p.Raw, Type: scion.PathType},
+		Dst: dst,
+		DataplanePath: path.SCION{
+			Raw: p.Raw,
+		},
 		NextHop: underlayA,
 		Meta: snet.PathMetadata{
 			Interfaces:   interfaces,

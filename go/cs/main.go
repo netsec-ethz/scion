@@ -74,7 +74,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/cs"
 	"github.com/scionproto/scion/go/pkg/cs/api"
-
 	"github.com/scionproto/scion/go/pkg/cs/drkey"
 	drkeygrpc "github.com/scionproto/scion/go/pkg/cs/drkey/grpc"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
@@ -292,7 +291,7 @@ func realMain(ctx context.Context) error {
 		Verifier:  verifier,
 	}
 	provider.Router = trust.AuthRouter{
-		ISD:    topo.IA().I,
+		ISD:    topo.IA().ISD(),
 		DB:     trustDB,
 		Router: segreq.NewRouter(fetcherCfg),
 	}
@@ -486,7 +485,7 @@ func realMain(ctx context.Context) error {
 			Task: func(ctx context.Context) {
 				trc, err := provider.GetSignedTRC(ctx,
 					cppki.TRCID{
-						ISD:    topo.IA().I,
+						ISD:    topo.IA().ISD(),
 						Serial: scrypto.LatestVer,
 						Base:   scrypto.LatestVer,
 					},
@@ -644,7 +643,7 @@ func realMain(ctx context.Context) error {
 			Healther: &healther{
 				Signer:  signer,
 				TrustDB: trustDB,
-				ISD:     topo.IA().I,
+				ISD:     topo.IA().ISD(),
 			},
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)

@@ -205,7 +205,7 @@ func combineAll(stitchable *StitchableSegments) []*FullTrip {
 	cores := segmentsToMap(stitchable.Core)
 	downs := segmentsToMap(stitchable.Down)
 
-	if stitchable.SrcIA.I == stitchable.DstIA.I {
+	if stitchable.SrcIA.ISD() == stitchable.DstIA.ISD() {
 		// if the ISD is the same, try to stitch up + down
 		for _, up := range ups {
 			if downSegs, ok := downs[up.DstIA]; ok {

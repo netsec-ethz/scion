@@ -125,10 +125,7 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.ID) 
 func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA,
 	pathType reservation.PathType) ([]*segment.Reservation, error) {
 
-	conditions := make([]string, 0, 2)
-	params := make([]interface{}, 0, 2)
-	conditionsForIA("src_ia", srcIA, &conditions, &params)
-	conditionsForIA("dst_ia", dstIA, &conditions, &params)
+	conditions, params := conditionsForIA(iaCond{"src_ia", srcIA}, iaCond{"dst_ia", dstIA})
 	if len(conditions) == 0 {
 		return nil, serrors.New("no src or dst ia provided")
 	}
@@ -658,9 +655,9 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 		traffic_split = ?, src_ia = ?, dst_ia = ?, active_index = ?`
 	_, err = x.ExecContext(ctx, query, rsv.ID.ASID, binary.BigEndian.Uint32(rsv.ID.Suffix),
 		rsv.Ingress, rsv.Egress, rsv.PathType, p.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
-		p.SrcIA().IAInt(), p.DstIA().IAInt(), activeIndex,
+		p.SrcIA(), p.DstIA(), activeIndex,
 		rsv.Ingress, rsv.Egress, rsv.PathType, p.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
-		p.SrcIA().IAInt(), p.DstIA().IAInt(), activeIndex)
+		p.SrcIA(), p.DstIA(), activeIndex)
 	if err != nil {
 		return err
 	}
@@ -1247,22 +1244,29 @@ func subtractTransitDem(ctx context.Context, x db.Sqler, ingress, egress uint16,
 	return err
 }
 
-func conditionsForIA(field string, ia addr.IA, conditions *[]string, params *[]interface{}) {
-	if !ia.IsZero() {
-		var condition string
-		var param uint64
-		switch {
-		case ia.I == 0:
-			condition = field + " & 0x0000FFFFFFFFFFFF = ?"
-			param = uint64(ia.A)
-		case ia.A == 0:
-			condition = field + " & 0xFFFF000000000000 >> 48 = ?"
-			param = uint64(ia.I)
-		default:
-			condition = field + " = ?"
-			param = uint64(ia.IAInt())
+type iaCond struct {
+	fieldName  string
+	fieldValue addr.IA
+}
+
+func conditionsForIA(pairs ...iaCond) ([]string, []interface{}) {
+	conditions := make([]string, 0, len(pairs))
+	params := make([]interface{}, 0, len(pairs))
+	for _, pair := range pairs {
+		if pair.fieldValue.IsZero() {
+			continue
 		}
-		*conditions = append(*conditions, condition)
-		*params = append(*params, param)
+		switch {
+		case pair.fieldValue.ISD() == 0:
+			conditions = append(conditions, pair.fieldName+" & 0x0000FFFFFFFFFFFF = ?")
+			params = append(params, uint64(pair.fieldValue.AS()))
+		case pair.fieldValue.AS() == 0:
+			conditions = append(conditions, pair.fieldName+" & 0xFFFF000000000000 >> 48 = ?")
+			params = append(params, uint64(pair.fieldValue.ISD()))
+		default:
+			conditions = append(conditions, pair.fieldName+" = ?")
+			params = append(params, uint64(pair.fieldValue))
+		}
 	}
+	return conditions, params
 }

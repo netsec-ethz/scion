@@ -38,6 +38,7 @@ import (
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/metrics"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -223,7 +224,7 @@ func (c client) run() int {
 	}
 	pathToDst := pathsToDst[0]
 	log.Debug("found path to destination", "path", pathToDst)
-	c.Remote.Path = pathToDst.Path()
+	c.Remote.Path = pathToDst.Dataplane()
 	c.Remote.NextHop = pathToDst.UnderlayNextHop()
 	// dial to destination using the first path
 	dispatcher := reliable.NewDispatcher(reliable.DefaultDispPath)
@@ -274,7 +275,7 @@ func (c client) run() int {
 		integration.LogFatal("creating reservation", "err", err)
 	}
 	// use the reservation
-	c.Remote.Path = p.Path()
+	c.Remote.Path = p.Dataplane()
 	c.Remote.NextHop = p.UnderlayNextHop()
 	_, err = conn.WriteTo([]byte("colibri test colibri path"), c.Remote)
 	if err != nil {
@@ -290,8 +291,28 @@ func (c client) run() int {
 		integration.LogFatal("sender of response is not scion", "raddr", raddr,
 			"type", common.TypeOf(raddr))
 	}
-	if sraddr.Path.Type != colpath.PathType {
-		integration.LogFatal("non-colibri path type", "type", sraddr.Path.Type)
+	sraddrPath, _ := sraddr.GetPath()
+	sraddrRawPath, gotColPath := sraddrPath.Dataplane().(path.Colibri)
+	if !gotColPath {
+		sraddrReplyPath, ok := sraddrPath.Dataplane().(snet.RawReplyPath)
+		if ok {
+			colPath, ok := sraddrReplyPath.Path.(*colpath.ColibriPathMinimal)
+			if ok {
+				sraddrRawPath = path.Colibri{
+					Raw: make([]byte, colPath.Len()),
+				}
+				if err := colPath.SerializeTo(sraddrRawPath.Raw); err != nil {
+					integration.LogFatal("cannot serialize colibri path", "err", err)
+				}
+				gotColPath = true
+			}
+		}
+	}
+	if !gotColPath {
+		integration.LogFatal("non-colibri path type", "type", common.TypeOf(sraddrPath.Dataplane()))
+	}
+	if sraddrRawPath.Raw == nil {
+		integration.LogFatal("colibri path but empty raw", "path", sraddrRawPath)
 	}
 	// clean reservation up
 	if err = c.cleanRsv(ctx, &rsvID, 0); err != nil {
@@ -319,7 +340,7 @@ func (c client) createRsv(ctx context.Context, segments []reservation.ID,
 
 	setupReq := &libcol.E2EReservationSetup{
 		Id: reservation.ID{
-			ASID:   c.LocalIA.A,
+			ASID:   c.LocalIA.AS(),
 			Suffix: make([]byte, 12),
 		},
 		SrcIA:       c.LocalIA,

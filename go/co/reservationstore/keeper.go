@@ -256,7 +256,7 @@ func (k *keeper) askNewReservations(ctx context.Context, requiredSuccesful int, 
 
 	// TODO(juagargi) test this function (indices seen in requests should always be zero)
 	if requiredSuccesful > 0 {
-		requests, err := entry.PrepareSetupRequests(paths, k.manager.LocalIA().A,
+		requests, err := entry.PrepareSetupRequests(paths, k.manager.LocalIA().AS(),
 			k.manager.Now(), expTime)
 		if err != nil {
 			return nil, serrors.WrapStr("cannot setup new reservations", err, "paths", paths)

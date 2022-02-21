@@ -37,10 +37,10 @@ import (
 )
 
 var (
-	ia330 = addr.IA{I: 1, A: 0xff0000000330}
-	ia311 = addr.IA{I: 1, A: 0xff0000000311}
-	ia331 = addr.IA{I: 1, A: 0xff0000000331}
-	ia332 = addr.IA{I: 1, A: 0xff0000000332}
+	ia330 = addr.MustIAFrom(1, 0xff0000000330)
+	ia311 = addr.MustIAFrom(1, 0xff0000000311)
+	ia331 = addr.MustIAFrom(1, 0xff0000000331)
+	ia332 = addr.MustIAFrom(1, 0xff0000000332)
 
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}
@@ -228,7 +228,7 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 		HopField: seg.HopField{
 			ConsIngress: 23,
 			ConsEgress:  newPS.ASEntries[1].HopEntry.HopField.ConsEgress,
-			MAC:         make([]byte, 6),
+			MAC:         [path.MacLen]byte{},
 		},
 	})
 
@@ -476,7 +476,7 @@ func AllocPathSegment(t *testing.T, ifs []uint64, infoTS uint32) (*seg.PathSegme
 			ConsIngress: uint16(ifs[2*i]),
 			ConsEgress:  uint16(ifs[2*i+1]),
 			ExpTime:     63,
-			MAC:         []byte{1, 2, 3, 4, 5, 6},
+			MAC:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 		})
 	}
 

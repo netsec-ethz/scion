@@ -16,7 +16,7 @@ package slayers_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -100,7 +100,7 @@ func TestSCIONSCMP(t *testing.T) {
 				t.Skip("flag -update updates golden files")
 				return
 			}
-			raw, err := ioutil.ReadFile(tc.rawFile)
+			raw, err := os.ReadFile(tc.rawFile)
 			require.NoError(t, err)
 			packet := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
 			pe := packet.ErrorLayer()
@@ -168,11 +168,11 @@ func TestSCIONSCMP(t *testing.T) {
 				err := gopacket.SerializeLayers(got, opts, tc.decodedLayers...)
 				require.NoError(t, err)
 				if *update {
-					err := ioutil.WriteFile(tc.rawFile, got.Bytes(), 0644)
+					err := os.WriteFile(tc.rawFile, got.Bytes(), 0644)
 					require.NoError(t, err)
 					return
 				}
-				raw, err := ioutil.ReadFile(tc.rawFile)
+				raw, err := os.ReadFile(tc.rawFile)
 				require.NoError(t, err)
 				assert.Equal(t, raw, got.Bytes())
 			})
@@ -290,7 +290,7 @@ func TestPaths(t *testing.T) {
 				t.Skip("flag -update updates golden files")
 				return
 			}
-			raw, err := ioutil.ReadFile(tc.rawFile)
+			raw, err := os.ReadFile(tc.rawFile)
 			require.NoError(t, err)
 			packet := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
 			pe := packet.ErrorLayer()
@@ -327,11 +327,11 @@ func TestPaths(t *testing.T) {
 			err := gopacket.SerializeLayers(got, opts, tc.decodedLayers(t)...)
 			require.NoError(t, err)
 			if *update {
-				err := ioutil.WriteFile(tc.rawFile, got.Bytes(), 0644)
+				err := os.WriteFile(tc.rawFile, got.Bytes(), 0644)
 				require.NoError(t, err)
 				return
 			}
-			raw, err := ioutil.ReadFile(tc.rawFile)
+			raw, err := os.ReadFile(tc.rawFile)
 			require.NoError(t, err)
 			assert.Equal(t, raw, got.Bytes())
 		})
@@ -399,7 +399,7 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 
 	assert.NoError(t, gopacket.SerializeLayers(b, opts, s, hbh, e2e, u, pld), "Serialize")
 	if *update {
-		err := ioutil.WriteFile("testdata/"+rawFullPktFilename, b.Bytes(), 0644)
+		err := os.WriteFile("testdata/"+rawFullPktFilename, b.Bytes(), 0644)
 		require.NoError(t, err)
 		return
 	}

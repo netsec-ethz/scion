@@ -27,7 +27,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/xtest"
 	sd_grpc "github.com/scionproto/scion/go/pkg/daemon/drkey/grpc"
@@ -103,7 +102,6 @@ func TestLvl2KeyFetching(t *testing.T) {
 	}
 
 	meta := drkey.Lvl2Meta{}
-	dstIA := addr.IA{}
-	_, err = fetcher.GetDRKeyLvl2(context.Background(), meta, dstIA, now)
+	_, err = fetcher.GetDRKeyLvl2(context.Background(), meta, 0, now)
 	require.NoError(t, err)
 }

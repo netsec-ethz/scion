@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -47,9 +47,9 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 
 	beta := ps.Info.SegmentID
 	// The hop fields need to be in reversed order.
-	hopFields := make([]*path.HopField, len(ps.ASEntries))
+	hopFields := make([]path.HopField, len(ps.ASEntries))
 	for i, entry := range ps.ASEntries {
-		hopFields[len(hopFields)-1-i] = &path.HopField{
+		hopFields[len(hopFields)-1-i] = path.HopField{
 			ConsIngress: entry.HopEntry.HopField.ConsIngress,
 			ConsEgress:  entry.HopEntry.HopField.ConsEgress,
 			ExpTime:     entry.HopEntry.HopField.ExpTime,
@@ -72,15 +72,15 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 			NumHops: hops,
 			NumINF:  1,
 		},
-		InfoFields: []*path.InfoField{{
+		InfoFields: []path.InfoField{{
 			Timestamp: util.TimeToSecs(ps.Info.Timestamp),
 			ConsDir:   false,
 			SegID:     beta,
 		}},
 		HopFields: hopFields,
 	}
-	raw := make([]byte, dec.Len())
-	if err := dec.SerializeTo(raw); err != nil {
+	path, err := snetpath.NewSCIONFromDecoded(dec)
+	if err != nil {
 		return nil, serrors.WrapStr("serializing path", err)
 	}
 	ifID := dec.HopFields[0].ConsIngress
@@ -90,7 +90,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
-		Path:    spath.Path{Raw: raw, Type: scion.PathType},
+		Path:    path,
 		NextHop: nextHop,
 		SVC:     svc,
 	}, nil

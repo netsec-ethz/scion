@@ -35,7 +35,7 @@ type stitchableGenerator struct {
 func (g *stitchableGenerator) newUpID() reservation.ID {
 	g.lastup++
 	id := reservation.ID{
-		ASID: g.stitchable.SrcIA.A,
+		ASID: g.stitchable.SrcIA.AS(),
 	}
 	id.SetSegmentSuffix(g.lastup)
 	return id
@@ -44,7 +44,7 @@ func (g *stitchableGenerator) newUpID() reservation.ID {
 func (g *stitchableGenerator) newDownID() reservation.ID {
 	g.lastdown++
 	id := reservation.ID{
-		ASID: g.stitchable.DstIA.A,
+		ASID: g.stitchable.DstIA.AS(),
 	}
 	id.SetSegmentSuffix(g.lastdown)
 	return id
@@ -53,7 +53,7 @@ func (g *stitchableGenerator) newDownID() reservation.ID {
 func (g *stitchableGenerator) newCoreID(asid addr.IA) reservation.ID {
 	g.lastcore++
 	id := reservation.ID{
-		ASID: asid.A,
+		ASID: asid.AS(),
 	}
 	id.SetSegmentSuffix(g.lastcore)
 	return id
@@ -313,7 +313,7 @@ func (g *fullTripGenerator) NewCore(srcIdx, dstIdx int) *colibri.ReservationLook
 func (g *fullTripGenerator) newUpID() reservation.ID {
 	g.lastup++
 	id := reservation.ID{
-		ASID: g.src.A,
+		ASID: g.src.AS(),
 	}
 	id.SetSegmentSuffix(g.lastup)
 	return id
@@ -322,7 +322,7 @@ func (g *fullTripGenerator) newUpID() reservation.ID {
 func (g *fullTripGenerator) newDownID() reservation.ID {
 	g.lastdown++
 	id := reservation.ID{
-		ASID: g.dst.A,
+		ASID: g.dst.AS(),
 	}
 	id.SetSegmentSuffix(g.lastdown)
 	return id
@@ -331,7 +331,7 @@ func (g *fullTripGenerator) newDownID() reservation.ID {
 func (g *fullTripGenerator) newCoreID(asid addr.IA) reservation.ID {
 	g.lastcore++
 	id := reservation.ID{
-		ASID: asid.A,
+		ASID: asid.AS(),
 	}
 	id.SetSegmentSuffix(g.lastcore)
 	return id

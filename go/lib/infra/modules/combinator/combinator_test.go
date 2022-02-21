@@ -19,7 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -33,7 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -85,10 +85,10 @@ func TestBadPeering(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -131,10 +131,10 @@ func TestMultiPeering(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -174,10 +174,10 @@ func TestSameCoreParent(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -225,10 +225,10 @@ func TestLoops(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -532,10 +532,10 @@ func TestComputePath(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -571,7 +571,7 @@ func TestFilterDuplicates(t *testing.T) {
 		binary.LittleEndian.PutUint32(idBuf, id)
 		return combinator.Path{
 			// hide an id in the (otherwise unused) raw path
-			SPath: spath.Path{Raw: idBuf},
+			SCIONPath: snetpath.SCION{Raw: idBuf},
 			Metadata: snet.PathMetadata{
 				Interfaces: interfaces,
 				Expiry:     expiry,
@@ -671,7 +671,7 @@ func TestFilterDuplicates(t *testing.T) {
 			// extract IDs hidden in the raw paths:
 			filteredIds := make([]uint32, len(filtered))
 			for i, path := range filtered {
-				filteredIds[i] = binary.LittleEndian.Uint32(path.SPath.Raw)
+				filteredIds[i] = binary.LittleEndian.Uint32(path.SCIONPath.Raw)
 			}
 			assert.Equal(t, tc.Expected, filteredIds)
 		})
@@ -691,7 +691,7 @@ func writeTestString(p combinator.Path, w io.Writer) {
 	fmt.Fprintf(w, "  Weight: %d\n", p.Weight)
 
 	sp := scion.Decoded{}
-	if err := sp.DecodeFromBytes(p.SPath.Raw); err != nil {
+	if err := sp.DecodeFromBytes(p.SCIONPath.Raw); err != nil {
 		panic(err)
 	}
 
@@ -711,13 +711,13 @@ func writeTestString(p combinator.Path, w io.Writer) {
 	}
 }
 
-func fmtIF(field *path.InfoField) string {
+func fmtIF(field path.InfoField) string {
 	return fmt.Sprintf("IF %s%s",
 		flagPrint("C", field.ConsDir),
 		flagPrint("P", field.Peer))
 }
 
-func fmtHF(field *path.HopField) string {
+func fmtHF(field path.HopField) string {
 	return fmt.Sprintf("HF InIF=%d OutIF=%d",
 		field.ConsIngress,
 		field.ConsEgress)

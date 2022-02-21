@@ -17,11 +17,11 @@ package test
 import (
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/common"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	slayers "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -29,7 +29,9 @@ func NewPath(chain ...interface{}) *base.TransparentPath {
 	if len(chain)%3 != 0 {
 		panic("wrong number of arguments")
 	}
-	p := &base.TransparentPath{}
+	p := &base.TransparentPath{
+		RawPath: &empty.Path{},
+	}
 	for i := 0; i < len(chain); i += 3 {
 		p.Steps = append(p.Steps, base.PathStep{
 			Ingress: uint16(chain[i].(int)),
@@ -86,14 +88,14 @@ func NewSnetPath(args ...interface{}) snet.Path {
 			NumINF:  1,
 			NumHops: len(transp.Steps),
 		},
-		InfoFields: []*slayerspath.InfoField{{
+		InfoFields: []slayers.InfoField{{
 			ConsDir: true,
 		}},
-		HopFields: make([]*slayerspath.HopField, len(transp.Steps)),
+		HopFields: make([]slayers.HopField, len(transp.Steps)),
 	}
 
 	for i, iface := range transp.Steps {
-		rp.HopFields[i] = &slayerspath.HopField{
+		rp.HopFields[i] = slayers.HopField{
 			ConsIngress: iface.Ingress,
 			ConsEgress:  iface.Egress,
 		}
@@ -108,9 +110,9 @@ func NewSnetPath(args ...interface{}) snet.Path {
 		Meta: snet.PathMetadata{
 			Interfaces: ifaces,
 		},
-		SPath: spath.Path{
-			Raw:  buff,
-			Type: scion.PathType,
+		DataplanePath: snet.RawPath{
+			Raw:      buff,
+			PathType: scion.PathType,
 		},
 	}
 }

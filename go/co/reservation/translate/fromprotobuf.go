@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
@@ -75,9 +74,9 @@ func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
 	}
 	return &e2e.SetupReq{
 		Request:                *base,
-		SrcIA:                  addr.IAInt(msg.Params.SrcIa).IA(),
+		SrcIA:                  addr.IA(msg.Params.SrcIa),
 		SrcHost:                msg.Params.SrcHost,
-		DstIA:                  addr.IAInt(msg.Params.DstIa).IA(),
+		DstIA:                  addr.IA(msg.Params.DstIa),
 		DstHost:                msg.Params.DstHost,
 		SegmentRsvs:            segIds,
 		CurrentSegmentRsvIndex: int(msg.Params.CurrentSegment),
@@ -145,13 +144,17 @@ func Request(msg *colpb.Request) (*base.Request, error) {
 		return nil, err
 	}
 	timestamp := util.SecsToTime(msg.Timestamp)
+	p, err := TransparentPath(msg.Path)
+	if err != nil {
+		return nil, err
+	}
 	return &base.Request{
 		MsgId: base.MsgId{
 			ID:        *ID(msg.Id),
 			Index:     idx,
 			Timestamp: timestamp,
 		},
-		Path: TransparentPath(msg.Path),
+		Path: p,
 	}, nil
 }
 
@@ -183,8 +186,8 @@ func StitchableSegments(msg *colpb.ListStitchablesResponse) (*colibri.Stitchable
 		return nil, err
 	}
 	return &colibri.StitchableSegments{
-		SrcIA: addr.IAInt(msg.SrcIa).IA(),
-		DstIA: addr.IAInt(msg.DstIa).IA(),
+		SrcIA: addr.IA(msg.SrcIa),
+		DstIA: addr.IA(msg.DstIa),
 		Up:    up,
 		Core:  core,
 		Down:  down,
@@ -202,8 +205,8 @@ func ReservationLooks(msg []*colpb.ListReservationsResponse_ReservationLooks) (
 	for i, l := range msg {
 		res[i] = &colibri.ReservationLooks{
 			Id:             *ID(l.Id),
-			SrcIA:          addr.IAInt(l.SrcIa).IA(),
-			DstIA:          addr.IAInt(l.DstIa).IA(),
+			SrcIA:          addr.IA(l.SrcIa),
+			DstIA:          addr.IA(l.DstIa),
 			ExpirationTime: util.SecsToTime(l.ExpirationTime),
 			MinBW:          col.BWCls(l.Minbw),
 			MaxBW:          col.BWCls(l.Maxbw),
@@ -277,24 +280,27 @@ func AllocTrail(msg []*colpb.AllocationBead) col.AllocationBeads {
 	return trail
 }
 
-func TransparentPath(msg *colpb.TransparentPath) *base.TransparentPath {
+func TransparentPath(msg *colpb.TransparentPath) (*base.TransparentPath, error) {
 	if msg == nil {
-		return nil
+		return nil, nil
+	}
+	p := base.PathFromType(path.Type(msg.PathType))
+	if p != nil {
+		if err := p.DecodeFromBytes(msg.RawPath); err != nil {
+			return nil, err
+		}
 	}
 	return &base.TransparentPath{
 		CurrentStep: int(msg.CurrentStep),
 		Steps:       TransparentPathSteps(msg.Steps),
-		Spath: spath.Path{
-			Type: path.Type(msg.SpathType),
-			Raw:  msg.SpathRaw,
-		},
-	}
+		RawPath:     p,
+	}, nil
 }
 
 func TransparentPathSteps(msg []*colpb.PathStep) []base.PathStep {
 	steps := make([]base.PathStep, len(msg))
 	for i, step := range msg {
-		steps[i].IA = addr.IAInt(step.Ia).IA()
+		steps[i].IA = addr.IA(step.Ia)
 		steps[i].Ingress = uint16(step.Ingress)
 		steps[i].Egress = uint16(step.Egress)
 	}

@@ -59,12 +59,12 @@ var (
 	IPPktBytesLocalReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkt_bytes_local_received_total",
 		Help:   "Total IP packet bytes received from the local network.",
-		Labels: []string{"isd_as"},
+		Labels: []string{},
 	}
 	IPPktsLocalReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_local_received_total",
 		Help:   "Total number of IP packets received from the local network.",
-		Labels: []string{"isd_as"},
+		Labels: []string{},
 	}
 	FrameBytesSentTotalMeta = MetricMeta{
 		Name:   "gateway_frame_bytes_sent_total",
@@ -78,7 +78,7 @@ var (
 	}
 	FrameBytesReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_frame_bytes_received_total",
-		Help:   "gateway_frame_bytes_received_total",
+		Help:   "Total frame bytes received from remote gateways.",
 		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	FramesReceivedTotalMeta = MetricMeta{
@@ -94,7 +94,7 @@ var (
 	IPPktsDiscardedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_discarded_total",
 		Help:   "Total number of discarded IP packets received from the local network.",
-		Labels: []string{"isd_as", "reason"},
+		Labels: []string{"reason"},
 	}
 	SendExternalErrorsTotalMeta = MetricMeta{
 		Name:   "gateway_send_external_errors_total",
@@ -159,6 +159,16 @@ var (
 	RemotesMeta = MetricMeta{
 		Name:   "gateway_remotes",
 		Help:   "Total number of discovered remote gateways.",
+		Labels: []string{"isd_as", "remote_isd_as"},
+	}
+	RemoteDiscoveryErrorsMeta = MetricMeta{
+		Name:   "gateway_remote_discovery_errors_total",
+		Help:   "Total number of errors discovering remote gateways.",
+		Labels: []string{"isd_as", "remote_isd_as"},
+	}
+	PrefixFetchErrorsMeta = MetricMeta{
+		Name:   "gateway_prefix_fetch_errors_total",
+		Help:   "Total number of errors fetching prefixes.",
 		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	PrefixesAdvertisedMeta = MetricMeta{
@@ -236,10 +246,12 @@ type Metrics struct {
 	PathProbesSendErrors  *prometheus.CounterVec
 
 	// Discovery Metrics
-	Remotes            *prometheus.GaugeVec
-	PrefixesAdvertised *prometheus.GaugeVec
-	PrefixesAccepted   *prometheus.GaugeVec
-	PrefixesRejected   *prometheus.GaugeVec
+	Remotes               *prometheus.GaugeVec
+	RemoteDiscoveryErrors *prometheus.CounterVec
+	PrefixFetchErrors     *prometheus.CounterVec
+	PrefixesAdvertised    *prometheus.GaugeVec
+	PrefixesAccepted      *prometheus.GaugeVec
+	PrefixesRejected      *prometheus.GaugeVec
 
 	// SessionMonitor Metrics
 	SessionProbes       *prometheus.CounterVec
@@ -272,9 +284,9 @@ func NewMetrics(ia addr.IA) *Metrics {
 		IPPktsLocalSentTotal: IPPktsLocalSentTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		IPPktBytesLocalReceivedTotal: IPPktBytesLocalReceivedTotalMeta.
-			NewCounterVec().MustCurryWith(labels),
+			NewCounterVec(),
 		IPPktsLocalReceivedTotal: IPPktsLocalReceivedTotalMeta.
-			NewCounterVec().MustCurryWith(labels),
+			NewCounterVec(),
 		FrameBytesSentTotal: FrameBytesSentTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		FramesSentTotal: FramesSentTotalMeta.
@@ -286,7 +298,7 @@ func NewMetrics(ia addr.IA) *Metrics {
 		FramesDiscardedTotal: FramesDiscardedTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		IPPktsDiscardedTotal: IPPktsDiscardedTotalMeta.
-			NewCounterVec().MustCurryWith(labels),
+			NewCounterVec(),
 		SendExternalErrorsTotal: SendExternalErrorsTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		SendLocalErrorsTotal: SendLocalErrorsTotalMeta.
@@ -313,6 +325,10 @@ func NewMetrics(ia addr.IA) *Metrics {
 			NewGaugeVec().MustCurryWith(labels),
 		Remotes: RemotesMeta.
 			NewGaugeVec().MustCurryWith(labels),
+		RemoteDiscoveryErrors: RemoteDiscoveryErrorsMeta.
+			NewCounterVec().MustCurryWith(labels),
+		PrefixFetchErrors: PrefixFetchErrorsMeta.
+			NewCounterVec().MustCurryWith(labels),
 		PrefixesAdvertised: PrefixesAdvertisedMeta.
 			NewGaugeVec().MustCurryWith(labels),
 		PrefixesAccepted: PrefixesAcceptedMeta.

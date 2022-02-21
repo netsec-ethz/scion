@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Reservation is an snet.Path like type that internally handles an e2e reservation.
@@ -93,7 +92,7 @@ func NewReservation(ctx context.Context,
 	// 3. create setup reservation
 	setupReq := &colibri.E2EReservationSetup{
 		Id: reservation.ID{
-			ASID:   localIA.A,
+			ASID:   localIA.AS(),
 			Suffix: make([]byte, reservation.IDE2ELen),
 		},
 		SrcIA:       localIA,
@@ -168,8 +167,8 @@ func (r *Reservation) UnderlayNextHop() *net.UDPAddr {
 	return r.colibriPath.UnderlayNextHop()
 }
 
-func (r *Reservation) Path() spath.Path {
-	return r.colibriPath.Path()
+func (r *Reservation) Dataplane() snet.DataplanePath {
+	return r.colibriPath.Dataplane()
 }
 
 func (r *Reservation) Destination() addr.IA {

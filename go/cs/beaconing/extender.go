@@ -101,7 +101,7 @@ func (s *DefaultExtender) Extend(
 	asEntry := seg.ASEntry{
 		HopEntry:    hopEntry,
 		Local:       s.IA,
-		Next:        next.IA(),
+		Next:        next,
 		PeerEntries: peerEntries,
 		MTU:         int(s.MTU),
 	}
@@ -187,7 +187,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
 	hopF, epicMac := s.createHopF(ingress, egress, ts, beta)
 	return seg.PeerEntry{
 		PeerMTU:       int(remoteInMTU),
-		Peer:          remoteInIA.IA(),
+		Peer:          remoteInIA,
 		PeerInterface: remoteInIfID,
 		HopField: seg.HopField{
 			ConsIngress: hopF.ConsIngress,
@@ -198,7 +198,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
 	}, epicMac, nil
 }
 
-func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IAInt, error) {
+func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IA, error) {
 	if ifID == 0 {
 		return 0, nil
 	}
@@ -210,7 +210,7 @@ func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IAInt, error) {
 	if topoInfo.IA.IsWildcard() {
 		return 0, serrors.New("remote is wildcard", "isd_as", topoInfo.IA)
 	}
-	return topoInfo.IA.IAInt(), nil
+	return topoInfo.IA, nil
 }
 
 func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
@@ -226,7 +226,7 @@ func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
 }
 
 func (s *DefaultExtender) remoteInfo(ifid uint16) (
-	addr.IAInt, uint16, uint16, error) {
+	addr.IA, uint16, uint16, error) {
 
 	if ifid == 0 {
 		return 0, 0, 0, nil
@@ -242,7 +242,7 @@ func (s *DefaultExtender) remoteInfo(ifid uint16) (
 	if topoInfo.IA.IsWildcard() {
 		return 0, 0, 0, serrors.New("remote ISD-AS is wildcard", "isd_as", topoInfo.IA)
 	}
-	return topoInfo.IA.IAInt(), topoInfo.RemoteID, topoInfo.MTU, nil
+	return topoInfo.IA, topoInfo.RemoteID, topoInfo.MTU, nil
 }
 
 func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
@@ -258,12 +258,14 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 		panic(err)
 	}
 	fullMAC := mac.Sum(nil)
+	m := [path.MacLen]byte{}
+	copy(m[:], fullMAC[:path.MacLen])
 	return path.HopField{
 		ConsIngress: ingress,
 		ConsEgress:  egress,
 		ExpTime:     expTime,
-		Mac:         fullMAC[:6],
-	}, fullMAC[6:16]
+		Mac:         m,
+	}, fullMAC[path.MacLen:]
 }
 
 func extractBeta(pseg *seg.PathSegment) uint16 {

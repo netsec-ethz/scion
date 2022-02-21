@@ -68,13 +68,13 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("Getting paths to any authoritative server", "isd", dstISD)
-	path, err := r.Router.Route(ctx, addr.IA{I: dstISD})
+	path, err := r.Router.Route(ctx, addr.MustIAFrom(dstISD, 0))
 	if err != nil || path == nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
 	}
 	ret := &snet.SVCAddr{
 		IA:      path.Destination(),
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}

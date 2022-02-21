@@ -53,7 +53,7 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	}
 	remote := &snet.SVCAddr{
 		IA:      srcIA,
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}

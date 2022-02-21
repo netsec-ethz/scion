@@ -141,7 +141,7 @@ func (r *Reservation) AllocResv() uint64 {
 
 func (r *Reservation) DstIA() addr.IA {
 	if len(r.SegmentReservations) == 0 {
-		return addr.IA{}
+		return 0
 	}
 	return r.SegmentReservations[len(r.SegmentReservations)-1].PathAtSource.DstIA()
 }

@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -84,9 +83,9 @@ func TestReservationOpen(t *testing.T) {
 	rsv.e2eRenewalTaskDuration = reservation.TicksInE2ERsv * 4 * time.Millisecond / 2 // 16ms
 
 	testPaths := []*snetpath.Path{
-		{SPath: spath.Path{Raw: xtest.MustParseHexString("01")}},
-		{SPath: spath.Path{Raw: xtest.MustParseHexString("02")}},
-		{SPath: spath.Path{Raw: xtest.MustParseHexString("03")}},
+		{DataplanePath: snet.RawPath{Raw: xtest.MustParseHexString("01")}},
+		{DataplanePath: snet.RawPath{Raw: xtest.MustParseHexString("02")}},
+		{DataplanePath: snet.RawPath{Raw: xtest.MustParseHexString("03")}},
 	}
 	timesCalled := 0
 	daemon.EXPECT().ColibriSetupRsv(gomock.Any(), gomock.Any()).AnyTimes().
@@ -149,7 +148,7 @@ func TestReservationOpenSuccessfully(t *testing.T) {
 	rsv.e2eRenewalTaskDuration = reservation.TicksInE2ERsv * 4 * time.Millisecond / 2 // 16ms
 
 	returnPath := &snetpath.Path{
-		SPath: spath.Path{Raw: xtest.MustParseHexString("01")},
+		DataplanePath: snet.RawPath{Raw: xtest.MustParseHexString("01")},
 	}
 	timesCalled := 0
 	daemon.EXPECT().ColibriSetupRsv(gomock.Any(), gomock.Any()).AnyTimes().
@@ -205,9 +204,11 @@ func TestReservationFailOnRenewal(t *testing.T) {
 	rsv.e2eRenewalTaskDuration = reservation.TicksInE2ERsv * 4 * time.Millisecond / 2 // 16ms
 
 	testPaths := []*snetpath.Path{
-		{SPath: spath.Path{Raw: xtest.MustParseHexString("01")}},
+		{DataplanePath: snet.RawPath{Raw: xtest.MustParseHexString("01")}},
 	}
-	testPathAfterFailure := &snetpath.Path{SPath: spath.Path{Raw: xtest.MustParseHexString("01")}}
+	testPathAfterFailure := &snetpath.Path{DataplanePath: snet.RawPath{
+		Raw: xtest.MustParseHexString("02")},
+	}
 	timesCalled := 0
 	everFailed := false
 	timesCalledAfterFailure := 0
@@ -223,7 +224,7 @@ func TestReservationFailOnRenewal(t *testing.T) {
 				return testPathAfterFailure, nil
 			}
 			if timesCalled > len(testPaths) {
-				return nil, serrors.New("mock error")
+				return nil, serrors.New("mock error 1")
 			}
 			return testPaths[timesCalled-1], nil
 		})
@@ -234,7 +235,7 @@ func TestReservationFailOnRenewal(t *testing.T) {
 	waitForTest.Add(1)
 	err = rsv.Open(ctx, nil, func(r *Reservation, err error) *colibri.FullTrip {
 		if !everFailed {
-			waitForFallback.Done()
+			defer waitForFallback.Done()
 			everFailed = true
 			return trips[1]
 		}
@@ -250,7 +251,7 @@ func TestReservationFailOnRenewal(t *testing.T) {
 
 	waitForFallback.Wait() // wait until the fallback function is done
 	require.Equal(t, true, everFailed)
-	require.Equal(t, testPaths[len(testPaths)-1], rsv.colibriPath) // last valid path before failure
+	require.Equal(t, testPathAfterFailure, rsv.colibriPath) // after first failure
 	// sleep more to allow the routine to finish setting the rsv.
 	time.Sleep(10 * time.Millisecond)
 	require.Greater(t, timesCalledAfterFailure, 0)
@@ -259,10 +260,10 @@ func TestReservationFailOnRenewal(t *testing.T) {
 
 	// unlock second part of the test, where the fallback function will fail
 	waitForTest.Done()
-	time.Sleep(10 * time.Millisecond) // wait a bit longer to allow the runner to finish
-	require.Equal(t, testPathAfterFailure, rsv.colibriPath)
+	time.Sleep(10 * time.Millisecond)                       // wait  to allow the runner to finish
+	require.Equal(t, testPathAfterFailure, rsv.colibriPath) // last valid path before full failure
 
-	// this is  a bit of a hack: change the onError function
+	// this is  a bit of a hack: changing here the onError function
 	alwaysFailing := false
 	rsv.onError = func(rsv *Reservation, err error) *colibri.FullTrip {
 		alwaysFailing = true

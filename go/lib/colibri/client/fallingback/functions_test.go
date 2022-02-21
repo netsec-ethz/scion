@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	rt "github.com/scionproto/scion/go/co/reservation/test"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/client"
 	ct "github.com/scionproto/scion/go/lib/colibri/coltest"
@@ -102,7 +101,7 @@ func TestSkipInterface(t *testing.T) {
 	require.Len(t, *capturedTrips[2], 2)
 
 	fallbackFcn := SkipInterface(capturedTrips)
-	rsv := client.NewReservationForTesting(nil, time.Hour, nil, addr.IA{},
+	rsv := client.NewReservationForTesting(nil, time.Hour, nil, 0,
 		nil, capturedTrips[0], nil, nil, nil)
 	admissionFailure := &colibri.E2ESetupError{
 		E2EResponseError: colibri.E2EResponseError{

@@ -100,8 +100,8 @@ func RequestToLvl2Req(req *dkpb.DRKeyLvl2Request) (Lvl2Req, error) {
 		Protocol: req.Protocol,
 		ReqType:  req.ReqType,
 		ValTime:  valTime,
-		SrcIA:    addr.IAInt(req.SrcIa).IA(),
-		DstIA:    addr.IAInt(req.DstIa).IA(),
+		SrcIA:    addr.IA(req.SrcIa),
+		DstIA:    addr.IA(req.DstIa),
 		SrcHost: Host{
 			Type: addr.HostAddrType(req.SrcHost.Type),
 			Host: req.SrcHost.Host,
@@ -146,8 +146,8 @@ func Lvl2reqToProtoRequest(req Lvl2Req) (*dkpb.DRKeyLvl2Request, error) {
 	return &dkpb.DRKeyLvl2Request{
 		Protocol: req.Protocol,
 		ReqType:  req.ReqType,
-		DstIa:    uint64(req.DstIA.IAInt()),
-		SrcIa:    uint64(req.SrcIA.IAInt()),
+		DstIa:    uint64(req.DstIA),
+		SrcIa:    uint64(req.SrcIA),
 		ValTime:  valTime,
 		SrcHost: &dkpb.DRKeyLvl2Request_DRKeyHost{
 			Type: uint32(req.SrcHost.Type),

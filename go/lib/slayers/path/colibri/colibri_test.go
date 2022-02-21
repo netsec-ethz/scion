@@ -15,9 +15,11 @@
 package colibri_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -86,4 +88,45 @@ func TestColibriReverse(t *testing.T) {
 		assert.NoError(t, err2)
 		assert.Equal(t, revrev, old)
 	}
+}
+
+// TestPathToBytesAndReverse checks that the path can be serialized and reversed. It prints
+// the bytes in hex, to be used as input in other tests that require a valid colibri path.
+func TestPathToBytesAndReverse(t *testing.T) {
+	p := &colibri.ColibriPath{
+		InfoField: &colibri.InfoField{
+			ResIdSuffix: xtest.MustParseHexString("0123456789ab0123456789ab"), // 12 bytes
+			BwCls:       13,
+			HFCount:     3,
+			CurrHF:      0,
+		},
+		HopFields: []*colibri.HopField{
+			{
+				IngressId: 0,
+				EgressId:  1,
+				Mac:       xtest.MustParseHexString("01234567"),
+			},
+			{
+				IngressId: 1,
+				EgressId:  2,
+				Mac:       xtest.MustParseHexString("01234567"),
+			},
+			{
+				IngressId: 1,
+				EgressId:  0,
+				Mac:       xtest.MustParseHexString("01234567"),
+			},
+		},
+	}
+	buff := make([]byte, p.Len())
+	require.NoError(t, p.SerializeTo(buff))
+	t.Log("colibri path", hex.EncodeToString(buff))
+
+	rp, err := p.Reverse()
+	require.NoError(t, err)
+	require.IsType(t, &colibri.ColibriPath{}, rp)
+	p = rp.(*colibri.ColibriPath)
+	buff = make([]byte, p.Len())
+	require.NoError(t, p.SerializeTo(buff))
+	t.Log("reversed colibri path", hex.EncodeToString(buff))
 }

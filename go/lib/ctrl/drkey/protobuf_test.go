@@ -146,8 +146,8 @@ func TestRequestToLvl2Req(t *testing.T) {
 	req := &dkpb.DRKeyLvl2Request{
 		Protocol: "piskes",
 		ReqType:  uint32(reqType),
-		DstIa:    uint64(dstIA.IAInt()),
-		SrcIa:    uint64(srcIA.IAInt()),
+		DstIa:    uint64(dstIA),
+		SrcIa:    uint64(srcIA),
 		ValTime:  valTime,
 		SrcHost: &dkpb.DRKeyLvl2Request_DRKeyHost{
 			Type: uint32(hostType),

@@ -99,9 +99,9 @@ func (b *Lvl1Backend) GetLvl1SrcASes(ctx context.Context) ([]addr.IA, error) {
 		if err := rows.Scan(&I, &A); err != nil {
 			return nil, serrors.WrapStr("Cannot copy from SQL to memory", err)
 		}
-		ia := addr.IA{
-			I: addr.ISD(I),
-			A: addr.AS(A),
+		ia, err := addr.IAFrom(addr.ISD(I), addr.AS(A))
+		if err != nil {
+			return nil, err
 		}
 		ases = append(ases, ia)
 	}
@@ -134,9 +134,9 @@ func (b *Lvl1Backend) GetValidLvl1SrcASes(ctx context.Context, valTime uint32) (
 		if err := rows.Scan(&I, &A); err != nil {
 			return nil, serrors.WrapStr("Cannot copy from SQL to memory", err)
 		}
-		ia := addr.IA{
-			I: addr.ISD(I),
-			A: addr.AS(A),
+		ia, err := addr.IAFrom(addr.ISD(I), addr.AS(A))
+		if err != nil {
+			return nil, err
 		}
 		ases = append(ases, ia)
 	}
@@ -159,8 +159,8 @@ func (b *Lvl1Backend) GetLvl1Key(ctx context.Context, key drkey.Lvl1Meta,
 
 	var epochBegin, epochEnd int
 	var bytes []byte
-	err := b.getLvl1KeyStmt.QueryRowContext(ctx, key.SrcIA.I, key.SrcIA.A,
-		key.DstIA.I, key.DstIA.A, valTime, valTime).Scan(&epochBegin, &epochEnd, &bytes)
+	err := b.getLvl1KeyStmt.QueryRowContext(ctx, key.SrcIA.ISD(), key.SrcIA.AS(),
+		key.DstIA.ISD(), key.DstIA.AS(), valTime, valTime).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			err = serrors.WrapStr(unableToExecuteStmt, err)
@@ -185,8 +185,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 
 // InsertLvl1Key inserts a first level DRKey and returns the number of affected rows.
 func (b *Lvl1Backend) InsertLvl1Key(ctx context.Context, key drkey.Lvl1Key) error {
-	_, err := b.insertLvl1KeyStmt.ExecContext(ctx, key.SrcIA.I, key.SrcIA.A, key.DstIA.I,
-		key.DstIA.A, uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()), key.Key)
+	_, err := b.insertLvl1KeyStmt.ExecContext(ctx, key.SrcIA.ISD(), key.SrcIA.AS(),
+		key.DstIA.ISD(), key.DstIA.AS(), uint32(key.Epoch.NotBefore.Unix()),
+		uint32(key.Epoch.NotAfter.Unix()), key.Key)
 	if err != nil {
 		return err
 	}

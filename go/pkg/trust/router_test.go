@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
@@ -68,16 +68,16 @@ func TestCSRouterChooseServer(t *testing.T) {
 		"ISD local": {
 			ISD: 1,
 			Expect: func(_ *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
-				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
+				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
 		"ISD local, Route error": {
 			ISD: 1,
 			Expect: func(_ *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(
 					nil, routeErr,
 				)
 			},
@@ -92,10 +92,10 @@ func TestCSRouterChooseServer(t *testing.T) {
 					cppki.SignedTRC{TRC: cppki.TRC{Validity: cppki.Validity{NotAfter: future}}},
 					nil,
 				)
-				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("remote ISD path")})
+				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("remote ISD path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia210)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 2}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(2, 0)).Return(p, nil)
 			},
 		},
 		"Remote ISD, TRC not found": {
@@ -105,10 +105,10 @@ func TestCSRouterChooseServer(t *testing.T) {
 					cppki.TRCID{ISD: addr.ISD(2)}).Return(
 					cppki.SignedTRC{}, nil,
 				)
-				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
+				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
 		"Remote ISD, Expired TRC": {
@@ -120,10 +120,10 @@ func TestCSRouterChooseServer(t *testing.T) {
 					cppki.SignedTRC{TRC: cppki.TRC{Validity: cppki.Validity{NotAfter: passed}}},
 					nil,
 				)
-				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
+				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
 		"Remote ISD, DB error": {
@@ -156,7 +156,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				require.NoError(t, err)
 				expected := &snet.SVCAddr{
 					IA:      p.Destination(),
-					Path:    p.Path(),
+					Path:    p.Dataplane(),
 					NextHop: p.UnderlayNextHop(),
 					SVC:     addr.SvcCS,
 				}

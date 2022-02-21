@@ -37,10 +37,9 @@ import (
 	"google.golang.org/grpc/peer"
 
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/snet/squic"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	sgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
@@ -92,13 +91,12 @@ func TestColibriQuic(t *testing.T) {
 
 				colPath, err := GetColibriPath(session)
 				require.NoError(t, err)
-				if clientPath := tc.clientAddr.(*snet.UDPAddr).Path; clientPath.Type ==
-					colibri.PathType {
-
+				clientPath := tc.clientAddr.(*snet.UDPAddr).Path
+				if _, ok := clientPath.(path.Colibri); ok {
 					buff := make([]byte, colPath.Len())
 					err = colPath.SerializeTo(buff)
 					require.NoError(t, err)
-					require.Equal(t, tc.clientAddr.(*snet.UDPAddr).Path.Raw, buff)
+					require.Equal(t, clientPath.(path.Colibri).Raw, buff)
 				} else {
 					require.Nil(t, colPath)
 				}
@@ -176,13 +174,13 @@ func TestColibriGRPC(t *testing.T) {
 			require.True(t, ok)
 			require.NotNil(t, p)
 			require.IsType(t, &snet.UDPAddr{}, p.Addr)
-			require.Equal(t, colibri.PathType, p.Addr.(*snet.UDPAddr).Path.Type)
-			usage, ok, err := UsageFromContext(ctx)
+			require.IsType(t, path.Colibri{}, p.Addr.(*snet.UDPAddr).Path)
+			ok, usage, err := UsageFromContext(ctx)
 			require.NoError(t, err)
 			require.True(t, ok)
 			require.Greater(t, usage, uint64(0))
 			return &colpb.SegmentSetupResponse{SuccessFailure: &colpb.SegmentSetupResponse_Token{
-				Token: p.Addr.(*snet.UDPAddr).Path.Raw,
+				Token: p.Addr.(*snet.UDPAddr).Path.(path.Colibri).Raw,
 			}}, nil
 		})
 
@@ -233,7 +231,8 @@ func TestColibriGRPC(t *testing.T) {
 	gRPCClient := colpb.NewColibriServiceClient(conn)
 	res, err := gRPCClient.SegmentSetup(ctx, &colpb.SegmentSetupRequest{})
 	require.NoError(t, err)
-	require.Equal(t, clientAddr.(*snet.UDPAddr).Path.Raw, res.GetToken())
+	require.IsType(t, path.Colibri{}, clientAddr.(*snet.UDPAddr).Path)
+	require.Equal(t, clientAddr.(*snet.UDPAddr).Path.(path.Colibri).Raw, res.GetToken())
 	require.True(t, testInterceptorCalled)
 
 	gRPCServer.GracefulStop()
@@ -293,9 +292,10 @@ func mockScionAddress(t *testing.T, ia string, host *net.UDPAddr) net.Addr {
 	return &snet.UDPAddr{
 		IA:   xtest.MustParseIA(ia),
 		Host: host,
-		Path: spath.Path{
-			Raw:  []byte{},
-			Type: scion.PathType,
+		Path: path.SCION{
+			Raw: xtest.MustParseHexString("0000208000000111000001000100022200000100003f0001" +
+				"0000010203040506003f00030002010203040506003f00000002010203040506003f000100000" +
+				"10203040506"),
 		},
 	}
 }
@@ -303,7 +303,7 @@ func mockScionAddress(t *testing.T, ia string, host *net.UDPAddr) net.Addr {
 // mockColibriAddress returns a SCION address with a Colibri path.
 func mockColibriAddress(t *testing.T, ia string, host *net.UDPAddr) net.Addr {
 	t.Helper()
-	path := colibri.ColibriPath{
+	p := colibri.ColibriPath{
 		PacketTimestamp: colibri.Timestamp{1},
 		InfoField: &colibri.InfoField{
 			C:           true,
@@ -336,17 +336,16 @@ func mockColibriAddress(t *testing.T, ia string, host *net.UDPAddr) net.Addr {
 			},
 		},
 	}
-	buffLen := 8 + 24 + (len(path.HopFields) * 8) // timestamp + infofield + 3*hops
+	buffLen := 8 + 24 + (len(p.HopFields) * 8) // timestamp + infofield + 3*hops
 	buff := make([]byte, buffLen)
-	err := path.SerializeTo(buff)
+	err := p.SerializeTo(buff)
 	require.NoError(t, err)
 
 	return &snet.UDPAddr{
 		IA:   xtest.MustParseIA(ia),
 		Host: host,
-		Path: spath.Path{
-			Raw:  buff,
-			Type: colibri.PathType,
+		Path: path.Colibri{
+			Raw: buff,
 		},
 	}
 }

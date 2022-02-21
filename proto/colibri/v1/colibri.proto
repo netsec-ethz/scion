@@ -90,10 +90,10 @@ message TransparentPath {
     uint32 current_step = 1;
     // the path steps.
     repeated PathStep steps = 2;
-    // the spath type.
-    uint32 spath_type = 3;
-    // the spath raw representation (after serialization).
-    bytes spath_raw = 4;
+    // the raw path type.
+    uint32 path_type = 3;
+    // the raw path representation (after serialization).
+    bytes raw_path = 4;
 }
 
 ////////////////////////////////////////
@@ -360,8 +360,8 @@ message SetupReservationResponse {
         repeated uint32 alloc_trail = 3;
     }
     message Success {
-        // the byte-encoded spath.
-        bytes spath = 1;
+        // the byte-encoded raw path.
+        bytes raw_path = 1;
         // the string encoded address of the next hop (the border router to use at the source AS).
         string next_hop = 2;
     }

@@ -108,17 +108,16 @@ func (o *ServiceClientOperator) ColibriClient(ctx context.Context, transp *base.
 		return nil, serrors.New("client operator not yet initialized for this egress ID",
 			"egress_id", egressID, "neighbor_count", len(o.neighbors))
 	}
-	spath := transp.Spath
 	rAddr = rAddr.Copy() // preserve the original data
 
 	// prepare remote address with the new path
-	switch spath.Type {
+	switch transp.RawPath.Type() {
 	case scion.PathType: // don't touch the service path
 	case colibri.PathType:
 		// TODO(juagargi): reactivate use of reservations for control traffic
 		// // replace the service path with the colibri one.
 		// The source must also be the original one
-		// rAddr.Path = spath.Copy()
+		// rAddr.Path = rawPath.Copy()
 		// rAddr.IA = transp.SrcIA()
 		// TODO(juagargi) check if the colibri path is expired, and don't use it in that case
 	}
@@ -290,7 +289,7 @@ func (r *DiscoveryColSrvRes) ResolveColibriService(ctx context.Context, ia *addr
 
 	ds := &snet.SVCAddr{
 		IA:      *ia,
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcDS,
 	}
@@ -316,7 +315,7 @@ func (r *DiscoveryColSrvRes) ResolveColibriService(ctx context.Context, ia *addr
 
 	return &snet.UDPAddr{ // TODO(juagargi) should be a SVCAddr instead
 		IA:      *ia,
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		Host:    host,
 	}, nil

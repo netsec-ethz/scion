@@ -35,9 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
-	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
@@ -149,7 +147,7 @@ func (s *Store) ListStitchableSegments(ctx context.Context, dst addr.IA) (
 	var err error
 
 	localIsdCores := make(map[addr.IA]struct{}) // set of reachable local ISD core ASes
-	localCore := addr.IA{I: s.localIA.I, A: 0}
+	localCore, _ := addr.IAFrom(s.localIA.ISD(), 0)
 	if !s.isCore {
 		response.Up, err = s.obtainRsvs(ctx, s.localIA, localCore, reservation.UpPath)
 		if err != nil {
@@ -165,7 +163,7 @@ func (s *Store) ListStitchableSegments(ctx context.Context, dst addr.IA) (
 
 	// from core of local ISD to core of destination ISD:
 	// TODO(juagargi) run all this in parallel with go routines.
-	remoteIsdCore := addr.IA{I: dst.I, A: 0}
+	remoteIsdCore, _ := addr.IAFrom(dst.ISD(), 0)
 	for core := range localIsdCores {
 		cores, err := s.obtainRsvs(ctx, core, remoteIsdCore, reservation.CorePath)
 		if err != nil {
@@ -178,7 +176,7 @@ func (s *Store) ListStitchableSegments(ctx context.Context, dst addr.IA) (
 	for _, r := range response.Core {
 		farIsdCores[r.DstIA] = struct{}{}
 	}
-	if s.localIA.I == dst.I {
+	if s.localIA.ISD() == dst.ISD() {
 		// if the ISD is the same, farIsdCores is a superset of localIsdCores
 		for localCore := range localIsdCores {
 			farIsdCores[localCore] = struct{}{}
@@ -197,7 +195,7 @@ func (s *Store) ListStitchableSegments(ctx context.Context, dst addr.IA) (
 	// additionally, if the ISD is the same, and we didn't find an up segment when trying to
 	// reach the local ISD core, it means that the destination is non core, and that maybe we can
 	// reach it directly with an up segment: look for an up segment to the destination
-	if _, ok := localIsdCores[dst]; !ok && s.localIA.I == dst.I {
+	if _, ok := localIsdCores[dst]; !ok && s.localIA.ISD() == dst.ISD() {
 		up, err := s.obtainRsvs(ctx, s.localIA, dst, reservation.UpPath)
 		if err != nil {
 			return nil, serrors.WrapStr("listing stitchable segments, up direct", err,
@@ -244,9 +242,9 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		return s.errNew("cannot initiate a reservation with this AS only in the path")
 	}
 	newSetup := false
-	// if req.Path.Spath.Type == colpath.PathType {
+	// if req.Path.RawPath.Type == colpath.PathType {
 	// 	colp := colpath.ColibriPath{}
-	// 	err := colp.DecodeFromBytes(req.Path.Spath.Raw)
+	// 	err := colp.DecodeFromBytes(req.Path.RawPath.Raw)
 	// 	for i, hf := range colp.HopFields {
 	// 		s := fmt.Sprintf("%d>%d [%x]", hf.IngressId, hf.EgressId, hf.Mac)
 	// 	}
@@ -254,7 +252,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	if req.ID.IsEmpty() {
 		return serrors.New("bad empty ID")
 	}
-	if req.ID.ASID != s.localIA.A {
+	if req.ID.ASID != s.localIA.AS() {
 		return s.errNew("bad reservation id", "as", req.ID.ASID)
 	}
 	if req.ID.IsEmptySuffix() {
@@ -418,8 +416,12 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
+	base, err := translate.PBufRequest(req)
+	if err != nil {
+		return failedResponse, s.errWrapStr("translation failed", err)
+	}
 	pbRes, err := client.ConfirmSegmentIndex(ctx,
-		&colpb.ConfirmSegmentIndexRequest{Base: translate.PBufRequest(req)})
+		&colpb.ConfirmSegmentIndexRequest{Base: base})
 	if err != nil {
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
@@ -491,8 +493,12 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
+	base, err := translate.PBufRequest(req)
+	if err != nil {
+		return failedResponse, s.errWrapStr("translation failed", err)
+	}
 	pbRes, err := client.ActivateSegmentIndex(ctx,
-		&colpb.ActivateSegmentIndexRequest{Base: translate.PBufRequest(req)})
+		&colpb.ActivateSegmentIndexRequest{Base: base})
 	if err != nil {
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
@@ -556,8 +562,12 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
+	base, err := translate.PBufRequest(req)
+	if err != nil {
+		return failedResponse, s.errWrapStr("translation failed", err)
+	}
 	pbRes, err := client.CleanupSegmentIndex(ctx,
-		&colpb.CleanupSegmentIndexRequest{Base: translate.PBufRequest(req)})
+		&colpb.CleanupSegmentIndexRequest{Base: base})
 	if err != nil {
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
@@ -607,8 +617,12 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Reques
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
+	base, err := translate.PBufRequest(req)
+	if err != nil {
+		return failedResponse, s.errWrapStr("translation failed", err)
+	}
 	pbRes, err := client.TeardownSegment(ctx,
-		&colpb.TeardownSegmentRequest{Base: translate.PBufRequest(req)})
+		&colpb.TeardownSegmentRequest{Base: base})
 	if err != nil {
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
@@ -815,7 +829,12 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			return nil, serrors.WrapStr("while finding a colibri service client", err)
 		}
 
-		pbRes, err := client.E2ESetup(ctx, translate.PBufE2ESetupReq(req))
+		pbReq, err := translate.PBufE2ESetupReq(req)
+		if err != nil {
+			failedResponse.Message = s.errWrapStr("translation failed", err).Error()
+			return failedResponse, nil
+		}
+		pbRes, err := client.E2ESetup(ctx, pbReq)
 		if err != nil {
 			failedResponse.Message = s.errWrapStr("cannot forward request", err).Error()
 			return failedResponse, nil
@@ -922,8 +941,13 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *base.Request) (
 	if err != nil {
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
+
+	base, err := translate.PBufRequest(req)
+	if err != nil {
+		return failedResponse, s.errWrapStr("translation failed", err)
+	}
 	pbRes, err := client.CleanupE2EIndex(ctx,
-		&colpb.CleanupE2EIndexRequest{Base: translate.PBufRequest(req)})
+		&colpb.CleanupE2EIndexRequest{Base: base})
 	if err != nil {
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
@@ -1078,7 +1102,11 @@ func (s *Store) getTokenFromDownstreamAdmission(ctx context.Context, req *segmen
 		return nil, serrors.WrapStr("while finding a colibri service client", err)
 	}
 
-	pbRes, err := client.SegmentSetup(ctx, translate.PBufSetupReq(req))
+	pbReq, err := translate.PBufSetupReq(req)
+	if err != nil {
+		return nil, serrors.WrapStr("translation failed", err)
+	}
+	pbRes, err := client.SegmentSetup(ctx, pbReq)
 	if err != nil {
 		return nil, serrors.WrapStr("forwarded request failed", err)
 	}
@@ -1122,7 +1150,11 @@ func (s *Store) sendUpstreamForAdmission(ctx context.Context, req *segment.Setup
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
-	pbRes, err := client.SegmentSetup(ctx, translate.PBufSetupReq(req))
+	pbReq, err := translate.PBufSetupReq(req)
+	if err != nil {
+		return failedResponse, s.errWrapStr("translation failed", err)
+	}
+	pbRes, err := client.SegmentSetup(ctx, pbReq)
 	if err != nil {
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
@@ -1188,7 +1220,7 @@ func (s *Store) obtainRsvs(ctx context.Context, src, dst addr.IA, pathType reser
 			"src", src.String(), "dst", dst.String())
 	}
 	res, err := client.ListReservations(ctx, &colpb.ListReservationsRequest{
-		DstIa:    uint64(dst.IAInt()),
+		DstIa:    uint64(dst),
 		PathType: uint32(pathType),
 	})
 	if res.GetErrorMessage() != "" {
@@ -1353,18 +1385,10 @@ func newTransparentPathFromReservation(rsv *segment.Reservation) (*base.Transpar
 		return nil, serrors.New("reservations has expired active index", "id", rsv.ID,
 			"expiration", rsv.ActiveIndex().Expiration)
 	}
-	// colp can't be nil as we have a non nil active index
-	rawColibriPath := make([]byte, colp.Len())
-	if err := colp.SerializeTo(rawColibriPath); err != nil {
-		return nil, err
-	}
 	return &base.TransparentPath{
 		CurrentStep: rsv.PathAtSource.CurrentStep,
 		Steps:       rsv.PathAtSource.Steps,
-		Spath: spath.Path{
-			Type: colpath.PathType,
-			Raw:  rawColibriPath,
-		},
+		RawPath:     colp,
 	}, nil
 }
 

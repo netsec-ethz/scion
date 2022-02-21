@@ -41,10 +41,9 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/slayers/path/colibri:go_default_library",
-        "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",
+        "//go/lib/snet/path:go_default_library",
         "//go/lib/snet/squic:go_default_library",
-        "//go/lib/spath:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/proto/colibri:go_default_library",

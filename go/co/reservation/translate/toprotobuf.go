@@ -24,14 +24,22 @@ import (
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
-func PBufSetupReq(req *segment.SetupReq) *colpb.SegmentSetupRequest {
-	return &colpb.SegmentSetupRequest{
-		Base:   PBufRequest(&req.Request),
-		Params: PBufSetupRequestParams(req),
+func PBufSetupReq(req *segment.SetupReq) (*colpb.SegmentSetupRequest, error) {
+	base, err := PBufRequest(&req.Request)
+	if err != nil {
+		return nil, err
 	}
+	return &colpb.SegmentSetupRequest{
+		Base:   base,
+		Params: PBufSetupRequestParams(req),
+	}, nil
 }
 
-func PBufE2ESetupReq(req *e2e.SetupReq) *colpb.E2ESetupRequest {
+func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
+	base, err := PBufRequest(&req.Request)
+	if err != nil {
+		return nil, err
+	}
 	segs := make([]*colpb.ReservationID, len(req.SegmentRsvs))
 	for i, id := range req.SegmentRsvs {
 		segs[i] = PBufID(&id)
@@ -43,18 +51,18 @@ func PBufE2ESetupReq(req *e2e.SetupReq) *colpb.E2ESetupRequest {
 		}
 	}
 	return &colpb.E2ESetupRequest{
-		Base:        PBufRequest(&req.Request),
+		Base:        base,
 		RequestedBw: uint32(req.RequestedBW),
 		Params: &colpb.E2ESetupRequest_PathParams{
 			Segments:       segs,
 			CurrentSegment: uint32(req.CurrentSegmentRsvIndex),
-			SrcIa:          uint64(req.SrcIA.IAInt()),
+			SrcIa:          uint64(req.SrcIA),
 			SrcHost:        req.SrcHost,
-			DstIa:          uint64(req.DstIA.IAInt()),
+			DstIa:          uint64(req.DstIA),
 			DstHost:        req.DstHost,
 		},
 		Allocationtrail: trail,
-	}
+	}, nil
 }
 
 func PBufSetupResponse(res segment.SegmentSetupResponse) *colpb.SegmentSetupResponse {
@@ -99,13 +107,17 @@ func PBufE2ESetupResponse(res e2e.SetupResponse) *colpb.E2ESetupResponse {
 	return msg
 }
 
-func PBufRequest(req *base.Request) *colpb.Request {
+func PBufRequest(req *base.Request) (*colpb.Request, error) {
+	p, err := PBufPath(req.Path)
+	if err != nil {
+		return nil, err
+	}
 	return &colpb.Request{
 		Id:        PBufID(&req.ID),
 		Index:     uint32(req.Index),
 		Timestamp: util.TimeToSecs(req.Timestamp),
-		Path:      PBufPath(req.Path),
-	}
+		Path:      p,
+	}, err
 }
 
 func PBufSetupRequestParams(req *segment.SetupReq) *colpb.SegmentSetupRequest_Params {
@@ -155,8 +167,8 @@ func PBufListResponse(res []*colibri.ReservationLooks) *colpb.ListReservationsRe
 
 func PBufStitchableResponse(res *colibri.StitchableSegments) *colpb.ListStitchablesResponse {
 	return &colpb.ListStitchablesResponse{
-		SrcIa: uint64(res.SrcIA.IAInt()),
-		DstIa: uint64(res.DstIA.IAInt()),
+		SrcIa: uint64(res.SrcIA),
+		DstIa: uint64(res.DstIA),
 		Up:    PBufListReservationLooks(res.Up),
 		Core:  PBufListReservationLooks(res.Core),
 		Down:  PBufListReservationLooks(res.Down),
@@ -170,8 +182,8 @@ func PBufListReservationLooks(
 	for i, l := range res {
 		looks[i] = &colpb.ListReservationsResponse_ReservationLooks{
 			Id:             PBufID(&l.Id),
-			SrcIa:          uint64(l.SrcIA.IAInt()),
-			DstIa:          uint64(l.DstIA.IAInt()),
+			SrcIa:          uint64(l.SrcIA),
+			DstIa:          uint64(l.DstIA),
 			ExpirationTime: util.TimeToSecs(l.ExpirationTime),
 			Minbw:          uint32(l.MinBW),
 			Maxbw:          uint32(l.MaxBW),
@@ -201,25 +213,30 @@ func PBufAllocTrail(trail reservation.AllocationBeads) []*colpb.AllocationBead {
 	return beads
 }
 
-func PBufPath(transp *base.TransparentPath) *colpb.TransparentPath {
+func PBufPath(transp *base.TransparentPath) (*colpb.TransparentPath, error) {
 	if transp == nil {
 		return &colpb.TransparentPath{
 			Steps: []*colpb.PathStep{},
-		}
+		}, nil
 	}
+	buff, err := base.PathToRaw(transp.RawPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &colpb.TransparentPath{
 		CurrentStep: uint32(transp.CurrentStep),
 		Steps:       PBufSteps(transp.Steps),
-		SpathType:   uint32(transp.Spath.Type),
-		SpathRaw:    transp.Spath.Raw,
-	}
+		PathType:    uint32(transp.RawPath.Type()),
+		RawPath:     buff,
+	}, nil
 }
 
 func PBufSteps(steps []base.PathStep) []*colpb.PathStep {
 	ret := make([]*colpb.PathStep, len(steps))
 	for i, step := range steps {
 		ret[i] = &colpb.PathStep{
-			Ia:      uint64(step.IA.IAInt()),
+			Ia:      uint64(step.IA),
 			Ingress: uint32(step.Ingress),
 			Egress:  uint32(step.Egress),
 		}

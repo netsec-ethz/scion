@@ -252,7 +252,6 @@ func realMain(ctx context.Context) error {
 			),
 			Engine:     engine,
 			RevCache:   revCache,
-			DRKeyStore: drkeyStore,
 			ColFetcher: colibri.NewFetcher(dialer),
 			ColClient:  &colibri.DaemonClient{Dialer: dialer},
 		},

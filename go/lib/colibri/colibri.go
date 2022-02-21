@@ -152,11 +152,11 @@ func VerifyMAC(privateKey []byte, ts colibri.Timestamp, inf *colibri.InfoField,
 
 	switch inf.C {
 	case true:
-		err = MACStatic(mac[:], privateKey, inf, currHop, s.SrcIA.A, s.DstIA.A)
+		err = MACStatic(mac[:], privateKey, inf, currHop, s.SrcIA.AS(), s.DstIA.AS())
 	case false:
 		// TODO(juagargi) we will use the defined MAC computation once we start timestamping
 		// the E2E colibri packets. For now do as if C=true. Toggle comments below.
-		err = MACStatic(mac[:], privateKey, inf, currHop, s.SrcIA.A, s.DstIA.A)
+		err = MACStatic(mac[:], privateKey, inf, currHop, s.SrcIA.AS(), s.DstIA.AS())
 		// err = MACE2E(mac[:], privateKey, inf, ts, currHop, s)
 	}
 	if err != nil {
@@ -347,7 +347,7 @@ func MACInputSigma(buffer []byte, s *slayers.SCION, inf *colibri.InfoField,
 
 	MACInputStatic(buffer[:], inf.ResIdSuffix, inf.ExpTick, reservation.BWCls(inf.BwCls),
 		reservation.RLC(inf.Rlc), inf.C, inf.R, reservation.IndexNumber(inf.Ver),
-		s.SrcIA.A, s.DstIA.A, hop.IngressId, hop.EgressId)
+		s.SrcIA.AS(), s.DstIA.AS(), hop.IngressId, hop.EgressId)
 	buffer[LengthInputData] = flags
 	copy(buffer[LengthInputData+1:], rawSrcAddr)
 	copy(buffer[LengthInputData+1+srcLen:], rawDstAddr)

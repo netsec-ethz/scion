@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -30,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -56,7 +56,7 @@ func InitTestSettings(t *testing.T, dispatcherTestPort int) *TestSettings {
 }
 
 func getSocketName(dir string) (string, error) {
-	dir, err := ioutil.TempDir(dir, "dispatcher")
+	dir, err := os.MkdirTemp(dir, "dispatcher")
 	if err != nil {
 		return "", err
 	}
@@ -122,6 +122,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							DstPort: clientXAddress.PublicPort,
 							Payload: []byte{1, 2, 3, 4},
 						},
+						Path: path.Empty{},
 					},
 				},
 			},
@@ -141,6 +142,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						DstPort: clientXAddress.PublicPort,
 						Payload: []byte{1, 2, 3, 4},
 					},
+					Path: snet.RawPath{},
 				},
 			},
 		},
@@ -163,6 +165,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							DstPort: clientYAddress.PublicPort,
 							Payload: []byte{5, 6, 7, 8},
 						},
+						Path: path.Empty{},
 					},
 				},
 			},
@@ -182,6 +185,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						DstPort: clientYAddress.PublicPort,
 						Payload: []byte{5, 6, 7, 8},
 					},
+					Path: snet.RawPath{},
 				},
 			},
 		},
@@ -212,9 +216,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 										Host: clientXAddress.PublicAddress,
 									},
 									Payload: snet.UDPPayload{SrcPort: clientXAddress.PublicPort},
+									Path:    path.Empty{},
 								},
 							}),
 						},
+						Path: path.Empty{},
 					},
 				},
 			},
@@ -240,9 +246,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 									Host: clientXAddress.PublicAddress,
 								},
 								Payload: snet.UDPPayload{SrcPort: clientXAddress.PublicPort},
+								Path:    path.Empty{},
 							},
 						}),
 					},
+					Path: snet.RawPath{},
 				},
 			},
 		},
@@ -264,6 +272,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							Host: clientYAddress.PublicAddress,
 						},
 						Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
+						Path:    path.Empty{},
 					},
 				},
 				{
@@ -288,9 +297,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 										Host: clientXAddress.PublicAddress,
 									},
 									Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
+									Path:    path.Empty{},
 								},
 							}),
 						},
+						Path: path.Empty{},
 					},
 				},
 			},
@@ -316,9 +327,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 									Host: clientXAddress.PublicAddress,
 								},
 								Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
+								Path:    path.Empty{},
 							},
 						}),
 					},
+					Path: snet.RawPath{},
 				},
 			},
 		},
@@ -342,6 +355,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							SeqNumber:  0xcafe,
 							Payload:    []byte("hello?"),
 						},
+						Path: path.Empty{},
 					},
 				},
 			},
@@ -360,6 +374,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						SeqNumber:  0xcafe,
 						Payload:    []byte("hello?"),
 					},
+					Path: snet.RawPath{},
 				},
 			},
 		},
@@ -379,6 +394,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							Host: clientYAddress.PublicAddress,
 						},
 						Payload: snet.SCMPTracerouteRequest{Identifier: 0xdeaf, Sequence: 0xcafd},
+						Path:    path.Empty{},
 					},
 				},
 			},
@@ -393,6 +409,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						Host: clientXAddress.PublicAddress,
 					},
 					Payload: snet.SCMPTracerouteReply{Identifier: 0xdeaf, Sequence: 0xcafd},
+					Path:    snet.RawPath{},
 				},
 			},
 		},
