@@ -142,7 +142,11 @@ func (t FullTrip) NumberOfASes() int {
 func (t FullTrip) String() string {
 	stitches := make([]string, len(t))
 	for i, s := range t {
-		stitches[i] = fmt.Sprintf("%s -[%s]-> %s", s.SrcIA, s.Id, s.DstIA)
+		steps := make([]string, len(s.Path))
+		for j, step := range s.Path {
+			steps[j] = step.IA.String()
+		}
+		stitches[i] = strings.Join(steps, "->")
 	}
 	return strings.Join(stitches, " >>> ")
 }

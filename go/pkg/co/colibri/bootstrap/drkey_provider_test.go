@@ -46,27 +46,24 @@ var (
 
 	segRA_C2 = &colibri.ReservationLooks{
 		SrcIA: ia1_A,
-		DstIA: ia1_C_1,
+		DstIA: ia1_C_2,
 		Path: []reservation.PathStep{
 			{
 				IA: ia1_A,
 			},
 			{
-				IA: ia1_B_1,
+				IA: ia1_B_2,
 			},
 			{
-				IA: ia1_C_1,
+				IA: ia1_C_2,
 			},
 		},
 	}
 
-	segRC1_C2_D = &colibri.ReservationLooks{
-		SrcIA: ia1_C_1,
+	segRC2_D = &colibri.ReservationLooks{
+		SrcIA: ia1_C_2,
 		DstIA: ia1_D,
 		Path: []reservation.PathStep{
-			{
-				IA: ia1_C_1,
-			},
 			{
 				IA: ia1_C_2,
 			},
@@ -119,20 +116,13 @@ func TestGetKey(t *testing.T) {
 			ia1_C_2,
 		},
 	}
-	upSegToC_2 := [][]addr.IA{
-		[]addr.IA{
-			ia1_A,
-			ia1_B_2,
-			ia1_C_2,
-		},
-	}
 
 	segRs := map[addr.IA]*colibri.StitchableSegments{
 		ia1_F: &colibri.StitchableSegments{
 			SrcIA: ia1_A,
 			DstIA: ia1_F,
-			Up:    []*colibri.ReservationLooks{segRA_C1},
-			Core:  []*colibri.ReservationLooks{segRC1_C2_D},
+			Up:    []*colibri.ReservationLooks{segRA_C2},
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 			Down:  []*colibri.ReservationLooks{segRD_E_F},
 		},
 		ia1_C_1: &colibri.StitchableSegments{
@@ -148,14 +138,14 @@ func TestGetKey(t *testing.T) {
 		ia1_D: &colibri.StitchableSegments{
 			SrcIA: ia1_A,
 			DstIA: ia1_D,
-			Up:    []*colibri.ReservationLooks{segRA_C1},
-			Core:  []*colibri.ReservationLooks{segRC1_C2_D},
+			Up:    []*colibri.ReservationLooks{segRA_C2},
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 		},
 		ia1_E: &colibri.StitchableSegments{
 			SrcIA: ia1_A,
 			DstIA: ia1_E,
-			Up:    []*colibri.ReservationLooks{segRA_C1},
-			Core:  []*colibri.ReservationLooks{segRC1_C2_D},
+			Up:    []*colibri.ReservationLooks{segRA_C2},
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 			Down:  []*colibri.ReservationLooks{segRD_E},
 		},
 	}
@@ -178,62 +168,51 @@ func TestGetKey(t *testing.T) {
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), metaF,
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 	segProvider.EXPECT().FirstSegIAs(gomock.Any(), ia1_F).Return(upSegToF, nil)
-	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_1, gomock.Any()).Return(nil, nil) //(ctx context.Context, dst addr.IA) (*colibri.StitchableSegments, error)
-	telescopeCallC1 := bootstrapper.EXPECT().TelescopeUpstream(gomock.Any(), upSegToF[0]).Return(nil, nil)
-	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_F).After(telescopeCallC1).Return(
-		segRs[ia1_F], nil)
-	// storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_F).DoAndReturn(
-	// 	func(_ context.Context, dst addr.IA) (*colibri.StitchableSegments, error) {
-	// 		stichable := segRs[dst]
-	// 		// Check UpSeg has been bootstrapped (we only have one up segment in stichables)
-	// 		_, ok := segRLocalStore[stichable.Up[0].DstIA]
-	// 		require.True(t, ok)
-	// 		return stichable, nil
-	// 	})
-
-	// State: A->B1->C1->C2(M)->D(M)->E(M)->F(M)
-
-	// Best-effort/Persistance call for B1 and C1
-	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
-		gomock.Any()).After(telescopeCallC1).Times(2).Return(nil, nil)
-
-	// Best-effort call for C2
-	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_C_2, DstIA: ia1_A},
-		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
-	segProvider.EXPECT().FirstSegIAs(gomock.Any(), ia1_C_2).Return(upSegToC_2, nil)
+	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_1, gomock.Any()).Return(nil, nil)
 	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_2, gomock.Any()).Return(nil, nil)
-	telescopeCallC2 := bootstrapper.EXPECT().TelescopeUpstream(gomock.Any(), upSegToF[1]).Return(nil, nil)
-	// Best-effort calls for C2
+	bootstrapper.EXPECT().TelescopeUpstream(gomock.Any(), upSegToF[0]).Return(nil, nil)
+	bootstrapper.EXPECT().TelescopeUpstream(gomock.Any(), upSegToF[1]).Return(nil, nil)
+	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), addr.IA{I: metaF.SrcIA.I, A: 0}).Return(
+		segRs[ia1_D], nil)
+
+	// State: A->B2->C2->D(M)->E(M)->F(M)
+
+	// Best-effort/Persistance call for B2 and C2
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
-		gomock.Any()).After(telescopeCallC2).Times(1).Return(nil, nil)
-
-	// drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_C_2, DstIA: ia1_A},
-	// 	gomock.Any()).After(telescopeCallC2).Return(nil, nil)
-
-	// State: A->B1->C1->C2->D(M)->E(M)->F(M)
+		gomock.Any()).Times(2).Return(nil, nil)
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_D, DstIA: ia1_A},
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
-	segProvider.EXPECT().FirstSegIAs(gomock.Any(), ia1_D).Return(upSegToF, nil)
-	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_1, gomock.Any()).Return([]*colibri.ReservationLooks{segRA_C1}, nil)
-	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_D).Return(segRs[ia1_D], nil)
-	// Best-effort/persistance for B1->C1->C2
-	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
-		gomock.Any()).After(telescopeCallC1).Times(3).Return(nil, nil)
+	// SendDRKeyReq to D
 	bootstrapper.EXPECT().SendDRKeyReq(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
-	// State: A->B1->C1->C2->D->E(M)->F(M)
-
+	// State: A->B2->C2->D->E(M)->F(M)
+	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_F).Return(segRs[ia1_F], nil)
+	// Best-effort/Persistance call for B2, C2 and D
+	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
+		gomock.Any()).Times(3).Return(nil, nil)
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_E, DstIA: ia1_A},
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
+
 	segProvider.EXPECT().FirstSegIAs(gomock.Any(), ia1_E).Return(upSegToF, nil)
 	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_1, gomock.Any()).Return([]*colibri.ReservationLooks{segRA_C1}, nil)
-	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_E).Return(segRs[ia1_E], nil)
-	// Best-effort/persistance for B1->C1->C2->D
+	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_2, gomock.Any()).Return([]*colibri.ReservationLooks{segRA_C2}, nil)
+	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), addr.IA{I: metaF.SrcIA.I, A: 0}).Return(segRs[ia1_D], nil)
+	// Best-effort/persistance for B2->C2->D
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
-		gomock.Any()).After(telescopeCallC1).Times(4).Return(nil, nil)
+		gomock.Any()).Times(3).Return(nil, nil)
+
+	// State: A->B1->C1->C2->D->E(M)
+	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_E).Return(segRs[ia1_E], nil)
+	// Best-effort/persistance for B2->C2->D
+	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
+		gomock.Any()).Times(3).Return(nil, nil)
+	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_E, DstIA: ia1_A},
+		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 	bootstrapper.EXPECT().SendDRKeyReq(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	// State: A->B1->C1->C2->D->E->F(M)
+	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_F, DstIA: ia1_A},
+		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 	bootstrapper.EXPECT().SendDRKeyReq(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	drkeyBootstrapper := &bootstrap.DRKeyBootstrapper{

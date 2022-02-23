@@ -62,13 +62,10 @@ var (
 		},
 	}
 
-	segRC1_C2_D = &colibri.ReservationLooks{
-		SrcIA: ia1_C_1,
+	segRC2_D = &colibri.ReservationLooks{
+		SrcIA: ia1_C_2,
 		DstIA: ia1_D,
 		Path: []reservation.PathStep{
-			{
-				IA: ia1_C_1,
-			},
 			{
 				IA: ia1_C_2,
 			},
@@ -188,18 +185,23 @@ func initReservations() map[addr.IA]*colibri.StitchableSegments {
 		ia1_F: &colibri.StitchableSegments{
 			SrcIA: ia1_A,
 			DstIA: ia1_F,
-			Core:  []*colibri.ReservationLooks{segRC1_C2_D},
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 			Down:  []*colibri.ReservationLooks{segRD_E_F},
+		},
+		addr.IA{I: ia1_F.I, A: 0}: &colibri.StitchableSegments{
+			SrcIA: ia1_A,
+			DstIA: ia1_D,
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 		},
 		ia1_D: &colibri.StitchableSegments{
 			SrcIA: ia1_A,
 			DstIA: ia1_D,
-			Core:  []*colibri.ReservationLooks{segRC1_C2_D},
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 		},
 		ia1_E: &colibri.StitchableSegments{
 			SrcIA: ia1_A,
 			DstIA: ia1_E,
-			Core:  []*colibri.ReservationLooks{segRC1_C2_D},
+			Core:  []*colibri.ReservationLooks{segRC2_D},
 			Down:  []*colibri.ReservationLooks{segRD_E},
 		},
 	}

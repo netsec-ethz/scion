@@ -128,29 +128,49 @@ func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lv
 		if lastUpHop == meta.SrcIA {
 			return e.Provider.GetKey(ctx, meta, valTime)
 		}
-
-		// Now we have established a SegR to the dst or to core
-
-		// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
-		// stronger guarantees. Similar to what is done in the Bootstrapper.SendDRKeyReq
-		logger.Debug("Listing stichable from source", "srcIA", e.LocalIA, "dstIA", meta.SrcIA)
-		stichable, err := e.ColStore.ListStitchableSegments(ctx, meta.SrcIA)
-		if err != nil {
-			serrors.WrapStr("listing stichable segments err", err, "remote as", meta.DstIA)
-		}
-
-		trips := colibri.CombineAll(stichable)
-		for _, trip := range trips {
-			key, err := e.bootstrapKey(ctx, *trip, valTime)
-			if err != nil {
-				logger.Debug("Error bootstrapping, we try other trip", "err", err)
-				continue
-			}
-			logger.Debug("Key fetched", "targetIA", meta.SrcIA)
-			return key, nil
-		}
-		logger.Debug("No trip worked for the current upSeg", "srcIA", e.LocalIA, "dstIA", meta.SrcIA, "upSeg", ias)
 	}
+
+	// Now we have established a SegR to the dst or to core
+
+	// First we reach remote core ASes.
+
+	// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
+	// stronger guarantees. Similar to what is done in the Bootstrapper.sendSetupUpSegR
+	logger.Debug("Listing stichable from source", "srcIA", e.LocalIA, "coreISD", meta.SrcIA.I)
+	remoteCore := addr.IA{I: meta.SrcIA.I, A: 0}
+	stichableCore, err := e.ColStore.ListStitchableSegments(ctx, remoteCore)
+	if err != nil {
+		serrors.WrapStr("listing stichable segments err", err, "remote as", meta.DstIA)
+	}
+	tripsCore := colibri.CombineAll(stichableCore)
+	for _, trip := range tripsCore {
+		_, err := e.bootstrapKey(ctx, *trip, valTime)
+		if err != nil {
+			logger.Debug("Error bootstrapping core trip", "err", err)
+			continue
+		}
+		logger.Debug("Key fetched", "coreAS", trip.DstIA().String())
+	}
+
+	// XXX(JordiSubira): Lookup request should be conveyed over EER to achieve
+	// stronger guarantees. Similar to what is done in the Bootstrapper.sendSetupUpSegR
+	logger.Debug("Listing stichable from source", "srcIA", e.LocalIA, "dstIA", meta.SrcIA)
+	stichable, err := e.ColStore.ListStitchableSegments(ctx, meta.SrcIA)
+	if err != nil {
+		serrors.WrapStr("listing stichable segments err", err, "remote as", meta.DstIA)
+	}
+
+	trips := colibri.CombineAll(stichable)
+	for _, trip := range trips {
+		key, err := e.bootstrapKey(ctx, *trip, valTime)
+		if err != nil {
+			logger.Debug("Error bootstrapping, we try other trip", "err", err)
+			continue
+		}
+		logger.Debug("Key fetched", "targetIA", meta.SrcIA)
+		return key, nil
+	}
+	logger.Debug("No trip worked for the current upSeg", "srcIA", e.LocalIA, "dstIA", meta.SrcIA, "upSeg", upSegs)
 	return nil, serrors.New("Unable to bootstrap key using any available path")
 }
 
@@ -163,7 +183,7 @@ func (e *DRKeyBootstrapper) bootstrapKey(ctx context.Context, trip colibri.FullT
 	lastStep := lastSeg[len(lastSeg)-1]
 
 	logger := log.FromCtx(ctx)
-	logger.Debug("Starting to search for drkey in trip", "trip", trip)
+	logger.Debug("Starting to search for drkey in trip", "trip", trip.String())
 
 	for _, segR := range trip {
 		for i, step := range segR.Path {
@@ -180,11 +200,22 @@ func (e *DRKeyBootstrapper) bootstrapKey(ctx context.Context, trip colibri.FullT
 			}
 		}
 	}
+	lvl2Meta := drkey.Lvl2Meta{
+		SrcIA:   lastStep.IA,
+		DstIA:   e.LocalIA,
+		DstHost: e.LocalHost,
+	}
+
+	log.FromCtx(ctx).Debug("Fetching key via persistance/best-effort", "targetIA", lvl2Meta.SrcIA)
+	key, err := e.Provider.GetKey(ctx, lvl2Meta, valTime)
 	// At this point we can create a request since we have all intermediate keys to authenticate
 	// the payload.
-	log.FromCtx(ctx).Debug("All intermediate keys fetched, sending DRKey request over trip",
-		"dstIA", trip.DstIA(), "trip", trip)
-	return e.Bootstrapper.SendDRKeyReq(ctx, trip, valTime)
+	if err != nil {
+		log.FromCtx(ctx).Debug("All intermediate keys fetched, sending DRKey request over trip",
+			"dstIA", trip.DstIA(), "trip", trip.String())
+		return e.Bootstrapper.SendDRKeyReq(ctx, trip, valTime)
+	}
+	return key, nil
 }
 
 type BestEffortProvider struct {
