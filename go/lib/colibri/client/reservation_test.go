@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 	dkt "github.com/scionproto/scion/go/lib/drkey/test"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )

@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -56,6 +57,7 @@ func (t FullTrip) Path() *base.TransparentPath {
 	return &base.TransparentPath{
 		CurrentStep: 0,
 		Steps:       t.PathSteps(),
+		RawPath:     &empty.Path{},
 	}
 }
 

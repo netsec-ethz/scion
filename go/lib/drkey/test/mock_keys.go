@@ -15,6 +15,7 @@
 package test
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -60,8 +61,8 @@ func mockKeysManyFast(t *testing.T, keyType drkey.Lvl2KeyType, slowIA string, sH
 
 func mockKey(keyType drkey.Lvl2KeyType, fast, slow addr.IA, slowhost addr.HostAddr) drkey.Lvl2Key {
 	k := xtest.MustParseHexString("0123456789abcdef0123456789abcdef") // 16 bytes
-	fast.Write(k[:8])
-	slow.Write(k[8:])
+	binary.BigEndian.PutUint64(k[:8], uint64(fast))
+	binary.BigEndian.PutUint64(k[8:], uint64(slow))
 	return drkey.Lvl2Key{
 		Lvl2Meta: drkey.Lvl2Meta{
 			KeyType:  keyType,

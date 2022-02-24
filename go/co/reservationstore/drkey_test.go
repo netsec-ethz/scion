@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/drkey"
 	dkt "github.com/scionproto/scion/go/lib/drkey/test"
 	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -665,9 +664,8 @@ func TestComputeAndValidateE2eSetupResponse(t *testing.T) {
 				clientRes := &libcol.E2EResponse{
 					Authenticators: res.Authenticators,
 					ColibriPath: path.Path{
-						SPath: spath.Path{
-							Raw:  serializedColPath,
-							Type: colibriPath.Type(),
+						DataplanePath: path.Colibri{
+							Raw: serializedColPath,
 						},
 					},
 				}
