@@ -33,7 +33,6 @@ type ServiceResolver interface {
 }
 
 type DSResolver struct {
-	Router snet.Router
 	Dialer Dialer
 }
 

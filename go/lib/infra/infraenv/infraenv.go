@@ -86,8 +86,6 @@ type NetworkConfig struct {
 type QUICStack struct {
 	Listener         *squic.ConnListener
 	Dialer           *squic.ConnDialer
-	TLSListener      *squic.ConnListener
-	TLSDialer        *squic.ConnDialer
 	TrustListener    *squic.ConnListener
 	DRKeyListener    *squic.ConnListener
 	DRKeyDialer      *squic.ConnDialer
