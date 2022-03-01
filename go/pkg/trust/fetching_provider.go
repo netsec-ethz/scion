@@ -135,12 +135,10 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 			return nil, serrors.WrapStr("choosing server", err)
 		}
 	}
-	t0 := time.Now()
 	if chains, err = p.Fetcher.Chains(ctx, query, o.server); err != nil {
 		setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
 		return nil, serrors.WrapStr("fetching chains from remote", err, "server", o.server)
 	}
-	logger.Debug("[INSTRUMENTING] Get chains", "duration", time.Since(t0).String())
 
 	// For simplicity, we ignore non-verifiable chains.
 	chains = filterVerifiableChains(chains, trcs)

@@ -585,7 +585,6 @@ func sendRequest(
 	if err != nil {
 		return nil, err
 	}
-	t0 := time.Now()
 	server, err := dsResolver.ResolveChainRenewalService(ctx, ds)
 	if err != nil {
 		return nil, serrors.WrapStr("discovering chain renewal service addr", err)
@@ -607,8 +606,6 @@ func sendRequest(
 			"remote", conn.Target(),
 		)
 	}
-	durationRequest := time.Since(t0)
-	fmt.Println("[INSTRUMENTING] renewal request", "duration", durationRequest.String())
 	return reply, nil
 }
 

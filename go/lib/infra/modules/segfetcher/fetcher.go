@@ -118,7 +118,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 		// XXX(JordiSubira): If inter-AS request first resolve TM server address
 		var server net.Addr
 		udpPeer, ok := reply.Peer.(*snet.UDPAddr)
-		var t0 time.Time
 		if ok {
 			var err error
 			dsPeer := &snet.SVCAddr{
@@ -132,7 +131,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 				return nil, serrors.WrapStr("resolving trust material service using ds", err)
 			}
 			log.FromCtx(ctx).Debug("resolved TrustMaterial service", "addr", dsPeer.String())
-			t0 = time.Now()
 		} else {
 			server, ok = reply.Peer.(*net.TCPAddr)
 			if !ok {
@@ -140,12 +138,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 					"actual", fmt.Sprintf("%T", reply.Peer))
 			}
 		}
-
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), server)
-		if t0 != (time.Time{}) {
-			durationRequest := time.Since(t0)
-			log.FromCtx(ctx).Debug("[INSTRUMENTING] Seg lookup", "duration", durationRequest.String())
-		}
 		if err := r.Err(); err != nil {
 			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
 			return segs, serrors.WrapStr("processing reply", err)

@@ -175,7 +175,6 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		return err
 	}
 	defer sender.Close()
-	t0 := time.Now()
 	if err := sender.Send(rpcContext, bseg); err != nil {
 		if rpcContext.Err() != nil {
 			err = serrors.WrapStr("timed out waiting for RPC to complete", err,
@@ -184,8 +183,6 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
 		return serrors.WrapStr("sending beacon", err)
 	}
-	durationRequest := time.Since(t0)
-	log.FromCtx(ctx).Debug("[INSTRUMENTING] beacon originator send", "duration", durationRequest.String())
 	o.onSuccess(o.intf)
 	o.incrementMetrics(labels.WithResult(prom.Success))
 	return nil

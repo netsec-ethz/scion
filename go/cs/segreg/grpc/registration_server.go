@@ -17,7 +17,6 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc/codes"
@@ -101,7 +100,6 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 
 	// Resolve for TrustMaterial Service, since we might
 	// need to fetch crypto material from the remote
-	t0 := time.Now()
 	server, err := s.Resolver.ResolveTrustService(ctx, &snet.SVCAddr{
 		IA:      peer.IA,
 		Path:    peer.Path,
@@ -118,8 +116,6 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		},
 		server,
 	)
-	durationRequest := time.Since(t0)
-	log.FromCtx(ctx).Debug("[INSTRUMENTING] handle seg registration", "duration", durationRequest.String())
 	if err := res.Err(); err != nil {
 		s.failMetric(span, labels.WithResult(prom.ErrProcess), err)
 		// TODO(roosd): Classify crypto/db error and return appropriate status code.

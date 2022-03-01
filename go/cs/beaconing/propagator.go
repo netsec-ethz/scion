@@ -242,7 +242,6 @@ func (p *propagator) extendAndSend(
 
 		successes := 0
 		for _, b := range toPropagate {
-			t0 := time.Now()
 			if err := sender.Send(rpcContext, b.Segment); err != nil {
 				if rpcContext.Err() != nil {
 					err = serrors.WrapStr("timed out waiting for RPC to complete", err,
@@ -261,8 +260,6 @@ func (p *propagator) extendAndSend(
 			p.onSuccess(intf, egIfid)
 			p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.Success)
 			successes++
-			durationRequest := time.Since(t0)
-			log.FromCtx(ctx).Debug("[INSTRUMENTING] beacon originator send", "duration", durationRequest.String())
 		}
 		p.logger.Debug("Propagated beacons", "egress_interface", egIfid, "expected",
 			len(toPropagate), "successes", successes)

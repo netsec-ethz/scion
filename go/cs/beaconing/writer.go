@@ -297,7 +297,6 @@ func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 		metrics.CounterInc(r.writer.InternalErrors)
 		return
 	}
-	t0 := time.Now()
 	server, err := r.writer.ServiceResolver.ResolveSegmentRegService(ctx, addr)
 	if err != nil {
 		logger.Error("Unable to choose server", "err", err)
@@ -305,13 +304,13 @@ func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 		return
 	}
 	logger.Debug("discovered service reg address", "addr", server.String())
-	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.writer.Type, Segment: bseg.Segment}, server, t0)
+	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.writer.Type, Segment: bseg.Segment}, server)
 }
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
 // registration message to the peer.
 func (r *remoteWriter) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
-	reg seg.Meta, addr net.Addr, t0 time.Time) {
+	reg seg.Meta, addr net.Addr) {
 
 	r.wg.Add(1)
 	go func() {
@@ -332,8 +331,6 @@ func (r *remoteWriter) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
 				labels.WithResult(prom.ErrNetwork).Expand()...))
 			return
 		}
-		durationRequest := time.Since(t0)
-		log.FromCtx(ctx).Debug("[INSTRUMENTING] Register path segment", "duration", durationRequest.String())
 		r.summary.AddSrc(bseg.Segment.FirstIA())
 		r.summary.Inc()
 
