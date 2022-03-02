@@ -24,6 +24,7 @@ import (
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 )
 
+// ServiceResolver resolves addresses for remote gRPC endpoints
 type ServiceResolver interface {
 	ResolveTrustService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
 	ResolveDRKeyService(context.Context, *snet.SVCAddr) (*snet.UDPAddr, error)
@@ -36,6 +37,7 @@ type DSResolver struct {
 	Dialer Dialer
 }
 
+// RouteToDS returns a service address to the remote DS.
 func RouteToDS(router snet.Router, ia addr.IA) (*snet.SVCAddr, error) {
 	path, err := router.Route(context.Background(), ia)
 	if err != nil || path == nil {
@@ -50,6 +52,7 @@ func RouteToDS(router snet.Router, ia addr.IA) (*snet.SVCAddr, error) {
 	}, nil
 }
 
+// ResolveTrustService returns the address for the remote trust material service.
 func (r *DSResolver) ResolveTrustService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 
@@ -81,6 +84,7 @@ func (r *DSResolver) ResolveTrustService(ctx context.Context, ds *snet.SVCAddr) 
 	}, nil
 }
 
+// ResolveTrustService returns the address for the remote segment lookup service.
 func (r *DSResolver) ResolveSegmentLookupService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 
@@ -112,6 +116,7 @@ func (r *DSResolver) ResolveSegmentLookupService(ctx context.Context, ds *snet.S
 	}, nil
 }
 
+// ResolveTrustService returns the address for the remote segment registration service.
 func (r *DSResolver) ResolveSegmentRegService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 
@@ -143,6 +148,7 @@ func (r *DSResolver) ResolveSegmentRegService(ctx context.Context, ds *snet.SVCA
 	}, nil
 }
 
+// ResolveTrustService returns the address for the remote chain renewal service.
 func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 	conn, err := r.Dialer.Dial(ctx, ds)
@@ -173,6 +179,7 @@ func (r *DSResolver) ResolveChainRenewalService(ctx context.Context, ds *snet.SV
 	}, nil
 }
 
+// ResolveTrustService returns the address for the remote DRKey service.
 func (r *DSResolver) ResolveDRKeyService(ctx context.Context, ds *snet.SVCAddr) (
 	*snet.UDPAddr, error) {
 

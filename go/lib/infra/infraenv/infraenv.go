@@ -84,13 +84,16 @@ type NetworkConfig struct {
 
 // QUICStack contains everything to run a QUIC based RPC stack.
 type QUICStack struct {
-	Listener         *squic.ConnListener
-	Dialer           *squic.ConnDialer
-	TrustListener    *squic.ConnListener
-	DRKeyListener    *squic.ConnListener
-	DRKeyDialer      *squic.ConnDialer
+	Dialer *squic.ConnDialer
+	// Listener is use to handle one-hop path beaconing
+	Listener *squic.ConnListener
+	// DRKey uses a different transport protocol gRPC/TLS/QUIC/SCION
+	DRKeyListener *squic.ConnListener
+	DRKeyDialer   *squic.ConnDialer
+	// DSListener handles SVC_DS resolutions
+	DSListener *squic.ConnListener
+	// Rest of the listeners for the RPC services
 	CSListeners      []*squic.ConnListener
-	DSListener       *squic.ConnListener
 	RedirectCloser   func()
 	RedirectCloserDS func()
 }
@@ -173,6 +176,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
 		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
 	}
+	// client and server used for handling one-hop beaconing
 	client, server, err := nc.initQUICSockets(false)
 	if err != nil {
 		return nil, err
@@ -189,17 +193,16 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
 
-	tlsQuicConfig, err := GenerateTLSConfig()
-	if err != nil {
-		return nil, err
-	}
-
 	cancel, err := nc.initSvcRedirect(server.LocalAddr().String())
 	if err != nil {
 		return nil, serrors.WrapStr("starting service redirection", err)
 	}
 
 	// Discovery service with SVC resolution
+	tlsQuicConfig, err := GenerateTLSConfig()
+	if err != nil {
+		return nil, err
+	}
 	addressDS, err := net.ResolveUDPAddr("udp", (net.JoinHostPort(nc.DiscoveryAddr.IP.String(), "0")))
 	if err != nil {
 		return nil, err

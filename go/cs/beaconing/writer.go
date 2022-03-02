@@ -290,13 +290,16 @@ type remoteWriter struct {
 // with the path server.
 func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
-	// addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
 	addr, err := r.pather.GetPath(addr.SvcDS, bseg.Segment)
 	if err != nil {
 		logger.Error("Unable to contact DS", "err", err)
 		metrics.CounterInc(r.writer.InternalErrors)
 		return
 	}
+
+	// XXX(JordiSubira): We could create a new resolver mechanism that resolves addresses
+	// beforehand and caches them. That would also improve the time to complete the
+	// request.
 	server, err := r.writer.ServiceResolver.ResolveSegmentRegService(ctx, addr)
 	if err != nil {
 		logger.Error("Unable to choose server", "err", err)

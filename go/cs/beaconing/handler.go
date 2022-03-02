@@ -129,12 +129,16 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	if err != nil {
 		return err
 	}
-	// svcToQuery := &snet.SVCAddr{
-	// 	IA:      peer.IA,
-	// 	Path:    peerPath.Path(),
-	// 	NextHop: peerPath.UnderlayNextHop(),
-	// 	SVC:     addr.SvcCS,
-	// }
+
+	// XXX(JordiSubira): We could restructure the code to issue this resolution
+	// if the required crypto material is not already in cache.
+	// This is checked in functions: go/pkg/trust/fetching_provider.go:120(GetChains)
+	// and go/pkg/trust/verifier.go:147 (verifyChains).
+	// This change would allow to spare unnecessary calls to the remote DS.
+	//
+	// This can be done along with a new resolver mechanism that resolves addresses
+	// beforehand and caches them. That would also improve the time to complete the
+	// request.
 
 	server, err := h.Resolver.ResolveTrustService(ctx, &snet.SVCAddr{
 		IA:      peer.IA,

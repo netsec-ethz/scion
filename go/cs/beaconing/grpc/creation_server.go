@@ -58,14 +58,17 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 		return nil, serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
 	}
 
-	// Whitelist: Check is a neighboring path
+	// Whitelist: Check peer is a neighboring AS
+	//
+	// XXX(JordiSubira): A more detailed whitelist to filter beacons
+	// coming from an up-stream interface or core interface would be better.
 	var raw scion.Raw
 	if err := raw.DecodeFromBytes(peer.Path.Raw); err != nil {
 		return nil, serrors.WrapStr("Decoding path information", err)
 	}
 	if raw.NumHops != 2 || raw.NumINF != 1 {
-		logger.Debug("path must be OHP", "actual", peer.Path.String())
-		return nil, serrors.New("path must be OHP", "actual", peer.Path.String())
+		logger.Debug("peer path must be one-hop away", "actual", peer.Path.String())
+		return nil, serrors.New("path must be one-hop away", "actual", peer.Path.String())
 	}
 
 	ingress, err := extractIngressIfID(peer.Path)

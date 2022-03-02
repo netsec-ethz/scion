@@ -287,12 +287,13 @@ func realMain(ctx context.Context) error {
 		IA:       topo.IA(),
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
+
+	// Find Listener where trust material must be attached to.
 	serverIndex, err := quicStack.FindListenerIndex(nc.TrustAddr)
 	if err != nil {
 		return serrors.WrapStr("finding index for Trust server", err)
 	}
 	cppb.RegisterTrustMaterialServiceServer(gRPCServers[serverIndex], trustServer)
-	//cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	cppb.RegisterTrustMaterialServiceServer(tcpServer, trustServer)
 
 	// Handle beaconing.
@@ -340,7 +341,7 @@ func realMain(ctx context.Context) error {
 	// Always register a forwarding lookup for AS internal requests.
 	cppb.RegisterSegmentLookupServiceServer(tcpServer, forwardingLookupServer)
 	if topo.Core() {
-		// cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
+		// Find Listener where seg lookup server must be attached to.
 		serverIndex, err := quicStack.FindListenerIndex(nc.SegLookupAddr)
 		if err != nil {
 			return serrors.WrapStr("finding index for Auth Lookup server", err)
@@ -366,7 +367,7 @@ func realMain(ctx context.Context) error {
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		}
-		// cppb.RegisterSegmentRegistrationServiceServer(quicServer, regServer)
+		// Find Listener where seg registration server must be attached to.
 		serverIndex, err := quicStack.FindListenerIndex(nc.SegRegistrationAddr)
 		if err != nil {
 			return serrors.WrapStr("finding index for Auth Lookup server", err)
@@ -463,7 +464,7 @@ func realMain(ctx context.Context) error {
 			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
 		}
 
-		// cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
+		// Find Listener where renewal server must be attached to.
 		serverIndex, err = quicStack.FindListenerIndex(nc.ChainRenewalAddr)
 		if err != nil {
 			return serrors.WrapStr("finding index for Chain renewal server", err)
@@ -514,6 +515,7 @@ func realMain(ctx context.Context) error {
 	)
 	trcRunner.TriggerRun()
 
+	// Create and register DS server
 	ds := discovery.Topology{
 		Information: topoInformation{},
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
@@ -608,6 +610,7 @@ func realMain(ctx context.Context) error {
 	promgrpc.Register(tcpServer)
 	go func() {
 		defer log.HandlePanic()
+		// Serve beaconing
 		if err := quicServer.Serve(quicStack.Listener); err != nil {
 			fatal.Fatal(err)
 		}
@@ -620,6 +623,7 @@ func realMain(ctx context.Context) error {
 	}()
 	go func() {
 		defer log.HandlePanic()
+		// Serve DS
 		if err := dsServer.Serve(quicStack.DSListener); err != nil {
 			fatal.Fatal(err)
 		}
@@ -627,6 +631,7 @@ func realMain(ctx context.Context) error {
 
 	for i := range gRPCServers {
 		index := i
+		// Serve CS RPCs
 		go func() {
 			defer log.HandlePanic()
 			if err := gRPCServers[index].Serve(quicStack.CSListeners[index]); err != nil {
@@ -636,6 +641,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	if globalCfg.DRKey.Enabled() {
+		// Serve DRKey
 		go func() {
 			defer log.HandlePanic()
 			if err := quicTLSServer.Serve(quicStack.DRKeyListener); err != nil {

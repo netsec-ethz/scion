@@ -320,6 +320,7 @@ func (p *dstDiscoveryProvider) Dst(ctx context.Context, req segfetcher.Request) 
 	if err != nil {
 		return nil, err
 	}
+	// Resolve remote segment lookup using the DS
 	ps, err := p.Resolver.ResolveSegmentLookupService(ctx, ds)
 	log.FromCtx(ctx).Debug("Discovering Segment lookup service", "addr", ps.String())
 	return ps, err

@@ -585,15 +585,12 @@ func sendRequest(
 	if err != nil {
 		return nil, err
 	}
+	// Discover remote renewal service contacting the DS.
 	server, err := dsResolver.ResolveChainRenewalService(ctx, ds)
 	if err != nil {
 		return nil, serrors.WrapStr("discovering chain renewal service addr", err)
 	}
 	log.Debug("Discovered chain renewal service addr", "addr", server.String())
-	// csAddr := &snet.SVCAddr{
-	// 	IA:  dstIA,
-	// 	SVC: addr.SvcCS,
-	// }
 	conn, err := dialer.Dial(ctx, server)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing gRPC connection", err, "remote", server)

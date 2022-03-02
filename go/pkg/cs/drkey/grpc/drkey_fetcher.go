@@ -47,6 +47,7 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	req *dkpb.DRKeyLvl1Request) (*dkpb.DRKeyLvl1Response, error) {
 	logger := log.FromCtx(ctx)
 
+	// Resolve DRKey address contacting DS
 	logger.Info("Resolving server", "srcIA", srcIA.String())
 	ds, err := sc_grpc.RouteToDS(f.Router, srcIA)
 	if err != nil {
@@ -56,6 +57,7 @@ func (f Lvl1KeyFetcher) GetLvl1Key(ctx context.Context, srcIA addr.IA,
 	if err != nil {
 		return nil, serrors.WrapStr("unable to discover", err, "IA", srcIA)
 	}
+
 	conn, err := f.Dialer.Dial(ctx, remote)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)

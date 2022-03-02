@@ -114,7 +114,7 @@ type DSRouter struct {
 // ChooseServer builds an address for crypto with the subject in a given ISD.
 //  * a local authoritative TrustService if subject is ISD-local.
 //  * a local authoritative TrustService if subject is in remote ISD, but no active TRC is available.
-//  * a remote authoritative TrustService otherwise.
+//  * a remote authoritative TrustService otherwise (using DS to resolve the address).
 func (r DSRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
 	dstISD, err := r.dstISD(ctx, subjectISD)
 	if err != nil {
