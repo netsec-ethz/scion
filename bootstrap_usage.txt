@@ -1,0 +1,3 @@
+./scion.sh topology -c topology/bootstrapper.topo
+
+bin/bootstrapper -local 1-ff00:0:112,[127.0.0.91]:0 -sciond 127.0.0.29:30255 -log.console debug
