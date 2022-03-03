@@ -18,14 +18,19 @@ import (
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/grpc"
 )
 
+// DRKeyProvider retrieves DRKeys, e.g. from persistence and/or fetching
+// via best-effort
 type DRKeyProvider interface {
 	GetKey(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error)
 }
 
+// SegProvider provides upstream segment to core for non-core ASes
+// and core segments to core ASes
 type SegProvider interface {
 	FirstSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error)
 }
 
+// Pather provides paths given a destination IA.
 type Pather interface {
 	Paths(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 }
@@ -40,13 +45,15 @@ func NewSegProvider(pather Pather) *segProvider {
 	}
 }
 
+// FirstSegIAs returns a 2-dimension slice that contains the AS of the initial path segment
+// (up segement or core segment) to the destination.
 func (p *segProvider) FirstSegIAs(ctx context.Context, dst addr.IA) ([][]addr.IA, error) {
 	logger := log.FromCtx(ctx)
 	paths, err := p.pather.Paths(ctx, dst)
 	if err != nil {
 		return nil, serrors.WrapStr("requesting paths to dst", err)
 	}
-	// logger.Debug("Paths to destination", "len", len(paths))
+
 	upSegs := [][]addr.IA{}
 	for _, path := range paths {
 		ases, err := upstreamIAs(ctx, path)
@@ -68,8 +75,6 @@ func upstreamIAs(ctx context.Context, path snet.Path) ([]addr.IA, error) {
 	upSegLen := int(dp.PathMeta.SegLen[0])
 	interfaces := path.Metadata().Interfaces
 
-	// log.FromCtx(ctx).Debug("Printing path", "interfaces", interfaces, "SegLens", dp.PathMeta.SegLen)
-
 	ias := make([]addr.IA, upSegLen)
 	if upSegLen > 0 {
 		ias[0] = interfaces[0].IA
@@ -89,18 +94,22 @@ type DRKeyBootstrapper struct {
 	SegProvider  SegProvider
 }
 
-func (e *DRKeyBootstrapper) GetKey(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error) {
+// GetKey uses the bootstrap mechanism to fetch a key from a remote IA (embedded in meta.SrcIA)
+func (e *DRKeyBootstrapper) GetKey(ctx context.Context, meta drkey.Lvl2Meta,
+	valTime time.Time) (*drkey.Lvl2Key, error) {
 	// First try using best-effort
-	log.FromCtx(ctx).Debug("Fetching key via persistance/best-effort", "targetIA", meta.SrcIA)
+	log.FromCtx(ctx).Debug("Fetching key via persistence/best-effort", "targetIA", meta.SrcIA)
 	key, err := e.Provider.GetKey(ctx, meta, valTime)
 	if err != nil {
-		log.FromCtx(ctx).Debug("Best effort did not work, trying bootstrap mechanism", "targetIA", meta.SrcIA, "err", err)
+		log.FromCtx(ctx).Debug("Best effort did not work, trying bootstrap mechanism",
+			"targetIA", meta.SrcIA, "err", err)
 		return e.simpleExploration(ctx, meta, valTime)
 	}
 	return key, nil
 }
 
-func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lvl2Meta, valTime time.Time) (*drkey.Lvl2Key, error) {
+func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lvl2Meta,
+	valTime time.Time) (*drkey.Lvl2Key, error) {
 	logger := log.FromCtx(ctx)
 
 	upSegs, err := e.SegProvider.FirstSegIAs(ctx, meta.SrcIA)
@@ -170,7 +179,8 @@ func (e *DRKeyBootstrapper) simpleExploration(ctx context.Context, meta drkey.Lv
 		logger.Debug("Key fetched", "targetIA", meta.SrcIA)
 		return key, nil
 	}
-	logger.Debug("No trip worked for the current upSeg", "srcIA", e.LocalIA, "dstIA", meta.SrcIA, "upSeg", upSegs)
+	logger.Debug("No trip worked for the current upSeg",
+		"srcIA", e.LocalIA, "dstIA", meta.SrcIA, "upSeg", upSegs)
 	return nil, serrors.New("Unable to bootstrap key using any available path")
 }
 
@@ -193,6 +203,8 @@ func (e *DRKeyBootstrapper) bootstrapKey(ctx context.Context, trip colibri.FullT
 					DstIA:   e.LocalIA,
 					DstHost: e.LocalHost,
 				}
+				// In the general case, this keys should be in persistence
+				// or fetched using best-effort.
 				_, err := e.GetKey(ctx, lvl2Meta, valTime)
 				if err != nil {
 					return nil, serrors.Wrap(ErrMissingKey, err)
@@ -206,7 +218,7 @@ func (e *DRKeyBootstrapper) bootstrapKey(ctx context.Context, trip colibri.FullT
 		DstHost: e.LocalHost,
 	}
 
-	log.FromCtx(ctx).Debug("Fetching key via persistance/best-effort", "targetIA", lvl2Meta.SrcIA)
+	log.FromCtx(ctx).Debug("Fetching key via persistence/best-effort", "targetIA", lvl2Meta.SrcIA)
 	key, err := e.Provider.GetKey(ctx, lvl2Meta, valTime)
 	// At this point we can create a request since we have all intermediate keys to authenticate
 	// the payload.
@@ -223,12 +235,15 @@ type BestEffortProvider struct {
 	Fetcher grpc.DRKeyFetcher
 }
 
+// GetKey tries to obtain the DRKey for the remote using conventional methods
 func (p *BestEffortProvider) GetKey(ctx context.Context, meta drkey.Lvl2Meta,
 	valTime time.Time) (*drkey.Lvl2Key, error) {
 	// TODO(JordiSubira): First try DB lookup
 	return p.Fetcher.GetDRKeyLvl2(ctx, meta, valTime)
 }
 
+// FakeProvider simulates fetching keys from remote by
+// mapping them at rest beforehand
 type FakeProvider struct {
 	DB FakeDB
 }
@@ -243,6 +258,7 @@ func (p *FakeProvider) GetKey(ctx context.Context, meta drkey.Lvl2Meta,
 	return &key, nil
 }
 
+// FakeDB keeps an in-memory storage
 type FakeDB struct {
 	storage map[addr.IA]drkey.Lvl2Key
 }
@@ -257,7 +273,8 @@ func NewFakeDB(localIA addr.IA, localHost addr.HostAddr, dstList []addr.IA) Fake
 	}
 }
 
-func (db FakeDB) GetLvl2Key(ctx context.Context, meta drkey.Lvl2Meta, _ uint32) (drkey.Lvl2Key, error) {
+func (db FakeDB) GetLvl2Key(ctx context.Context,
+	meta drkey.Lvl2Meta, _ uint32) (drkey.Lvl2Key, error) {
 	key, ok := db.storage[meta.SrcIA]
 	if ok {
 		return key, nil

@@ -27,13 +27,13 @@ import (
 )
 
 var (
-	ia103 = xtest.MustParseIA("1-1:ff00:103")
-	ia102 = xtest.MustParseIA("1-1:ff00:102")
-	ia101 = xtest.MustParseIA("1-1:ff00:101")
-	ia100 = xtest.MustParseIA("1-1:ff00:100")
-	ia110 = xtest.MustParseIA("1-1:ff00:110")
-	ia111 = xtest.MustParseIA("1-1:ff00:111")
-	ia112 = xtest.MustParseIA("1-1:ff00:112")
+	ia103 = xtest.MustParseIA("1-1:ff00:103") // Up
+	ia102 = xtest.MustParseIA("1-1:ff00:102") // Up
+	ia101 = xtest.MustParseIA("1-1:ff00:101") // Up
+	ia100 = xtest.MustParseIA("1-1:ff00:100") // Core
+	ia110 = xtest.MustParseIA("1-1:ff00:110") // Core
+	ia111 = xtest.MustParseIA("1-1:ff00:111") // Down
+	ia112 = xtest.MustParseIA("1-1:ff00:112") // Down
 )
 
 func TestTelescopeUpstream(t *testing.T) {
@@ -100,6 +100,7 @@ func TestTelescopeUpstream(t *testing.T) {
 	}
 	segRs := map[string]*colibri.ReservationLooks{}
 	keyMap := map[addr.IA]drkey.Lvl2Key{
+		// We have DRKey for IA-102 at rest
 		ia102: {
 			Lvl2Meta: drkey.Lvl2Meta{
 				SrcIA:   ia102,
@@ -139,8 +140,10 @@ func TestTelescopeUpstream(t *testing.T) {
 			return nil
 		})
 	storeMgr.EXPECT().TearDownSegmentReservation(gomock.Any(), gomock.Any()).Return(nil, nil)
-	storeMgr.EXPECT().ListReservations(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(ctx context.Context, dstIA addr.IA, _ rsv.PathType) ([]*colibri.ReservationLooks, error) {
+	storeMgr.EXPECT().ListReservations(gomock.Any(), gomock.Any(),
+		gomock.Any()).AnyTimes().DoAndReturn(
+		func(ctx context.Context, dstIA addr.IA, _ rsv.PathType) (
+			[]*colibri.ReservationLooks, error) {
 			key := "seg-" + ia103.String() + "-" + dstIA.String()
 			segR, ok := segRs[key]
 			require.True(t, ok)
@@ -176,11 +179,11 @@ func TestTelescopeUpstream(t *testing.T) {
 			return nrIDs[key], nil
 		})
 
+	// We are expected to send two protected DRKey requests over COLIBRI
+	// to IA-101 and to IA-100
 	cryptoProvider.EXPECT().GenerateKeyPair().Times(2).Return(nil, nil, nil)
 	cryptoProvider.EXPECT().Sign(gomock.Any(), gomock.Any()).Times(2).Return(nil, nil)
-
 	mgr.EXPECT().DRKey(gomock.Any(), gomock.Any()).Times(2).Return(nil, nil)
-
 	cryptoProvider.EXPECT().VerifyDecrypt(gomock.Any(), gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(2).DoAndReturn(
 		func(_ context.Context, _ []byte, targetIA addr.IA,
@@ -238,6 +241,7 @@ func TestBootstrapKey(t *testing.T) {
 		{
 			name: "available_keys",
 			trip: colibri.FullTrip{
+				// Up-seg reservation
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
@@ -254,6 +258,7 @@ func TestBootstrapKey(t *testing.T) {
 						},
 					},
 				},
+				// core-seg reservation
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
@@ -264,6 +269,7 @@ func TestBootstrapKey(t *testing.T) {
 						},
 					},
 				},
+				// Down-seg reservation
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
@@ -302,6 +308,7 @@ func TestBootstrapKey(t *testing.T) {
 		{
 			name: "error_int_key",
 			trip: colibri.FullTrip{
+				// Up-seg reservation
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
@@ -318,6 +325,7 @@ func TestBootstrapKey(t *testing.T) {
 						},
 					},
 				},
+				// core-seg reservation
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{
@@ -328,6 +336,7 @@ func TestBootstrapKey(t *testing.T) {
 						},
 					},
 				},
+				// Down-seg reservation
 				&colibri.ReservationLooks{
 					Path: []reservation.PathStep{
 						{

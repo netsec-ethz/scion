@@ -26,13 +26,19 @@ import (
 
 var nonce = [24]byte{}
 
+// FakeExtendedMgr contains a mock-up implementation for the
+// ExtendedReservationManager interface.
+
+// This class can be remove  we the COLIBRI service provides
+// this interface and tests have been adapted.
 type FakeExtendedMgr struct {
 	localIA   addr.IA
 	localHost addr.HostAddr
 	fakeStore *FakeStore
 }
 
-func NewFakeExtendedMgr(localIA addr.IA, localHost addr.HostAddr, store *FakeStore) *FakeExtendedMgr {
+func NewFakeExtendedMgr(localIA addr.IA, localHost addr.HostAddr,
+	store *FakeStore) *FakeExtendedMgr {
 	return &FakeExtendedMgr{
 		localIA:   localIA,
 		localHost: localHost,
@@ -40,7 +46,10 @@ func NewFakeExtendedMgr(localIA addr.IA, localHost addr.HostAddr, store *FakeSto
 	}
 }
 
-func (m *FakeExtendedMgr) DRKey(_ context.Context, req *pb.DRKeyRequest) (*pb.DRKeyResponse, error) {
+// DRKey handles the protobuf request and returns a protobuf response.
+// The request is not authenticated.
+func (m *FakeExtendedMgr) DRKey(_ context.Context,
+	req *pb.DRKeyRequest) (*pb.DRKeyResponse, error) {
 	body, err := m.getResponseBody(req)
 	if err != nil {
 		return nil, err
@@ -68,7 +77,7 @@ func (m *FakeExtendedMgr) DRKey(_ context.Context, req *pb.DRKeyRequest) (*pb.DR
 func (m *FakeExtendedMgr) getResponseBody(req *pb.DRKeyRequest) (*pb.DRKeyResponseBody, error) {
 	lastSegID := *translate.ID(req.Segments[len(req.Segments)-1])
 	// srcIA should be extracted from certificate but we are
-	// disregarding whether one is actually embeded in the request.
+	// disregarding whether one is actually embedded in the request.
 	srcIA := addr.IA{
 		I: m.localIA.I, //same ISD as issuer
 		A: lastSegID.ASID,
@@ -144,7 +153,9 @@ func fakeKey(srcIA, dstIA addr.IA, dstHost addr.HostAddr) drkey.Lvl2Key {
 	}
 }
 
-func (m *FakeExtendedMgr) LookupNR(ctx context.Context, transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error) {
+// LookupNR returns the NR for the given transferIA and the dst IA.
+func (m *FakeExtendedMgr) LookupNR(ctx context.Context,
+	transferIA addr.IA, dst addr.IA) (*colibri.ReservationLooks, error) {
 	return &colibri.ReservationLooks{
 		Id: lib_res.ID{
 			ASID:   transferIA.A,
@@ -163,6 +174,8 @@ func (m *FakeExtendedMgr) LookupNR(ctx context.Context, transferIA addr.IA, dst 
 	}, nil
 }
 
+// SetupRequest simulates sending a segment SetupReq that will be conveyed upstream
+// protected by the SegR+NR. The created SegR gets inserted in persistence
 func (m *FakeExtendedMgr) SetupRequest(ctx context.Context, req *segment.SetupReq) error {
 	srcIA := req.Path.SrcIA()
 	dstIA := req.Path.DstIA()
@@ -188,6 +201,7 @@ func (m *FakeExtendedMgr) Store() reservationstorage.Store {
 	return m.fakeStore
 }
 
+// FakeStore keeps an in-memory storage for COLIBRI reservations.
 type FakeStore struct {
 	upSegRStorage map[addr.IA]*colibri.ReservationLooks
 	stichableSeg  map[addr.IA]*colibri.StitchableSegments
@@ -219,7 +233,8 @@ func (m *FakeStore) TearDownSegmentReservation(ctx context.Context, req *base.Re
 	return nil, nil
 }
 
-func (m *FakeStore) ListStitchableSegments(ctx context.Context, dst addr.IA) (*colibri.StitchableSegments, error) {
+func (m *FakeStore) ListStitchableSegments(ctx context.Context,
+	dst addr.IA) (*colibri.StitchableSegments, error) {
 	stichable, ok := m.stichableSeg[dst]
 	if ok {
 		ups := make([]*colibri.ReservationLooks, 0, len(m.upSegRStorage))
@@ -255,29 +270,36 @@ func (m *FakeStore) CleanupE2EReservation(ctx context.Context, req *base.Request
 	base.Response, error) {
 	panic("not implemented")
 }
-func (m *FakeStore) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, time.Time, error) {
+func (m *FakeStore) DeleteExpiredIndices(ctx context.Context,
+	now time.Time) (int, time.Time, error) {
 	panic("not implemented")
 }
 
-func (m *FakeStore) GetReservationsAtSource(ctx context.Context, dstIA addr.IA) ([]*segment.Reservation, error) {
+func (m *FakeStore) GetReservationsAtSource(ctx context.Context,
+	dstIA addr.IA) ([]*segment.Reservation, error) {
 	panic("not implemented")
 }
 
-func (m *FakeStore) InitSegmentReservation(ctx context.Context, req *segment.SetupReq) error {
+func (m *FakeStore) InitSegmentReservation(ctx context.Context,
+	req *segment.SetupReq) error {
 	panic("not implemented")
 }
 
-func (m *FakeStore) AddAdmissionEntry(ctx context.Context, entry *colibri.AdmissionEntry) (time.Time, error) {
+func (m *FakeStore) AddAdmissionEntry(ctx context.Context,
+	entry *colibri.AdmissionEntry) (time.Time, error) {
 	panic("not implemented")
 }
 
-func (m *FakeStore) DeleteExpiredAdmissionEntries(ctx context.Context, now time.Time) (int, time.Time, error) {
+func (m *FakeStore) DeleteExpiredAdmissionEntries(ctx context.Context,
+	now time.Time) (int, time.Time, error) {
 	panic("not implemented")
 }
 
-func (m *FakeStore) ReportSegmentReservationsInDB(ctx context.Context) ([]*segment.Reservation, error) {
+func (m *FakeStore) ReportSegmentReservationsInDB(ctx context.Context) (
+	[]*segment.Reservation, error) {
 	panic("not implemented")
 }
-func (m *FakeStore) ReportE2EReservationsInDB(ctx context.Context) ([]*e2e.Reservation, error) {
+func (m *FakeStore) ReportE2EReservationsInDB(ctx context.Context) (
+	[]*e2e.Reservation, error) {
 	panic("not implemented")
 }

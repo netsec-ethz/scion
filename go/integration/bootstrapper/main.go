@@ -27,9 +27,10 @@ var (
 	ia1_C_1 = xtest.MustParseIA("1-ff00:0:120") // Core
 	ia1_C_2 = xtest.MustParseIA("1-ff00:0:110") // Core
 	ia1_D   = xtest.MustParseIA("1-ff00:0:130") // Core
-	ia1_E   = xtest.MustParseIA("1-ff00:0:131")
-	ia1_F   = xtest.MustParseIA("1-ff00:0:132")
+	ia1_E   = xtest.MustParseIA("1-ff00:0:131") // Down
+	ia1_F   = xtest.MustParseIA("1-ff00:0:132") // Down
 
+	// Pre-established SegR
 	segRA_C1 = &colibri.ReservationLooks{
 		SrcIA: ia1_A,
 		DstIA: ia1_C_1,
@@ -135,10 +136,12 @@ func realMain() int {
 	defer closeTracer()
 
 	stichableReservation := initReservations()
+	// IAs that are not under DDoS.
 	healtyIAs := initHealthyIAs()
 
 	localIA := integration.Local.IA
 	localHost := addr.HostFromIP(integration.Local.Host.IP)
+	// To be replaced with colibri.Store with new API.
 	fakeStore := bootstrap.NewFakeStore(stichableReservation)
 	db := bootstrap.NewFakeDB(localIA, localHost, healtyIAs)
 
@@ -182,23 +185,23 @@ func addFlags(remote *snet.UDPAddr, timeout *util.DurWrap) {
 
 func initReservations() map[addr.IA]*colibri.StitchableSegments {
 	return map[addr.IA]*colibri.StitchableSegments{
-		ia1_F: &colibri.StitchableSegments{
+		ia1_F: {
 			SrcIA: ia1_A,
 			DstIA: ia1_F,
 			Core:  []*colibri.ReservationLooks{segRC2_D},
 			Down:  []*colibri.ReservationLooks{segRD_E_F},
 		},
-		addr.IA{I: ia1_F.I, A: 0}: &colibri.StitchableSegments{
+		{I: ia1_F.I, A: 0}: {
 			SrcIA: ia1_A,
 			DstIA: ia1_D,
 			Core:  []*colibri.ReservationLooks{segRC2_D},
 		},
-		ia1_D: &colibri.StitchableSegments{
+		ia1_D: {
 			SrcIA: ia1_A,
 			DstIA: ia1_D,
 			Core:  []*colibri.ReservationLooks{segRC2_D},
 		},
-		ia1_E: &colibri.StitchableSegments{
+		ia1_E: {
 			SrcIA: ia1_A,
 			DstIA: ia1_E,
 			Core:  []*colibri.ReservationLooks{segRC2_D},

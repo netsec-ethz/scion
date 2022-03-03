@@ -23,6 +23,9 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
+// SetReqBuilder builds a request that will be protected over stitched COLIBRI
+// segments. This allows to protect the SegR setup so that it cannot
+// be disrupted by best-effort traffic.
 type SetReqBuilder interface {
 	BuildSetReq(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error)
 }
@@ -34,7 +37,10 @@ type builder struct {
 	Store reservationstorage.Store
 }
 
-func (b *builder) BuildSetReq(ctx context.Context, trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
+// BuildSetReq creates a COLIBRI EER and returns a SetupRequest whose path (the path over
+//	which the SetupRequest will be sent) corresponds to such a reservation.
+func (b *builder) BuildSetReq(ctx context.Context,
+	trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
 	_, path, err := b.createEER(ctx, trip.Segments(), dst, 5)
 
 	if err != nil {
@@ -95,7 +101,8 @@ func (b *builder) createEER(ctx context.Context, segments []lib_res.ID, dst addr
 		SrcIA:   b.localIA,
 		DstIA:   dst,
 		DstHost: net.IPv4(127, 0, 0, 1), // dst.Host.IP
-		// at the moment we use lo address to indicate it is a reservation to the same COLIBRI service
+		// at the moment we use lo address to indicate it
+		// is a reservation to the same COLIBRI service.
 		SegmentRsvs:            segments,
 		CurrentSegmentRsvIndex: 0,
 		RequestedBW:            requestBW,
@@ -148,9 +155,11 @@ func (b *builder) pathFromE2EResp(resID lib_res.ID, resp e2e.SetupResponse) (sne
 	}, nil
 }
 
+// FakeBuilder do not create the EER when creating the SegR setup.
 type FakeBuilder struct{}
 
-func (f FakeBuilder) BuildSetReq(_ context.Context, trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
+func (f FakeBuilder) BuildSetReq(_ context.Context,
+	trip colibri.FullTrip, dst addr.IA) (*segment.SetupReq, error) {
 	transparentPath := reservation.TransparentPath{
 		Steps: []reservation.PathStep{
 			{

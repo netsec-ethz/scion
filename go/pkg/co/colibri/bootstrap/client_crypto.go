@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -25,6 +26,8 @@ import (
 // 	EncryptAndSign(key drkey.DRKey) (*cryptopb.SignedMessage, error)
 // }
 
+// ClientCryptoProvider defines the crypto interface for the
+// bootstrap client.
 type ClientCryptoProvider interface {
 	GenerateKeyPair() ([]byte, []byte, error)
 	Sign(ctx context.Context, request DRKeyReq) (*pb.DRKeyRequest, error)
@@ -36,17 +39,19 @@ var _ ClientCryptoProvider = CryptoProvider{}
 
 type CryptoProvider struct {
 	// TODO(JordiSubira): Allow the crypto provider to dynamically load trust material.
-
 	LocalIA   addr.IA
 	LocalHost addr.HostAddr
 	Signer    trust.Signer
 	TRCs      []cppki.SignedTRC
 }
 
+// GenerateKeyPair generates a public/private key pair to be used in
+// public encryption scheme.
 func (p CryptoProvider) GenerateKeyPair() ([]byte, []byte, error) {
 	return crypto.GenKeyPair()
 }
 
+// Sign signs a DRKey request and returns the protobuf request.
 func (p CryptoProvider) Sign(ctx context.Context, request DRKeyReq) (*pb.DRKeyRequest, error) {
 	pbReqBody, err := drkeyReqToPb(request)
 	if err != nil {
@@ -89,6 +94,8 @@ func drkeyReqToPb(request DRKeyReq) (*pb.DRKeyRequestBody, error) {
 	}, nil
 }
 
+// VerifyDecrypt verifies the protobuf response and, if successful,
+// it decrypts the payload that contains the DRKey.
 func (p CryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
 	targetIA addr.IA, resp *pb.DRKeyResponse) (*drkey.Lvl2Key, error) {
 	rawCerts := [][]byte{
@@ -112,6 +119,10 @@ func (p CryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
 	}
 
 	rawResp, err := crypto.Decrypt(respBody.Cipher, respBody.Nonce, respBody.EphPubkey, privKey)
+	if err != nil {
+		return nil, serrors.WrapStr("decrypting response", err)
+	}
+
 	var pbResp pb.ASHostResponse
 	err = proto.Unmarshal(rawResp, &pbResp)
 	if err != nil {
@@ -120,7 +131,8 @@ func (p CryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
 	return pbASHostToKey(p.LocalIA, targetIA, p.LocalHost, &pbResp)
 }
 
-func pbASHostToKey(localIA addr.IA, targetIA addr.IA, localHost addr.HostAddr, rep *pb.ASHostResponse) (*drkey.Lvl2Key, error) {
+func pbASHostToKey(localIA addr.IA, targetIA addr.IA,
+	localHost addr.HostAddr, rep *pb.ASHostResponse) (*drkey.Lvl2Key, error) {
 	epochBegin, err := ptypes.Timestamp(rep.EpochBegin)
 	if err != nil {
 		return nil, serrors.WrapStr("invalid EpochBegin from response", err)
@@ -149,6 +161,9 @@ func pbASHostToKey(localIA addr.IA, targetIA addr.IA, localHost addr.HostAddr, r
 	}, nil
 }
 
+// FakeCryptoProvider is used to bypass authentication for messages.
+// This is not to be used in production but to be used in testing;
+// it simplifies testing/debugging.
 type FakeCryptoProvider struct {
 	LocalIA   addr.IA
 	LocalHost addr.HostAddr
@@ -204,6 +219,9 @@ func (p FakeCryptoProvider) VerifyDecrypt(ctx context.Context, privKey []byte,
 	}
 
 	rawResp, err := crypto.Decrypt(respBody.Cipher, respBody.Nonce, respBody.EphPubkey, privKey)
+	if err != nil {
+		return nil, serrors.WrapStr("decrypting response", err)
+	}
 	var pbResp pb.ASHostResponse
 	err = proto.Unmarshal(rawResp, &pbResp)
 	if err != nil {

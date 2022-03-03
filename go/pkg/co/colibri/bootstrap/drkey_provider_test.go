@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservationstorage/mock_reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -15,7 +17,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap"
 	"github.com/scionproto/scion/go/pkg/co/colibri/bootstrap/mock_bootstrap"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -25,8 +26,8 @@ var (
 	ia1_C_1 = xtest.MustParseIA("1-1:ff00:101") // Core
 	ia1_C_2 = xtest.MustParseIA("1-1:ff00:105") // Core
 	ia1_D   = xtest.MustParseIA("1-1:ff00:100") // Core
-	ia1_E   = xtest.MustParseIA("1-1:ff00:110")
-	ia1_F   = xtest.MustParseIA("1-1:ff00:111")
+	ia1_E   = xtest.MustParseIA("1-1:ff00:110") // Down
+	ia1_F   = xtest.MustParseIA("1-1:ff00:111") // Down
 
 	segRA_C1 = &colibri.ReservationLooks{
 		SrcIA: ia1_A,
@@ -105,12 +106,12 @@ var (
 
 func TestGetKey(t *testing.T) {
 	upSegToF := [][]addr.IA{
-		[]addr.IA{
+		{
 			ia1_A,
 			ia1_B_1,
 			ia1_C_1,
 		},
-		[]addr.IA{
+		{
 			ia1_A,
 			ia1_B_2,
 			ia1_C_2,
@@ -118,30 +119,30 @@ func TestGetKey(t *testing.T) {
 	}
 
 	segRs := map[addr.IA]*colibri.StitchableSegments{
-		ia1_F: &colibri.StitchableSegments{
+		ia1_F: {
 			SrcIA: ia1_A,
 			DstIA: ia1_F,
 			Up:    []*colibri.ReservationLooks{segRA_C2},
 			Core:  []*colibri.ReservationLooks{segRC2_D},
 			Down:  []*colibri.ReservationLooks{segRD_E_F},
 		},
-		ia1_C_1: &colibri.StitchableSegments{
+		ia1_C_1: {
 			SrcIA: ia1_A,
 			DstIA: ia1_C_1,
 			Up:    []*colibri.ReservationLooks{segRA_C1},
 		},
-		ia1_C_2: &colibri.StitchableSegments{
+		ia1_C_2: {
 			SrcIA: ia1_A,
 			DstIA: ia1_C_2,
 			Up:    []*colibri.ReservationLooks{segRA_C2},
 		},
-		ia1_D: &colibri.StitchableSegments{
+		ia1_D: {
 			SrcIA: ia1_A,
 			DstIA: ia1_D,
 			Up:    []*colibri.ReservationLooks{segRA_C2},
 			Core:  []*colibri.ReservationLooks{segRC2_D},
 		},
-		ia1_E: &colibri.StitchableSegments{
+		ia1_E: {
 			SrcIA: ia1_A,
 			DstIA: ia1_E,
 			Up:    []*colibri.ReservationLooks{segRA_C2},
@@ -151,8 +152,6 @@ func TestGetKey(t *testing.T) {
 	}
 
 	metaF := drkey.Lvl2Meta{SrcIA: ia1_F, DstIA: ia1_A}
-
-	// segRLocalStore := map[addr.IA]*colibri.ReservationLooks{}
 
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
@@ -172,45 +171,62 @@ func TestGetKey(t *testing.T) {
 	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_2, gomock.Any()).Return(nil, nil)
 	bootstrapper.EXPECT().TelescopeUpstream(gomock.Any(), upSegToF[0]).Return(nil, nil)
 	bootstrapper.EXPECT().TelescopeUpstream(gomock.Any(), upSegToF[1]).Return(nil, nil)
+
+	// List core segments (in the search to F)
 	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), addr.IA{I: metaF.SrcIA.I, A: 0}).Return(
 		segRs[ia1_D], nil)
 
 	// State: A->B2->C2->D(M)->E(M)->F(M)
 
-	// Best-effort/Persistance call for B2 and C2
+	// Best-effort/Persistence call for B2 and C2
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(2).Return(nil, nil)
+	// Try best-effort for D
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_D, DstIA: ia1_A},
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 	// SendDRKeyReq to D
 	bootstrapper.EXPECT().SendDRKeyReq(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
-	// State: A->B2->C2->D->E(M)->F(M)
+	// List down-segments (in the search to F)
 	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_F).Return(segRs[ia1_F], nil)
-	// Best-effort/Persistance call for B2, C2 and D
+
+	// State: A->B2->C2->D->E(M)->F(M)
+	// Best-effort/Persistence call for B2, C2 and D
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(3).Return(nil, nil)
+	// Try best-effort for E
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_E, DstIA: ia1_A},
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 
 	segProvider.EXPECT().FirstSegIAs(gomock.Any(), ia1_E).Return(upSegToF, nil)
-	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_1, gomock.Any()).Return([]*colibri.ReservationLooks{segRA_C1}, nil)
-	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_2, gomock.Any()).Return([]*colibri.ReservationLooks{segRA_C2}, nil)
-	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), addr.IA{I: metaF.SrcIA.I, A: 0}).Return(segRs[ia1_D], nil)
-	// Best-effort/persistance for B2->C2->D
+	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_1, gomock.Any()).Return(
+		[]*colibri.ReservationLooks{segRA_C1}, nil)
+	storeMgr.EXPECT().ListReservations(gomock.Any(), ia1_C_2, gomock.Any()).Return(
+		[]*colibri.ReservationLooks{segRA_C2}, nil)
+
+	// List core segments (in the search to E)
+	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), addr.IA{I: metaF.SrcIA.I, A: 0}).Return(
+		segRs[ia1_D], nil)
+
+	// State: A->B1->C1->C2->D->E(M)
+
+	// Best-effort/persistence for B2->C2->D
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(3).Return(nil, nil)
 
-	// State: A->B1->C1->C2->D->E(M)
+	// List down segments (in the search to E)
 	storeMgr.EXPECT().ListStitchableSegments(gomock.Any(), ia1_E).Return(segRs[ia1_E], nil)
-	// Best-effort/persistance for B2->C2->D
+	// Best-effort/persistence for B2->C2->D
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(3).Return(nil, nil)
+	// Try best-effort for E
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_E, DstIA: ia1_A},
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 	bootstrapper.EXPECT().SendDRKeyReq(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	// State: A->B1->C1->C2->D->E->F(M)
+
+	// Try best-effort for F
 	drkeyProvider.EXPECT().GetKey(gomock.Any(), drkey.Lvl2Meta{SrcIA: ia1_F, DstIA: ia1_A},
 		gomock.Any()).Return(nil, serrors.New("not able to fetch via best-effort"))
 	bootstrapper.EXPECT().SendDRKeyReq(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)

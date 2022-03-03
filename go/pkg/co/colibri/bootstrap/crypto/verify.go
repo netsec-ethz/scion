@@ -19,6 +19,8 @@ var (
 	errInactive = serrors.New("inactive")
 )
 
+// VerifyPeerCertificate verify the certificate chain against the
+// provided TRCs.
 func VerifyPeerCertificate(targetIA addr.IA, rawCerts [][]byte,
 	trcs []cppki.SignedTRC) (*x509.Certificate, error) {
 	chain := make([]*x509.Certificate, len(rawCerts))

@@ -23,33 +23,45 @@ import "proto/crypto/v1/signed.proto";
 import "proto/control_plane/v1/cppki.proto";
 import "google/protobuf/timestamp.proto";
 
-service DRKey {
+service DRKeyService {
     // RenewChain creates a chain from the chain request.
     rpc DRKey(DRKeyRequest) returns (DRKeyResponse) {}
 }
 
 message DRKeyRequest {
+    // chain is the certificate chain that contains the public signing key
+    // it must be validate against a valid TRC
     proto.control_plane.v1.Chain chain = 1;
+    // segment contains the segments over which the request travels
     repeated ReservationID segments = 2;
-    uint32 current_segment = 3; // index of the current segment.
-                                // If the node is transfer, the first segment it belongs to.
+    // index of the current segment.
+    // If the node is transfer, the first segment it belongs to.
+    uint32 current_segment = 3;
+    // signed request containing drkey request
     proto.crypto.v1.SignedMessage signed_request = 4;
 }
 
 message DRKeyRequestBody {
-    // PubKey for deriving/encrypting DRKey message in KEM/DEM
+    // eph_pubkey for deriving/encrypting DRKey message in KEM/DEM
     bytes eph_pubkey = 1;
-	google.protobuf.Timestamp valTime  = 2;
+    // Validity time for the requested key
+	google.protobuf.Timestamp val_time  = 2;
 }
 
 message DRKeyResponse {
+    // chain is the certificate chain that contains the public signing key
+    // it must be validate against a valid TRC
     proto.control_plane.v1.Chain chain = 1;
+    // signed response containing drkey response
     proto.crypto.v1.SignedMessage signed_response = 2;
 }
 
 message DRKeyResponseBody {
+    // eph_pubkey for deriving/decrypting DRKey message in KEM/DEM
     bytes eph_pubkey = 1;
+    // nonce is used for decrypting the ciphertext.
     bytes nonce = 2;
+    // ciphertext containing the response
     bytes cipher = 3;
 }
 
