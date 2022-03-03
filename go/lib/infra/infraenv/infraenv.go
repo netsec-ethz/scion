@@ -132,15 +132,18 @@ func (nc *NetworkConfig) uniqueQUICAddresses() []*net.UDPAddr {
 	if ok {
 		set[ipPort] = struct{}{}
 	}
-	ipPort, ok = netaddr.FromStdAddr(nc.ChainRenewalAddr.IP, nc.ChainRenewalAddr.Port, nc.ChainRenewalAddr.Zone)
+	ipPort, ok = netaddr.FromStdAddr(nc.ChainRenewalAddr.IP, nc.ChainRenewalAddr.Port,
+		nc.ChainRenewalAddr.Zone)
 	if ok {
 		set[ipPort] = struct{}{}
 	}
-	ipPort, ok = netaddr.FromStdAddr(nc.SegLookupAddr.IP, nc.SegLookupAddr.Port, nc.SegLookupAddr.Zone)
+	ipPort, ok = netaddr.FromStdAddr(nc.SegLookupAddr.IP, nc.SegLookupAddr.Port,
+		nc.SegLookupAddr.Zone)
 	if ok {
 		set[ipPort] = struct{}{}
 	}
-	ipPort, ok = netaddr.FromStdAddr(nc.SegRegistrationAddr.IP, nc.SegRegistrationAddr.Port, nc.SegRegistrationAddr.Zone)
+	ipPort, ok = netaddr.FromStdAddr(nc.SegRegistrationAddr.IP, nc.SegRegistrationAddr.Port,
+		nc.SegRegistrationAddr.Zone)
 	if ok {
 		set[ipPort] = struct{}{}
 	}
@@ -203,11 +206,15 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if err != nil {
 		return nil, err
 	}
-	addressDS, err := net.ResolveUDPAddr("udp", (net.JoinHostPort(nc.DiscoveryAddr.IP.String(), "0")))
+	addressDS, err := net.ResolveUDPAddr("udp", (net.JoinHostPort(
+		nc.DiscoveryAddr.IP.String(), "0")))
 	if err != nil {
 		return nil, err
 	}
 	serverDS, err := nc.initQUICServerSocket(addressDS)
+	if err != nil {
+		return nil, serrors.WrapStr("initiating QUIC/SCION for DS socket", err)
+	}
 	dsListener, err := quic.Listen(serverDS, tlsQuicConfig, nil)
 	if err != nil {
 		return nil, serrors.WrapStr("listening QUIC/SCION for DS socket", err)

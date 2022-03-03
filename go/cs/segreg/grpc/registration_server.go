@@ -76,8 +76,10 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 
 	// Whitelisting: Only from local ISD
 	if peer.IA.I != s.LocalIA.I {
-		logger.Debug("ISD do not macth", "peer ISD", peer.IA.I.String(), "local IA", s.LocalIA.I.String())
-		return nil, serrors.New("ISD do not macth", "peer ISD", peer.IA.I.String(), "local IA", s.LocalIA.I.String())
+		logger.Debug("ISD do not macth", "peer ISD", peer.IA.I.String(),
+			"local IA", s.LocalIA.I.String())
+		return nil, serrors.New("ISD do not macth", "peer ISD", peer.IA.I.String(),
+			"local IA", s.LocalIA.I.String())
 	}
 
 	labels.Source = peerToLabel(peer.IA, s.LocalIA)

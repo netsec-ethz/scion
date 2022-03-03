@@ -79,10 +79,14 @@ message ColibriServicesResponse {
 message CSRequest {}
 
 message CSResponse {
-    // The list of lookup service instances.
+    // List of trust material service endpoints.
     repeated string trust_material = 1;
+    // List of trust chain renewañ service endpoints.
     repeated string chain_renewal = 2;
+    // List of trust segment lookup service endpoints.
     repeated string segment_lookup = 3;
+    // List of trust segment registration endpoints.
     repeated string segment_registration =4;
+    // List of trust drkey service endpoints.
     repeated string drkey_inter =5;
 }
