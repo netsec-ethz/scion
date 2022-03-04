@@ -146,7 +146,7 @@ func (t FullTrip) String() string {
 		for j, step := range s.Path {
 			steps[j] = step.IA.String()
 		}
-		stitches[i] = strings.Join(steps, "->")
+		stitches[i] = fmt.Sprintf("[%s]: %s", s.Id, strings.Join(steps, "->"))
 	}
 	return strings.Join(stitches, " >>> ")
 }
