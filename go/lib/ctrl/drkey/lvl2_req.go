@@ -34,7 +34,7 @@ type Host struct {
 
 // NewHost returns a new Host from an addr.HostAddr.
 func NewHost(host addr.HostAddr) Host {
-	if host == nil {
+	if host == nil || len(host.IP()) == 0 {
 		host = addr.HostNone{}
 	}
 	return Host{
