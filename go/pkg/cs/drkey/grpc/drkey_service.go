@@ -293,13 +293,13 @@ func hostAddrFromPeer(peerAddr net.Addr) (addr.HostAddr, error) {
 
 // SV handles a SV request and returns a SV response.
 func (d *Server) SV(ctx context.Context,
-	req *cppb.SVRequest) (*cppb.SVResponse, error) {
+	req *dkpb.SVRequest) (*dkpb.SVResponse, error) {
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	meta, err := ctrl.RequestToMeta(req.BaseReq)
+	meta, err := ctrl.RequestToMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-Host request", err)
 	}
@@ -310,21 +310,11 @@ func (d *Server) SV(ctx context.Context,
 	if err != nil {
 		return nil, serrors.WrapStr("getting SV from persistence", err)
 	}
-	resp, err := svToProtoResp(sv)
+	resp, err := ctrl.SVtoProtoResp(sv)
 	if err != nil {
 		return nil, serrors.WrapStr("encoding SV to Protobuf response", err)
 	}
 	return resp, nil
-}
-
-func svToProtoResp(sv drkey.SV) (*cppb.SVResponse, error) {
-	baseRep, err := ctrl.SVtoProtoResp(sv)
-	if err != nil {
-		return nil, err
-	}
-	return &cppb.SVResponse{
-		BaseRep: baseRep,
-	}, nil
 }
 
 // validateSVReq checks that the requester is authorized to receive a SV

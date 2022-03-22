@@ -33,15 +33,5 @@ service DRKeyIntraService{
     // Return the Host-Host that matches the request
     rpc HostHost(proto.drkey.mgmt.v1.HostHostRequest) returns (proto.drkey.mgmt.v1.HostHostResponse) {}
     // Return the SV that matches the request
-    rpc SV(SVRequest) returns (SVResponse) {}
-}
-
-message SVRequest{
-    // BaseReq contains the basic information for the SV request
-    proto.drkey.mgmt.v1.SVRequest base_req = 1;
-}
-
-message SVResponse{
-    // BaseReq contains the basic information for the SV request
-    proto.drkey.mgmt.v1.SVResponse base_rep = 1;
+    rpc SV(proto.drkey.mgmt.v1.SVRequest) returns (proto.drkey.mgmt.v1.SVResponse) {}
 }
