@@ -24,7 +24,6 @@ import (
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	dkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -39,7 +38,7 @@ type BaseRequest struct {
 	Authenticators [][]byte              // per spec., MACs for AS_i on the immutable data
 }
 
-func (r *BaseRequest) CreateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer) error {
+func (r *BaseRequest) CreateAuthenticators(ctx context.Context, conn DRKeyGetter) error {
 
 	return createAuthsForBaseRequest(ctx, conn, r)
 }
@@ -52,13 +51,13 @@ type E2EReservationSetup struct {
 }
 
 func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context,
-	conn dkut.DRKeyGetLvl2Keyer) error {
+	conn DRKeyGetter) error {
 
 	return createAuthsForE2EReservationSetup(ctx, conn, r)
 }
 
 // NewReservation creates a new E2EReservationSetup, including the authenticator fields.
-func NewReservation(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+func NewReservation(ctx context.Context, conn DRKeyGetter,
 	fullTrip *FullTrip, srcHost, dstHost net.IP,
 	requestedBW reservation.BWCls) (*E2EReservationSetup, error) {
 
@@ -90,7 +89,7 @@ type E2EResponse struct {
 }
 
 // ValidateAuthenticators returns nil if the source validation for all hops succeeds.
-func (r *E2EResponse) ValidateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+func (r *E2EResponse) ValidateAuthenticators(ctx context.Context, conn DRKeyGetter,
 	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
 
 	return validateResponseAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
@@ -106,7 +105,7 @@ func (e *E2EResponseError) Error() string {
 	return e.Message
 }
 
-func (r *E2EResponseError) ValidateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+func (r *E2EResponseError) ValidateAuthenticators(ctx context.Context, conn DRKeyGetter,
 	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
 
 	return validateResponseErrorAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
@@ -117,7 +116,7 @@ type E2ESetupError struct {
 	AllocationTrail []reservation.BWCls
 }
 
-func (r *E2ESetupError) ValidateAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer,
+func (r *E2ESetupError) ValidateAuthenticators(ctx context.Context, conn DRKeyGetter,
 	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
 
 	return validateSetupErrorAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
