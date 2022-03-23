@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -24,13 +25,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	// TODO(juagargi) unify test packages
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/client/sorting"
 	ct "github.com/scionproto/scion/go/lib/colibri/coltest"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
-	"github.com/scionproto/scion/go/lib/drkey"
-	dkt "github.com/scionproto/scion/go/lib/drkey/test"
+	fakedrkey "github.com/scionproto/scion/go/lib/drkey/fake"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
@@ -58,7 +59,7 @@ func TestNewReservation(t *testing.T) {
 		ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
 			ct.WithUpSegs(1),
 		), nil)
-	mockDRKeys(t, daemon, strSrcIA, strSrcHost)
+	mockDRKeys(t, daemon, srcIA, srcHost)
 
 	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
 		sorting.ByExpiration)
@@ -94,7 +95,7 @@ func TestReservationOpen(t *testing.T) {
 		ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
 			ct.WithUpSegs(1),
 		), nil)
-	mockDRKeys(t, daemon, strSrcIA, strSrcHost)
+	mockDRKeys(t, daemon, srcIA, srcHost)
 
 	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
 		sorting.ByExpiration)
@@ -172,7 +173,7 @@ func TestReservationOpenSuccessfully(t *testing.T) {
 		ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
 			ct.WithUpSegs(1),
 		), nil)
-	mockDRKeys(t, daemon, strSrcIA, strSrcHost)
+	mockDRKeys(t, daemon, srcIA, srcHost)
 
 	rsv, err := NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,
 		sorting.ByExpiration)
@@ -236,7 +237,7 @@ func TestReservationFailOnRenewal(t *testing.T) {
 	daemon := mock_daemon.NewMockConnector(ctrl)
 	daemon.EXPECT().ColibriListRsvs(gomock.Any(), gomock.Any()).Return(
 		stitchables, nil)
-	mockDRKeys(t, daemon, strSrcIA, strSrcHost)
+	mockDRKeys(t, daemon, srcIA, srcHost)
 
 	trips := colibri.CombineAll(stitchables)
 	// unsorted; will use [0] :
@@ -326,19 +327,13 @@ func TestReservationFailOnRenewal(t *testing.T) {
 	require.Nil(t, rsv.runner)
 }
 
-func mockDRKeys(t *testing.T, daemon *mock_daemon.MockConnector, srcIA, srcHost string) {
+func mockDRKeys(t *testing.T, daemon *mock_daemon.MockConnector, localIA addr.IA, localIP net.IP) {
 	t.Helper()
-	mockKeys := dkt.MockKeys1SlowSideWithHost(t, srcIA, srcHost,
-		"1-ff00:0:111",
-		"1-ff00:0:110",
-		"1-ff00:0:112",
-	)
-	daemon.EXPECT().DRKeyGetASHostKey(gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
-			drkey.ASHostKey, error) {
 
-			k, ok := dkt.GetKey(mockKeys, meta.SrcIA, meta.DstIA)
-			require.True(t, ok, "not found %s", meta.SrcIA)
-			return k, nil
-		})
+	fake := fakedrkey.Keyer{
+		LocalIA: localIA,
+		LocalIP: localIP,
+	}
+	daemon.EXPECT().DRKeyGetASHostKey(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(fake.DRKeyGetASHostKey)
 }

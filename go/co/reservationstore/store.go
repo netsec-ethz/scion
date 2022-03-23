@@ -87,7 +87,7 @@ func NewStore(topo *topology.Loader, tcpDialer libgrpc.Dialer, sd daemon.Connect
 		db:            db,
 		admitter:      admitter,
 		operator:      operator,
-		authenticator: NewDRKeyAuthenticator(topo.IA(), tcpDialer, sd),
+		authenticator: NewDRKeyAuthenticator(topo.IA(), tcpDialer),
 		colibriKey:    colibriKey,
 	}, nil
 }

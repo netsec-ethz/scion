@@ -28,8 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/client"
 	ct "github.com/scionproto/scion/go/lib/colibri/coltest"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
-	"github.com/scionproto/scion/go/lib/drkey"
-	dkt "github.com/scionproto/scion/go/lib/drkey/test"
+	fakedrkey "github.com/scionproto/scion/go/lib/drkey/fake"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -53,20 +52,12 @@ func TestCaptureTrips(t *testing.T) {
 	defer ctrl.Finish()
 	daemon := mock_daemon.NewMockConnector(ctrl)
 	daemon.EXPECT().ColibriListRsvs(gomock.Any(), gomock.Any()).Return(stitchables, nil)
-
-	mockKeys := dkt.MockKeys1SlowSideWithHost(t, "1-ff00:0:111", "10.1.1.1",
-		"1-ff00:0:111",
-		"1-ff00:0:110",
-		"1-ff00:0:112",
-	)
-	daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
-			drkey.Lvl2Key, error) {
-
-			k, ok := dkt.GetKey(mockKeys, meta.SrcIA, meta.DstIA)
-			require.True(t, ok, "not found %s", meta.SrcIA)
-			return k, nil
-		})
+	fake := fakedrkey.Keyer{
+		LocalIA: srcIA,
+		LocalIP: srcHost,
+	}
+	daemon.EXPECT().DRKeyGetASHostKey(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(fake.DRKeyGetASHostKey)
 
 	capturedTrips := make([]*colibri.FullTrip, 0)
 	_, err := client.NewReservation(ctx, daemon, srcIA, srcHost, dstIA, dstHost, 11, 0,

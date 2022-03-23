@@ -19,6 +19,7 @@ import (
 	"crypto/aes"
 	"crypto/subtle"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
@@ -30,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	drkeyctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
-	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -98,19 +98,21 @@ type macVerifier interface {
 
 // DRKeyAuthenticator implements macComputer and macVerifier using DRKey.
 type DRKeyAuthenticator struct {
-	localIA  addr.IA
-	deriver  *deriver // Derives AS-Host keys
-	slowLvl1 slowLvl1
+	localIA   addr.IA
+	fastKeyer fastKeyer
+	slowKeyer slowKeyer
 }
 
-func NewDRKeyAuthenticator(localIA addr.IA, dialer libgrpc.Dialer, sd daemon.Connector) Authenticator {
+func NewDRKeyAuthenticator(localIA addr.IA, dialer libgrpc.Dialer) Authenticator {
 	return &DRKeyAuthenticator{
 		localIA: localIA,
-		deriver: &deriver{
+		fastKeyer: &deriver{
+			localIA: localIA,
 			secreter: &cachingSVfetcher{
 				Dialer: dialer,
 			},
 		},
+		slowKeyer: nil, // TODO(matzf)
 	}
 }
 
@@ -531,7 +533,8 @@ func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context, steps []base
 // slowKeysFromPath retrieves the drkeys specified in the steps[1]..steps[n-1]. It skips the
 // first step as it is the initiator. The IAs in the steps are used as the fast side of the
 // drkeys, and the function `getKeyWithFastSide` is called with them, to retrieve the drkeys.
-func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context, steps []base.PathStep,
+func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context,
+	steps []base.PathStep,
 	getKeyWithFastSide func(ctx context.Context, fast addr.IA) (drkey.Key, error)) ([]drkey.Key, error) {
 
 	seen := make(map[addr.IA]struct{})
@@ -557,7 +560,7 @@ func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context, steps []base.
 }
 
 func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA) (drkey.Lvl1Key, error) {
-	return a.deriver.DeriveLvl1(ctx, drkey.Lvl1Meta{
+	return a.fastKeyer.Lvl1(ctx, drkey.Lvl1Meta{
 		ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
 		Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
 		SrcIA:    a.localIA,
@@ -566,7 +569,7 @@ func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA) (d
 }
 
 func (a *DRKeyAuthenticator) slowAS2AS(ctx context.Context, remoteIA addr.IA) (drkey.Lvl1Key, error) {
-	return a.slowLvl1.Lvl1(ctx, drkey.Lvl1Meta{
+	return a.slowKeyer.Lvl1(ctx, drkey.Lvl1Meta{
 		ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
 		Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
 		SrcIA:    remoteIA,
@@ -577,7 +580,7 @@ func (a *DRKeyAuthenticator) slowAS2AS(ctx context.Context, remoteIA addr.IA) (d
 func (a *DRKeyAuthenticator) fastAS2Host(ctx context.Context, remoteIA addr.IA,
 	remoteHost addr.HostAddr) (drkey.ASHostKey, error) {
 
-	return a.deriver.DeriveASHost(ctx, drkey.ASHostMeta{
+	return a.fastKeyer.ASHost(ctx, drkey.ASHostMeta{
 		Lvl2Meta: drkey.Lvl2Meta{
 			ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
 			Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
@@ -657,12 +660,23 @@ func MAC(payload []byte, key drkey.Key) ([]byte, error) {
 	return mac.Sum(nil), nil
 }
 
+type fastKeyer interface {
+	Lvl1(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
+	ASHost(context.Context, drkey.ASHostMeta) (drkey.ASHostKey, error)
+}
+
 type deriver struct {
+	localIA  addr.IA
 	secreter secreter
 	deriver  drkey.SpecificDeriver
 }
 
-func (d *deriver) DeriveLvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (d *deriver) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+	if meta.SrcIA != d.localIA {
+		panic(fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
+			meta.SrcIA, d.localIA))
+	}
+
 	svMeta := drkey.SVMeta{
 		Validity: meta.Validity,
 		ProtoId:  meta.ProtoId,
@@ -684,14 +698,13 @@ func (d *deriver) DeriveLvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lv
 	}, nil
 }
 
-// XXX(matzf) is this still needed?
-func (d *deriver) DeriveASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+func (d *deriver) ASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 	lvl1Meta := drkey.Lvl1Meta{
 		SrcIA:   meta.SrcIA,
 		DstIA:   meta.DstIA,
 		ProtoId: meta.ProtoId,
 	}
-	lvl1, err := d.DeriveLvl1(ctx, lvl1Meta)
+	lvl1, err := d.Lvl1(ctx, lvl1Meta)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -711,7 +724,7 @@ func (d *deriver) DeriveASHost(ctx context.Context, meta drkey.ASHostMeta) (drke
 
 // TODO(matzf) implement; should talk directly to CS analogous to SV fetcher below.
 // Needs a new CS interface to serve these.
-type slowLvl1 interface {
+type slowKeyer interface {
 	Lvl1(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
 }
 
