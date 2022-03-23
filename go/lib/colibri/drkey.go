@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/drkey"
 	dkut "github.com/scionproto/scion/go/lib/drkey/drkeyutil"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
@@ -126,7 +127,7 @@ func validateSetupErrorAuthenticators(ctx context.Context, conn dkut.DRKeyGetLvl
 }
 
 func getKeys(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.PathStep,
-	srcHost net.IP) ([][]byte, error) {
+	srcHost net.IP) ([]drkey.Key, error) {
 
 	if len(steps) < 2 {
 		return nil, serrors.New("wrong path in request")
@@ -135,19 +136,26 @@ func getKeys(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.Path
 }
 
 func getKeysWithLocalIA(ctx context.Context, conn dkut.DRKeyGetLvl2Keyer, steps []base.PathStep,
-	srcIA addr.IA, srcHost net.IP) ([][]byte, error) {
+	localIA addr.IA, host net.IP) ([]drkey.Key, error) {
 
-	/*
-		TODO(matzf) Rewrite after merge
-		ias := make([]addr.IA, len(steps))
-		for i, step := range steps {
-			ias[i] = step.IA
+	keys := make([]drkey.Key, len(steps))
+	for i, step := range steps {
+		key, err := conn.DRKeyGetASHostKey(ctx,
+			drkey.ASHostMeta{
+				Lvl2Meta: drkey.Lvl2Meta{
+					ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
+					Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
+					SrcIA:    step.IA,
+					DstIA:    localIA,
+				},
+				DstHost: host.String(),
+			})
+		if err != nil {
+			return nil, err
 		}
-		return dkut.GetLvl2Keys(ctx, conn, drkey.AS2Host, "colibri",
-			dkut.SlowIAs(srcIA), dkut.SlowHosts(addr.HostFromIP(srcHost)),
-			dkut.FastIAs(ias...))
-	*/
-	return nil, nil
+		keys[i] = key.Key
+	}
+	return keys, nil
 }
 
 func minSizeBaseReq(req *BaseRequest) int {

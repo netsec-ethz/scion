@@ -333,9 +333,9 @@ func mockDRKeys(t *testing.T, daemon *mock_daemon.MockConnector, srcIA, srcHost 
 		"1-ff00:0:110",
 		"1-ff00:0:112",
 	)
-	daemon.EXPECT().DRKeyGetLvl2Key(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+	daemon.EXPECT().DRKeyGetASHostKey(gomock.Any(), gomock.Any()).AnyTimes().
 		DoAndReturn(func(_ context.Context, meta drkey.Lvl2Meta, ts time.Time) (
-			drkey.Lvl2Key, error) {
+			drkey.ASHostKey, error) {
 
 			k, ok := dkt.GetKey(mockKeys, meta.SrcIA, meta.DstIA)
 			require.True(t, ok, "not found %s", meta.SrcIA)

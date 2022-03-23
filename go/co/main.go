@@ -16,16 +16,19 @@ package main
 
 import (
 	"context"
+	"net"
 	"path/filepath"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/resolver"
 
 	coli_conf "github.com/scionproto/scion/go/co/reservation/conf"
 	admission "github.com/scionproto/scion/go/co/reservation/segment/admission/stateless"
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/co/reservationstore"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/coliquic"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
@@ -93,6 +96,7 @@ func realMain(ctx context.Context, cfg *config.Config) error {
 type cfgObjs struct {
 	masterKey keyconf.Master
 	stack     *coliquic.ServerStack
+	dialer    *libgrpc.TCPDialer
 }
 
 func setup(ctx context.Context, cfg *config.Config, topo *topology.Loader) (*cfgObjs, error) {
@@ -122,8 +126,28 @@ func setupNetwork(ctx context.Context, cfg *config.Config, topo *topology.Loader
 		return nil, serrors.WrapStr("initializing server stack", err)
 	}
 
+	dialerAddr := &net.TCPAddr{
+		IP: serverAddr.Host.IP,
+	}
+	dialer := &libgrpc.TCPDialer{
+		LocalAddr: dialerAddr,
+		SvcResolver: func(dst addr.HostSVC) []resolver.Address {
+			targets := []resolver.Address{}
+			switch dst.Base() {
+			case addr.SvcCS:
+				for _, entry := range topo.ControlServiceAddresses() {
+					targets = append(targets, resolver.Address{Addr: entry.String()})
+				}
+			default:
+				panic("Unsupported address type, implementation error?")
+			}
+			return targets
+		},
+	}
+
 	return &cfgObjs{
-		stack: stack,
+		stack:  stack,
+		dialer: dialer,
 	}, nil
 }
 
@@ -140,7 +164,7 @@ func setupColibri(g *errgroup.Group, cfg *config.Config, cfgObjs *cfgObjs, topo 
 		Caps:  cfg.Colibri.Capacities,
 		Delta: cfg.Colibri.Delta,
 	}
-	colibriStore, err := reservationstore.NewStore(topo, cfgObjs.stack.Daemon,
+	colibriStore, err := reservationstore.NewStore(topo, cfgObjs.dialer, cfgObjs.stack.Daemon,
 		cfgObjs.stack.Router, cfgObjs.stack.Dialer, db, admitter, cfgObjs.masterKey.Key0)
 	if err != nil {
 		return nil, serrors.WrapStr("initializing colibri store", err)

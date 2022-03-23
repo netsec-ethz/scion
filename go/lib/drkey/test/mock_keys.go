@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// XXX(matzf) this would be far easier to use if mock keys are just generated on the fly
 package test
 
 import (
