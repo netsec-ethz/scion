@@ -115,8 +115,12 @@ func (b *Lvl2Backend) GetASHostKey(ctx context.Context,
 
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := b.db.QueryRowContext(ctx, getASHostKey, meta.ProtoId, meta.SrcIA.ISD(), meta.SrcIA.AS(), meta.DstIA.ISD(), meta.DstIA.AS(), meta.DstHost, valSecs,
-		valSecs).Scan(&epochBegin, &epochEnd, &bytes)
+	err := b.db.QueryRowContext(ctx, getASHostKey,
+		meta.ProtoId,
+		meta.SrcIA.ISD(), meta.SrcIA.AS(),
+		meta.DstIA.ISD(), meta.DstIA.AS(),
+		meta.DstHost, valSecs, valSecs,
+	).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return drkey.ASHostKey{}, db.NewReadError("getting ASHost key", err)
@@ -143,8 +147,15 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 // InsertASHostKey inserts a ASHost key.
 func (b *Lvl2Backend) InsertASHostKey(ctx context.Context, key drkey.ASHostKey) error {
 
-	_, err := b.db.ExecContext(ctx, insertASHostKey, key.ProtoId, key.SrcIA.ISD(), key.SrcIA.AS(), key.DstIA.ISD(), key.DstIA.AS(), key.DstHost,
-		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()), key.Key[:])
+	_, err := b.db.ExecContext(ctx, insertASHostKey,
+		key.ProtoId,
+		key.SrcIA.ISD(), key.SrcIA.AS(),
+		key.DstIA.ISD(), key.DstIA.AS(),
+		key.DstHost,
+		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()),
+		key.Key[:],
+	)
+
 	if err != nil {
 		return db.NewWriteError("inserting ASHost key", err)
 	}
@@ -169,8 +180,13 @@ func (b *Lvl2Backend) GetHostASKey(ctx context.Context,
 
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := b.db.QueryRowContext(ctx, getHostASKey, meta.ProtoId, meta.SrcIA.ISD(), meta.SrcIA.AS(), meta.DstIA.ISD(), meta.DstIA.AS(), meta.SrcHost, valSecs,
-		valSecs).Scan(&epochBegin, &epochEnd, &bytes)
+	err := b.db.QueryRowContext(ctx, getHostASKey,
+		meta.ProtoId,
+		meta.SrcIA.ISD(), meta.SrcIA.AS(),
+		meta.DstIA.ISD(), meta.DstIA.AS(),
+		meta.SrcHost,
+		valSecs, valSecs,
+	).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return drkey.HostASKey{}, db.NewReadError("getting Host-AS key", err)
@@ -196,8 +212,14 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertHostASKey inserts a HostAS key.
 func (b *Lvl2Backend) InsertHostASKey(ctx context.Context, key drkey.HostASKey) error {
-	_, err := b.db.ExecContext(ctx, insertHostASKey, key.ProtoId, key.SrcIA.ISD(), key.SrcIA.AS(), key.DstIA.ISD(), key.DstIA.AS(), key.SrcHost,
-		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()), key.Key[:])
+	_, err := b.db.ExecContext(ctx, insertHostASKey,
+		key.ProtoId,
+		key.SrcIA.ISD(), key.SrcIA.AS(),
+		key.DstIA.ISD(), key.DstIA.AS(),
+		key.SrcHost,
+		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()),
+		key.Key[:],
+	)
 	if err != nil {
 		return db.NewWriteError("inserting Host-As key", err)
 	}
@@ -222,8 +244,13 @@ func (b *Lvl2Backend) GetHostHostKey(ctx context.Context,
 
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := b.db.QueryRowContext(ctx, getHostHostKey, meta.ProtoId, meta.SrcIA.ISD(), meta.SrcIA.AS(), meta.DstIA.ISD(), meta.DstIA.AS(), meta.SrcHost, meta.DstHost, valSecs,
-		valSecs).Scan(&epochBegin, &epochEnd, &bytes)
+	err := b.db.QueryRowContext(ctx, getHostHostKey,
+		meta.ProtoId,
+		meta.SrcIA.ISD(), meta.SrcIA.AS(),
+		meta.DstIA.ISD(), meta.DstIA.AS(),
+		meta.SrcHost, meta.DstHost,
+		valSecs, valSecs,
+	).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return drkey.HostHostKey{}, db.NewReadError("getting Host-Host key", err)
@@ -250,8 +277,14 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertHostHostKey inserts a HostHost key.
 func (b *Lvl2Backend) InsertHostHostKey(ctx context.Context, key drkey.HostHostKey) error {
-	_, err := b.db.ExecContext(ctx, insertHostHostKey, key.ProtoId, key.SrcIA.ISD(), key.SrcIA.AS(), key.DstIA.ISD(), key.DstIA.AS(), key.SrcHost, key.DstHost,
-		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()), key.Key[:])
+	_, err := b.db.ExecContext(ctx, insertHostHostKey,
+		key.ProtoId,
+		key.SrcIA.ISD(), key.SrcIA.AS(),
+		key.DstIA.ISD(), key.DstIA.AS(),
+		key.SrcHost, key.DstHost,
+		uint32(key.Epoch.NotBefore.Unix()), uint32(key.Epoch.NotAfter.Unix()),
+		key.Key[:],
+	)
 	if err != nil {
 		return db.NewWriteError("inserting Host-Host key", err)
 	}

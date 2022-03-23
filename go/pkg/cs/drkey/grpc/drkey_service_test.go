@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	dk_grpc "github.com/scionproto/scion/go/pkg/cs/drkey/grpc"
 	"github.com/scionproto/scion/go/pkg/cs/drkey/mock_drkey"
-	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
@@ -73,11 +72,9 @@ func TestDRKeySV(t *testing.T) {
 		Addr: tcpHost1.TCPAddr(),
 	}
 	peerCtx := peer.NewContext(context.Background(), requestPeer)
-	request := &cppb.SVRequest{
-		BaseReq: &dkpb.SVRequest{
-			ValTime:    ptypes.TimestampNow(),
-			ProtocolId: dkpb.Protocol_PROTOCOL_SCMP,
-		},
+	request := &dkpb.SVRequest{
+		ValTime:    ptypes.TimestampNow(),
+		ProtocolId: dkpb.Protocol_PROTOCOL_SCMP,
 	}
 	resp, err := server.SV(peerCtx, request)
 	require.NoError(t, err)
@@ -378,7 +375,7 @@ func TestHostHost(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func getSVandResp(t *testing.T) (drkey.SV, *cppb.SVResponse) {
+func getSVandResp(t *testing.T) (drkey.SV, *dkpb.SVResponse) {
 	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
 	require.NoError(t, err)
 	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
@@ -391,12 +388,10 @@ func getSVandResp(t *testing.T) (drkey.SV, *cppb.SVResponse) {
 	}
 	copy(sv.Key[:], k)
 
-	targetResp := &cppb.SVResponse{
-		BaseRep: &dkpb.SVResponse{
-			EpochBegin: epochBegin,
-			EpochEnd:   epochEnd,
-			Key:        k,
-		},
+	targetResp := &dkpb.SVResponse{
+		EpochBegin: epochBegin,
+		EpochEnd:   epochEnd,
+		Key:        k,
 	}
 	return sv, targetResp
 }
