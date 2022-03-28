@@ -38,6 +38,7 @@ func inputDeriveLvl1(buf []byte, meta Lvl1Meta) int {
 	_ = buf[aes.BlockSize-1]
 	buf[0] = byte(asToAs)
 	binary.BigEndian.PutUint64(buf[1:], uint64(meta.DstIA))
+	copy(buf[9:], zeroBlock[:])
 
 	return aes.BlockSize
 }

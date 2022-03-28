@@ -63,6 +63,7 @@ const (
 	Generic = Protocol(pb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED)
 	SCMP    = Protocol(pb.Protocol_PROTOCOL_SCMP)
 	DNS     = Protocol(pb.Protocol_PROTOCOL_DNS)
+	COLIBRI = Protocol(pb.Protocol_PROTOCOL_COLIBRI)
 )
 
 func (p Protocol) String() string {

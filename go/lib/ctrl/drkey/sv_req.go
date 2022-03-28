@@ -23,7 +23,7 @@ import (
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
-// SVToProtoRequest parses the SVReq to a protobuf SVRequest.
+// SVMetaToProtoRequest parses the SVReq to a protobuf SVRequest.
 func SVMetaToProtoRequest(meta drkey.SVMeta) (*dkpb.SVRequest, error) {
 	valTime, err := ptypes.TimestampProto(meta.Validity)
 	if err != nil {
@@ -35,8 +35,8 @@ func SVMetaToProtoRequest(meta drkey.SVMeta) (*dkpb.SVRequest, error) {
 	}, nil
 }
 
-// SVToProtoRequest parses the SVReq to a protobuf SVRequest.
-func RequestToMeta(req *dkpb.SVRequest) (drkey.SVMeta, error) {
+// SVRequestToMeta parses the SVReq to a protobuf SVRequest.
+func SVRequestToMeta(req *dkpb.SVRequest) (drkey.SVMeta, error) {
 	valTime, err := ptypes.Timestamp(req.ValTime)
 	if err != nil {
 		return drkey.SVMeta{}, serrors.WrapStr("invalid valTime from request", err)

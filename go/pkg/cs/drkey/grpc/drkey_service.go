@@ -21,6 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/cs/config"
@@ -61,7 +62,7 @@ func (d *Server) Lvl1(ctx context.Context,
 		return nil, serrors.WrapStr("retrieving info from certficate", err)
 	}
 
-	lvl1Meta, err := getMeta(req, d.LocalIA, dstIA)
+	lvl1Meta, err := getMeta(req.ProtocolId, req.ValTime, d.LocalIA, dstIA)
 	if err != nil {
 		return nil, serrors.WrapStr("Invalid DRKey Lvl1 request", err)
 	}
@@ -87,14 +88,14 @@ func (d *Server) Lvl1(ctx context.Context,
 	return resp, nil
 }
 
-func getMeta(req *dkpb.Lvl1Request, srcIA, dstIA addr.IA) (drkey.Lvl1Meta, error) {
-	valTime, err := ptypes.Timestamp(req.ValTime)
+func getMeta(protoId dkpb.Protocol, ts *timestamppb.Timestamp, srcIA, dstIA addr.IA) (drkey.Lvl1Meta, error) {
+	valTime, err := ptypes.Timestamp(ts)
 	if err != nil {
 		return drkey.Lvl1Meta{}, serrors.WrapStr("invalid valTime from pb req", err)
 	}
 	return drkey.Lvl1Meta{
 		Validity: valTime,
-		ProtoId:  drkey.Protocol(req.ProtocolId),
+		ProtoId:  drkey.Protocol(protoId),
 		SrcIA:    srcIA,
 		DstIA:    dstIA,
 	}, nil
@@ -115,6 +116,36 @@ func extractIAFromPeer(peer *peer.Peer) (addr.IA, error) {
 		return 0, serrors.WrapStr("extracting IA from peer cert", err)
 	}
 	return certIA, nil
+}
+
+func (d *Server) ASAS(ctx context.Context, req *dkpb.ASASRequest) (*dkpb.ASASResponse, error) {
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, serrors.New("Cannot retrieve peer information from ctx")
+	}
+
+	if d.LocalIA != addr.IA(req.SrcIa) && d.LocalIA != addr.IA(req.DstIa) {
+		return nil, serrors.New("Local IA is not part of the request")
+	}
+
+	meta, err := getMeta(req.ProtocolId, req.ValTime, addr.IA(req.SrcIa), addr.IA(req.DstIa))
+	if err != nil {
+		return nil, serrors.WrapStr("parsing AS-AS request", err)
+	}
+	if err := d.validateAllowedHost(meta.ProtoId, peer.Addr); err != nil {
+		return nil, serrors.WrapStr("validating AS-AS request", err)
+	}
+
+	lvl1Key, err := d.Engine.GetLvl1Key(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("getting AS-AS host key", err)
+	}
+
+	resp, err := ctrl.KeyToASASResp(lvl1Key)
+	if err != nil {
+		return nil, serrors.WrapStr("encoding AS-AS to Protobuf response", err)
+	}
+	return resp, nil
 }
 
 func (d *Server) ASHost(ctx context.Context,
@@ -299,11 +330,11 @@ func (d *Server) SV(ctx context.Context,
 		serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	meta, err := ctrl.RequestToMeta(req)
+	meta, err := ctrl.SVRequestToMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-Host request", err)
 	}
-	if err := d.validateSVReq(meta, peer.Addr); err != nil {
+	if err := d.validateAllowedHost(meta.ProtoId, peer.Addr); err != nil {
 		return nil, serrors.WrapStr("validating SV request", err)
 	}
 	sv, err := d.Engine.GetSecretValue(ctx, meta)
@@ -318,7 +349,7 @@ func (d *Server) SV(ctx context.Context,
 }
 
 // validateSVReq checks that the requester is authorized to receive a SV
-func (d *Server) validateSVReq(meta drkey.SVMeta, peerAddr net.Addr) error {
+func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) error {
 	tcpAddr, ok := peerAddr.(*net.TCPAddr)
 	if !ok {
 		return serrors.New("invalid peer address type, expected *net.TCPAddr",
@@ -330,19 +361,19 @@ func (d *Server) validateSVReq(meta drkey.SVMeta, peerAddr net.Addr) error {
 	}
 	hostProto := config.HostProto{
 		Host:  localAddr,
-		Proto: meta.ProtoId,
+		Proto: protoId,
 	}
 
 	_, foundSet := d.AllowedSVHostProto[hostProto]
 	if foundSet {
 		log.Debug("Authorized delegated secret",
-			"protocol", meta.ProtoId.String(),
+			"protocol", protoId.String(),
 			"requester address", localAddr.String(),
 		)
 		return nil
 	}
 	return serrors.New("endhost not allowed for DRKey request",
-		"protocol", meta.ProtoId.String(),
+		"protocol", protoId.String(),
 		"requester address", localAddr.String(),
 	)
 }

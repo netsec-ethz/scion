@@ -82,3 +82,64 @@ func KeyToLvl1Resp(drkey drkey.Lvl1Key) (*dkpb.Lvl1Response, error) {
 		Key:        drkey.Key[:],
 	}, nil
 }
+
+func ASASMetaToProtoRequest(meta drkey.Lvl1Meta) (*dkpb.ASASRequest, error) {
+	valTime, err := ptypes.TimestampProto(meta.Validity)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid valTime from request", err)
+	}
+	return &dkpb.ASASRequest{
+		ValTime:    valTime,
+		ProtocolId: dkpb.Protocol(meta.ProtoId),
+		DstIa:      uint64(meta.DstIA),
+		SrcIa:      uint64(meta.SrcIA),
+	}, nil
+}
+
+// KeyToASASResp builds a ASASResp provided a Lvl1Key.
+func KeyToASASResp(drkey drkey.Lvl1Key) (*dkpb.ASASResponse, error) {
+	epochBegin, err := ptypes.TimestampProto(drkey.Epoch.NotBefore)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid EpochBegin from key", err)
+	}
+	epochEnd, err := ptypes.TimestampProto(drkey.Epoch.NotAfter)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid EpochEnd from key", err)
+	}
+	return &dkpb.ASASResponse{
+		EpochBegin: epochBegin,
+		EpochEnd:   epochEnd,
+		Key:        drkey.Key[:],
+	}, nil
+}
+
+func GetASASKeyFromReply(meta drkey.Lvl1Meta,
+	rep *dkpb.ASASResponse) (drkey.Lvl1Key, error) {
+
+	epochBegin, err := ptypes.Timestamp(rep.EpochBegin)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("invalid EpochBegin from response", err)
+	}
+	epochEnd, err := ptypes.Timestamp(rep.EpochEnd)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("invalid EpochEnd from response", err)
+	}
+	epoch := drkey.Epoch{
+		Validity: cppki.Validity{
+			NotBefore: epochBegin,
+			NotAfter:  epochEnd,
+		},
+	}
+	returningKey := drkey.Lvl1Key{
+		SrcIA:   meta.SrcIA,
+		DstIA:   meta.DstIA,
+		Epoch:   epoch,
+		ProtoId: meta.ProtoId,
+	}
+	if len(rep.Key) != 16 {
+		return drkey.Lvl1Key{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
+	}
+	copy(returningKey.Key[:], rep.Key)
+	return returningKey, nil
+}

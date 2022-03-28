@@ -352,6 +352,8 @@ func TestDeriveLvl1(t *testing.T) {
 	sv, err := drkey.DeriveSV(drkey.SCMP, drkey.NewEpoch(0, 1), asSecret)
 	require.NoError(t, err)
 
+	deriver := &drkey.SpecificDeriver{}
+
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
 
@@ -369,16 +371,27 @@ func TestDeriveLvl1(t *testing.T) {
 			0x7c, 0xc, 0xbc, 0x5a, 0x69, 0x42, 0xf5, 0xb6, 0xfc, 0x10},
 	}
 
-	key, err := (&drkey.SpecificDeriver{}).DeriveLvl1(lvl1Meta, sv.Key)
+	key, err := deriver.DeriveLvl1(lvl1Meta, sv.Key)
 	require.NoError(t, err)
-	var outKey [16]byte
-	copy(outKey[:], key[:])
 	lvl1 := drkey.Lvl1Key{
 		Epoch:   sv.Epoch,
 		SrcIA:   lvl1Meta.SrcIA,
 		DstIA:   lvl1Meta.DstIA,
 		ProtoId: sv.ProtoId,
-		Key:     outKey,
+		Key:     key,
+	}
+	assert.Equal(t, lvl1Target, lvl1)
+
+	// Calling a second time with the same deriver should yield the
+	// same key
+	key, err = deriver.DeriveLvl1(lvl1Meta, sv.Key)
+	require.NoError(t, err)
+	lvl1 = drkey.Lvl1Key{
+		Epoch:   sv.Epoch,
+		SrcIA:   lvl1Meta.SrcIA,
+		DstIA:   lvl1Meta.DstIA,
+		ProtoId: sv.ProtoId,
+		Key:     key,
 	}
 	assert.Equal(t, lvl1Target, lvl1)
 

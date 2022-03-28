@@ -26,6 +26,8 @@ service DRKeyInterService{
 }
 
 service DRKeyIntraService{
+    // Return the ASAS that matches the request
+    rpc ASAS(proto.drkey.mgmt.v1.ASASRequest) returns (proto.drkey.mgmt.v1.ASASResponse) {}
     // Return the AS-Host that matches the request
     rpc ASHost(proto.drkey.mgmt.v1.ASHostRequest) returns (proto.drkey.mgmt.v1.ASHostResponse) {}
     // Return the Host-AS that matches the request

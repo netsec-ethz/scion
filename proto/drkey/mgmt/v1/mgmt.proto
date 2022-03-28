@@ -57,6 +57,26 @@ message Lvl1Response{
     bytes key = 3;
 }
 
+message ASASRequest{
+  // Point in time where requested key is valid.
+  google.protobuf.Timestamp val_time = 1;
+  // Protocol value.
+  Protocol protocol_id = 2;
+  // Src ISD-AS of the requested DRKey.
+  uint64 src_ia = 3;
+  // Dst ISD-AS of the requested DRKey.
+  uint64 dst_ia = 4;
+}
+
+message ASASResponse{
+  // Begin of validity period of DRKey.
+  google.protobuf.Timestamp epoch_begin = 1;
+  // End of validity period of DRKey.
+  google.protobuf.Timestamp epoch_end = 2;
+  // Lvl2 key.
+  bytes key = 3;
+}
+
 message HostASRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
@@ -132,6 +152,8 @@ enum Protocol{
     PROTOCOL_SCMP = 1;
     // DNS protocol
     PROTOCOL_DNS = 2;
+    // COLIBRI protocol
+    PROTOCOL_COLIBRI = 3;
     reserved 65536 to max; // only 16-bit values allowed
 }
 

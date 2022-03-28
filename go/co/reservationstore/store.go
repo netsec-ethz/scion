@@ -1269,6 +1269,7 @@ func (s *Store) authenticateE2ESetupReq(ctx context.Context, req *e2e.SetupReq) 
 
 func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupReq) (
 	segment.SegmentSetupResponse, error) {
+	logger := log.FromCtx(ctx)
 
 	failedResponse := &segment.SegmentSetupResponseFailure{
 		AuthenticatedResponse: base.AuthenticatedResponse{
@@ -1289,7 +1290,7 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return res, nil
 	}
 
-	log.Debug("segment admission", "id", req.ID, "src_ia", req.Path.SrcIA(),
+	logger.Debug("segment admission", "id", req.ID, "src_ia", req.Path.SrcIA(),
 		"dst_ia", req.Path.DstIA(), "path", req.Path)
 	if err := req.Validate(); err != nil {
 		failedResponse.Message = s.errWrapStr("request failed validation", err).Error()
@@ -1344,13 +1345,13 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 	// compute admission max BW
 	err = s.admitter.AdmitRsv(ctx, tx, req)
 	if err != nil {
-		log.Debug("segment not admitted here", "id", req.ID.String(), "err", err)
+		logger.Debug("segment not admitted here", "id", req.ID.String(), "err", err)
 		failedResponse.Message = "segment not admitted: " + s.err(err).Error()
 		return updateResponse(failedResponse)
 	}
 	// admitted; the request contains already the value inside the "allocation beads" of the rsv
 	allocBW := req.AllocTrail[len(req.AllocTrail)-1].AllocBW
-	log.Info("COLIBRI admission successful", "id", req.ID.String(), "idx", req.Index,
+	logger.Info("COLIBRI admission successful", "id", req.ID.String(), "idx", req.Index,
 		"alloc", allocBW, "trail", req.AllocTrail)
 
 	idx, err := rsv.NewIndex(req.Index, req.ExpirationTime, req.MinBW, req.MaxBW, allocBW,

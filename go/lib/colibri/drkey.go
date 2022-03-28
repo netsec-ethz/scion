@@ -148,10 +148,13 @@ func getKeysWithLocalIA(ctx context.Context, conn DRKeyGetter, steps []base.Path
 
 	keys := make([]drkey.Key, len(steps))
 	for i, step := range steps {
+		// XXX(JordiSubira): We could avoid the sciond connection and directly request
+		// the key to the CS. Even, we can derive from a cached Lvl1Key, if such a cache
+		// is introduced at some point.
 		key, err := conn.DRKeyGetASHostKey(ctx,
 			drkey.ASHostMeta{
 				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
+					ProtoId:  drkey.COLIBRI,
 					Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
 					SrcIA:    step.IA,
 					DstIA:    localIA,

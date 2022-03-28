@@ -112,7 +112,10 @@ func NewDRKeyAuthenticator(localIA addr.IA, dialer libgrpc.Dialer) Authenticator
 				Dialer: dialer,
 			},
 		},
-		slowKeyer: nil, // TODO(matzf)
+		slowKeyer: &asASFetcher{
+			localIA: localIA,
+			Dialer:  dialer,
+		},
 	}
 }
 
@@ -383,13 +386,14 @@ func (a *DRKeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Contex
 		return false, serrors.WrapStr("obtaining drkey", err, "fast", a.localIA,
 			"slow", req.Path.SrcIA())
 	}
+	log.FromCtx(ctx).Debug("VERBOSE", "key", key)
 	mac, err := MAC(immutableInput, key.Key)
 	if err != nil {
 		return false, serrors.WrapStr("validating segment initial request", err)
 	}
 	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
 	if res != 1 {
-		log.Info("source authentication failed", "id", req.ID,
+		log.FromCtx(ctx).Info("source authentication failed", "id", req.ID,
 			"fast_side", a.localIA,
 			"slow_side", req.Path.SrcIA(), "mac", hex.EncodeToString(mac),
 			"expected", hex.EncodeToString(req.CurrentValidatorField()))
@@ -415,7 +419,7 @@ func (a *DRKeyAuthenticator) validateE2EPayloadInitialMAC(ctx context.Context,
 	}
 	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
 	if res != 1 {
-		log.Info("source authentication failed", "id", req.ID,
+		log.FromCtx(ctx).Info("source authentication failed", "id", req.ID,
 			"fast_side", a.localIA,
 			"slow_ia", req.Path.SrcIA(), "slow_host", req.SrcHost,
 			"mac", hex.EncodeToString(mac),
@@ -476,6 +480,7 @@ func (a *DRKeyAuthenticator) computeInitialMACforPayloadWithSegKeys(ctx context.
 	payload []byte, req *base.Request) error {
 
 	keys, err := a.slowAS2ASFromPath(ctx, req.Path.Steps)
+	log.FromCtx(ctx).Debug("VERBOSE", "keys", keys)
 	if err != nil {
 		return err
 	}
@@ -519,7 +524,7 @@ func (a *DRKeyAuthenticator) computeTransitMACforE2EPayload(ctx context.Context,
 	return err
 }
 
-// slowLvl1FromPath gets the L1 keys from the slow side to all ASes in the path.
+// slowAS2ASFromPath gets the AS-AS keys from the slow side to all ASes in the path.
 // Note: this is the slow side.
 func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context, steps []base.PathStep) (
 	[]drkey.Key, error) {
@@ -561,7 +566,7 @@ func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context,
 
 func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA) (drkey.Lvl1Key, error) {
 	return a.fastKeyer.Lvl1(ctx, drkey.Lvl1Meta{
-		ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
+		ProtoId:  drkey.COLIBRI,
 		Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
 		SrcIA:    a.localIA,
 		DstIA:    remoteIA,
@@ -570,7 +575,7 @@ func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA) (d
 
 func (a *DRKeyAuthenticator) slowAS2AS(ctx context.Context, remoteIA addr.IA) (drkey.Lvl1Key, error) {
 	return a.slowKeyer.Lvl1(ctx, drkey.Lvl1Meta{
-		ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
+		ProtoId:  drkey.COLIBRI,
 		Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
 		SrcIA:    remoteIA,
 		DstIA:    a.localIA,
@@ -582,7 +587,7 @@ func (a *DRKeyAuthenticator) fastAS2Host(ctx context.Context, remoteIA addr.IA,
 
 	return a.fastKeyer.ASHost(ctx, drkey.ASHostMeta{
 		Lvl2Meta: drkey.Lvl2Meta{
-			ProtoId:  drkey.DNS,  // XXX(matzf) Colibri
+			ProtoId:  drkey.COLIBRI,
 			Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
 			SrcIA:    a.localIA,
 			DstIA:    remoteIA,
@@ -682,6 +687,7 @@ func (d *deriver) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key,
 		ProtoId:  meta.ProtoId,
 	}
 	sv, err := d.secreter.SV(ctx, svMeta)
+	log.FromCtx(ctx).Debug("VERBOSE", "sv", sv)
 	if err != nil {
 		return drkey.Lvl1Key{}, err
 	}
@@ -700,9 +706,10 @@ func (d *deriver) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key,
 
 func (d *deriver) ASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 	lvl1Meta := drkey.Lvl1Meta{
-		SrcIA:   meta.SrcIA,
-		DstIA:   meta.DstIA,
-		ProtoId: meta.ProtoId,
+		Validity: meta.Validity,
+		SrcIA:    meta.SrcIA,
+		DstIA:    meta.DstIA,
+		ProtoId:  meta.ProtoId,
 	}
 	lvl1, err := d.Lvl1(ctx, lvl1Meta)
 	if err != nil {
@@ -722,10 +729,54 @@ func (d *deriver) ASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHo
 	}, nil
 }
 
-// TODO(matzf) implement; should talk directly to CS analogous to SV fetcher below.
-// Needs a new CS interface to serve these.
 type slowKeyer interface {
 	Lvl1(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
+}
+
+type asASFetcher struct {
+	localIA addr.IA
+	Dialer  libgrpc.Dialer
+
+	// XXX(JordiSubira): We could consider adding a Lvl1DB to avoid contacting multiple times the
+	// CS for the same key.
+}
+
+func (f *asASFetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+
+	if meta.DstIA != f.localIA {
+		return drkey.Lvl1Key{}, serrors.New("cannot fetch, DstIA != localIA", "DstIA=", f.localIA,
+			"localIA=", meta.DstIA)
+	}
+
+	// get it from local CS
+	lvl1Key, err := f.fetch(ctx, meta)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
+	}
+	return lvl1Key, nil
+}
+
+func (f *asASFetcher) fetch(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
+	}
+	defer conn.Close()
+	client := cppb.NewDRKeyIntraServiceClient(conn)
+	protoReq, err := drkeyctrl.ASASMetaToProtoRequest(meta)
+	if err != nil {
+		return drkey.Lvl1Key{},
+			serrors.WrapStr("parsing AS-AS request to protobuf", err)
+	}
+	rep, err := client.ASAS(ctx, protoReq)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("requesting AS-AS key", err)
+	}
+	key, err := drkeyctrl.GetASASKeyFromReply(meta, rep)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining AS-AS key from reply", err)
+	}
+	return key, nil
 }
 
 type secreter interface {
