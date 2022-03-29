@@ -68,7 +68,8 @@ type macComputer interface {
 	ComputeE2EResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath,
 		srcHost addr.HostAddr, ts time.Time) error
 	ComputeE2ESetupResponseMAC(ctx context.Context, res e2e.SetupResponse,
-		path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID, ts time.Time) error
+		path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID,
+		ts time.Time) error
 }
 
 type macVerifier interface {
@@ -336,7 +337,8 @@ func (a *DRKeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 		return true, nil
 	}
 
-	keys, err := a.slowAS2ASFromPath(ctx, path.Steps[:stepsLength], ts) // returns stepsLength -1 keys
+	keys, err := a.slowAS2ASFromPath(ctx, path.Steps[:stepsLength],
+		ts) // returns stepsLength -1 keys
 	if err != nil {
 		return false, err
 	}
@@ -531,7 +533,8 @@ func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context,
 	steps []base.PathStep, ts time.Time) (
 	[]drkey.Key, error) {
 
-	return a.slowKeysFromPath(ctx, steps, func(ctx context.Context, fast addr.IA) (drkey.Key, error) {
+	return a.slowKeysFromPath(ctx, steps, func(ctx context.Context,
+		fast addr.IA) (drkey.Key, error) {
 		k, err := a.slowAS2AS(ctx, fast, ts)
 		return k.Key, err
 	})
@@ -542,7 +545,8 @@ func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context,
 // drkeys, and the function `getKeyWithFastSide` is called with them, to retrieve the drkeys.
 func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context,
 	steps []base.PathStep,
-	getKeyWithFastSide func(ctx context.Context, fast addr.IA) (drkey.Key, error)) ([]drkey.Key, error) {
+	getKeyWithFastSide func(ctx context.Context,
+		fast addr.IA) (drkey.Key, error)) ([]drkey.Key, error) {
 
 	seen := make(map[addr.IA]struct{})
 	keys := make([]drkey.Key, len(steps)-1)

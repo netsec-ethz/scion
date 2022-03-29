@@ -88,7 +88,8 @@ func (d *Server) Lvl1(ctx context.Context,
 	return resp, nil
 }
 
-func getMeta(protoId dkpb.Protocol, ts *timestamppb.Timestamp, srcIA, dstIA addr.IA) (drkey.Lvl1Meta, error) {
+func getMeta(protoId dkpb.Protocol, ts *timestamppb.Timestamp, srcIA,
+	dstIA addr.IA) (drkey.Lvl1Meta, error) {
 	valTime, err := ptypes.Timestamp(ts)
 	if err != nil {
 		return drkey.Lvl1Meta{}, serrors.WrapStr("invalid valTime from pb req", err)
