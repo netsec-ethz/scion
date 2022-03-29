@@ -45,7 +45,7 @@ type DRKeyGetter interface {
 func createAuthsForBaseRequest(ctx context.Context, conn DRKeyGetter,
 	req *BaseRequest) error {
 
-	keys, err := getKeys(ctx, conn, req.Path.Steps, req.SrcHost)
+	keys, err := getKeys(ctx, conn, req.Path.Steps, req.SrcHost, req.TimeStamp)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func createAuthsForBaseRequest(ctx context.Context, conn DRKeyGetter,
 func createAuthsForE2EReservationSetup(ctx context.Context, conn DRKeyGetter,
 	req *E2EReservationSetup) error {
 
-	keys, err := getKeys(ctx, conn, req.Path.Steps, req.SrcHost)
+	keys, err := getKeys(ctx, conn, req.Path.Steps, req.SrcHost, req.TimeStamp)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,8 @@ func validateResponseAuthenticators(ctx context.Context, conn DRKeyGetter,
 	if err != nil {
 		return err
 	}
-	return validateBasic(ctx, conn, payloads, res.Authenticators, requestPath, srcHost)
+	return validateBasic(ctx, conn, payloads, res.Authenticators,
+		requestPath, srcHost, reqTimestamp)
 }
 
 func validateResponseErrorAuthenticators(ctx context.Context, conn DRKeyGetter,
@@ -108,7 +109,8 @@ func validateResponseErrorAuthenticators(ctx context.Context, conn DRKeyGetter,
 	res.Authenticators = res.Authenticators[:res.FailedAS+1]
 	requestPath.Steps = requestPath.Steps[:res.FailedAS+1]
 	payloads := serializeResponseError(res, reqTimestamp)
-	return validateBasic(ctx, conn, payloads, res.Authenticators, requestPath, srcHost)
+	return validateBasic(ctx, conn, payloads, res.Authenticators,
+		requestPath, srcHost, reqTimestamp)
 }
 
 func validateSetupErrorAuthenticators(ctx context.Context, conn DRKeyGetter,
@@ -131,20 +133,21 @@ func validateSetupErrorAuthenticators(ctx context.Context, conn DRKeyGetter,
 	res.Authenticators = res.Authenticators[:res.FailedAS+1]
 	requestPath.Steps = requestPath.Steps[:res.FailedAS+1]
 	payloads := serializeSetupError(res, reqTimestamp)
-	return validateBasic(ctx, conn, payloads, res.Authenticators, requestPath, srcHost)
+	return validateBasic(ctx, conn, payloads, res.Authenticators,
+		requestPath, srcHost, reqTimestamp)
 }
 
 func getKeys(ctx context.Context, conn DRKeyGetter, steps []base.PathStep,
-	srcHost net.IP) ([]drkey.Key, error) {
+	srcHost net.IP, valTime time.Time) ([]drkey.Key, error) {
 
 	if len(steps) < 2 {
 		return nil, serrors.New("wrong path in request")
 	}
-	return getKeysWithLocalIA(ctx, conn, steps[1:], steps[0].IA, srcHost)
+	return getKeysWithLocalIA(ctx, conn, steps[1:], steps[0].IA, srcHost, valTime)
 }
 
 func getKeysWithLocalIA(ctx context.Context, conn DRKeyGetter, steps []base.PathStep,
-	localIA addr.IA, host net.IP) ([]drkey.Key, error) {
+	localIA addr.IA, host net.IP, valtime time.Time) ([]drkey.Key, error) {
 
 	keys := make([]drkey.Key, len(steps))
 	for i, step := range steps {
@@ -155,7 +158,7 @@ func getKeysWithLocalIA(ctx context.Context, conn DRKeyGetter, steps []base.Path
 			drkey.ASHostMeta{
 				Lvl2Meta: drkey.Lvl2Meta{
 					ProtoId:  drkey.COLIBRI,
-					Validity: time.Now(), // XXX(matzf) should probably come from a timestamp somewhere in the request?
+					Validity: valtime,
 					SrcIA:    step.IA,
 					DstIA:    localIA,
 				},
@@ -287,9 +290,11 @@ func serializeSetupError(res *E2ESetupError, timestamp time.Time) [][]byte {
 }
 
 func validateBasic(ctx context.Context, conn DRKeyGetter, payloads [][]byte,
-	authenticators [][]byte, requestPath *base.TransparentPath, srcHost net.IP) error {
+	authenticators [][]byte, requestPath *base.TransparentPath,
+	srcHost net.IP, valTime time.Time) error {
 
-	keys, err := getKeysWithLocalIA(ctx, conn, requestPath.Steps, requestPath.SrcIA(), srcHost)
+	keys, err := getKeysWithLocalIA(ctx, conn, requestPath.Steps,
+		requestPath.SrcIA(), srcHost, valTime)
 	if err != nil {
 		return err
 	}

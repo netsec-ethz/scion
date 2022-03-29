@@ -274,6 +274,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 	cases := map[string]struct {
 		res  base.Response
 		path *base.TransparentPath
+		ts   time.Time
 	}{
 		"regular": {
 			res: &base.ResponseSuccess{
@@ -283,6 +284,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 				},
 			},
 			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			ts:   util.SecsToTime(1),
 		},
 	}
 	for name, tc := range cases {
@@ -300,7 +302,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeResponseMAC(ctx, tc.res, tc.path)
+				err := auth.ComputeResponseMAC(ctx, tc.res, tc.path, tc.ts)
 				require.NoError(t, err)
 			}
 
@@ -311,7 +313,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 				slowKeyer: fakeSlowKeyer{localIA: srcIA},
 			}
 			tc.path.CurrentStep = 0
-			ok, err := auth.ValidateResponse(ctx, tc.res, tc.path)
+			ok, err := auth.ValidateResponse(ctx, tc.res, tc.path, tc.ts)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -323,6 +325,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 		res                   segment.SegmentSetupResponse
 		path                  *base.TransparentPath
 		lastStepWhichComputes int
+		ts                    time.Time
 	}{
 		"regular": {
 			res: &segment.SegmentSetupResponseSuccess{
@@ -341,6 +344,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 			lastStepWhichComputes: 2,
+			ts:                    util.SecsToTime(1),
 		},
 		"failure": {
 			res: &segment.SegmentSetupResponseFailure{
@@ -376,6 +380,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				1, "1-ff00:0:113", 0), // note that we don't have drkeys for 113, but that drkey
 			// should not be requested, as it is beyond the failure step.
 			lastStepWhichComputes: 2,
+			ts:                    util.SecsToTime(1),
 		},
 	}
 	for name, tc := range cases {
@@ -405,7 +410,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.path)
+				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.path, tc.ts)
 				require.NoError(t, err)
 			}
 
@@ -416,7 +421,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				slowKeyer: fakeSlowKeyer{localIA: srcIA},
 			}
 			tc.path.CurrentStep = 0
-			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.path)
+			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.path, tc.ts)
 			require.NoError(t, err)
 			require.True(t, ok, "validation failed")
 		})
@@ -429,6 +434,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 		response  base.Response
 		path      *base.TransparentPath
 		srcHost   net.IP
+		ts        time.Time
 	}{
 		"failure": {
 			timestamp: util.SecsToTime(1),
@@ -443,6 +449,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 				FailedStep: 1, // fail on ff00:0:110
 				Message:    "test failure response",
 			},
+			ts: util.SecsToTime(1),
 		},
 	}
 
@@ -471,7 +478,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 				}
 
 				err := auth.ComputeE2EResponseMAC(ctx, tc.response, tc.path,
-					addr.HostFromIP(tc.srcHost))
+					addr.HostFromIP(tc.srcHost), tc.ts)
 				require.NoError(t, err)
 			}
 
@@ -502,6 +509,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 		response  e2e.SetupResponse
 		path      *base.TransparentPath
 		srcHost   net.IP
+		ts        time.Time
 		rsvID     *reservation.ID    // success case only
 		token     *reservation.Token // success case only
 	}{
@@ -525,6 +533,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					RLC:            7,
 				},
 			},
+			ts: util.SecsToTime(1),
 		},
 		"failure_at_destination": {
 			timestamp: util.SecsToTime(1),
@@ -539,6 +548,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 			},
 			path:    ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
+			ts:      util.SecsToTime(1),
 		},
 		"failure_at_transit": {
 			timestamp: util.SecsToTime(1),
@@ -553,6 +563,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 			},
 			path:    ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
+			ts:      util.SecsToTime(1),
 		},
 	}
 
@@ -589,7 +600,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					fastKeyer: fakeFastKeyer{localIA: step.IA},
 				}
 				err := auth.ComputeE2ESetupResponseMAC(ctx, tc.response, tc.path,
-					addr.HostFromIP(tc.srcHost), tc.rsvID)
+					addr.HostFromIP(tc.srcHost), tc.rsvID, tc.ts)
 				require.NoError(t, err)
 			}
 

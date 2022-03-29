@@ -313,7 +313,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	}
 	// TODO(juagargi) deprecate the use of ReverseTraveling and all the complexity that it involves.
 	if req.PathType != reservation.DownPath {
-		ok, err := s.authenticator.ValidateSegmentSetupResponse(ctx, res, req.Path)
+		ok, err := s.authenticator.ValidateSegmentSetupResponse(ctx, res, req.Path, req.Timestamp)
 		if !ok || err != nil {
 			return s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
@@ -437,7 +437,8 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request
 		Message:    "failed to confirm index",
 	}
 	if !req.IsFirstAS() {
-		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse,
+			req.Path, req.Timestamp); err != nil {
 			return nil, serrors.WrapStr("authenticating response", err)
 		}
 	}
@@ -480,7 +481,7 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request
 				Authenticators: make([][]byte, len(req.Path.Steps)-1),
 			},
 		}
-		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path)
+		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp)
 		if err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
@@ -507,14 +508,14 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *base.Request
 		}
 		res = translate.Response(pbRes.Base)
 		if req.IsFirstAS() {
-			ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path)
+			ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path, req.Timestamp)
 			if !ok || err != nil {
 				return failedResponse, s.errNew("validation of response failed", "ok", ok,
 					"err", err, "id", req.ID)
 			}
 		} else {
 			// create authenticators before passing the response to the previous node in the path
-			if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path); err != nil {
+			if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp); err != nil {
 				return failedResponse, s.errWrapStr("computing authenticators for response", err)
 			}
 		}
@@ -545,7 +546,8 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 		Message:    "failed to activate index",
 	}
 	if !req.IsFirstAS() {
-		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse,
+			req.Path, req.Timestamp); err != nil {
 			return nil, serrors.WrapStr("authenticating response", err)
 		}
 	}
@@ -599,7 +601,7 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 				Authenticators: make([][]byte, len(req.Path.Steps)-1),
 			},
 		}
-		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path)
+		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp)
 		if err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
@@ -627,14 +629,14 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, req *base.Reques
 	}
 	res := translate.Response(pbRes.Base)
 	if req.IsFirstAS() {
-		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path)
+		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path, req.Timestamp)
 		if !ok || err != nil {
 			return failedResponse, s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
 	} else {
 		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp); err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 	}
@@ -658,7 +660,8 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request
 		Message:    "failed to cleanup index",
 	}
 	if !req.IsFirstAS() {
-		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse,
+			req.Path, req.Timestamp); err != nil {
 			return nil, serrors.WrapStr("authenticating response", err)
 		}
 	}
@@ -705,7 +708,7 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request
 				Authenticators: make([][]byte, len(req.Path.Steps)-1),
 			},
 		}
-		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path)
+		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp)
 		if err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
@@ -733,14 +736,14 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *base.Request
 	}
 	res := translate.Response(pbRes.Base)
 	if req.IsFirstAS() {
-		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path)
+		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path, req.Timestamp)
 		if !ok || err != nil {
 			return failedResponse, s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
 	} else {
 		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp); err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 	}
@@ -764,7 +767,7 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Reques
 		Message:    "failed to teardown index",
 	}
 	if !req.IsFirstAS() {
-		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse, req.Path, req.Timestamp); err != nil {
 			return nil, serrors.WrapStr("authenticating response", err)
 		}
 	}
@@ -797,7 +800,7 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Reques
 				Authenticators: make([][]byte, len(req.Path.Steps)-1),
 			},
 		}
-		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path)
+		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp)
 		if err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
@@ -825,14 +828,14 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *base.Reques
 	}
 	res := translate.Response(pbRes.Base)
 	if req.IsFirstAS() {
-		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path)
+		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path, req.Timestamp)
 		if !ok || err != nil {
 			return failedResponse, s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
 	} else {
 		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp); err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 	}
@@ -1082,7 +1085,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 
 	// create authenticators before passing the response to the previous node in the path
 	if err := s.authenticator.ComputeE2ESetupResponseMAC(ctx, res, req.Path,
-		addr.HostFromIP(req.SrcHost), &req.ID); err != nil {
+		addr.HostFromIP(req.SrcHost), &req.ID, req.Timestamp); err != nil {
 		return failedResponse, s.errWrapStr("computing authenticators for response", err)
 	}
 	// return the token upstream
@@ -1107,7 +1110,8 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 		Message:    "failed to cleanup e2e index",
 	}
 	if !req.IsFirstAS() {
-		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse,
+			req.Path, req.Timestamp); err != nil {
 			return nil, serrors.WrapStr("authenticating response", err)
 		}
 	}
@@ -1157,7 +1161,7 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 				Authenticators: make([][]byte, len(req.Path.Steps)-1),
 			},
 		}
-		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path)
+		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp)
 		if err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
@@ -1184,14 +1188,14 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request) (
 	}
 	res := translate.Response(pbRes.Base)
 	if req.IsFirstAS() {
-		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path)
+		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Path, req.Timestamp)
 		if !ok || err != nil {
 			return failedResponse, s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
 	} else {
 		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Path, req.Timestamp); err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 	}
@@ -1282,7 +1286,7 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 	updateResponse := func(res segment.SegmentSetupResponse) (segment.SegmentSetupResponse, error) {
 		if !req.IsFirstAS() {
 			if err := s.authenticator.ComputeSegmentSetupResponseMAC(ctx, failedResponse,
-				req.Path); err != nil {
+				req.Path, req.Timestamp); err != nil {
 
 				return nil, serrors.WrapStr("computing seg. setup response authentication", err)
 			}
@@ -1408,7 +1412,7 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 	}
 
 	if !req.IsFirstAS() {
-		err = s.authenticator.ComputeSegmentSetupResponseMAC(ctx, res, req.Path)
+		err = s.authenticator.ComputeSegmentSetupResponseMAC(ctx, res, req.Path, req.Timestamp)
 	}
 
 	return res, err
@@ -1488,7 +1492,8 @@ func (s *Store) sendUpstreamForAdmission(ctx context.Context, req *segment.Setup
 	}
 	if !req.IsFirstAS() {
 		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeSegmentSetupResponseMAC(ctx, res, req.Path); err != nil {
+		if err := s.authenticator.ComputeSegmentSetupResponseMAC(ctx, res,
+			req.Path, req.Timestamp); err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 	}
