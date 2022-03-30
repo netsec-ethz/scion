@@ -37,7 +37,7 @@ import (
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
-// Server keeps track of the level 1 drkey keys. It is backed by a drkey.DB .
+// Server keeps track of the drkeys.
 type Server struct {
 	LocalIA addr.IA
 	Engine  cs_drkey.ServiceEngine
@@ -119,7 +119,8 @@ func extractIAFromPeer(peer *peer.Peer) (addr.IA, error) {
 	return certIA, nil
 }
 
-func (d *Server) ASAS(ctx context.Context, req *dkpb.ASASRequest) (*dkpb.ASASResponse, error) {
+func (d *Server) IntraLvl1(ctx context.Context,
+	req *dkpb.IntraLvl1Request) (*dkpb.IntraLvl1Response, error) {
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("Cannot retrieve peer information from ctx")

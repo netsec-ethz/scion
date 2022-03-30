@@ -57,7 +57,7 @@ message Lvl1Response{
     bytes key = 3;
 }
 
-message ASASRequest{
+message IntraLvl1Request{
   // Point in time where requested key is valid.
   google.protobuf.Timestamp val_time = 1;
   // Protocol value.
@@ -68,12 +68,12 @@ message ASASRequest{
   uint64 dst_ia = 4;
 }
 
-message ASASResponse{
+message IntraLvl1Response{
   // Begin of validity period of DRKey.
   google.protobuf.Timestamp epoch_begin = 1;
   // End of validity period of DRKey.
   google.protobuf.Timestamp epoch_end = 2;
-  // Lvl2 key.
+  // Lvl1 key.
   bytes key = 3;
 }
 

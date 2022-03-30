@@ -138,6 +138,7 @@ type Response interface {
 
 	GetAuthenticators() [][]byte
 	SetAuthenticator(currentStep int, authenticator []byte)
+	GetTimestamp() time.Time
 	Success() bool
 	ToRaw() []byte
 }
@@ -172,6 +173,9 @@ func (r *ResponseSuccess) ToRaw() []byte {
 	r.Serialize(buff[1:5])
 	return buff
 }
+func (r *ResponseSuccess) GetTimestamp() time.Time {
+	return r.Timestamp
+}
 
 type ResponseFailure struct {
 	AuthenticatedResponse
@@ -188,4 +192,7 @@ func (r *ResponseFailure) ToRaw() []byte {
 	buff[5] = r.FailedStep
 	copy(buff[6:], []byte(r.Message))
 	return buff
+}
+func (r *ResponseFailure) GetTimestamp() time.Time {
+	return r.Timestamp
 }

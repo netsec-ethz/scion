@@ -172,11 +172,26 @@ func (mr *MockDRKeyIntraServiceServerMockRecorder) HostHost(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HostHost", reflect.TypeOf((*MockDRKeyIntraServiceServer)(nil).HostHost), arg0, arg1)
 }
 
+// IntraLvl1 mocks base method.
+func (m *MockDRKeyIntraServiceServer) IntraLvl1(arg0 context.Context, arg1 *drkey.IntraLvl1Request) (*drkey.IntraLvl1Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IntraLvl1", arg0, arg1)
+	ret0, _ := ret[0].(*drkey.IntraLvl1Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IntraLvl1 indicates an expected call of IntraLvl1.
+func (mr *MockDRKeyIntraServiceServerMockRecorder) IntraLvl1(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntraLvl1", reflect.TypeOf((*MockDRKeyIntraServiceServer)(nil).IntraLvl1), arg0, arg1)
+}
+
 // SV mocks base method.
-func (m *MockDRKeyIntraServiceServer) SV(arg0 context.Context, arg1 *control_plane.SVRequest) (*control_plane.SVResponse, error) {
+func (m *MockDRKeyIntraServiceServer) SV(arg0 context.Context, arg1 *drkey.SVRequest) (*drkey.SVResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SV", arg0, arg1)
-	ret0, _ := ret[0].(*control_plane.SVResponse)
+	ret0, _ := ret[0].(*drkey.SVResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

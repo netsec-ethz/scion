@@ -15,6 +15,8 @@
 package segment
 
 import (
+	"time"
+
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
@@ -24,6 +26,7 @@ type SegmentSetupResponse interface {
 
 	GetAuthenticators() [][]byte
 	SetAuthenticator(currentStep int, authenticator []byte)
+	GetTimestamp() time.Time
 	Success() bool
 	ToRaw(step int) []byte // returns the response serialized to the `step` node
 	ToRawAllHFs() []byte
@@ -63,6 +66,9 @@ func (r *SegmentSetupResponseSuccess) ToRaw(step int) []byte {
 func (r *SegmentSetupResponseSuccess) ToRawAllHFs() []byte {
 	return r.ToRaw(0)
 }
+func (r *SegmentSetupResponseSuccess) GetTimestamp() time.Time {
+	return r.Timestamp
+}
 
 type SegmentSetupResponseFailure struct {
 	base.AuthenticatedResponse
@@ -84,4 +90,7 @@ func (r *SegmentSetupResponseFailure) ToRaw(step int) []byte {
 }
 func (r *SegmentSetupResponseFailure) ToRawAllHFs() []byte {
 	return r.ToRaw(1)
+}
+func (r *SegmentSetupResponseFailure) GetTimestamp() time.Time {
+	return r.Timestamp
 }

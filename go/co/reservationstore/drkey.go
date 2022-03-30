@@ -61,15 +61,13 @@ type macComputer interface {
 	// ComputeResponseMAC takes the response (passed as an interface here) and computes and sets
 	// the authenticators inside it.
 	// These authenticators will be later validated at the source end-host.
-	ComputeResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath,
-		ts time.Time) error
+	ComputeResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath) error
 	ComputeSegmentSetupResponseMAC(ctx context.Context, res segment.SegmentSetupResponse,
-		path *base.TransparentPath, ts time.Time) error
+		path *base.TransparentPath) error
 	ComputeE2EResponseMAC(ctx context.Context, res base.Response, path *base.TransparentPath,
-		srcHost addr.HostAddr, ts time.Time) error
+		srcHost addr.HostAddr) error
 	ComputeE2ESetupResponseMAC(ctx context.Context, res e2e.SetupResponse,
-		path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID,
-		ts time.Time) error
+		path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID) error
 }
 
 type macVerifier interface {
@@ -93,9 +91,9 @@ type macVerifier interface {
 	ValidateE2ESetupRequest(ctx context.Context, req *e2e.SetupReq) (bool, error)
 
 	ValidateResponse(ctx context.Context, res base.Response,
-		path *base.TransparentPath, ts time.Time) (bool, error)
+		path *base.TransparentPath) (bool, error)
 	ValidateSegmentSetupResponse(ctx context.Context,
-		res segment.SegmentSetupResponse, path *base.TransparentPath, ts time.Time) (bool, error)
+		res segment.SegmentSetupResponse, path *base.TransparentPath) (bool, error)
 }
 
 // DRKeyAuthenticator implements macComputer and macVerifier using DRKey.
@@ -114,10 +112,7 @@ func NewDRKeyAuthenticator(localIA addr.IA, dialer libgrpc.Dialer) Authenticator
 				Dialer: dialer,
 			},
 		},
-		slowKeyer: &asASFetcher{
-			localIA: localIA,
-			Dialer:  dialer,
-		},
+		slowKeyer: newLvl1Fetcher(localIA, dialer),
 	}
 }
 
@@ -176,9 +171,9 @@ func (a *DRKeyAuthenticator) ComputeE2ESetupRequestTransitMAC(ctx context.Contex
 }
 
 func (a *DRKeyAuthenticator) ComputeResponseMAC(ctx context.Context,
-	res base.Response, path *base.TransparentPath, ts time.Time) error {
+	res base.Response, path *base.TransparentPath) error {
 
-	key, err := a.fastAS2AS(ctx, path.SrcIA(), ts)
+	key, err := a.fastAS2AS(ctx, path.SrcIA(), res.GetTimestamp())
 	if err != nil {
 		return err
 	}
@@ -192,9 +187,9 @@ func (a *DRKeyAuthenticator) ComputeResponseMAC(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) ComputeSegmentSetupResponseMAC(ctx context.Context,
-	res segment.SegmentSetupResponse, path *base.TransparentPath, ts time.Time) error {
+	res segment.SegmentSetupResponse, path *base.TransparentPath) error {
 
-	key, err := a.fastAS2AS(ctx, path.SrcIA(), ts)
+	key, err := a.fastAS2AS(ctx, path.SrcIA(), res.GetTimestamp())
 	if err != nil {
 		return err
 	}
@@ -208,9 +203,9 @@ func (a *DRKeyAuthenticator) ComputeSegmentSetupResponseMAC(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) ComputeE2EResponseMAC(ctx context.Context, res base.Response,
-	path *base.TransparentPath, srcHost addr.HostAddr, ts time.Time) error {
+	path *base.TransparentPath, srcHost addr.HostAddr) error {
 
-	key, err := a.fastAS2Host(ctx, path.SrcIA(), srcHost, ts)
+	key, err := a.fastAS2Host(ctx, path.SrcIA(), srcHost, res.GetTimestamp())
 	if err != nil {
 		return err
 	}
@@ -226,9 +221,9 @@ func (a *DRKeyAuthenticator) ComputeE2EResponseMAC(ctx context.Context, res base
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ESetupResponseMAC(ctx context.Context, res e2e.SetupResponse,
-	path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID, ts time.Time) error {
+	path *base.TransparentPath, srcHost addr.HostAddr, rsvID *reservation.ID) error {
 
-	key, err := a.fastAS2Host(ctx, path.SrcIA(), srcHost, ts)
+	key, err := a.fastAS2Host(ctx, path.SrcIA(), srcHost, res.GetTimestamp())
 	if err != nil {
 		return err
 	}
@@ -306,9 +301,9 @@ func (a *DRKeyAuthenticator) ValidateE2ESetupRequest(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) ValidateResponse(ctx context.Context, res base.Response,
-	path *base.TransparentPath, ts time.Time) (bool, error) {
+	path *base.TransparentPath) (bool, error) {
 
-	keys, err := a.slowAS2ASFromPath(ctx, path.Steps, ts)
+	keys, err := a.slowAS2ASFromPath(ctx, path.Steps, res.GetTimestamp())
 	if err != nil {
 		return false, err
 	}
@@ -319,7 +314,7 @@ func (a *DRKeyAuthenticator) ValidateResponse(ctx context.Context, res base.Resp
 }
 
 func (a *DRKeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
-	res segment.SegmentSetupResponse, path *base.TransparentPath, ts time.Time) (bool, error) {
+	res segment.SegmentSetupResponse, path *base.TransparentPath) (bool, error) {
 
 	stepsLength := len(path.Steps)
 	if failure, ok := res.(*segment.SegmentSetupResponseFailure); ok {
@@ -338,7 +333,7 @@ func (a *DRKeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 	}
 
 	keys, err := a.slowAS2ASFromPath(ctx, path.Steps[:stepsLength],
-		ts) // returns stepsLength -1 keys
+		res.GetTimestamp()) // returns stepsLength -1 keys
 	if err != nil {
 		return false, err
 	}
@@ -741,19 +736,42 @@ type slowKeyer interface {
 	Lvl1(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
 }
 
-type asASFetcher struct {
+type lvl1Fetcher struct {
+	mtx     sync.Mutex
 	localIA addr.IA
 	Dialer  libgrpc.Dialer
-
-	// XXX(JordiSubira): We could consider adding a Lvl1DB to avoid contacting multiple times the
-	// CS for the same key.
+	cache   map[addr.IA][]drkey.Lvl1Key // TODO expired entries should be cleaned up periodically
 }
 
-func (f *asASFetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func newLvl1Fetcher(localIA addr.IA, dialer libgrpc.Dialer) *lvl1Fetcher {
+	return &lvl1Fetcher{
+		localIA: localIA,
+		Dialer:  dialer,
+		cache:   map[addr.IA][]drkey.Lvl1Key{},
+	}
+}
+
+func (f *lvl1Fetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if meta.ProtoId != drkey.COLIBRI {
+		return drkey.Lvl1Key{}, serrors.New("meta.ProtoId must be set to COLIBRI",
+			"meta.ProtoId", meta.ProtoId)
+	}
 
 	if meta.DstIA != f.localIA {
 		return drkey.Lvl1Key{}, serrors.New("cannot fetch, DstIA != localIA", "DstIA=", f.localIA,
 			"localIA=", meta.DstIA)
+	}
+
+	lvl1Keys, ok := f.cache[meta.SrcIA]
+	if ok {
+		for _, key := range lvl1Keys {
+			if key.Epoch.Contains(meta.Validity) {
+				return key, nil
+			}
+		}
 	}
 
 	// get it from local CS
@@ -761,22 +779,24 @@ func (f *asASFetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
 	}
+	f.cache[meta.SrcIA] = append(f.cache[meta.SrcIA], lvl1Key)
+
 	return lvl1Key, nil
 }
 
-func (f *asASFetcher) fetch(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (f *lvl1Fetcher) fetch(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := drkeyctrl.ASASMetaToProtoRequest(meta)
+	protoReq, err := drkeyctrl.IntraLvl1ToProtoRequest(meta)
 	if err != nil {
 		return drkey.Lvl1Key{},
 			serrors.WrapStr("parsing AS-AS request to protobuf", err)
 	}
-	rep, err := client.ASAS(ctx, protoReq)
+	rep, err := client.IntraLvl1(ctx, protoReq)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("requesting AS-AS key", err)
 	}
@@ -800,8 +820,14 @@ type cachingSVfetcher struct {
 func (f *cachingSVfetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
+
+	if meta.ProtoId != drkey.COLIBRI {
+		return drkey.SV{}, serrors.New("meta.ProtoId must be set to COLIBRI",
+			"meta.ProtoId", meta.ProtoId)
+	}
+
 	for i := range f.cache {
-		if f.cache[i].ProtoId == meta.ProtoId && f.cache[i].Epoch.Contains(meta.Validity) {
+		if f.cache[i].Epoch.Contains(meta.Validity) {
 			return f.cache[i], nil
 		}
 	}

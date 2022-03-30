@@ -15,6 +15,8 @@
 package e2e
 
 import (
+	"time"
+
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -25,6 +27,7 @@ type SetupResponse interface {
 
 	ToRaw(step int, rsvID *reservation.ID) ([]byte, error)
 	SetAuthenticator(currentStep int, authenticator []byte)
+	GetTimestamp() time.Time
 }
 
 type SetupResponseSuccess struct {
@@ -52,6 +55,10 @@ func (r *SetupResponseSuccess) ToRaw(step int, rsvID *reservation.ID) ([]byte, e
 // SetAuthenticator expects to have the same amount of authenticators as steps in the path.
 func (r *SetupResponseSuccess) SetAuthenticator(step int, authenticator []byte) {
 	r.Authenticators[step] = authenticator
+}
+
+func (r *SetupResponseSuccess) GetTimestamp() time.Time {
+	return r.Timestamp
 }
 
 type SetupResponseFailure struct {
@@ -83,4 +90,8 @@ func (r *SetupResponseFailure) ToRaw(step int, rsvID *reservation.ID) ([]byte, e
 // SetAuthenticator expects to have the same amount of authenticators as steps in the path.
 func (r *SetupResponseFailure) SetAuthenticator(step int, authenticator []byte) {
 	r.Authenticators[step] = authenticator
+}
+
+func (r *SetupResponseFailure) GetTimestamp() time.Time {
+	return r.Timestamp
 }
