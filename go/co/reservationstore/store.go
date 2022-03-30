@@ -16,6 +16,7 @@ package reservationstore
 
 import (
 	"context"
+	"crypto/cipher"
 	"fmt"
 	"math"
 	"time"
@@ -51,7 +52,7 @@ type Store struct {
 	admitter      admission.Admitter              // the chosen admission entity
 	operator      *coliquic.ServiceClientOperator // dials next colibri service
 	authenticator Authenticator                   // source authentication based on drkey
-	colibriKey    []byte                          // colibri secret key
+	colibriKey    cipher.Block                    // colibri secret key
 }
 
 var _ reservationstorage.Store = (*Store)(nil)
@@ -72,7 +73,11 @@ func NewStore(topo *topology.Loader, sd daemon.Connector, router snet.Router,
 	if err != nil {
 		return nil, err
 	}
-	colibriKey := scrypto.DeriveColibriMacKey(masterKey)
+	colibriKeyBytes := scrypto.DeriveColibriMacKey(masterKey)
+	colibriKey, err := colibri.InitColibriKey(colibriKeyBytes)
+	if err != nil {
+		return nil, err
+	}
 	return &Store{
 		localIA:       topo.IA(),
 		isCore:        topo.Core(),
@@ -1507,7 +1512,7 @@ func (s *Store) computeMAC(suffix []byte, tok *reservation.Token, srcAS, dstAS a
 
 // computeMAC returns the MAC into buff, which has to be at least 4 bytes long (or runtime panic).
 func computeMAC(buff []byte,
-	key, suffix []byte, tok *reservation.Token, hf *reservation.HopField,
+	key cipher.Block, suffix []byte, tok *reservation.Token, hf *reservation.HopField,
 	srcAS, dstAS addr.AS, isE2E bool) error {
 
 	var input [colibri.LengthInputDataRound16]byte

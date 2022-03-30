@@ -17,6 +17,7 @@ package router_test
 import (
 	"bytes"
 	"context"
+	"crypto/cipher"
 	"fmt"
 	"net"
 	"sync"
@@ -1203,7 +1204,9 @@ func TestProcessColibriPkt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	key := []byte("testkey_colibri_")
+	keyBytes := []byte("testkey_colibri_")
+	key, err := libcolibri.InitColibriKey(keyBytes)
+	require.NoError(t, err)
 
 	testCases := map[string]struct {
 		mockMsg      func(bool, uint32, uint32) *ipv4.Message
@@ -1220,7 +1223,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 0, 5, expTick, tsRel)
@@ -1250,7 +1253,7 @@ func TestProcessColibriPkt(t *testing.T) {
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
@@ -1280,7 +1283,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(2): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
@@ -1300,7 +1303,7 @@ func TestProcessColibriPkt(t *testing.T) {
 		"dataplane_last_AS_inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 4, 5, expTick, tsRel)
@@ -1330,7 +1333,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 4, 5, expTick, tsRel)
@@ -1361,7 +1364,7 @@ func TestProcessColibriPkt(t *testing.T) {
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
@@ -1392,7 +1395,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(1): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
@@ -1413,7 +1416,7 @@ func TestProcessColibriPkt(t *testing.T) {
 		"reversed_dataplane_first_AS_inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(false, false, false, 0, 5, expTick, tsRel)
@@ -1443,7 +1446,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 0, 5, expTick, tsRel)
@@ -1474,7 +1477,7 @@ func TestProcessColibriPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
@@ -1498,7 +1501,7 @@ func TestProcessColibriPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.HostSVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
@@ -1527,7 +1530,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
@@ -1558,7 +1561,7 @@ func TestProcessColibriPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("4-ff00:0:411"), nil, key)
+					xtest.MustParseIA("4-ff00:0:411"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 4, 5, expTick, tsRel)
@@ -1587,7 +1590,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 4, 5, expTick, tsRel)
@@ -1619,7 +1622,7 @@ func TestProcessColibriPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
@@ -1649,7 +1652,7 @@ func TestProcessColibriPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
@@ -1681,7 +1684,7 @@ func TestProcessColibriPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("2-ff00:0:222"), nil, key)
+					xtest.MustParseIA("2-ff00:0:222"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
 				spkt, cpath := prepColibriBaseMsg(true, false, false, 0, 5, expTick, tsRel)
@@ -1711,7 +1714,7 @@ func TestProcessColibriPkt(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 
 			expTick := uint32(now.Unix()/4) + 3
-			tsRel, err := libcolibri.CreateTsRel(expTick)
+			tsRel, err := libcolibri.CreateTsRel(expTick, time.Now())
 			assert.NoError(t, err)
 			input, want := tc.mockMsg(false, expTick, tsRel), tc.mockMsg(true, expTick, tsRel)
 			result, err := dp.ProcessPkt(tc.srcInterface, input)
@@ -1951,7 +1954,7 @@ func computeFullMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopFi
 	return path.FullMAC(mac, info, hf, nil)
 }
 
-func computeColibriMac(t *testing.T, key []byte, cpath *colibri.ColibriPath,
+func computeColibriMac(t *testing.T, key cipher.Block, cpath *colibri.ColibriPath,
 	spkt *slayers.SCION, hopIndex uint8, packetTimestamp colibri.Timestamp) []byte {
 
 	var mac [4]byte

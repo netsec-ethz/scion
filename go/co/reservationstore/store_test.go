@@ -57,7 +57,9 @@ func TestDebugAdmitE2EReservation(t *testing.T) {
 
 // TestComputeMAC tests that the MAC computation functions in the BR and the store are consistent.
 func TestComputeMAC(t *testing.T) {
-	privateKey := xtest.MustParseHexString("5b56986be02a37d30110c854b5f25959")
+	privateKeyBytes := xtest.MustParseHexString("5b56986be02a37d30110c854b5f25959")
+	privateKey, err := colibri.InitColibriKey(privateKeyBytes)
+	require.NoError(t, err)
 	srcAS := xtest.MustParseAS("ff00:0:111")
 	dstAS := xtest.MustParseAS("ff00:0:112")
 
@@ -97,7 +99,7 @@ func TestComputeMAC(t *testing.T) {
 			require.NoError(t, err)
 
 			store := &reservationstore.Store{}
-			store.SetColibriKey(privateKey)
+			store.SetColibriKey(privateKeyBytes)
 			tok := &reservation.Token{
 				InfoField: reservation.InfoField{
 					PathType:       tc.pathType,

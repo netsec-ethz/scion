@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	libcolibri "github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
@@ -89,6 +90,9 @@ func TestMACInputE2E(t *testing.T) {
 }
 
 func TestCreateColibriTimeStamp(t *testing.T) {
+	want := []byte{0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x00, 0x03}
+	ts := libcolibri.CreateColibriTimestamp(1, 2, 3)
+	assert.Equal(t, want, ts[:])
 
 }
 
@@ -127,7 +131,7 @@ func TestCreateTsRel(t *testing.T) {
 		expTick + 3: false,
 	}
 	for expTick, want := range testCases {
-		_, err := libcolibri.CreateTsRel(expTick)
+		_, err := libcolibri.CreateTsRel(expTick, time.Now())
 		if want == true {
 			assert.NoError(t, err)
 		} else {
@@ -137,11 +141,10 @@ func TestCreateTsRel(t *testing.T) {
 }
 
 func TestTimestampVerification(t *testing.T) {
-	t.Skip("TODO(juagargi) reenable after fixing VerifyTimestamp")
 	// expTick encodes the current time plus something between 8 and 12 seconds.
 	expTick := uint32(time.Now().Unix()/4) + 3
 
-	tsRel, err := libcolibri.CreateTsRel(expTick)
+	tsRel, err := libcolibri.CreateTsRel(expTick, time.Now())
 	assert.NoError(t, err)
 	var stepsPerSecond uint32 = 250000000 // 1 step corresponds to 4ns
 
@@ -157,7 +160,7 @@ func TestTimestampVerification(t *testing.T) {
 
 	for tsRel, want := range testCases {
 		packetTimestamp := libcolibri.CreateColibriTimestamp(tsRel, 0, 0)
-		assert.Equal(t, want, libcolibri.VerifyTimestamp(expTick, packetTimestamp))
+		assert.Equal(t, want, libcolibri.VerifyTimestamp(expTick, packetTimestamp, time.Now()))
 	}
 }
 
@@ -167,9 +170,11 @@ func TestStaticHVFVerification(t *testing.T) {
 
 	c.InfoField.C = true
 	// Generate MAC
-	privateKey := []byte("a_random_key_123")
+	privateKeyBytes := []byte("a_random_key_123")
+	privateKey, err := libcolibri.InitColibriKey(privateKeyBytes)
+	require.NoError(t, err)
 	var mac [4]byte
-	err := libcolibri.MACStatic(mac[:], privateKey, c.InfoField,
+	err = libcolibri.MACStatic(mac[:], privateKey, c.InfoField,
 		c.HopFields[c.InfoField.CurrHF], s.SrcIA.AS(), s.DstIA.AS())
 	assert.NoError(t, err)
 	c.HopFields[c.InfoField.CurrHF].Mac = mac[:]
@@ -180,7 +185,9 @@ func TestStaticHVFVerification(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify MAC with wrong key
-	privateKey = []byte("a_random_key_456")
+	privateKeyBytes = []byte("a_random_key_456")
+	privateKey, err = libcolibri.InitColibriKey(privateKeyBytes)
+	require.NoError(t, err)
 	err = libcolibri.VerifyMAC(privateKey, c.PacketTimestamp, c.InfoField,
 		c.HopFields[c.InfoField.CurrHF], s)
 	assert.Error(t, err)
@@ -192,9 +199,11 @@ func TestPacketHVFVerification(t *testing.T) {
 
 	c.InfoField.C = false
 	// Generate MAC
-	privateKey := []byte("a_random_key_123")
+	privateKeyBytes := []byte("a_random_key_123")
+	privateKey, err := libcolibri.InitColibriKey(privateKeyBytes)
+	require.NoError(t, err)
 	var mac [4]byte
-	err := libcolibri.MACE2E(mac[:], privateKey, c.InfoField, c.PacketTimestamp,
+	err = libcolibri.MACE2E(mac[:], privateKey, c.InfoField, c.PacketTimestamp,
 		c.HopFields[c.InfoField.CurrHF], s)
 	assert.NoError(t, err)
 	c.HopFields[c.InfoField.CurrHF].Mac = mac[:]
@@ -206,7 +215,9 @@ func TestPacketHVFVerification(t *testing.T) {
 	// assert.NoError(t, err)
 
 	// Verify MAC with wrong key
-	privateKey = []byte("a_random_key_456")
+	privateKeyBytes = []byte("a_random_key_456")
+	privateKey, err = libcolibri.InitColibriKey(privateKeyBytes)
+	require.NoError(t, err)
 	err = libcolibri.VerifyMAC(privateKey, c.PacketTimestamp, c.InfoField,
 		c.HopFields[c.InfoField.CurrHF], s)
 	assert.Error(t, err)

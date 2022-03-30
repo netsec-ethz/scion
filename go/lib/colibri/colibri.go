@@ -38,11 +38,20 @@ const (
 	packetLifetime = 2 * time.Second
 	// clockSkew denotes the maximal clock skew
 	clockSkew = time.Second
+	// TimestampResolution denotes the resolution of the epic timestamp
+	TimestampResolution = 4 * time.Nanosecond
+	// TickDuration denotes the length of one Colibri tick in seconds
+	TickDuration = 4
+	// ExpirationOffset denotes the offset that is subtracted from the expiration time to
+	// get the reference time for the high-precision timestamp.
+	ExpirationOffset = 16 * time.Second
 	// LengthInputData denotes the length of InputData in bytes
 	LengthInputData = 30
 	// LengthInputDataRound16 denotes the LengthInputData rounded to the next multiple of 16
 	LengthInputDataRound16 = ((LengthInputData-1)/16 + 1) * 16
 )
+
+var zeroInitVector [aes.BlockSize]byte
 
 // CreateColibriTimestamp creates the COLIBRI Timestamp from tsRel, coreID, and coreCounter.
 func CreateColibriTimestamp(tsRel uint32, coreID uint8, coreCounter uint32) colibri.Timestamp {
@@ -94,10 +103,9 @@ func ParseColibriTimestampCustom(ts colibri.Timestamp) (tsRel uint32, pktId uint
 // ticks of four seconds since Unix time.
 // If the current time is not between the expiration time minus 16 seconds and the expiration time,
 // an error is returned.
-func CreateTsRel(expirationTick uint32) (uint32, error) {
-	expiration := util.SecsToTime(expirationTick * 4)
-	timestamp := expiration.Add(-16 * time.Second)
-	now := time.Now()
+func CreateTsRel(expirationTick uint32, now time.Time) (uint32, error) {
+	expiration := util.SecsToTime(TickDuration * expirationTick)
+	timestamp := expiration.Add(-ExpirationOffset)
 	if now.After(expiration) {
 		return 0, serrors.New("provided packet expiration time is in the past",
 			"expiration", expiration, "now", now)
@@ -107,13 +115,13 @@ func CreateTsRel(expirationTick uint32) (uint32, error) {
 			"timestamp", timestamp, "now", now)
 	}
 	diff := now.Sub(timestamp)
-	tsRel := max(0, uint32(diff)/4-1)
+	tsRel := uint32(diff / TimestampResolution)
 	return tsRel, nil
 }
 
 // VerifyExpirationTick returns whether the expiration time has not been reached yet.
 func VerifyExpirationTick(expirationTick uint32) bool {
-	expTime := 4 * int64(expirationTick)
+	expTime := TickDuration * int64(expirationTick)
 	now := time.Now().Unix()
 	return now <= expTime
 }
@@ -123,28 +131,23 @@ func VerifyExpirationTick(expirationTick uint32) bool {
 // does not date back more than the maximal packet lifetime of two seconds. The function also takes
 // a possible clock drift between the packet source and the verifier of up to one second into
 // account.
-func VerifyTimestamp(expirationTick uint32, ts colibri.Timestamp) bool {
-	// TODO(juagargi) re-enable the proper check once we have a timestamping mechanism
-	// nowNano := uint64(time.Now().UnixNano())
-	// timestampNano := (4*uint64(expirationTick) - 16) * 1000000000
-	// tsRel, _, _ := ParseColibriTimestamp(ts)
-	// timestampSenderNano := timestampNano + (1+uint64(tsRel))*4
-	// nowMs := nowNano / 1000000
-	// tsSenderMs := timestampSenderNano / 1000000
-	// if (nowMs < tsSenderMs-uint64(clockSkewMs)) ||
-	// 	(nowMs > tsSenderMs+uint64(packetLifetimeMs)+uint64(clockSkewMs)) {
-	// 	return false
-	timestamp := util.SecsToTime(4*expirationTick - 16).Add(-clockSkew)
-	if time.Now().Before(timestamp) {
+func VerifyTimestamp(expirationTick uint32, ts colibri.Timestamp, now time.Time) bool {
+	tsRel, _, _ := ParseColibriTimestamp(ts)
+	expiration := util.SecsToTime(TickDuration * expirationTick)
+	diff := time.Duration(tsRel) * TimestampResolution
+	tsSender := expiration.Add(-ExpirationOffset).Add(diff)
+
+	if now.Before(tsSender.Add(-clockSkew)) ||
+		now.After(tsSender.Add(packetLifetime).Add(clockSkew)) {
+
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 // VerifyMAC verifies the authenticity of the MAC in the colibri hop field. If the MAC is correct,
 // nil is returned, otherwise VerifyMAC returns an error.
-func VerifyMAC(privateKey []byte, ts colibri.Timestamp, inf *colibri.InfoField,
+func VerifyMAC(privateKey cipher.Block, ts colibri.Timestamp, inf *colibri.InfoField,
 	currHop *colibri.HopField, s *slayers.SCION) error {
 
 	var mac [4]byte
@@ -180,10 +183,6 @@ func MACInputStatic(buffer []byte, suffix []byte, expTick uint32,
 	idx reservation.IndexNumber, srcAS, dstAS addr.AS, ingress, egress uint16) {
 
 	_ = buffer[LengthInputData-1]
-	// TODO(juagargi) Note from matzf:
-	// For the segment reservations, this is only 4 bytes, right? Removing these 8 bytes of
-	// padding would seem to allow to bring this down to a single block for the static MAC
-	// (although these are probably not the ones that we need to optimize).
 	var zeroesBuff [12]byte
 	copy(buffer[:12], zeroesBuff[:])
 	copy(buffer[:12], suffix)
@@ -212,12 +211,9 @@ func MACInputStatic(buffer []byte, suffix []byte, expTick uint32,
 // input is LengthInputDataRound16 bytes long.
 // TODO(juagargi) move these buffer signatures to arrays with go 1.17 (whenever the compiler
 // stops crashing with the slice->array casts).
-func MACStaticFromInput(buffer []byte, key []byte, input []byte) error {
+func MACStaticFromInput(buffer []byte, key cipher.Block, input []byte) error {
 	_ = buffer[3]
 	// Initialize cryptographic MAC function
-	// TODO(juagargi) don't initialize everytime we need to compute the MAC, but instead
-	// pass the result of initColibriMac to this function. Do the same for other
-	// callers of initColibriMac with an invariant key.
 	f, err := initColibriMac(key)
 	if err != nil {
 		return err
@@ -231,7 +227,7 @@ func MACStaticFromInput(buffer []byte, key []byte, input []byte) error {
 
 // MACStatic uses the functions MACInputStatic and
 // MACStaticFromInput to compute the MAC.
-func MACStatic(buffer []byte, privateKey []byte, inf *colibri.InfoField,
+func MACStatic(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField,
 	currHop *colibri.HopField, srcAS, dstAS addr.AS) error {
 
 	var input [LengthInputDataRound16]byte
@@ -243,7 +239,7 @@ func MACStatic(buffer []byte, privateKey []byte, inf *colibri.InfoField,
 
 // MACSigma calculates the "sigma" authenticator, and
 // writes it in buffer, which must be at least 16 bytes long (or runtime panic).
-func MACSigma(buffer []byte, privateKey []byte, inf *colibri.InfoField,
+func MACSigma(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField,
 	currHop *colibri.HopField, s *slayers.SCION) error {
 
 	_ = buffer[15]
@@ -268,7 +264,7 @@ func MACSigma(buffer []byte, privateKey []byte, inf *colibri.InfoField,
 
 // MACE2E calculates the per-packet colibri MAC and writes it into buffer.
 // If buffer is not at least 4 bytes long, the function panics at runtime.
-func MACE2E(buffer []byte, privateKey []byte, inf *colibri.InfoField, ts colibri.Timestamp,
+func MACE2E(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField, ts colibri.Timestamp,
 	currHop *colibri.HopField, s *slayers.SCION) error {
 
 	var sigma [16]byte
@@ -276,8 +272,15 @@ func MACE2E(buffer []byte, privateKey []byte, inf *colibri.InfoField, ts colibri
 	if err != nil {
 		return err
 	}
+
+	// Initialize sigma
+	keySigma, err := InitColibriKey(sigma[:])
+	if err != nil {
+		return err
+	}
+
 	// Initialize cryptographic MAC function
-	f, err := initColibriMac(sigma[:])
+	f, err := initColibriMac(keySigma)
 	if err != nil {
 		return err
 	}
@@ -295,16 +298,18 @@ func MACE2E(buffer []byte, privateKey []byte, inf *colibri.InfoField, ts colibri
 	return nil
 }
 
-func initColibriMac(key []byte) (cipher.BlockMode, error) {
+// InitColibriKey creates a new AES block cipher associated with the provided key.
+func InitColibriKey(key []byte) (cipher.Block, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, serrors.New("Unable to initialize AES cipher")
 	}
+	return block, nil
+}
 
-	// Zero initialization vector
-	zeroInitVector := make([]byte, aes.BlockSize)
+func initColibriMac(key cipher.Block) (cipher.BlockMode, error) {
 	// CBC-MAC = CBC-Encryption with zero initialization vector
-	mode := cipher.NewCBCEncrypter(block, zeroInitVector)
+	mode := cipher.NewCBCEncrypter(key, zeroInitVector[:])
 	return mode, nil
 }
 

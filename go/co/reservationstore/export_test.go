@@ -16,6 +16,7 @@ package reservationstore
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
@@ -25,5 +26,6 @@ func (s *Store) ComputeMAC(suffix []byte, tok *reservation.Token, srcAS, dstAS a
 }
 
 func (s *Store) SetColibriKey(key []byte) {
-	s.colibriKey = key
+	colibriKey, _ := colibri.InitColibriKey(key)
+	s.colibriKey = colibriKey
 }

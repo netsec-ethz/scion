@@ -810,13 +810,12 @@ TsRel
         \text{q} &= \left\lceil\left(\frac{16
             \times 10^9}{2^{32}}\right)\right\rceil\text{ns}
             = \text{4 ns}\\
-        \text{TsRel} &= \text{max} \left\{0,
-            \frac{\text{Ts - Timestamp}_{ns}}
-            {\text{q}} -1 \right\} \\
+        \text{TsRel} &= \left\lfloor\frac{\text{Ts - Timestamp}_{ns}}
+            {\text{q}}\right\rfloor \\
         \textit{Get back the time when }&\textit{the packet
         was timestamped:} \\
-        \text{Ts} &= \text{Timestamp}_{ns} + (1 + \text{TsRel})
-            \times \text{q}
+        \text{Ts} &= \text{Timestamp}_{ns} + \text{TsRel}
+            \times\text{q}
     \end{align}
 
 TsRel has a precision of :math:`\text{4 ns}` and covers at least

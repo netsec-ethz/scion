@@ -17,6 +17,7 @@ package router
 import (
 	"bytes"
 	"context"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -34,6 +35,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	libcolibri "github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/common"
 	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/log"
@@ -100,7 +102,7 @@ type DataPlane struct {
 	internalNextHops  map[uint16]*net.UDPAddr
 	svc               *services
 	macFactory        func() hash.Hash
-	colibriKey        []byte
+	colibriKey        cipher.Block
 	bfdSessions       map[uint16]bfdSession
 	localIA           addr.IA
 	mtx               sync.Mutex
@@ -182,14 +184,16 @@ func (d *DataPlane) SetColibriKey(key []byte) error {
 	if d.running {
 		return modifyExisting
 	}
-	if len(key) == 0 {
-		return emptyValue
-	}
-	if len(d.colibriKey) != 0 {
+	if d.colibriKey != nil {
 		return alreadySet
 	}
 
-	d.colibriKey = key
+	keyColibri, err := libcolibri.InitColibriKey(key)
+	if err != nil {
+		return err
+	}
+
+	d.colibriKey = keyColibri
 	return nil
 }
 
