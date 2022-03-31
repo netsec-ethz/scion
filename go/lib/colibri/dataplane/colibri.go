@@ -262,7 +262,7 @@ func MACSigma(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField,
 	return nil
 }
 
-// MACE2E calculates the per-packet colibri MAC and writes it into buffer.
+// MACE2E calculates the per-packet colibri MAC from the AS' private key and writes it into buffer.
 // If buffer is not at least 4 bytes long, the function panics at runtime.
 func MACE2E(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField, ts colibri.Timestamp,
 	currHop *colibri.HopField, s *slayers.SCION) error {
@@ -279,8 +279,16 @@ func MACE2E(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField, ts c
 		return err
 	}
 
+	return MACE2EFromSigma(buffer, keySigma, inf, ts, s)
+}
+
+// MACE2EFromSigma calculates the per-packet colibri MAC from sigma and writes it into buffer.
+// If buffer is not at least 4 bytes long, the function panics at runtime.
+func MACE2EFromSigma(buffer []byte, sigma cipher.Block, inf *colibri.InfoField,
+	ts colibri.Timestamp, s *slayers.SCION) error {
+
 	// Initialize cryptographic MAC function
-	f, err := initColibriMac(keySigma)
+	f, err := initColibriMac(sigma)
 	if err != nil {
 		return err
 	}
@@ -302,7 +310,7 @@ func MACE2E(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField, ts c
 func InitColibriKey(key []byte) (cipher.Block, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, serrors.New("Unable to initialize AES cipher")
+		return nil, serrors.New("Unable to initialize AES cipher", "key", key)
 	}
 	return block, nil
 }

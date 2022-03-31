@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/coliquic"
+	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
@@ -74,7 +75,7 @@ func NewStore(topo *topology.Loader, sd daemon.Connector, router snet.Router,
 		return nil, err
 	}
 	colibriKeyBytes := scrypto.DeriveColibriMacKey(masterKey)
-	colibriKey, err := colibri.InitColibriKey(colibriKeyBytes)
+	colibriKey, err := libcolibri.InitColibriKey(colibriKeyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -1515,10 +1516,10 @@ func computeMAC(buff []byte,
 	key cipher.Block, suffix []byte, tok *reservation.Token, hf *reservation.HopField,
 	srcAS, dstAS addr.AS, isE2E bool) error {
 
-	var input [colibri.LengthInputDataRound16]byte
-	colibri.MACInputStatic(input[:], suffix, uint32(tok.InfoField.ExpirationTick), tok.BWCls,
+	var input [libcolibri.LengthInputDataRound16]byte
+	libcolibri.MACInputStatic(input[:], suffix, uint32(tok.InfoField.ExpirationTick), tok.BWCls,
 		tok.RLC, !isE2E, false, tok.Idx, srcAS, dstAS, hf.Ingress, hf.Egress)
-	return colibri.MACStaticFromInput(buff, key, input[:])
+	return libcolibri.MACStaticFromInput(buff, key, input[:])
 }
 
 // obtainRsvs will query the local DB if the src is local, or dial the corresponding col service.

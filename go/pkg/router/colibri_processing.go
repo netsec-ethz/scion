@@ -20,7 +20,7 @@ import (
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	libcolibri "github.com/scionproto/scion/go/lib/colibri"
+	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"

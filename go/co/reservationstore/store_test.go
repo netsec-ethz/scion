@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/co/reservationstorage/backend"
 	"github.com/scionproto/scion/go/co/reservationstore"
-	"github.com/scionproto/scion/go/lib/colibri"
+	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	collayer "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -58,7 +58,7 @@ func TestDebugAdmitE2EReservation(t *testing.T) {
 // TestComputeMAC tests that the MAC computation functions in the BR and the store are consistent.
 func TestComputeMAC(t *testing.T) {
 	privateKeyBytes := xtest.MustParseHexString("5b56986be02a37d30110c854b5f25959")
-	privateKey, err := colibri.InitColibriKey(privateKeyBytes)
+	privateKey, err := libcolibri.InitColibriKey(privateKeyBytes)
 	require.NoError(t, err)
 	srcAS := xtest.MustParseAS("ff00:0:111")
 	dstAS := xtest.MustParseAS("ff00:0:112")
@@ -94,7 +94,7 @@ func TestComputeMAC(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			var macBR [4]byte
-			err := colibri.MACStatic(macBR[:], privateKey, &tc.inf,
+			err := libcolibri.MACStatic(macBR[:], privateKey, &tc.inf,
 				&tc.hfs[tc.inf.CurrHF], srcAS, dstAS)
 			require.NoError(t, err)
 

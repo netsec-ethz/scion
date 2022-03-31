@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	libcolibri "github.com/scionproto/scion/go/lib/colibri"
+	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/common"
 	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/scrypto"

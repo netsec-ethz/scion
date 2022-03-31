@@ -16,7 +16,9 @@ package reservation
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -196,6 +198,10 @@ func TestReverse(t *testing.T) {
 }
 
 func TestTransparentPathFromSnet(t *testing.T) {
+	// Add a valid expiration time to the Colibri path.
+	// expTick encodes the current time plus something between 4 and 8 seconds.
+	expTick := uint32(time.Now().Unix()/4) + 2
+
 	cases := map[string]struct {
 		snetPath    snet.Path
 		expected    *TransparentPath
@@ -222,8 +228,8 @@ func TestTransparentPathFromSnet(t *testing.T) {
 				},
 				DataplanePath: path.Colibri{
 					Raw: xtest.MustParseHexString("000000000000000000000003" +
-						"0123456789ab0123456789ab000000000d00000000000001" +
-						"0123456700010002012345670001000001234567"),
+						"0123456789ab0123456789ab" + fmt.Sprintf("%X", expTick) +
+						"0d000000000000010123456700010002012345670001000001234567"),
 				},
 			},
 			expected: &TransparentPath{
@@ -241,8 +247,8 @@ func TestTransparentPathFromSnet(t *testing.T) {
 					},
 				},
 				RawPath: MustParseColibriPath("000000000000000000000003" +
-					"0123456789ab0123456789ab000000000d00000000000001" +
-					"0123456700010002012345670001000001234567"),
+					"0123456789ab0123456789ab" + fmt.Sprintf("%X", expTick) +
+					"0d000000000000010123456700010002012345670001000001234567"),
 			},
 		},
 	}
@@ -251,6 +257,15 @@ func TestTransparentPathFromSnet(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			tp, err := TransparentPathFromSnet(tc.snetPath)
+
+			// Exclude per-packet timestamp from the checks
+			if tp != nil {
+				colPath, ok := tp.RawPath.(*colibri.ColibriPathMinimal)
+				require.Equal(t, ok, true)
+				require.NotEqual(t, colPath, nil)
+				colPath.PacketTimestamp = [8]byte{}
+			}
+
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
