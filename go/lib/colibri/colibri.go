@@ -41,10 +41,10 @@ const (
 	// TimestampResolution denotes the resolution of the epic timestamp
 	TimestampResolution = 4 * time.Nanosecond
 	// TickDuration denotes the length of one Colibri tick in seconds
-	TickDuration = 4
+	TickDuration = reservation.SecsPerTick
 	// ExpirationOffset denotes the offset that is subtracted from the expiration time to
 	// get the reference time for the high-precision timestamp.
-	ExpirationOffset = 16 * time.Second
+	ExpirationOffset = reservation.TicksInE2ERsv * reservation.SecsPerTick * time.Second
 	// LengthInputData denotes the length of InputData in bytes
 	LengthInputData = 30
 	// LengthInputDataRound16 denotes the LengthInputData rounded to the next multiple of 16
