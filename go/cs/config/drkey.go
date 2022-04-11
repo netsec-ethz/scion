@@ -63,10 +63,7 @@ func (cfg *DRKeyConfig) InitDefaults() {
 
 // Enabled returns true if DRKey is configured. False otherwise.
 func (cfg *DRKeyConfig) Enabled() bool {
-	if cfg.Lvl1DB.Connection == "" {
-		return false
-	}
-	return true
+	return cfg.Lvl1DB.Connection != ""
 }
 
 // Validate validates that all values are parsable.
@@ -117,7 +114,8 @@ func (cfg *SVHostList) InitDefaults() {
 // Validate validates that the protocols exist, and their addresses are parsable.
 func (cfg *SVHostList) Validate() error {
 	for proto, list := range *cfg {
-		protoID, ok := drkey.ProtocolStringToId(strings.ToUpper(proto))
+		protoString := "PROTOCOL_" + strings.ToUpper(proto)
+		protoID, ok := drkey.ProtocolStringToId(protoString)
 		if !ok {
 			return serrors.New("Configured protocol not found", "protocol", proto)
 		}
@@ -157,7 +155,8 @@ func (cfg *SVHostList) ToAllowedSet() map[HostProto]struct{} {
 			if err != nil {
 				continue
 			}
-			protoID, ok := drkey.ProtocolStringToId(strings.ToUpper(proto))
+			protoString := "PROTOCOL_" + strings.ToUpper(proto)
+			protoID, ok := drkey.ProtocolStringToId(protoString)
 			if !ok {
 				continue
 			}

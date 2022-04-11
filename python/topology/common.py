@@ -17,7 +17,7 @@ from ipaddress import ip_address
 import os
 import subprocess
 from urllib.parse import urlsplit
-from typing import Mapping, Tuple
+from typing import Mapping, Tuple, List
 
 # SCION
 from python.lib.scion_addr import ISD_AS
@@ -122,6 +122,17 @@ def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork,
             if prog == 'sd%s' % topo_id.file_fmt():
                 return ip_net.ip
     return None
+
+
+def colibri_ip_list(docker, topo_id,
+                    networks: Mapping[IPNetwork, NetworkDescription]) -> List[str]:
+    list = []
+    for net_desc in networks.values():
+        for prog, ip_net in net_desc.ip_net.items():
+            print('-'.join(prog.split('-')[0:2]), "==", 'co%s' % topo_id.file_fmt())
+            if '-'.join(prog.split('-')[0:2]) == 'co%s' % topo_id.file_fmt():
+                list.append(str(ip_net.ip))
+    return list
 
 
 def prom_addr_dispatcher(docker, topo_id,

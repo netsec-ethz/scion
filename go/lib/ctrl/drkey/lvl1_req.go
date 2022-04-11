@@ -15,7 +15,7 @@
 package drkey
 
 import (
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -24,12 +24,8 @@ import (
 )
 
 func Lvl1MetaToProtoRequest(meta drkey.Lvl1Meta) (*dkpb.Lvl1Request, error) {
-	valTime, err := ptypes.TimestampProto(meta.Validity)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid valTime from request", err)
-	}
 	return &dkpb.Lvl1Request{
-		ValTime:    valTime,
+		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
 	}, nil
 }
@@ -38,18 +34,18 @@ func Lvl1MetaToProtoRequest(meta drkey.Lvl1Meta) (*dkpb.Lvl1Request, error) {
 func GetLvl1KeyFromReply(meta drkey.Lvl1Meta,
 	rep *dkpb.Lvl1Response) (drkey.Lvl1Key, error) {
 
-	epochBegin, err := ptypes.Timestamp(rep.EpochBegin)
+	err := rep.EpochBegin.CheckValid()
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("invalid EpochBegin from response", err)
 	}
-	epochEnd, err := ptypes.Timestamp(rep.EpochEnd)
+	err = rep.EpochEnd.CheckValid()
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
-			NotBefore: epochBegin,
-			NotAfter:  epochEnd,
+			NotBefore: rep.EpochBegin.AsTime(),
+			NotAfter:  rep.EpochEnd.AsTime(),
 		},
 	}
 	returningKey := drkey.Lvl1Key{
@@ -68,28 +64,16 @@ func GetLvl1KeyFromReply(meta drkey.Lvl1Meta,
 
 // KeyToLvl1Resp builds a Lvl1Resp provided a Lvl1Key.
 func KeyToLvl1Resp(drkey drkey.Lvl1Key) (*dkpb.Lvl1Response, error) {
-	epochBegin, err := ptypes.TimestampProto(drkey.Epoch.NotBefore)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid EpochBegin from key", err)
-	}
-	epochEnd, err := ptypes.TimestampProto(drkey.Epoch.NotAfter)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid EpochEnd from key", err)
-	}
 	return &dkpb.Lvl1Response{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
+		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
 	}, nil
 }
 
 func IntraLvl1ToProtoRequest(meta drkey.Lvl1Meta) (*dkpb.IntraLvl1Request, error) {
-	valTime, err := ptypes.TimestampProto(meta.Validity)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid valTime from request", err)
-	}
 	return &dkpb.IntraLvl1Request{
-		ValTime:    valTime,
+		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
 		DstIa:      uint64(meta.DstIA),
 		SrcIa:      uint64(meta.SrcIA),
@@ -98,17 +82,9 @@ func IntraLvl1ToProtoRequest(meta drkey.Lvl1Meta) (*dkpb.IntraLvl1Request, error
 
 // KeyToASASResp builds a ASASResp provided a Lvl1Key.
 func KeyToASASResp(drkey drkey.Lvl1Key) (*dkpb.IntraLvl1Response, error) {
-	epochBegin, err := ptypes.TimestampProto(drkey.Epoch.NotBefore)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid EpochBegin from key", err)
-	}
-	epochEnd, err := ptypes.TimestampProto(drkey.Epoch.NotAfter)
-	if err != nil {
-		return nil, serrors.WrapStr("invalid EpochEnd from key", err)
-	}
 	return &dkpb.IntraLvl1Response{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
+		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
 	}, nil
 }
@@ -116,18 +92,18 @@ func KeyToASASResp(drkey drkey.Lvl1Key) (*dkpb.IntraLvl1Response, error) {
 func GetASASKeyFromReply(meta drkey.Lvl1Meta,
 	rep *dkpb.IntraLvl1Response) (drkey.Lvl1Key, error) {
 
-	epochBegin, err := ptypes.Timestamp(rep.EpochBegin)
+	err := rep.EpochBegin.CheckValid()
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("invalid EpochBegin from response", err)
 	}
-	epochEnd, err := ptypes.Timestamp(rep.EpochEnd)
+	err = rep.EpochEnd.CheckValid()
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
-			NotBefore: epochBegin,
-			NotAfter:  epochEnd,
+			NotBefore: rep.EpochBegin.AsTime(),
+			NotAfter:  rep.EpochEnd.AsTime(),
 		},
 	}
 	returningKey := drkey.Lvl1Key{

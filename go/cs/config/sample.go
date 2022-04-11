@@ -57,7 +57,7 @@ prefetch_entries = 10000
 `
 const drkeySVHostListSample = `
 # The list of hosts authorized to get a SV per protocol.
-protocol_scmp = [ "127.0.0.1", "127.0.0.2"]
+scmp = [ "127.0.0.1", "127.0.0.2"]
 `
 
 const serviceSample = `

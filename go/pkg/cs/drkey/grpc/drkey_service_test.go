@@ -20,10 +20,10 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/cs/config"
@@ -73,7 +73,7 @@ func TestDRKeySV(t *testing.T) {
 	}
 	peerCtx := peer.NewContext(context.Background(), requestPeer)
 	request := &dkpb.SVRequest{
-		ValTime:    ptypes.TimestampNow(),
+		ValTime:    timestamppb.Now(),
 		ProtocolId: dkpb.Protocol_PROTOCOL_SCMP,
 	}
 	resp, err := server.SV(peerCtx, request)
@@ -256,7 +256,7 @@ func TestLvl1(t *testing.T) {
 
 	request := dkpb.Lvl1Request{
 		ProtocolId: 200,
-		ValTime:    ptypes.TimestampNow(),
+		ValTime:    timestamppb.Now(),
 	}
 	ctx := peer.NewContext(context.Background(), &peer.Peer{})
 	_, err := grpcServer.Lvl1(ctx, &request)
@@ -286,7 +286,7 @@ func TestASHost(t *testing.T) {
 	}
 	request := &dkpb.ASHostRequest{
 		ProtocolId: 200,
-		ValTime:    ptypes.TimestampNow(),
+		ValTime:    timestamppb.Now(),
 		SrcIa:      uint64(ia111),
 		DstIa:      uint64(ia112),
 		DstHost:    "127.0.0.1",
@@ -323,7 +323,7 @@ func TestHostAS(t *testing.T) {
 	}
 	request := &dkpb.HostASRequest{
 		ProtocolId: 200,
-		ValTime:    ptypes.TimestampNow(),
+		ValTime:    timestamppb.Now(),
 		SrcIa:      uint64(ia111),
 		DstIa:      uint64(ia112),
 		SrcHost:    "127.0.0.1",
@@ -360,7 +360,7 @@ func TestHostHost(t *testing.T) {
 	}
 	request := &dkpb.HostHostRequest{
 		ProtocolId: 200,
-		ValTime:    ptypes.TimestampNow(),
+		ValTime:    timestamppb.Now(),
 		SrcIa:      uint64(ia111),
 		DstIa:      uint64(ia112),
 		SrcHost:    "127.0.0.1",
@@ -376,10 +376,6 @@ func TestHostHost(t *testing.T) {
 }
 
 func getSVandResp(t *testing.T) (drkey.SV, *dkpb.SVResponse) {
-	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
-	require.NoError(t, err)
 	k := xtest.MustParseHexString("d29d00c39398b7588c0d31a4ffc77841")
 
 	sv := drkey.SV{
@@ -389,8 +385,8 @@ func getSVandResp(t *testing.T) (drkey.SV, *dkpb.SVResponse) {
 	copy(sv.Key[:], k)
 
 	targetResp := &dkpb.SVResponse{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        k,
 	}
 	return sv, targetResp

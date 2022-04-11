@@ -78,6 +78,8 @@ func (f *Prefetcher) Run(ctx context.Context) {
 	wg.Wait()
 }
 
+type fromPrefetcher struct{}
+
 func getLvl1Key(ctx context.Context, engine ServiceEngine,
 	srcIA, dstIA addr.IA, proto drkey.Protocol, valTime time.Time, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -87,7 +89,7 @@ func getLvl1Key(ctx context.Context, engine ServiceEngine,
 		DstIA:    dstIA,
 		ProtoId:  proto,
 	}
-	pref_ctx := context.WithValue(ctx, "from_prefetcher", true)
+	pref_ctx := context.WithValue(ctx, fromPrefetcher{}, true)
 	_, err := engine.GetLvl1Key(pref_ctx, meta)
 	if err != nil {
 		log.Error("Failed to prefetch the level 1 key", "remote AS", srcIA.String(), "error", err)

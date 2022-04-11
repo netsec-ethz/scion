@@ -94,12 +94,12 @@ func TestSVHostListDefaults(t *testing.T) {
 func TestSVHostListSyntax(t *testing.T) {
 	var cfg SVHostList
 	var err error
-	sample1 := `protocol_scmp = ["1.1.1.1"]`
+	sample1 := `scmp = ["1.1.1.1"]`
 	err = toml.NewDecoder(bytes.NewReader([]byte(sample1))).Strict(true).Decode(&cfg)
 	require.NoError(t, err)
 	require.NoError(t, cfg.Validate())
 
-	sample2 := `protocol_scmp = ["not an address"]`
+	sample2 := `scmp = ["not an address"]`
 	err = toml.NewDecoder(bytes.NewReader([]byte(sample2))).Strict(true).Decode(&cfg)
 	require.NoError(t, err)
 	require.Error(t, cfg.Validate())
@@ -107,8 +107,8 @@ func TestSVHostListSyntax(t *testing.T) {
 
 func TestToMapPerHost(t *testing.T) {
 	var cfg SVHostList
-	sample := `protocol_dns = ["1.1.1.1", "2.2.2.2"]
-	protocol_scmp = ["1.1.1.1"]`
+	sample := `dns = ["1.1.1.1", "2.2.2.2"]
+	scmp = ["1.1.1.1"]`
 	ip1111, err := netaddr.ParseIP("1.1.1.1")
 	require.NoError(t, err)
 	ip2222, err := netaddr.ParseIP("2.2.2.2")

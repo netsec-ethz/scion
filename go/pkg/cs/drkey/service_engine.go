@@ -95,7 +95,7 @@ func (s *serviceEngine) GetSecretValue(ctx context.Context,
 func (s *serviceEngine) GetLvl1Key(ctx context.Context,
 	meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	key, err := s.getLvl1Key(ctx, meta)
-	if err == nil && ctx.Value("from_prefetcher") == nil && meta.SrcIA != s.LocalIA {
+	if err == nil && ctx.Value(fromPrefetcher{}) == nil && meta.SrcIA != s.LocalIA {
 		keyInfo := Lvl1PrefetchInfo{
 			IA:    key.SrcIA,
 			Proto: meta.ProtoId,

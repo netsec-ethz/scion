@@ -367,26 +367,13 @@ func TestDeriveLvl1(t *testing.T) {
 
 	key, err := deriver.DeriveLvl1(lvl1Meta, sv.Key)
 	require.NoError(t, err)
-	lvl1 := drkey.Lvl1Key{
-		Epoch:   sv.Epoch,
-		SrcIA:   lvl1Meta.SrcIA,
-		DstIA:   lvl1Meta.DstIA,
-		ProtoId: sv.ProtoId,
-		Key:     key,
-	}
-	assert.Equal(t, lvl1Target, lvl1.Key)
+	assert.Equal(t, lvl1Target, key)
 
 	// Calling a second time with the same deriver should yield the
 	// same key
 	key, err = deriver.DeriveLvl1(lvl1Meta, sv.Key)
 	require.NoError(t, err)
-	lvl1 = drkey.Lvl1Key{
-		Epoch:   sv.Epoch,
-		SrcIA:   lvl1Meta.SrcIA,
-		DstIA:   lvl1Meta.DstIA,
-		ProtoId: sv.ProtoId,
-		Key:     key,
-	}
-	assert.EqualValues(t, lvl1Target, lvl1.Key)
+
+	assert.Equal(t, lvl1Target, key)
 
 }

@@ -75,7 +75,8 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			daemon := mock_daemon.NewMockConnector(ctrl)
 			mockDRKeys(t, daemon, srcIA(), net.ParseIP(srcHost()))
 
-			tc.clientReq.CreateAuthenticators(ctx, daemon)
+			err := tc.clientReq.CreateAuthenticators(ctx, daemon)
+			require.NoError(t, err)
 			// copy authenticators to transit request, as if they were received
 			for i, a := range tc.clientReq.Authenticators {
 				tc.transitReq.Authenticators[i] = a
@@ -145,7 +146,8 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 			daemon := mock_daemon.NewMockConnector(ctrl)
 			mockDRKeys(t, daemon, srcIA(), net.ParseIP(srcHost()))
 
-			tc.clientReq.CreateAuthenticators(ctx, daemon)
+			err := tc.clientReq.CreateAuthenticators(ctx, daemon)
+			require.NoError(t, err)
 			// copy authenticators to transit request, as if they were received
 			for i, a := range tc.clientReq.Authenticators {
 				tc.transitReq.Authenticators[i] = a
@@ -636,10 +638,6 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 
 func srcIA() addr.IA {
 	return xtest.MustParseIA("1-ff00:0:111")
-}
-
-func dstIA() addr.IA {
-	return xtest.MustParseIA("1-ff00:0:112")
 }
 
 func srcHost() string {

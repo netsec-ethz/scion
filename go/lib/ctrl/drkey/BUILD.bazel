@@ -15,7 +15,7 @@ go_library(
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/pkg/proto/drkey:go_default_library",
-        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
+        "@org_golang_google_protobuf//types/known/timestamppb:go_default_library",
     ],
 )
 
@@ -28,8 +28,8 @@ go_test(
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/pkg/proto/drkey:go_default_library",
-        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
+        "@org_golang_google_protobuf//types/known/timestamppb:go_default_library",
     ],
 )

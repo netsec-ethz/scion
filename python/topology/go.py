@@ -27,6 +27,7 @@ from python.lib.util import write_file
 from python.topology.common import (
     ArgsTopoDicts,
     DISP_CONFIG_NAME,
+    colibri_ip_list,
     docker_host,
     prom_addr,
     prom_addr_dispatcher,
@@ -108,7 +109,7 @@ class GoGenerator(object):
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
         config_dir = '/share/conf' if self.args.docker else base
-        sd_ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
+        co_ip_list = colibri_ip_list(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
                 'id': name,
@@ -132,10 +133,9 @@ class GoGenerator(object):
                 'sv_db': {
                     'connection': os.path.join(self.db_dir, '%s.sv.db' % name),
                 },
-                # TODO(matzf): add back after finalizing merge
-                #'delegation': {
-                    #'colibri': [str(sd_ip)],  # local daemon must be able to get the colibri DS
-                #},
+                'delegation': {
+                    'colibri': co_ip_list,  # ColServ must be able to get the colibri SV
+                },
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),

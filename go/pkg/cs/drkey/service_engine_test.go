@@ -147,7 +147,7 @@ func TestGetLvl1Key(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, secondLvl1Key, rcvKey3)
 	//Simulate a call coming from the prefetcher, it must not update cache
-	pref_ctx := context.WithValue(context.Background(), "from_prefetcher", true)
+	pref_ctx := context.WithValue(context.Background(), cs_drkey.FromPrefetcher(), true)
 	rcvKey4, err := store.GetLvl1Key(pref_ctx, drkey.Lvl1Meta{
 		ProtoId:  firstLvl1Key.ProtoId,
 		DstIA:    firstLvl1Key.DstIA,

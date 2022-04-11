@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -32,8 +32,7 @@ import (
 func TestLvl1MetaToProtoRequest(t *testing.T) {
 	now := time.Now().UTC()
 
-	valTime, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
+	valTime := timestamppb.New(now)
 
 	pbReq := &dkpb.Lvl1Request{
 		ValTime: valTime,
@@ -49,10 +48,6 @@ func TestLvl1MetaToProtoRequest(t *testing.T) {
 }
 
 func TestKeyToLvl1Resp(t *testing.T) {
-	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
-	require.NoError(t, err)
 	dstIA := xtest.MustParseIA("1-ff00:0:110")
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	k := xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a level 1 key
@@ -65,8 +60,8 @@ func TestKeyToLvl1Resp(t *testing.T) {
 	copy(lvl1Key.Key[:], k)
 
 	targetResp := &dkpb.Lvl1Response{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        []byte(k),
 	}
 
@@ -77,17 +72,13 @@ func TestKeyToLvl1Resp(t *testing.T) {
 }
 
 func TestGetLvl1KeyFromReply(t *testing.T) {
-	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
-	require.NoError(t, err)
 	dstIA := xtest.MustParseIA("1-ff00:0:110")
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	k := xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a level 1 key
 
 	resp := &dkpb.Lvl1Response{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        []byte(k),
 	}
 	lvl1meta := drkey.Lvl1Meta{
@@ -112,8 +103,7 @@ func TestGetLvl1KeyFromReply(t *testing.T) {
 
 func TestRequestToASHostMeta(t *testing.T) {
 	now := time.Now().UTC()
-	valTime, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
+	valTime := timestamppb.New(now)
 	dstIA := xtest.MustParseIA("1-ff00:0:110")
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	strAddr := "127.0.0.1"
@@ -143,8 +133,7 @@ func TestRequestToASHostMeta(t *testing.T) {
 
 func TestRequestToHostASMeta(t *testing.T) {
 	now := time.Now().UTC()
-	valTime, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
+	valTime := timestamppb.New(now)
 	dstIA := xtest.MustParseIA("1-ff00:0:110")
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	strAddr := "127.0.0.1"
@@ -174,8 +163,7 @@ func TestRequestToHostASMeta(t *testing.T) {
 
 func TestRequestToHostHostMeta(t *testing.T) {
 	now := time.Now().UTC()
-	valTime, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
+	valTime := timestamppb.New(now)
 	dstIA := xtest.MustParseIA("1-ff00:0:110")
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	strAddr := "127.0.0.1"
@@ -220,14 +208,9 @@ func TestKeyToASHostResp(t *testing.T) {
 	}
 	copy(asHostKey.Key[:], key)
 
-	epochBegin, err := ptypes.TimestampProto(asHostKey.Epoch.NotBefore)
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(asHostKey.Epoch.NotAfter)
-	require.NoError(t, err)
-
 	targetResp := &dkpb.ASHostResponse{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        asHostKey.Key[:],
 	}
 
@@ -251,14 +234,9 @@ func TestKeyToHostASResp(t *testing.T) {
 	}
 	copy(key.Key[:], rawKey)
 
-	epochBegin, err := ptypes.TimestampProto(key.Epoch.NotBefore)
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(key.Epoch.NotAfter)
-	require.NoError(t, err)
-
 	targetResp := &dkpb.HostASResponse{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        key.Key[:],
 	}
 
@@ -283,14 +261,9 @@ func TestKeyToHostHostResp(t *testing.T) {
 	}
 	copy(key.Key[:], rawKey)
 
-	epochBegin, err := ptypes.TimestampProto(key.Epoch.NotBefore)
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(key.Epoch.NotAfter)
-	require.NoError(t, err)
-
 	targetResp := &dkpb.HostHostResponse{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        key.Key[:],
 	}
 
@@ -305,8 +278,7 @@ func SVMetaToProtoRequest(t *testing.T) {
 		ProtoId:  drkey.Generic,
 		Validity: now,
 	}
-	valTime, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
+	valTime := timestamppb.New(now)
 	targetProtoReq := &dkpb.SVRequest{
 		ProtocolId: dkpb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED,
 		ValTime:    valTime,
@@ -317,16 +289,12 @@ func SVMetaToProtoRequest(t *testing.T) {
 }
 
 func TestGetSVFromReply(t *testing.T) {
-	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
-	require.NoError(t, err)
 	k := xtest.MustParseHexString("d29d00c39398b7588c0d31a4ffc77841")
 	proto := drkey.SCMP
 
 	resp := &dkpb.SVResponse{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        k,
 	}
 
@@ -341,10 +309,6 @@ func TestGetSVFromReply(t *testing.T) {
 }
 
 func TestSVtoProtoResp(t *testing.T) {
-	epochBegin, err := ptypes.TimestampProto(util.SecsToTime(0))
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(util.SecsToTime(1))
-	require.NoError(t, err)
 	k := xtest.MustParseHexString("d29d00c39398b7588c0d31a4ffc77841")
 
 	sv := drkey.SV{
@@ -354,8 +318,8 @@ func TestSVtoProtoResp(t *testing.T) {
 	copy(sv.Key[:], k)
 
 	targetResp := &dkpb.SVResponse{
-		EpochBegin: epochBegin,
-		EpochEnd:   epochEnd,
+		EpochBegin: timestamppb.New(util.SecsToTime(0)),
+		EpochEnd:   timestamppb.New(util.SecsToTime(1)),
 		Key:        k,
 	}
 

@@ -144,7 +144,6 @@ func ParsePEMCerts(raw []byte) ([]*x509.Certificate, error) {
 type VerifyOptions struct {
 	TRC         []*TRC
 	CurrentTime time.Time // if zero, the current time is used
-	ExtKeyUsage []x509.ExtKeyUsage
 }
 
 // VerifyChain attempts to verify the certificate chain against every TRC

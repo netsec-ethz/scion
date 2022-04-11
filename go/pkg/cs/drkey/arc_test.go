@@ -27,9 +27,9 @@ import (
 
 func TestLvl1ARC(t *testing.T) {
 
-	cache, err := cs_drkey.NewLvl1ARC(-10)
+	_, err := cs_drkey.NewLvl1ARC(-10)
 	require.Error(t, err)
-	cache, err = cs_drkey.NewLvl1ARC(5)
+	cache, err := cs_drkey.NewLvl1ARC(5)
 	require.NoError(t, err)
 
 	as0 := addr.MustIAFrom(1, 0)

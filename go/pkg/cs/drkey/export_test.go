@@ -32,3 +32,7 @@ func NewTestServiceEngine(localIA addr.IA, svdb drkey.SecretValueDB, masterKey [
 		prefetchKeeper: list,
 	}
 }
+
+func FromPrefetcher() fromPrefetcher {
+	return fromPrefetcher{}
+}

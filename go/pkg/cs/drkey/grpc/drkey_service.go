@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -90,12 +89,12 @@ func (d *Server) Lvl1(ctx context.Context,
 
 func getMeta(protoId dkpb.Protocol, ts *timestamppb.Timestamp, srcIA,
 	dstIA addr.IA) (drkey.Lvl1Meta, error) {
-	valTime, err := ptypes.Timestamp(ts)
+	err := ts.CheckValid()
 	if err != nil {
 		return drkey.Lvl1Meta{}, serrors.WrapStr("invalid valTime from pb req", err)
 	}
 	return drkey.Lvl1Meta{
-		Validity: valTime,
+		Validity: ts.AsTime(),
 		ProtoId:  drkey.Protocol(protoId),
 		SrcIA:    srcIA,
 		DstIA:    dstIA,
@@ -208,7 +207,7 @@ func (d *Server) HostAS(ctx context.Context,
 	logger := log.FromCtx(ctx)
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		serrors.New("Cannot retrieve peer information from ctx")
+		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
 	meta, err := ctrl.RequestToHostASMeta(req)
@@ -259,7 +258,7 @@ func (d *Server) HostHost(ctx context.Context,
 	logger := log.FromCtx(ctx)
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		serrors.New("Cannot retrieve peer information from ctx")
+		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
 	meta, err := ctrl.RequestToHostHostMeta(req)
@@ -329,7 +328,7 @@ func (d *Server) SV(ctx context.Context,
 	req *dkpb.SVRequest) (*dkpb.SVResponse, error) {
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		serrors.New("Cannot retrieve peer information from ctx")
+		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
 	meta, err := ctrl.SVRequestToMeta(req)

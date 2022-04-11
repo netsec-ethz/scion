@@ -104,7 +104,7 @@ func (h *hostAddr) AddrToString() string {
 // Equal returns returns true if both HostAddresses are equal.
 func (h *hostAddr) Equal(other *hostAddr) bool {
 	return h.AddrLen == other.AddrLen && h.AddrType == other.AddrType &&
-		bytes.Compare(h.RawAddr, other.RawAddr) == 0
+		bytes.Equal(h.RawAddr, other.RawAddr)
 }
 
 func inputDeriveHostToHost(input []byte, host hostAddr) int {
