@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/drkey"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -70,7 +69,7 @@ func (s *secretValueBackend) getSecretValue(ctx context.Context,
 	}
 	err = s.DB.InsertSV(ctx, sv)
 	if err != nil {
-		log.FromCtx(ctx).Error("Cannot insert SV in persistence", "err", err)
+		return drkey.SV{}, serrors.WrapStr("inserting SV in persistence", err)
 	}
 	return sv, nil
 }

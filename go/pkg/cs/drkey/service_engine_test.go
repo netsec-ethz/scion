@@ -104,11 +104,11 @@ func TestGetLvl1Key(t *testing.T) {
 	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
-	firstCall := fetcher.EXPECT().FetchLvl1(gomock.Any(),
+	firstCall := fetcher.EXPECT().Lvl1(gomock.Any(),
 		gomock.Any()).Return(firstLvl1Key, nil)
-	secondCall := fetcher.EXPECT().FetchLvl1(gomock.Any(),
+	secondCall := fetcher.EXPECT().Lvl1(gomock.Any(),
 		gomock.Any()).Return(secondLvl1Key, nil).After(firstCall)
-	fetcher.EXPECT().FetchLvl1(gomock.Any(),
+	fetcher.EXPECT().Lvl1(gomock.Any(),
 		gomock.Any()).Return(drkey.Lvl1Key{},
 		serrors.New("error retrieving key")).After(secondCall)
 

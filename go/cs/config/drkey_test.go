@@ -129,7 +129,7 @@ func TestToMapPerHost(t *testing.T) {
 	})
 	require.Contains(t, m, HostProto{
 		Host:  ip1111,
-		Proto: drkey.DNS,
+		Proto: drkey.SCMP,
 	})
 }
 

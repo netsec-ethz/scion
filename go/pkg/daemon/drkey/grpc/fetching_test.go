@@ -96,6 +96,6 @@ func TestGetHostHost(t *testing.T) {
 	}
 
 	meta := drkey.HostHostMeta{}
-	_, err = fetcher.FetchHostHostKey(context.Background(), meta)
+	_, err = fetcher.HostHostKey(context.Background(), meta)
 	require.NoError(t, err)
 }

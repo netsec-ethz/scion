@@ -21,13 +21,12 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// SpecificDeriver implements the level 2/3 specific drkey derivation.
+// SpecificDeriver implements the specific drkey derivation.
 type SpecificDeriver struct {
 	buf [32]byte
 }
 
-// DeriveLvl1 populates the provided buffer with
-// the input for a lvl1 derivation, returning its length.
+// DeriveLvl1 returns the Lvl1 derived key.
 func (p *SpecificDeriver) DeriveLvl1(meta Lvl1Meta, key Key) (Key, error) {
 	len := inputDeriveLvl1(p.buf[:], meta)
 	outKey, err := deriveKey(p.buf[:], len, key)
@@ -61,8 +60,7 @@ func (p *SpecificDeriver) inputDeriveLvl2(input []byte, derType keyType,
 	return inputLength
 }
 
-// DeriveASHost populates the provided buffer with the input for a ASHost
-// derivation, returning its length.
+// DeriveASHost returns the ASHost derived key.
 func (p *SpecificDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
 	host, err := packtoHostAddr(meta.DstHost)
 	if err != nil {
@@ -73,8 +71,7 @@ func (p *SpecificDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
 	return outKey, err
 }
 
-// DeriveHostAS populates the provided buffer with the input for a HostAS
-// derivation, returning its length.
+// DeriveHostAS returns the HostAS derived key.
 func (p *SpecificDeriver) DeriveHostAS(meta HostASMeta, key Key) (Key, error) {
 	host, err := packtoHostAddr(meta.SrcHost)
 	if err != nil {
@@ -85,8 +82,7 @@ func (p *SpecificDeriver) DeriveHostAS(meta HostASMeta, key Key) (Key, error) {
 	return outKey, err
 }
 
-// DeriveHostToHost populates the provided buffer with the input for a HostHost
-// derivation, returning its length.
+// DeriveHostToHost returns the HostHost derived key.
 func (p *SpecificDeriver) DeriveHostToHost(dstHost string, key Key) (Key, error) {
 	host, err := packtoHostAddr(dstHost)
 	if err != nil {

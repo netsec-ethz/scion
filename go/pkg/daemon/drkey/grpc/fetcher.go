@@ -33,7 +33,7 @@ type Fetcher struct {
 
 var _ sd_drkey.Fetcher = (*Fetcher)(nil)
 
-func (f Fetcher) FetchASHostKey(ctx context.Context,
+func (f Fetcher) ASHostKey(ctx context.Context,
 	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
@@ -60,7 +60,7 @@ func (f Fetcher) FetchASHostKey(ctx context.Context,
 	return key, nil
 }
 
-func (f Fetcher) FetchHostASKey(ctx context.Context,
+func (f Fetcher) HostASKey(ctx context.Context,
 	meta drkey.HostASMeta) (drkey.HostASKey, error) {
 
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
@@ -87,7 +87,7 @@ func (f Fetcher) FetchHostASKey(ctx context.Context,
 	return key, nil
 }
 
-func (f Fetcher) FetchHostHostKey(ctx context.Context,
+func (f Fetcher) HostHostKey(ctx context.Context,
 	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)

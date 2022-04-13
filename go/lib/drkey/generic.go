@@ -44,8 +44,7 @@ func (p *GenericDeriver) inputDeriveLvl2(input []byte, derType keyType,
 	return inputLength
 }
 
-// DeriveASHost populates the provided buffer with the input for a ASHost
-// derivation, returning its length.
+// DeriveASHost returns the ASHost derived key.
 func (p *GenericDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
 	host, err := packtoHostAddr(meta.DstHost)
 	if err != nil {
@@ -56,8 +55,7 @@ func (p *GenericDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
 	return outKey, err
 }
 
-// DeriveHostAS populates the provided buffer with the input for a HostAS
-// derivation, returning its length.
+// DeriveHostAS returns the HostAS derived key.
 func (p *GenericDeriver) DeriveHostAS(meta HostASMeta, key Key) (Key, error) {
 	host, err := packtoHostAddr(meta.SrcHost)
 	if err != nil {
@@ -68,8 +66,7 @@ func (p *GenericDeriver) DeriveHostAS(meta HostASMeta, key Key) (Key, error) {
 	return outKey, err
 }
 
-// DeriveHostToHost populates the provided buffer with the input for a HostHost
-// derivation, returning its length.
+// DeriveHostToHost returns the HostHost derived key.
 func (p *GenericDeriver) DeriveHostToHost(dstHost string, key Key) (Key, error) {
 	host, err := packtoHostAddr(dstHost)
 	if err != nil {

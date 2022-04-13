@@ -675,7 +675,7 @@ type fakeSlowKeyer struct {
 func (f fakeSlowKeyer) Lvl1(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	if meta.DstIA != f.localIA {
 		panic(fmt.Sprintf("cannot fetch, DstIA != localIA, DstIA=%s, localIA=%s",
-			f.localIA, meta.DstIA))
+			meta.DstIA, f.localIA))
 	}
 	return fakedrkey.Lvl1Key(meta), nil
 }

@@ -40,7 +40,7 @@ import (
 type Server struct {
 	LocalIA addr.IA
 	Engine  cs_drkey.ServiceEngine
-	// AllowedSVHost is a set of Host,Protocol pairs that represents the allowed
+	// AllowedSVHostProto is a set of Host,Protocol pairs that represents the allowed
 	// protocols hosts can obtain secrets values for.
 	AllowedSVHostProto map[config.HostProto]struct{}
 }
@@ -63,7 +63,7 @@ func (d *Server) Lvl1(ctx context.Context,
 
 	lvl1Meta, err := getMeta(req.ProtocolId, req.ValTime, d.LocalIA, dstIA)
 	if err != nil {
-		return nil, serrors.WrapStr("Invalid DRKey Lvl1 request", err)
+		return nil, serrors.WrapStr("invalid DRKey Lvl1 request", err)
 	}
 
 	// validate requested ProtoID is specific
@@ -77,12 +77,11 @@ func (d *Server) Lvl1(ctx context.Context,
 
 	lvl1Key, err := d.Engine.DeriveLvl1(lvl1Meta)
 	if err != nil {
-		logger.Error("Error deriving level 1 key", "err", err)
-		return nil, err
+		return nil, serrors.WrapStr("deriving level 1 key", err)
 	}
 	resp, err := ctrl.KeyToLvl1Resp(lvl1Key)
 	if err != nil {
-		return nil, serrors.WrapStr("Error parsing DRKey Lvl1 to protobuf resp", err)
+		return nil, serrors.WrapStr("parsing DRKey Lvl1 to protobuf resp", err)
 	}
 	return resp, nil
 }
@@ -349,7 +348,7 @@ func (d *Server) SV(ctx context.Context,
 	return resp, nil
 }
 
-// validateSVReq checks that the requester is authorized to receive a SV
+// validateAllowedHost checks that the requester is authorized to receive a SV
 func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) error {
 	tcpAddr, ok := peerAddr.(*net.TCPAddr)
 	if !ok {

@@ -41,9 +41,9 @@ func NewClientEngineCleaner(s ClientEngine) *cleaner.Cleaner {
 
 // Fetcher obtains a end host keys from the local CS.
 type Fetcher interface {
-	FetchASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
-	FetchHostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
-	FetchHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
+	ASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
+	HostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
+	HostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 }
 
 // clientEngine is the DRKey store used in the client side.
@@ -78,7 +78,7 @@ func (s *clientEngine) GetASHostKey(ctx context.Context,
 	}
 
 	// if not, ask our CS for it
-	remoteKey, err := s.fetcher.FetchASHostKey(ctx, meta)
+	remoteKey, err := s.fetcher.ASHostKey(ctx, meta)
 	if err != nil {
 		return drkey.ASHostKey{}, serrors.WrapStr("fetching AS-Host key from local CS", err)
 	}
@@ -102,7 +102,7 @@ func (s *clientEngine) GetHostASKey(ctx context.Context,
 	}
 	// if not, ask our CS for it
 
-	remoteKey, err := s.fetcher.FetchHostASKey(ctx, meta)
+	remoteKey, err := s.fetcher.HostASKey(ctx, meta)
 	if err != nil {
 		return drkey.HostASKey{}, serrors.WrapStr("fetching Host-AS key from local CS", err)
 	}
@@ -127,7 +127,7 @@ func (s *clientEngine) GetHostHostKey(ctx context.Context,
 	}
 	// if not, ask our CS for it
 
-	remoteKey, err := s.fetcher.FetchHostHostKey(ctx, meta)
+	remoteKey, err := s.fetcher.HostHostKey(ctx, meta)
 	if err != nil {
 		return drkey.HostHostKey{}, serrors.WrapStr("fetching Host-Host key from local CS", err)
 	}

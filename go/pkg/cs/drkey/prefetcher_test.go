@@ -57,6 +57,7 @@ func TestPrefetcherRun(t *testing.T) {
 	mock_engine.EXPECT().GetLvl1PrefetchInfo().After(
 		secondCached).Times(1).Return(cachedKeys)
 
+	// 0 + 1 + 2 calls at each run respectively
 	mock_engine.EXPECT().GetLvl1Key(gomock.Any(), gomock.Any()).Times(3)
 
 	prefetcher.Run(context.Background())

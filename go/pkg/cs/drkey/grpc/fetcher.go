@@ -55,8 +55,8 @@ type Fetcher struct {
 
 var _ csdrkey.Fetcher = (*Fetcher)(nil)
 
-// FetchLvl1 queries a CS for a level 1 key.
-func (f Fetcher) FetchLvl1(ctx context.Context,
+// Lvl1 queries a CS for a level 1 key.
+func (f Fetcher) Lvl1(ctx context.Context,
 	meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	logger := log.FromCtx(ctx)
 

@@ -138,7 +138,7 @@ func DeriveSV(protoID Protocol, epoch Epoch, asSecret []byte) (SV, error) {
 	return sv, nil
 }
 
-// Lvl1Meta represents the information about a level 1 DRKey other than the key itself.
+// / Lvl1Meta contains metadata to obtain a lvl1 key.
 type Lvl1Meta struct {
 	Validity     time.Time
 	ProtoId      Protocol
@@ -153,7 +153,7 @@ type Lvl1Key struct {
 	Key          Key
 }
 
-// Lvl2Meta represents the common metadata for end host keys
+// Lvl2Meta contains metadata to obtain end host keys
 // (aka lvl2/3 keys).
 type Lvl2Meta struct {
 	ProtoId  Protocol

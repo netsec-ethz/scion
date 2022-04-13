@@ -42,7 +42,7 @@ const (
 		EpochBegin 	INTEGER NOT NULL,
 		EpochEnd 	INTEGER NOT NULL,
 		Key 		BLOB NOT NULL,
-		PRIMARY KEY (SrcIsdID, SrcAsID, DstIsdID, DstAsID, EpochBegin)
+		PRIMARY KEY (SrcIsdID, SrcAsID, DstIsdID, DstAsID, Protocol, EpochBegin)
 	);`
 )
 

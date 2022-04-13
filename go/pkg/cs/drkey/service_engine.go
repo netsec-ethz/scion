@@ -27,7 +27,7 @@ import (
 
 // Fetcher obtains a Lvl1 DRKey from a remote CS.
 type Fetcher interface {
-	FetchLvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error)
+	Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error)
 }
 
 // ServiceEngine maintain and provides secret values, lvl1 keys and prefetching information.
@@ -130,7 +130,7 @@ func (s *serviceEngine) getLvl1Key(ctx context.Context,
 	}
 
 	// get it from another server
-	remoteKey, err := s.Fetcher.FetchLvl1(ctx, meta)
+	remoteKey, err := s.Fetcher.Lvl1(ctx, meta)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
 	}
@@ -158,12 +158,12 @@ func (s *serviceEngine) obtainLvl1Key(ctx context.Context,
 
 }
 
-// DeleteExpiredKeys will remove any lvl1 expired keys.
 func (s *serviceEngine) deleteExpiredLvl1Keys(ctx context.Context) (int, error) {
 	i, err := s.DB.DeleteExpiredLvl1Keys(ctx, time.Now())
 	return int(i), err
 }
 
+// DeleteExpiredKeys will remove any lvl1 expired keys.
 func (s *serviceEngine) DeleteExpiredKeys(ctx context.Context) (int, error) {
 	lvl1Removed, err := s.deleteExpiredLvl1Keys(ctx)
 	if err != nil {
@@ -173,7 +173,7 @@ func (s *serviceEngine) DeleteExpiredKeys(ctx context.Context) (int, error) {
 	return int(lvl1Removed + svRemoved), err
 }
 
-// GetCachedASes returns a list of ASes currently in the cache.
+// GetLvl1PrefetchInfo returns a list of ASes currently in the cache.
 func (s *serviceEngine) GetLvl1PrefetchInfo() []Lvl1PrefetchInfo {
 	return s.prefetchKeeper.GetLvl1InfoArray()
 }
@@ -208,6 +208,7 @@ func deriveLvl1(meta drkey.Lvl1Meta, sv drkey.SV) (drkey.Lvl1Key, error) {
 	}, nil
 }
 
+// DeriveASHost returns an AS-Host key based on the presented information
 func (s *serviceEngine) DeriveASHost(ctx context.Context,
 	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 	// input size for the current implementation will be at most 2*aes.Blocksize
@@ -239,6 +240,8 @@ func (s *serviceEngine) DeriveASHost(ctx context.Context,
 		Key:     key,
 	}, nil
 }
+
+// DeriveHostAS returns an Host-AS key based on the presented information
 func (s *serviceEngine) DeriveHostAS(ctx context.Context,
 	meta drkey.HostASMeta) (drkey.HostASKey, error) {
 	// input size for the current implementation will be at most 2*aes.Blocksize
@@ -270,6 +273,8 @@ func (s *serviceEngine) DeriveHostAS(ctx context.Context,
 		Key:     key,
 	}, nil
 }
+
+// DeriveHostHost returns an Host-Host key based on the presented information
 func (s *serviceEngine) DeriveHostHost(ctx context.Context,
 	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 	hostASMeta := drkey.HostASMeta{

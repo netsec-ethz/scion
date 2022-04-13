@@ -193,7 +193,6 @@ func realMain(ctx context.Context) error {
 	if globalCfg.DRKeyLvl2DB.Connection != "" {
 		drkeyDB, err := storage.NewDRKeyLvl2Storage(globalCfg.DRKeyLvl2DB)
 		if err != nil {
-			log.Error("Creating Lvl2 DRKey DB", "err", err)
 			return serrors.WrapStr("creating lvl2 DRKey DB", err)
 		}
 		drkeyDB = libdrkey.Lvl2WithMetrics(string(storage.BackendSqlite), drkeyDB)

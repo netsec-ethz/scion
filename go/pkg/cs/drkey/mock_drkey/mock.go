@@ -36,19 +36,19 @@ func (m *MockFetcher) EXPECT() *MockFetcherMockRecorder {
 	return m.recorder
 }
 
-// FetchLvl1 mocks base method.
-func (m *MockFetcher) FetchLvl1(arg0 context.Context, arg1 drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+// Lvl1 mocks base method.
+func (m *MockFetcher) Lvl1(arg0 context.Context, arg1 drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FetchLvl1", arg0, arg1)
+	ret := m.ctrl.Call(m, "Lvl1", arg0, arg1)
 	ret0, _ := ret[0].(drkey.Lvl1Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FetchLvl1 indicates an expected call of FetchLvl1.
-func (mr *MockFetcherMockRecorder) FetchLvl1(arg0, arg1 interface{}) *gomock.Call {
+// Lvl1 indicates an expected call of Lvl1.
+func (mr *MockFetcherMockRecorder) Lvl1(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchLvl1", reflect.TypeOf((*MockFetcher)(nil).FetchLvl1), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Lvl1", reflect.TypeOf((*MockFetcher)(nil).Lvl1), arg0, arg1)
 }
 
 // MockLvl1PrefetchListKeeper is a mock of Lvl1PrefetchListKeeper interface.

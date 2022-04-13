@@ -109,7 +109,7 @@ func NewDRKeyAuthenticator(localIA addr.IA, dialer libgrpc.Dialer) Authenticator
 		fastKeyer: &deriver{
 			localIA: localIA,
 			secreter: &cachingSVfetcher{
-				Dialer: dialer,
+				dialer: dialer,
 			},
 		},
 		slowKeyer: newLvl1Fetcher(localIA, dialer),
@@ -384,7 +384,6 @@ func (a *DRKeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Contex
 		return false, serrors.WrapStr("obtaining drkey", err, "fast", a.localIA,
 			"slow", req.Path.SrcIA())
 	}
-	log.FromCtx(ctx).Debug("VERBOSE", "key", key)
 	mac, err := MAC(immutableInput, key.Key)
 	if err != nil {
 		return false, serrors.WrapStr("validating segment initial request", err)
@@ -478,7 +477,6 @@ func (a *DRKeyAuthenticator) computeInitialMACforPayloadWithSegKeys(ctx context.
 	payload []byte, req *base.Request) error {
 
 	keys, err := a.slowAS2ASFromPath(ctx, req.Path.Steps, req.Timestamp)
-	log.FromCtx(ctx).Debug("VERBOSE", "keys", keys)
 	if err != nil {
 		return err
 	}
@@ -690,7 +688,6 @@ func (d *deriver) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key,
 		ProtoId:  meta.ProtoId,
 	}
 	sv, err := d.secreter.SV(ctx, svMeta)
-	log.FromCtx(ctx).Debug("VERBOSE", "sv", sv)
 	if err != nil {
 		return drkey.Lvl1Key{}, err
 	}
@@ -739,14 +736,14 @@ type slowKeyer interface {
 type lvl1Fetcher struct {
 	mtx     sync.Mutex
 	localIA addr.IA
-	Dialer  libgrpc.Dialer
+	dialer  libgrpc.Dialer
 	cache   map[addr.IA][]drkey.Lvl1Key // TODO expired entries should be cleaned up periodically
 }
 
 func newLvl1Fetcher(localIA addr.IA, dialer libgrpc.Dialer) *lvl1Fetcher {
 	return &lvl1Fetcher{
 		localIA: localIA,
-		Dialer:  dialer,
+		dialer:  dialer,
 		cache:   map[addr.IA][]drkey.Lvl1Key{},
 	}
 }
@@ -785,7 +782,7 @@ func (f *lvl1Fetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1
 }
 
 func (f *lvl1Fetcher) fetch(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
-	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	conn, err := f.dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
 	}
@@ -812,7 +809,7 @@ type secreter interface {
 }
 
 type cachingSVfetcher struct {
-	Dialer libgrpc.Dialer
+	dialer libgrpc.Dialer
 	cache  []drkey.SV // TODO expired entries should be cleaned up periodically
 	mtx    sync.Mutex // TODO could use RWMutex, but should be careful to avoid double-fetching SV!
 }
@@ -841,7 +838,7 @@ func (f *cachingSVfetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV,
 }
 
 func (f *cachingSVfetcher) fetch(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
-	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	conn, err := f.dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.SV{}, serrors.WrapStr("dialing", err)
 	}
@@ -850,15 +847,15 @@ func (f *cachingSVfetcher) fetch(ctx context.Context, meta drkey.SVMeta) (drkey.
 	protoReq, err := drkeyctrl.SVMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.SV{},
-			serrors.WrapStr("parsing AS-HOST request to protobuf", err)
+			serrors.WrapStr("parsing SV request to protobuf", err)
 	}
 	rep, err := client.SV(ctx, protoReq)
 	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("requesting AS-HOST key", err)
+		return drkey.SV{}, serrors.WrapStr("requesting SV", err)
 	}
 	key, err := drkeyctrl.GetSVFromReply(meta.ProtoId, rep)
 	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("obtaining AS-HOST key from reply", err)
+		return drkey.SV{}, serrors.WrapStr("obtaining SV from reply", err)
 	}
 	return key, nil
 }

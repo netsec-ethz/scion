@@ -351,24 +351,18 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 func (s *DaemonServer) ASHost(ctx context.Context,
 	req *dkpb.ASHostRequest) (*dkpb.ASHostResponse, error) {
 
-	logger := log.FromCtx(ctx)
-
 	meta, err := ctrl_drkey.RequestToASHostMeta(req)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Invalid DRKey AS-Host request", "err", err)
 		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetASHostKey(ctx, meta)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Error getting AS-Host", "err", err)
 		return nil, serrors.WrapStr("getting AS-Host from client store", err)
 	}
 
 	resp, err := ctrl_drkey.KeyToASHostResp(lvl2Key)
 	if err != nil {
-		logger.Debug("[DRKey DeamonService] Error parsing AS-Host to protobuf resp",
-			"err", err)
 		return nil, serrors.WrapStr("parsing to protobuf AS-Host", err)
 	}
 	return resp, nil
@@ -377,24 +371,18 @@ func (s *DaemonServer) ASHost(ctx context.Context,
 func (s *DaemonServer) HostAS(ctx context.Context,
 	req *dkpb.HostASRequest) (*dkpb.HostASResponse, error) {
 
-	logger := log.FromCtx(ctx)
-
 	meta, err := ctrl_drkey.RequestToHostASMeta(req)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Invalid DRKey Host-AS request", "err", err)
 		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetHostASKey(ctx, meta)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Error getting Host-AS", "err", err)
 		return nil, serrors.WrapStr("getting Host-AS from client store", err)
 	}
 
 	resp, err := ctrl_drkey.KeyToHostASResp(lvl2Key)
 	if err != nil {
-		logger.Debug("[DRKey DeamonService] Error parsing Host-AS to protobuf resp",
-			"err", err)
 		return nil, serrors.WrapStr("parsing to protobuf Host-AS", err)
 	}
 	return resp, nil
@@ -403,24 +391,18 @@ func (s *DaemonServer) HostAS(ctx context.Context,
 func (s *DaemonServer) HostHost(ctx context.Context,
 	req *dkpb.HostHostRequest) (*dkpb.HostHostResponse, error) {
 
-	logger := log.FromCtx(ctx)
-
 	meta, err := ctrl_drkey.RequestToHostHostMeta(req)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Invalid DRKey Host-Host request", "err", err)
 		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
 	if err != nil {
-		logger.Error("[DRKey DeamonService] Error getting Host-Host", "err", err)
 		return nil, serrors.WrapStr("getting Host-AS from client store", err)
 	}
 
 	resp, err := ctrl_drkey.KeyToHostHostResp(lvl2Key)
 	if err != nil {
-		logger.Debug("[DRKey DeamonService] Error parsing Host-Host to protobuf resp",
-			"err", err)
 		return nil, serrors.WrapStr("parsing to protobuf Host-Host", err)
 	}
 	return resp, nil

@@ -130,7 +130,7 @@ func TestLvl1KeyFetching(t *testing.T) {
 		Validity: time.Now(),
 		SrcIA:    xtest.MustParseIA("1-ff00:0:111"),
 	}
-	_, err = fetcher.FetchLvl1(context.Background(), meta)
+	_, err = fetcher.Lvl1(context.Background(), meta)
 	require.NoError(t, err)
 }
 
