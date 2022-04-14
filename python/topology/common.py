@@ -129,7 +129,6 @@ def colibri_ip_list(docker, topo_id,
     list = []
     for net_desc in networks.values():
         for prog, ip_net in net_desc.ip_net.items():
-            print('-'.join(prog.split('-')[0:2]), "==", 'co%s' % topo_id.file_fmt())
             if '-'.join(prog.split('-')[0:2]) == 'co%s' % topo_id.file_fmt():
                 list.append(str(ip_net.ip))
     return list
