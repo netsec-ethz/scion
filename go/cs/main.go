@@ -539,9 +539,8 @@ func realMain(ctx context.Context) error {
 		drkeyDB = libdrkey.Lvl1WithMetrics(string(storage.BackendSqlite), drkeyDB)
 		defer drkeyDB.Close()
 		loader := trust.X509KeyPairProvider{
-			IA:      topo.IA(),
-			DB:      trustDB,
-			Timeout: 5 * time.Second,
+			IA: topo.IA(),
+			DB: trustDB,
 			Loader: cstrust.LoadingRing{
 				Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
 			},

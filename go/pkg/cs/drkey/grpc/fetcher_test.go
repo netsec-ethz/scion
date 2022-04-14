@@ -80,7 +80,7 @@ func TestLvl1KeyFetching(t *testing.T) {
 	mgrdb := mock_trust.NewMockDB(ctrl)
 	mgrdb.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
 	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadX509KeyPair(gomock.Any()).AnyTimes().Return(&tlsCert, nil)
+	loader.EXPECT().LoadX509KeyPair(gomock.Any(), gomock.Any()).AnyTimes().Return(&tlsCert, nil)
 	mgr := trust.NewTLSCryptoManager(loader, mgrdb)
 
 	drkeyServ := &dk_grpc.Server{

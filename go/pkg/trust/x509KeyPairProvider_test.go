@@ -15,6 +15,7 @@
 package trust_test
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -428,12 +429,11 @@ func TestLoadX509KeyPair(t *testing.T) {
 			defer mctrl.Finish()
 
 			provider := trust.X509KeyPairProvider{
-				IA:      xtest.MustParseIA("1-ff00:0:110"),
-				DB:      tc.db(mctrl),
-				Timeout: 5 * time.Second,
-				Loader:  tc.keyLoader(mctrl),
+				IA:     xtest.MustParseIA("1-ff00:0:110"),
+				DB:     tc.db(mctrl),
+				Loader: tc.keyLoader(mctrl),
 			}
-			tlsCert, err := provider.LoadX509KeyPair(tc.extKeyUsage)
+			tlsCert, err := provider.LoadX509KeyPair(context.Background(), tc.extKeyUsage)
 			tc.assertFunc(t, err)
 			if err == nil {
 				assert.Equal(t, tc.expectedCert().Leaf.SubjectKeyId, tlsCert.Leaf.SubjectKeyId)

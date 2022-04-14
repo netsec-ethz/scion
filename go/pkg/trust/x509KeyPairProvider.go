@@ -28,19 +28,15 @@ import (
 )
 
 type X509KeyPairProvider struct {
-	IA      addr.IA
-	DB      DB
-	Timeout time.Duration
-	Loader  KeyRing
+	IA     addr.IA
+	DB     DB
+	Loader KeyRing
 }
 
 var _ X509KeyPairLoader = (*X509KeyPairProvider)(nil)
 
-func (p X509KeyPairProvider) LoadX509KeyPair(extKeyUsage x509.ExtKeyUsage) (
+func (p X509KeyPairProvider) LoadX509KeyPair(ctx context.Context, extKeyUsage x509.ExtKeyUsage) (
 	*tls.Certificate, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
-	defer cancel()
-
 	keys, err := p.Loader.PrivateKeys(ctx)
 	if err != nil {
 		log.Error("Error getting keys", "err", err)

@@ -28,12 +28,12 @@ const defaultTimeout = 5 * time.Second
 
 // X509KeyPairLoader provides a certificate to be presented during TLS handshake.
 type X509KeyPairLoader interface {
-	LoadX509KeyPair(extKeyUsages x509.ExtKeyUsage) (*tls.Certificate, error)
+	LoadX509KeyPair(ctx context.Context, extKeyUsage x509.ExtKeyUsage) (*tls.Certificate, error)
 }
 
 // TLSCryptoManager implements callbacks which will be called during TLS handshake.
 type TLSCryptoManager struct {
-	Loader  X509KeyPairLoader
+	loader  X509KeyPairLoader
 	DB      DB
 	Timeout time.Duration
 }
@@ -42,14 +42,14 @@ type TLSCryptoManager struct {
 func NewTLSCryptoManager(loader X509KeyPairLoader, db DB) *TLSCryptoManager {
 	return &TLSCryptoManager{
 		DB:      db,
-		Loader:  loader,
+		loader:  loader,
 		Timeout: defaultTimeout,
 	}
 }
 
 // GetCertificate retrieves a certificate to be presented during TLS handshake.
-func (m *TLSCryptoManager) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	c, err := m.Loader.LoadX509KeyPair(x509.ExtKeyUsageServerAuth)
+func (m *TLSCryptoManager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	c, err := m.loader.LoadX509KeyPair(hello.Context(), x509.ExtKeyUsageServerAuth)
 	if err != nil {
 		return nil, serrors.WrapStr("loading server key pair", err)
 	}
@@ -57,9 +57,9 @@ func (m *TLSCryptoManager) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certific
 }
 
 // GetClientCertificate retrieves a client certificate to be presented during TLS handshake.
-func (m *TLSCryptoManager) GetClientCertificate(_ *tls.CertificateRequestInfo) (*tls.Certificate,
+func (m *TLSCryptoManager) GetClientCertificate(reqInfo *tls.CertificateRequestInfo) (*tls.Certificate,
 	error) {
-	c, err := m.Loader.LoadX509KeyPair(x509.ExtKeyUsageClientAuth)
+	c, err := m.loader.LoadX509KeyPair(reqInfo.Context(), x509.ExtKeyUsageClientAuth)
 	if err != nil {
 		return nil, serrors.WrapStr("loading client key pair", err)
 	}
