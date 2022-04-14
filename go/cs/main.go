@@ -548,9 +548,14 @@ func realMain(ctx context.Context) error {
 		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.TLSQUICDialer{
-				Rewriter:    nc.AddressRewriter(nil),
-				Dialer:      quicStack.TLSDialer,
-				Credentials: trust.GetTansportCredentials(tlsMgr),
+				Rewriter: nc.AddressRewriter(nil),
+				Dialer:   quicStack.TLSDialer,
+				Credentials: credentials.NewTLS(&tls.Config{
+					InsecureSkipVerify:    true,
+					GetClientCertificate:  tlsMgr.GetClientCertificate,
+					VerifyPeerCertificate: tlsMgr.VerifyServerCertificate,
+					VerifyConnection:      tlsMgr.VerifyConnection,
+				}),
 			},
 			Router:     segreq.NewRouter(fetcherCfg),
 			MaxRetries: 20,

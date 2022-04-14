@@ -95,12 +95,12 @@ func TestLvl1KeyFetching(t *testing.T) {
 	}
 	serverCreds := credentials.NewTLS(serverConf)
 
-	clientConf := &tls.Config{
+	clientCreds := credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify:    true,
 		GetClientCertificate:  mgr.GetClientCertificate,
 		VerifyPeerCertificate: mgr.VerifyServerCertificate,
-	}
-	clientCreds := trust.NewClientCredentials(clientConf)
+		VerifyConnection:      mgr.VerifyConnection,
+	})
 
 	conn, err := grpc.DialContext(context.Background(),
 		"1-ff00:0:111,127.0.0.1:10000",
@@ -133,84 +133,3 @@ func TestLvl1KeyFetching(t *testing.T) {
 	_, err = fetcher.Lvl1(context.Background(), meta)
 	require.NoError(t, err)
 }
-
-// XXX(JordiSubira) TestLvl1KeyFetching below checks correct Lvl1 key exchange as from Go1.15
-// which introduces VerifyConnection callback to access TLS state during handshake.
-
-// func TestLvl1KeyFetching(t *testing.T) {
-// 	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
-// 	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
-// 	key111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key"
-// 	tlsCert, err := tls.LoadX509KeyPair(crt111File, key111File)
-// 	require.NoError(t, err)
-// 	chain, err := cppki.ReadPEMCerts(crt111File)
-// 	_ = chain
-// 	require.NoError(t, err)
-// 	ia111 := xtest.MustParseIA("1-ff00:0:111")
-
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
-
-// 	lvl1db := mock_st.NewMockServiceStore(ctrl)
-// 	lvl1db.EXPECT().DeriveLvl1(gomock.Any(), gomock.Any()).Return(drkey.Lvl1Key{}, nil)
-
-// 	mgrdb := mock_trust.NewMockDB(ctrl)
-// 	mgrdb.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
-// 	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-// 	loader.EXPECT().LoadX509KeyPair().AnyTimes().Return(&tlsCert, nil)
-// 	mgr := trust.NewTLSCryptoManager(loader, mgrdb)
-
-// 	drkeyServ := &DRKeyServer{
-// 		Store: lvl1db,
-// 	}
-
-// 	serverConf := &tls.Config{
-// 		InsecureSkipVerify:    true,
-// 		GetCertificate:        mgr.GetCertificate,
-// 		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
-// 		ClientAuth:            tls.RequireAnyClientCert,
-// 	}
-// 	serverCreds := credentials.NewTLS(serverConf)
-// 	clientConf := &tls.Config{
-// 		InsecureSkipVerify:    true,
-// 		GetClientCertificate:  mgr.GetClientCertificate,
-// 		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
-// 		VerifyConnection:      verifyConnection,
-// 	}
-// 	clientCreds := credentials.NewTLS(clientConf)
-
-// 	conn, err := grpc.DialContext(context.Background(),
-// 		"1-ff00:0:112",
-// 		grpc.WithTransportCredentials(clientCreds),
-// 		grpc.WithContextDialer(dialer(serverCreds, drkeyServ)),
-// 	)
-// 	// conn, err := grpc.DialContext(context.Background(), "",
-// 	// 	grpc.WithInsecure(),
-// 	// 	grpc.WithContextDialer(dialer(serverCreds, drkeyServ)))
-// 	require.NoError(t, err)
-// 	defer conn.Close()
-
-// 	client := cppb.NewDRKeyLvl1ServiceClient(conn)
-
-// 	lvl1req := pb_ctrl.NewLvl1Req(ia111, time.Now())
-// 	req, err := lvl1reqToProtoRequest(lvl1req)
-// 	require.NoError(t, err)
-// 	_, err = client.DRKeyLvl1(context.Background(), req)
-// 	require.NoError(t, err)
-// }
-
-// func verifyConnection(cs tls.ConnectionState) error {
-// 	serverIA, err := addr.IAFromString(cs.ServerName)
-// 	if err != nil {
-// 		return serrors.WrapStr("extracting IA from server name", err)
-// 	}
-// 	certIA, err := cppki.ExtractIA(cs.PeerCertificates[0].Subject)
-// 	if err != nil {
-// 		return serrors.WrapStr("extracting IA from peer cert", err)
-// 	}
-// 	if !serverIA.Equal(*certIA) {
-// 		return serrors.New("extracted IA from cert and server IA do not match",
-// 			"peer IA", certIA, "server IA", serverIA)
-// 	}
-// 	return nil
-// }

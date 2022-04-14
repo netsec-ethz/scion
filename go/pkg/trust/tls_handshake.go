@@ -18,8 +18,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"strings"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -74,6 +76,23 @@ func (m *TLSCryptoManager) VerifyServerCertificate(rawCerts [][]byte,
 func (m *TLSCryptoManager) VerifyClientCertificate(rawCerts [][]byte,
 	_ [][]*x509.Certificate) error {
 	return m.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageClientAuth)
+}
+
+func (m *TLSCryptoManager) VerifyConnection(cs tls.ConnectionState) error {
+	serverNameIA := strings.Split(cs.ServerName, ",")[0]
+	serverIA, err := addr.ParseIA(serverNameIA)
+	if err != nil {
+		return serrors.WrapStr("extracting IA from server name", err)
+	}
+	certIA, err := cppki.ExtractIA(cs.PeerCertificates[0].Subject)
+	if err != nil {
+		return serrors.WrapStr("extracting IA from peer cert", err)
+	}
+	if !serverIA.Equal(certIA) {
+		return serrors.New("extracted IA from cert and server IA do not match",
+			"peer IA", certIA, "server IA", serverIA)
+	}
+	return nil
 }
 
 // VerifyPeerCertificate verifies the certificate presented by the peer during TLS handshake,
