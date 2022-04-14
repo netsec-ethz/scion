@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/coliquic"
 	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -60,7 +59,7 @@ type Store struct {
 var _ reservationstorage.Store = (*Store)(nil)
 
 // NewStore creates a new reservation store.
-func NewStore(topo *topology.Loader, tcpDialer libgrpc.Dialer, sd daemon.Connector,
+func NewStore(topo *topology.Loader, tcpDialer libgrpc.Dialer,
 	router snet.Router,
 	dialer coliquic.GRPCClientDialer, db backend.DB, admitter admission.Admitter,
 	masterKey []byte) (*Store, error) {
