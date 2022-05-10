@@ -92,6 +92,8 @@ func getDstUDP(pkt *respool.Packet) (Destination, error) {
 		return nil, err
 	}
 
+	// XXX(mawyss): This is a temporary solution to allow the dispatcher to forward Colibri
+	// control packets to the right destination.
 	// For Colibri control packets, i.e., for packets where the `C`-flag is set, ignore the
 	// destination ISD/AS. Instead, read the ISD/AS from the high-precision timestamp. The
 	// timestamp field was overritten by the ingress border router to contain the current ISD/AS.
