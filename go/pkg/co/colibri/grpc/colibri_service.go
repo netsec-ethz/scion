@@ -32,6 +32,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
@@ -45,13 +48,12 @@ var _ colpb.ColibriServiceServer = (*ColibriService)(nil)
 func (s *ColibriService) SegmentSetup(ctx context.Context, msg *colpb.SegmentSetupRequest) (
 	*colpb.SegmentSetupResponse, error) {
 
-	msg.Base.Path.CurrentStep++ // TODO(juagargi) do this in the app layer (instead of pbuf msg)
-	// path, err := extractPath(ctx)
-	// if err != nil {
-	// 	log.Error("setup segment", "err", err)
-	// 	return nil, err
-	// }
-	req, err := translate.SetupReq(msg)
+	path, err := extractPathFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
+	req, err := translate.SetupReq(msg, path)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		// should send a message?
@@ -70,8 +72,12 @@ func (s *ColibriService) SegmentSetup(ctx context.Context, msg *colpb.SegmentSet
 func (s *ColibriService) ConfirmSegmentIndex(ctx context.Context,
 	msg *colpb.ConfirmSegmentIndexRequest) (*colpb.ConfirmSegmentIndexResponse, error) {
 
-	msg.Base.Path.CurrentStep++
-	req, err := translate.Request(msg.Base)
+	path, err := extractPathFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
+	req, err := translate.Request(msg.Base, path)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
@@ -91,8 +97,12 @@ func (s *ColibriService) ConfirmSegmentIndex(ctx context.Context,
 func (s *ColibriService) ActivateSegmentIndex(ctx context.Context,
 	msg *colpb.ActivateSegmentIndexRequest) (*colpb.ActivateSegmentIndexResponse, error) {
 
-	msg.Base.Path.CurrentStep++
-	req, err := translate.Request(msg.Base)
+	path, err := extractPathFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
+	req, err := translate.Request(msg.Base, path)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
@@ -112,8 +122,12 @@ func (s *ColibriService) ActivateSegmentIndex(ctx context.Context,
 func (s *ColibriService) TeardownSegment(ctx context.Context, msg *colpb.TeardownSegmentRequest) (
 	*colpb.TeardownSegmentResponse, error) {
 
-	msg.Base.Path.CurrentStep++
-	req, err := translate.Request(msg.Base)
+	path, err := extractPathFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
+	req, err := translate.Request(msg.Base, path)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
@@ -133,8 +147,12 @@ func (s *ColibriService) TeardownSegment(ctx context.Context, msg *colpb.Teardow
 func (s *ColibriService) CleanupSegmentIndex(ctx context.Context,
 	msg *colpb.CleanupSegmentIndexRequest) (*colpb.CleanupSegmentIndexResponse, error) {
 
-	msg.Base.Path.CurrentStep++
-	req, err := translate.Request(msg.Base)
+	path, err := extractPathFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
+	req, err := translate.Request(msg.Base, path)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
@@ -168,8 +186,8 @@ func (s *ColibriService) ListReservations(ctx context.Context, msg *colpb.ListRe
 func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupRequest) (
 	*colpb.E2ESetupResponse, error) {
 
-	msg.Base.Base.Path.CurrentStep++
-	req, err := translate.E2ESetupRequest(msg)
+	msg.Base.CurrentStep++
+	req, err := translate.E2ESetupRequest(msg, empty.Path{})
 	if err != nil {
 		log.Error("translating e2e setup", "err", err)
 		return nil, serrors.WrapStr("translating e2e setup", err)
@@ -185,8 +203,8 @@ func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupReques
 func (s *ColibriService) CleanupE2EIndex(ctx context.Context, msg *colpb.CleanupE2EIndexRequest) (
 	*colpb.CleanupE2EIndexResponse, error) {
 
-	msg.Base.Base.Path.CurrentStep++
-	req, err := translate.E2ERequest(msg.Base)
+	msg.Base.CurrentStep++
+	req, err := translate.E2ERequest(msg.Base, empty.Path{})
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
@@ -238,11 +256,12 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 				Id:             msg.Id,
 				Index:          msg.Index,
 				Timestamp:      msg.Timestamp,
-				Path:           &colpb.TransparentPath{Steps: msg.PathSteps},
+				Steps:          msg.PathSteps,
 				Authenticators: &colpb.Authenticators{},
 			},
-			SrcHost: msg.SrcHost,
-			DstHost: msg.DstHost,
+			SrcHost:     msg.SrcHost,
+			DstHost:     msg.DstHost,
+			CurrentStep: 0,
 		},
 		RequestedBw: msg.RequestedBw,
 		Params: &colpb.E2ESetupRequest_PathParams{
@@ -252,7 +271,8 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		Allocationtrail: nil,
 	}
 	pbReq.Base.Base.Authenticators.Macs = msg.Authenticators.Macs
-	req, err := translate.E2ESetupRequest(pbReq)
+	// TODO: This should be a colibri.Path (Stitched SegRsvs)
+	req, err := translate.E2ESetupRequest(pbReq, empty.Path{})
 	if err != nil {
 		log.Error("translating initial E2E setup from daemon to service", "err", err)
 		return nil, err
@@ -327,13 +347,14 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 	if _, err := checkLocalCaller(ctx); err != nil {
 		return nil, err
 	}
-	p, err := translate.TransparentPath(msg.Base.Path)
-	if err != nil {
-		return nil, err
+	trans := base.TransparentPath{
+		Steps: translate.TransparentPathSteps(msg.Base.Steps),
 	}
+
+	// TODO: RawPath must be recovered from the existing reservation to clean
 	req := &e2e.Request{
 		Request: *base.NewRequest(time.Now(), translate.ID(msg.Base.Id),
-			reservation.IndexNumber(msg.Base.Index), p),
+			reservation.IndexNumber(msg.Base.Index), &trans),
 		SrcHost: msg.SrcHost,
 		DstHost: msg.DstHost,
 	}
@@ -404,4 +425,52 @@ func checkLocalCaller(ctx context.Context) (*net.TCPAddr, error) {
 			"type", common.TypeOf(p.Addr))
 	}
 	return tcpaddr, nil
+}
+
+func extractPathFromCtx(ctx context.Context) (slayerspath.Path, error) {
+	gPeer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, serrors.New("peer must exist")
+	}
+	logger := log.FromCtx(ctx)
+
+	peer, ok := gPeer.Addr.(*snet.UDPAddr)
+	if !ok {
+		logger.Debug("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
+		return nil, serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
+	}
+
+	// log.FromCtx(ctx).Debug("XXXL", "peer", peer)
+
+	path, err := base.PathFromDataplanePath(peer.Path)
+	if err != nil || path == nil {
+		return nil, serrors.WrapStr("decoding path information", err)
+	}
+
+	// XXX(JordiSubira): Hack, reverse path again to recover forwarding direction path
+	fwdPath, err := copyFrom(path).Reverse()
+	if err != nil {
+		return nil, serrors.WrapStr("reversing path", err)
+	}
+
+	return fwdPath, nil
+}
+
+func copyFrom(p slayerspath.Path) slayerspath.Path {
+	var rp slayerspath.Path
+	if p != nil {
+		var err error
+		buff := make([]byte, p.Len())
+		if err = p.SerializeTo(buff); err != nil {
+			panic(fmt.Sprintf("cannot copy path, SerializeTo failed: %s", err))
+		}
+		rp, err = slayerspath.NewPath(p.Type())
+		if err != nil {
+			panic(err)
+		}
+		if err = rp.DecodeFromBytes(buff); err != nil {
+			panic(fmt.Sprintf("cannot copy path, DecodeFromBytes failed: %s", err))
+		}
+	}
+	return rp
 }

@@ -24,9 +24,72 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 )
+
+func PathStepsFromPath(path snet.Path) []PathStep {
+	ifaces := path.Metadata().Interfaces
+	if len(ifaces)%2 != 0 {
+		panic("wrong number of interfaces, not even")
+	}
+	if len(ifaces) == 0 {
+		return []PathStep{}
+	}
+	steps := make([]PathStep, len(ifaces)/2+1)
+
+	for i := 0; i < len(steps)-1; i++ {
+		steps[i].Egress = uint16(ifaces[i*2].ID)
+		steps[i].IA = ifaces[i*2].IA
+		steps[i+1].Ingress = uint16(ifaces[i*2+1].ID)
+	}
+	steps[len(steps)-1].IA = ifaces[len(ifaces)-1].IA
+	return steps
+}
+
+func GetCurrentHopField(path slayerspath.Path) uint8 {
+	switch v := path.(type) {
+	case *colibri.ColibriPath:
+		return v.InfoField.CurrHF
+	case *colibri.ColibriPathMinimal:
+		return v.InfoField.CurrHF
+	case *scion.Raw:
+		return v.PathMeta.CurrHF
+	case empty.Path:
+		// TODO(JordiSubira): temporary hack, this value will be override with the E2ERequest currentStep.
+		// Remove this once we convery E2ESetup request over Colibri path.
+		return 0
+	default:
+		panic(fmt.Sprintf("Invalid path type %T!\n", v))
+	}
+}
+
+func EgressFromDataPlanePath(path slayerspath.Path) uint16 {
+	switch v := path.(type) {
+	case *colibri.ColibriPathMinimal:
+		return v.CurrHopField.EgressId
+	case *colibri.ColibriPath:
+		curr := v.InfoField.CurrHF
+		return v.HopFields[curr].EgressId
+	case *scion.Raw:
+		inf, err := v.GetCurrentInfoField()
+		if err != nil {
+			panic(err)
+		}
+		hf, err := v.GetCurrentHopField()
+		if err != nil {
+			panic(err)
+		}
+		if inf.ConsDir {
+			return hf.ConsEgress
+		}
+		return hf.ConsIngress
+	default:
+		panic(fmt.Sprintf("Invalid path type %T!\n", v))
+	}
+}
 
 // TransparentPath is used in e.g. setup requests, where the IAs should not be visible.
 // They are visible now (as the TransparentPath name implies), but this should change in the future.

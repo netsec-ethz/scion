@@ -32,7 +32,7 @@ service ColibriService {
     rpc TeardownSegment(TeardownSegmentRequest) returns (TeardownSegmentResponse) {}
     // clean up a segment reservation index.
     rpc CleanupSegmentIndex(CleanupSegmentIndexRequest) returns (CleanupSegmentIndexResponse) {}
-    
+
     // E2E RPCs:
 
     // list segment reservations registered in this AS.
@@ -85,17 +85,6 @@ message PathStep {
     uint32 egress =3;
 }
 
-message TransparentPath {
-    // current step (8 bits).
-    uint32 current_step = 1;
-    // the path steps.
-    repeated PathStep steps = 2;
-    // the raw path type.
-    uint32 path_type = 3;
-    // the raw path representation (after serialization).
-    bytes raw_path = 4;
-}
-
 message Authenticators {
     // A collection of MAC bytes, computed by the source AS with the original data, and then
     // overwritten at each step of the path by the AS in transit.
@@ -112,7 +101,7 @@ message Request {
     // the timestamp when the request was issued.
     uint32 timestamp = 3;
     // the path the request will follow.
-    TransparentPath path = 4;
+    repeated PathStep steps = 4;
     // drkey authenticators.
     Authenticators authenticators = 5;
 }
@@ -279,6 +268,7 @@ message E2ERequest {
     bytes src_host = 2;
     // address of the destination host.
     bytes dst_host = 3;
+    uint32 current_step = 4;
 }
 
 message E2ESetupRequest {

@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
@@ -110,16 +111,24 @@ func (o *ServiceClientOperator) ColibriClient(ctx context.Context, transp *base.
 	}
 	rAddr = rAddr.Copy() // preserve the original data
 
+	// TODO(JordiSubira): if nil, use hop-by-hop path
+	buf := make([]byte, transp.RawPath.Len())
+	transp.RawPath.SerializeTo(buf)
+
 	// prepare remote address with the new path
 	switch transp.RawPath.Type() {
 	case scion.PathType: // don't touch the service path
+		rAddr.Path = snetpath.SCION{Raw: buf}
 	case colibri.PathType:
+		rAddr.Path = snetpath.Colibri{Raw: buf}
 		// TODO(juagargi): reactivate use of reservations for control traffic
 		// // replace the service path with the colibri one.
 		// The source must also be the original one
 		// rAddr.Path = rawPath.Copy()
 		// rAddr.IA = transp.SrcIA()
 		// TODO(juagargi) check if the colibri path is expired, and don't use it in that case
+	default:
+		// Do nothing when e.g. empty path
 	}
 
 	conn, err := o.connDialer.Dial(ctx, rAddr)
