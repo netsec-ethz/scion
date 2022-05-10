@@ -244,7 +244,7 @@ func (c *colibriPacketProcessor) forwardToColibriSvc() (processResult, error) {
 	}
 
 	// XXX(mawyss): This is a temporary solution to allow the dispatcher to forward Colibri
-	// control packets to the right destination.
+	// control packets to the right destination (https://github.com/netsec-ethz/scion/pull/116).
 	// Encode the current ISD/AS in the Colibri high-precision timestamp field of control
 	// packets (C=1). This serves the purpose of supporting one single dispatcher for multiple
 	// ASes, as now the dispatcher can know to which AS the Colibri control packet should be
