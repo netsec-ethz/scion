@@ -16,6 +16,7 @@
 package dispatcher
 
 import (
+	"encoding/binary"
 	"net"
 
 	"github.com/google/gopacket"
@@ -28,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
 const (
@@ -84,14 +86,30 @@ func getDst(pkt *respool.Packet) (Destination, error) {
 }
 
 func getDstUDP(pkt *respool.Packet) (Destination, error) {
+	dstIA := pkt.SCION.DstIA
 	dst, err := pkt.SCION.DstAddr()
 	if err != nil {
 		return nil, err
 	}
+
+	// For Colibri control packets, i.e., for packets where the `C`-flag is set, ignore the
+	// destination ISD/AS. Instead, read the ISD/AS from the high-precision timestamp. The
+	// timestamp field was overritten by the ingress border router to contain the current ISD/AS.
+	// This serves the purpose of supporting a single dispatcher for multiple ASes.
+	if pkt.SCION.PathType == colibri.PathType {
+		colPath, ok := pkt.SCION.Path.(*colibri.ColibriPathMinimal)
+		if !ok {
+			return nil, serrors.New("not a colibri path", "path", pkt.SCION.Path)
+		}
+		if colPath.InfoField.C == true {
+			dstIA = addr.IA(binary.BigEndian.Uint64(colPath.PacketTimestamp[:]))
+		}
+	}
+
 	switch d := dst.(type) {
 	case *net.IPAddr:
 		return UDPDestination{
-			IA: pkt.SCION.DstIA,
+			IA: dstIA,
 			Public: &net.UDPAddr{
 				IP:   d.IP,
 				Port: int(pkt.UDP.DstPort),
@@ -99,7 +117,7 @@ func getDstUDP(pkt *respool.Packet) (Destination, error) {
 		}, nil
 	case addr.HostSVC:
 		return SVCDestination{
-			IA:  pkt.SCION.DstIA,
+			IA:  dstIA,
 			Svc: d,
 		}, nil
 	default:

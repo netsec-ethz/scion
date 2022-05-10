@@ -15,6 +15,7 @@
 package router
 
 import (
+	"encoding/binary"
 	"time"
 
 	"github.com/google/gopacket"
@@ -241,5 +242,15 @@ func (c *colibriPacketProcessor) forwardToColibriSvc() (processResult, error) {
 	if !ok {
 		return processResult{}, serrors.New("no colibri service registered at border router")
 	}
+
+	// Encode the current ISD/AS in the Colibri high-precision timestamp field of control
+	// packets (C=1). This serves the purpose of supporting one single dispatcher for multiple
+	// ASes, as now the dispatcher can know to which AS the Colibri control packet should be
+	// forwarded.
+	binary.BigEndian.PutUint64(c.colibriPathMinimal.PacketTimestamp[:], uint64(c.d.localIA))
+	if err := c.colibriPathMinimal.SerializeToInternal(); err != nil {
+		return processResult{}, err
+	}
+
 	return processResult{OutConn: c.d.internal, OutAddr: a, OutPkt: c.rawPkt}, nil
 }
