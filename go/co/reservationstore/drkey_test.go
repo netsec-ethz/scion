@@ -302,7 +302,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeResponseMAC(ctx, tc.res, tc.path)
+				err := auth.ComputeResponseMAC(ctx, tc.res, tc.path.SrcIA(), tc.path.CurrentStep)
 				require.NoError(t, err)
 			}
 
@@ -418,7 +418,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				slowKeyer: fakeSlowKeyer{localIA: srcIA},
 			}
 			tc.path.CurrentStep = 0
-			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.path)
+			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.path.Steps)
 			require.NoError(t, err)
 			require.True(t, ok, "validation failed")
 		})

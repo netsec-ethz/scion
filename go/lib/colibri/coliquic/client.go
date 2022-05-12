@@ -111,7 +111,6 @@ func (o *ServiceClientOperator) ColibriClient(ctx context.Context, transp *base.
 	}
 	rAddr = rAddr.Copy() // preserve the original data
 
-	// TODO(JordiSubira): if nil, use hop-by-hop path
 	buf := make([]byte, transp.RawPath.Len())
 	transp.RawPath.SerializeTo(buf)
 
@@ -121,14 +120,10 @@ func (o *ServiceClientOperator) ColibriClient(ctx context.Context, transp *base.
 		rAddr.Path = snetpath.SCION{Raw: buf}
 	case colibri.PathType:
 		rAddr.Path = snetpath.Colibri{Raw: buf}
-		// TODO(juagargi): reactivate use of reservations for control traffic
-		// // replace the service path with the colibri one.
-		// The source must also be the original one
-		// rAddr.Path = rawPath.Copy()
-		// rAddr.IA = transp.SrcIA()
-		// TODO(juagargi) check if the colibri path is expired, and don't use it in that case
 	default:
-		// Do nothing when e.g. empty path
+		// Do nothing when e.g. empty path for E2EReservations
+		// E2EReservations must eventually travel through colibri path
+		// In that case they will follow same logic as above
 	}
 
 	conn, err := o.connDialer.Dial(ctx, rAddr)
