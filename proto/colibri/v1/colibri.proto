@@ -269,6 +269,7 @@ message E2ERequest {
     // address of the destination host.
     bytes dst_host = 3;
     uint32 current_step = 4;
+    repeated PathStep steps = 5;
 }
 
 message E2ESetupRequest {

@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/serrors"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -210,15 +211,19 @@ func (k *keeper) setupsPerDestination(ctx context.Context, dstIA addr.IA, entrie
 // activateIndices expects reservations that have a confirmed index that can be activated.
 func (k *keeper) activateIndices(ctx context.Context, rsvs []*segment.Reservation) error {
 	reqs := make([]*base.Request, len(rsvs))
+	steps := make([]base.PathSteps, len(rsvs))
+	paths := make([]slayerspath.Path, len(rsvs))
 	for i, rsv := range rsvs {
 		index := rsv.NextIndexToActivate()
 		if index == nil {
 			return serrors.New("request to activate, but no index suitable", "id", rsv.ID,
 				"indices", rsv.Indices.String())
 		}
-		reqs[i] = base.NewRequest(k.manager.Now(), &rsv.ID, index.Idx, rsv.PathAtSource.Copy())
+		reqs[i] = base.NewRequest(k.manager.Now(), &rsv.ID, index.Idx, rsv.Steps.Copy())
+		steps[i] = rsv.Steps.Copy()
+		paths[i] = rsv.RawPath
 	}
-	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, reqs))
+	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, reqs, steps, paths))
 	if len(errs) > 0 {
 		log.Info("errors while activating rsvs", "errs", errs)
 		return serrors.New("errors in activation")
@@ -277,6 +282,8 @@ func (k *keeper) requestNSuccessfulRsvs(ctx context.Context, dstIA addr.IA, entr
 	requests []*seg.SetupReq, pendingCount int) error {
 
 	needActivation := make([]*base.Request, 0)
+	needActivationSteps := make([]base.PathSteps, 0)
+	needActivationPaths := make([]slayerspath.Path, 0)
 	var setups []*seg.SetupReq
 	for pendingCount > 0 && len(requests) > 0 {
 		indices := entry.SelectRequests(requests, pendingCount)
@@ -285,7 +292,9 @@ func (k *keeper) requestNSuccessfulRsvs(ctx context.Context, dstIA addr.IA, entr
 		for i, req := range setups {
 			if errs[i] == nil {
 				needActivation = append(needActivation, base.NewRequest(k.manager.Now(), &req.ID,
-					req.Index, req.Path))
+					req.Index, req.Steps))
+				needActivationSteps = append(needActivationSteps, req.Steps)
+				needActivationPaths = append(needActivationPaths, req.RawPath)
 			}
 		}
 		errs = filterEmptyErrors(errs)
@@ -298,7 +307,7 @@ func (k *keeper) requestNSuccessfulRsvs(ctx context.Context, dstIA addr.IA, entr
 		return serrors.New("could not request the minimum required of reservations",
 			"dst", dstIA, "requests_len", len(requests))
 	}
-	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, needActivation))
+	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, needActivation, needActivationSteps, needActivationPaths))
 	if len(errs) > 0 {
 		log.Info("errors while activating reservations", "errs", errs)
 		return serrors.New("could not activate all reservations", "err_count", len(errs))
@@ -378,7 +387,11 @@ func (e *requirements) PrepareSetupRequests(paths []snet.Path,
 	requests := make([]*seg.SetupReq, len(filtered))
 	// create setup requests
 	for i, p := range filtered {
-		transp, err := base.TransparentPathFromSnet(p)
+		steps, err := base.StepsFromSnet(p)
+		if err != nil {
+			return nil, err
+		}
+		rawPath, err := base.PathFromDataplanePath(p.Dataplane())
 		if err != nil {
 			return nil, err
 		}
@@ -387,20 +400,21 @@ func (e *requirements) PrepareSetupRequests(paths []snet.Path,
 			Suffix: make([]byte, reservation.IDSuffixSegLen),
 		}
 		req := &seg.SetupReq{
-			Request:        *base.NewRequest(now, &id, 0, transp),
+			Request:        *base.NewRequest(now, &id, 0, steps),
 			ExpirationTime: expTime,
 			// RLC:            rlc,
-			PathType:     e.pathType,
-			MinBW:        e.minBW,
-			MaxBW:        e.maxBW,
-			SplitCls:     e.splitCls,
-			PathProps:    e.endProps,
-			AllocTrail:   reservation.AllocationBeads{},
-			PathAtSource: transp,
+			PathType:   e.pathType,
+			MinBW:      e.minBW,
+			MaxBW:      e.maxBW,
+			SplitCls:   e.splitCls,
+			PathProps:  e.endProps,
+			AllocTrail: reservation.AllocationBeads{},
+			Steps:      steps,
+			RawPath:    rawPath,
 		}
 		requests[i] = req
-		log.Debug("keeper prepared request", "id", req.ID, "dst", req.PathAtSource.DstIA(),
-			"path", req.PathAtSource)
+		log.Debug("keeper prepared request", "id", req.ID, "dst", req.Steps.DstIA(),
+			"path", req.Steps)
 	}
 	return requests, nil
 }
@@ -410,23 +424,24 @@ func (e *requirements) PrepareRenewalRequests(rsvs []*seg.Reservation, now, expT
 
 	requests := []*seg.SetupReq{}
 	for _, rsv := range rsvs {
-		if !e.predicate.EvalInterfaces(rsv.PathAtSource.Interfaces()) {
+		if !e.predicate.EvalInterfaces(rsv.Steps.Interfaces()) {
 			continue
 		}
 
 		req := &seg.SetupReq{
 			Request: *base.NewRequest(now, &rsv.ID, rsv.NextIndexToRenew(),
-				rsv.PathAtSource),
+				rsv.Steps),
 			ExpirationTime: expTime,
 			// RLC:            e.RLC,
-			PathType:     rsv.PathType,
-			MinBW:        e.minBW,
-			MaxBW:        e.maxBW,
-			SplitCls:     rsv.TrafficSplit,
-			PathProps:    rsv.PathEndProps,
-			AllocTrail:   reservation.AllocationBeads{}, // at source
-			PathAtSource: rsv.PathAtSource,
-			Reservation:  rsv,
+			PathType:    rsv.PathType,
+			MinBW:       e.minBW,
+			MaxBW:       e.maxBW,
+			SplitCls:    rsv.TrafficSplit,
+			PathProps:   rsv.PathEndProps,
+			AllocTrail:  reservation.AllocationBeads{}, // at source
+			Steps:       rsv.Steps,
+			RawPath:     rsv.RawPath,
+			Reservation: rsv,
 		}
 		requests = append(requests, req)
 	}
@@ -451,7 +466,7 @@ func (e requirements) Compliance(rsv *seg.Reservation, atLeastUntil time.Time) C
 		return NeverCompliant
 	case rsv.PathEndProps != e.endProps:
 		return NeverCompliant
-	case !e.predicate.EvalInterfaces(rsv.PathAtSource.Interfaces()):
+	case !e.predicate.EvalInterfaces(rsv.Steps.Interfaces()):
 		return NeverCompliant
 	}
 	indices := rsv.Indices.Filter(

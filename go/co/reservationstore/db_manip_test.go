@@ -38,8 +38,12 @@ func AddSegmentReservation(t testing.TB, db backend.DB, ASID string, count int) 
 
 	r := newTestSegmentReservation(t, ASID) // the suffix will be overwritten
 	for i := 0; i < count; i++ {
-		r.PathAtSource = test.NewPath(0, "1-"+ASID, i, 1, "1-ff00:0:2", 0)
-		err := db.NewSegmentRsv(ctx, r)
+		p := test.NewSnetPath("1-"+ASID, i, 1, "1-ff00:0:2")
+		transp, err := base.TransparentPathFromSnet(p)
+		require.NoError(t, err)
+		r.Steps = transp.Steps
+		r.RawPath = transp.RawPath
+		err = db.NewSegmentRsv(ctx, r)
 		require.NoError(t, err, "iteration i = %d", i)
 	}
 }

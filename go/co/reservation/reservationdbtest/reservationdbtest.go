@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/e2e"
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	st "github.com/scionproto/scion/go/co/reservation/segmenttest"
@@ -69,10 +70,14 @@ func TestDB(t *testing.T, newDB func() backend.DB) {
 func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.DB) {
 	db := newDB()
 	r := newTestReservation(t)
-	r.PathAtSource = test.NewPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	require.NoError(t, err)
+	r.Steps = transp.Steps
+	r.RawPath = transp.RawPath
 	r.Indices = segment.Indices{}
 	// no indices
-	err := db.NewSegmentRsv(ctx, r)
+	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix)
 	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
@@ -81,7 +86,11 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	// at least one index, and change path
 	_, err = r.NewIndex(0, util.SecsToTime(10), 2, 3, 2, 2, reservation.CorePath)
 	require.NoError(t, err)
-	r.PathAtSource = test.NewPath(1, "1-ff00:0:1", 2, 1, "1-ff00:0:2", 0)
+	p = test.NewSnetPath("1-ff00:0:1", 2, 1, "1-ff00:0:2")
+	transp, err = base.TransparentPathFromSnet(p)
+	r.Steps = transp.Steps
+	r.RawPath = transp.RawPath
+	require.NoError(t, err)
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000002"), r.ID.Suffix)
@@ -133,7 +142,11 @@ func testPersistSegmentRsv(ctx context.Context, t *testing.T, newDB func() backe
 	// change attributes
 	r.Ingress = 3
 	r.Egress = 4
-	r.PathAtSource = test.NewPath(3, "1-ff00:0:1", 11, 1, "1-ff00:0:2", 0)
+	p := test.NewSnetPath("1-ff00:0:1", 11, 1, "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	require.NoError(t, err)
+	r.Steps = transp.Steps
+	r.RawPath = transp.RawPath
 	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
@@ -223,11 +236,11 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			dstIA: xtest.MustParseIA("1-ff00:0:2"),
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "1-ff00:0:3", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:3", 1, 1, "1-ff00:0:2")),
 			},
 			expected: []*reservation.ID{
 				test.MustParseID("ff00:0:1", "00000001"),
@@ -238,11 +251,11 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			dstIA: xtest.MustParseIA("1-ff00:0:20"),
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "1-ff00:0:3", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:3", 1, 1, "1-ff00:0:2")),
 			},
 			expected: []*reservation.ID{},
 		},
@@ -251,11 +264,11 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			dstIA: xtest.MustParseIA("1-0"), // wildcard
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "11-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "11-ff00:0:2")),
 			},
 			expected: []*reservation.ID{
 				test.MustParseID("ff00:0:1", "00000001"),
@@ -268,11 +281,11 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			dstIA: xtest.MustParseIA("0-ffff:ffff:ffff"), // wildcard
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ffff:ffff:ffff", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ffff:ffff:ffff")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "11-ffff:ffff:ffff", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "11-ffff:ffff:ffff")),
 			},
 			expected: []*reservation.ID{
 				test.MustParseID("ff00:0:1", "00000001"),
@@ -284,11 +297,11 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			dstIA: xtest.MustParseIA("1-ff00:0:2"), // wildcard
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "11-ff00:0:1", 1, 1, "1-ff00:0:2", 0)),
+					st.WithPath("11-ff00:0:1", 1, 1, "1-ff00:0:2")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "11-ff00:0:1", 1, 1, "11-ff00:0:2", 0)),
+					st.WithPath("11-ff00:0:1", 1, 1, "11-ff00:0:2")),
 			},
 			expected: []*reservation.ID{
 				test.MustParseID("ff00:0:1", "00000002"),
@@ -299,11 +312,11 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			dstIA: xtest.MustParseIA("11-0"), // wildcard
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "11-ff00:0:1", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "11-ff00:0:1")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3")),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "11-ff00:0:2", 0)),
+					st.WithPath("1-ff00:0:1", 1, 1, "11-ff00:0:2")),
 			},
 			expected: []*reservation.ID{
 				test.MustParseID("ff00:0:1", "00000001"),
@@ -316,13 +329,13 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, newDB fun
 			pathType: reservation.UpPath,
 			rsvs: []*segment.Reservation{
 				st.NewRsv(st.WithID("ff00:0:1", "00000001"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 					st.WithPathType(reservation.DownPath)),
 				st.NewRsv(st.WithID("ff00:0:1", "00000002"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0), // to a core AS
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3"), // to a core AS
 					st.WithPathType(reservation.UpPath)),
 				st.NewRsv(st.WithID("ff00:0:1", "00000003"),
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "11-ff00:0:2", 0), // to a core AS
+					st.WithPath("1-ff00:0:1", 1, 1, "11-ff00:0:2"), // to a core AS
 					st.WithPathType(reservation.UpPath)),
 			},
 			expected: []*reservation.ID{
@@ -594,7 +607,7 @@ func testNextExpirationTime(ctx context.Context, t *testing.T, newDB func() back
 
 	t1 := util.SecsToTime(111)
 	r := st.NewRsv(st.WithID("ff00:0:1", "00000001"), st.AddIndex(0,
-		st.WithExpiration(t1)))
+		st.WithExpiration(t1)), st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"))
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 
@@ -1118,12 +1131,20 @@ func newToken() *reservation.Token {
 func newTestReservation(t *testing.T) *segment.Reservation {
 	t.Helper()
 	r := segment.NewReservation(xtest.MustParseAS("ff00:0:1"))
+	//only set so that validate does not panic
+	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
 	r.Ingress = 0
 	r.Egress = 1
 	r.TrafficSplit = 3
 	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
+	r.Steps = transp.Steps
+	r.RawPath = transp.RawPath
 	expTime := util.SecsToTime(1)
-	_, err := r.NewIndex(0, expTime, 1, 3, 2, 5, reservation.CorePath)
+	_, err = r.NewIndex(0, expTime, 1, 3, 2, 5, reservation.CorePath)
 	require.NoError(t, err)
 	err = r.SetIndexConfirmed(0)
 	require.NoError(t, err)
@@ -1139,6 +1160,7 @@ func newTestE2EReservation(t *testing.T) *e2e.Reservation {
 		SegmentReservations: []*segment.Reservation{
 			newTestReservation(t),
 		},
+		Steps: make(base.PathSteps, 0),
 	}
 	expTime := util.SecsToTime(1)
 	_, err := rsv.NewIndex(expTime, 5)

@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
-	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -100,10 +100,14 @@ func (o *ServiceClientOperator) DialSvcCOL(ctx context.Context, dst *addr.IA) (
 // ColibriClient finds or creates a ColibriClient that can reach the next neighbor in
 // the path passed as argument. The underneath connection will be COLIBRI or regular SCION,
 // depending on the type of the path passed as argument.
-func (o *ServiceClientOperator) ColibriClient(ctx context.Context, transp *base.TransparentPath) (
+func (o *ServiceClientOperator) ColibriClient(ctx context.Context, egressID uint16,
+	rawPath slayerspath.Path) (
 	colpb.ColibriServiceClient, error) {
+	// XXX(JordiSubira): We pass egressID because E2ESetupRequest travel hop-by-hop
+	// path in peer address does not contain the complete path. To be changed, once
+	// E2ERequest are adapted
 
-	egressID := transp.Steps[transp.CurrentStep].Egress
+	// egressID := transp.Steps[transp.CurrentStep].Egress
 	rAddr, ok := o.neighborAddr(egressID)
 	if !ok {
 		return nil, serrors.New("client operator not yet initialized for this egress ID",
@@ -111,11 +115,11 @@ func (o *ServiceClientOperator) ColibriClient(ctx context.Context, transp *base.
 	}
 	rAddr = rAddr.Copy() // preserve the original data
 
-	buf := make([]byte, transp.RawPath.Len())
-	transp.RawPath.SerializeTo(buf)
+	buf := make([]byte, rawPath.Len())
+	rawPath.SerializeTo(buf)
 
 	// prepare remote address with the new path
-	switch transp.RawPath.Type() {
+	switch rawPath.Type() {
 	case scion.PathType: // don't touch the service path
 		rAddr.Path = snetpath.SCION{Raw: buf}
 	case colibri.PathType:

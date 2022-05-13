@@ -24,8 +24,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/reservationdbtest"
 	"github.com/scionproto/scion/go/co/reservation/segment"
+	"github.com/scionproto/scion/go/co/reservation/test"
 	coltest "github.com/scionproto/scion/go/co/reservation/test"
 	"github.com/scionproto/scion/go/co/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -74,9 +76,16 @@ func TestTransactions(t *testing.T) {
 
 	// create a segment reservation
 	rsv := segment.NewReservation(xtest.MustParseAS("ff00:0:111"))
-	rsv.ID.Suffix[0]++
 	_, err := rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
 	require.NoError(t, err)
+	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
+	rsv.Steps = transp.Steps
+	rsv.RawPath = transp.RawPath
+	rsv.ID.Suffix[0]++
 	// save the reservation to DB
 	err = db.PersistSegmentRsv(ctx, rsv)
 	require.NoError(t, err)
@@ -123,6 +132,13 @@ func TestTransactionsBusy(t *testing.T) {
 	_, err := rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
 	require.NoError(t, err)
 	// save the reservation to DB
+	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
+	rsv.Steps = transp.Steps
+	rsv.RawPath = transp.RawPath
 	err = db.PersistSegmentRsv(ctx, rsv)
 	require.NoError(t, err)
 
@@ -245,12 +261,20 @@ func TestRaceForSuffix(t *testing.T) {
 		mut2_2.Lock()
 	}
 
+	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
+
 	rsv1 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{1, 1, 1, 1}},
-		Indices: segment.Indices{segment.Index{}}}
+		Indices: segment.Indices{segment.Index{}},
+		Steps:   transp.Steps, RawPath: transp.RawPath}
 	rsv2 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{2, 2, 2, 2}},
-		Indices: segment.Indices{segment.Index{}}}
+		Indices: segment.Indices{segment.Index{}},
+		Steps:   transp.Steps, RawPath: transp.RawPath}
 	lockAllMutexes()
 
 	go fcn(t, &rsv1, &mut1_1, &mut1_2)
@@ -303,12 +327,12 @@ func newDBNotTemporary(t testing.TB) (*Backend, func()) {
 func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuffix uint32) {
 	t.Helper()
 	ctx := context.Background()
-	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path_type, path,
-		end_props, traffic_split, src_ia, dst_ia, active_index)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, -1)`
+	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path_type, steps,
+		rawPath, end_props, traffic_split, src_ia, dst_ia, active_index)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, -1)`
 	for suffix := firstSuffix; suffix <= lastSuffix; suffix++ {
 		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, reservation.CorePath, nil,
-			0, 0, nil, nil)
+			nil, 0, 0, nil, nil)
 		require.NoError(t, err)
 	}
 }

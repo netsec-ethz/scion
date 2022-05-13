@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
@@ -97,7 +98,7 @@ func TestKeepOneShot(t *testing.T) {
 			},
 			reservations: map[addr.IA][]*segment.Reservation{
 				xtest.MustParseIA("1-ff00:0:2"): modOneRsv(
-					st.NewRsvs(2, st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+					st.NewRsvs(2, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 						st.AddIndex(0, st.WithBW(12, 42, 0),
 							st.WithExpiration(tomorrow)),
 						st.AddIndex(1, st.WithBW(12, 24, 0),
@@ -108,7 +109,7 @@ func TestKeepOneShot(t *testing.T) {
 						st.WithEndProps(endProps1)),
 					0, st.ModIndex(0, st.WithBW(3, 0, 0))), // change rsv 0 to could_be_compliant
 				xtest.MustParseIA("1-ff00:0:3"): modOneRsv(
-					st.NewRsvs(2, st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0),
+					st.NewRsvs(2, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3"),
 						st.AddIndex(0, st.WithBW(12, 42, 0),
 							st.WithExpiration(tomorrow)),
 						st.AddIndex(1, st.WithBW(12, 24, 0),
@@ -140,7 +141,7 @@ func TestKeepOneShot(t *testing.T) {
 			},
 			reservations: map[addr.IA][]*segment.Reservation{
 				xtest.MustParseIA("1-ff00:0:2"): st.NewRsvs(1,
-					st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 					st.AddIndex(0, st.WithBW(12, 42, 0), st.WithExpiration(tomorrow)),
 					st.AddIndex(1, st.WithBW(12, 24, 0),
 						st.WithExpiration(tomorrow.Add(24*time.Hour))),
@@ -184,10 +185,10 @@ func TestKeepOneShot(t *testing.T) {
 				func(_ context.Context, reqs []*segment.SetupReq) []error {
 					return make([]error, len(reqs))
 				})
-			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any()).
+			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 				AnyTimes().DoAndReturn(
-				func(_ context.Context, reqs []*base.Request) []error {
-					return make([]error, len(reqs))
+				func(_ context.Context, reqs []*base.Request, steps []base.PathSteps, paths []slayerspath.Path) []error {
+					return make([]error, len(reqs), len(paths))
 				})
 
 			wakeupTime, err := keeper.OneShot(ctx)
@@ -251,7 +252,7 @@ func TestSetupsPerDestination(t *testing.T) {
 				func(_ context.Context, reqs []*segment.SetupReq) []error {
 					return make([]error, len(reqs))
 				})
-			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any()).AnyTimes()
+			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 			_, err := keeper.setupsPerDestination(ctx, dstIA, tc.requirements, tc.paths, noRsvs)
 			require.NoError(t, err)
@@ -382,7 +383,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 					}
 					return errs
 				})
-			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any()).AnyTimes()
+			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 			// build requests from paths (tested elsewhere)
 			requests, err := tc.requirements.PrepareSetupRequests(tc.paths, localIA.AS(),
 				now, now.Add(time.Hour))
@@ -433,7 +434,7 @@ func TestRequirementsFilter(t *testing.T) {
 			requirements:      reqs,
 			atLeastUntil:      now,
 			expectedCompliant: 3,
-			rsvs: st.NewRsvs(3, st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsvs: st.NewRsvs(3, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 42, 0), st.WithExpiration(tomorrow)),
 				st.AddIndex(1, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow.Add(24*time.Hour))),
 				st.ConfirmAllIndices(),
@@ -445,7 +446,7 @@ func TestRequirementsFilter(t *testing.T) {
 			requirements:      reqs,
 			atLeastUntil:      now,
 			expectedCompliant: 3,
-			rsvs: st.NewRsvs(3, st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsvs: st.NewRsvs(3, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 42, 0), st.WithExpiration(tomorrow)),
 				// next index is uncompliant
 				st.AddIndex(1, st.WithBW(3, 24, 0), st.WithExpiration(tomorrow.Add(24*time.Hour))),
@@ -458,7 +459,7 @@ func TestRequirementsFilter(t *testing.T) {
 			requirements:      reqs,
 			atLeastUntil:      now,
 			expectedCompliant: 3,
-			rsvs: modOneRsv(st.NewRsvs(3, st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsvs: modOneRsv(st.NewRsvs(3, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 42, 0), st.WithExpiration(tomorrow)),
 				st.AddIndex(1, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow.Add(24*time.Hour))),
 				st.ConfirmAllIndices(),
@@ -472,7 +473,7 @@ func TestRequirementsFilter(t *testing.T) {
 			atLeastUntil:        now,
 			expectedCompliant:   2,
 			expectedNeedIndices: 1,
-			rsvs: modOneRsv(st.NewRsvs(3, st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsvs: modOneRsv(st.NewRsvs(3, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 42, 0), st.WithExpiration(tomorrow)),
 				st.AddIndex(1, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow.Add(24*time.Hour))),
 				st.ConfirmAllIndices(),
@@ -519,7 +520,7 @@ func TestRequirementsCompliance(t *testing.T) {
 	}{
 		"compliant, one index": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.WithPathType(reservation.UpPath),
 				st.WithActiveIndex(0),
@@ -530,7 +531,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"bad path type": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.WithPathType(reservation.DownPath),
 				st.WithActiveIndex(0),
@@ -541,7 +542,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"one compliant index but bad traffic split": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.WithActiveIndex(0),
 				st.WithTrafficSplit(1),
@@ -551,7 +552,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"bad end props": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.WithActiveIndex(0),
 				st.WithTrafficSplit(2),
@@ -561,7 +562,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"bad path": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 2, "1-ff00:0:3", 3, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 2, "1-ff00:0:3", 3, 1, "1-ff00:0:2"),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.WithActiveIndex(0),
 				st.WithTrafficSplit(2),
@@ -571,7 +572,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"one non compliant index, minbw": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.WithPathType(reservation.UpPath),
 				st.AddIndex(0, st.WithBW(1, 24, 0), st.WithExpiration(tomorrow)),
 				st.WithActiveIndex(0),
@@ -582,7 +583,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"one non compliant index, maxbw": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.WithPathType(reservation.UpPath),
 				st.AddIndex(0, st.WithBW(12, 44, 0), st.WithExpiration(tomorrow)),
 				st.WithActiveIndex(0),
@@ -593,7 +594,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"one non compliant index, expired": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.WithPathType(reservation.UpPath),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(now)),
 				st.WithActiveIndex(0),
@@ -604,7 +605,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"no active indices": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.WithPathType(reservation.UpPath),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.ConfirmAllIndices(),
@@ -615,7 +616,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"no indices": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.WithPathType(reservation.UpPath),
 				st.WithTrafficSplit(2),
 				st.WithEndProps(reqs.endProps)),
@@ -624,7 +625,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		},
 		"compliant in the past, not now": {
 			requirements: reqs,
-			rsv: st.NewRsv(st.WithPath(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			rsv: st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
 				st.WithPathType(reservation.UpPath),
 				st.AddIndex(0, st.WithBW(12, 24, 0), st.WithExpiration(tomorrow)),
 				st.AddIndex(1, st.WithBW(1, 24, 0), st.WithExpiration(tomorrow)),
@@ -724,17 +725,17 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 				transp, err := base.TransparentPathFromInterfaces(p.Metadata().Interfaces)
 				require.NoError(t, err)
 				transp.RawPath = &scion.Raw{} // mimic a path with a SCION rawpath inside
-				k := transp.String()
+				k := base.StepsToString(transp.Steps)
 				_, ok := bagOfPaths[k]
 				require.False(t, ok, "duplicated path in test", p)
 				bagOfPaths[k] = struct{}{}
 			}
 			for _, req := range requests {
 				// check req.PathToDst is in filtered paths
-				_, ok := bagOfPaths[req.PathAtSource.String()]
-				require.True(t, ok, "path: %s, len(bag)=%d, bag:%s", req.PathAtSource.String(),
+				_, ok := bagOfPaths[base.StepsToString(req.Steps)]
+				require.True(t, ok, "path: %s, len(bag)=%d, bag:%s", base.StepsToString(req.Steps),
 					len(bagOfPaths), bagOfPaths)
-				delete(bagOfPaths, req.PathAtSource.String())
+				delete(bagOfPaths, base.StepsToString(req.Steps))
 				// check the rest of the request
 				require.Equal(t, tc.requirements.minBW, req.MinBW)
 				require.Equal(t, tc.requirements.maxBW, req.MaxBW)

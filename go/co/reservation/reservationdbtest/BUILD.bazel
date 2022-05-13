@@ -6,6 +6,7 @@ go_library(
     importpath = "github.com/scionproto/scion/go/co/reservation/reservationdbtest",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/co/reservation:go_default_library",
         "//go/co/reservation/e2e:go_default_library",
         "//go/co/reservation/segment:go_default_library",
         "//go/co/reservation/segmenttest:go_default_library",

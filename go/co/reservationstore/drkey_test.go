@@ -57,9 +57,10 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
+				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps,
 			},
 		},
 	}
@@ -87,7 +88,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 				localIA:   authIA,
 				fastKeyer: fakeFastKeyer{localIA: authIA},
 			}
-			tc.transitReq.Path.CurrentStep = 1 // second AS, first transit AS
+			tc.transitReq.CurrentStep = 1 // second AS, first transit AS
 			ok, err := auth.ValidateE2ERequest(ctx, &tc.transitReq)
 			require.NoError(t, err)
 			require.True(t, ok)
@@ -122,9 +123,11 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
 						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 0)),
+							1, "1-ff00:0:112", 0).Steps),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
+					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+						1, "1-ff00:0:112", 0).Steps,
 				},
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
@@ -158,7 +161,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 				localIA:   authIA,
 				fastKeyer: fakeFastKeyer{localIA: authIA},
 			}
-			tc.transitReq.Path.CurrentStep = 1 // second AS, first transit AS
+			tc.transitReq.CurrentStep = 1 // second AS, first transit AS
 			ok, err := auth.ValidateE2ESetupRequest(ctx, &tc.transitReq)
 			require.NoError(t, err)
 			require.True(t, ok)
@@ -174,9 +177,10 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
+				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps,
 			},
 		},
 	}
@@ -188,25 +192,25 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			defer cancelF()
 
 			// at the transit ASes:
-			for step := 1; step < len(tc.transitReq.Path.Steps); step++ {
-				tc.transitReq.Path.CurrentStep = step
-				authIA := tc.transitReq.Path.Steps[step].IA
+			for step := 1; step < len(tc.transitReq.Steps); step++ {
+				tc.transitReq.CurrentStep = step
+				authIA := tc.transitReq.Steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeE2ERequestTransitMAC(ctx, &tc.transitReq)
+				err := auth.ComputeE2ERequestTransitMAC(ctx, &tc.transitReq, tc.transitReq.Steps.DstIA(), tc.transitReq.CurrentStep)
 				require.NoError(t, err)
 			}
 
 			// at the destination AS:
-			tc.transitReq.Path.CurrentStep = len(tc.transitReq.Path.Steps) - 1
-			dstIA := tc.transitReq.Path.DstIA()
+			tc.transitReq.CurrentStep = len(tc.transitReq.Steps) - 1
+			dstIA := tc.transitReq.Steps.DstIA()
 			auth := DRKeyAuthenticator{
 				localIA:   dstIA,
 				slowKeyer: fakeSlowKeyer{localIA: dstIA},
 			}
-			ok, err := auth.validateE2ERequestAtDestination(ctx, &tc.transitReq)
+			ok, err := auth.validateE2ERequestAtDestination(ctx, &tc.transitReq, tc.transitReq.Steps)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -223,9 +227,11 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
 						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 0)),
+							1, "1-ff00:0:112", 0).Steps),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
+					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+						1, "1-ff00:0:112", 0).Steps,
 				},
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
@@ -243,29 +249,29 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 			defer cancelF()
 
 			// at the transit ASes:
-			for step := 0; step < len(tc.transitReq.Path.Steps); step++ {
+			for step := 0; step < len(tc.transitReq.Steps); step++ {
 				tc.transitReq.AllocationTrail = append(tc.transitReq.AllocationTrail, 11)
 				if step == 0 {
 					continue
 				}
-				tc.transitReq.Path.CurrentStep = step
-				authIA := tc.transitReq.Path.Steps[step].IA
+				tc.transitReq.CurrentStep = step
+				authIA := tc.transitReq.Steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeE2ESetupRequestTransitMAC(ctx, &tc.transitReq)
+				err := auth.ComputeE2ESetupRequestTransitMAC(ctx, &tc.transitReq, tc.transitReq.Steps.DstIA(), tc.transitReq.CurrentStep)
 				require.NoError(t, err)
 			}
 
 			// at the destination AS:
-			tc.transitReq.Path.CurrentStep = len(tc.transitReq.Path.Steps) - 1
-			dstIA := tc.transitReq.Path.DstIA()
+			tc.transitReq.CurrentStep = len(tc.transitReq.Steps) - 1
+			dstIA := tc.transitReq.Steps.DstIA()
 			auth := DRKeyAuthenticator{
 				localIA:   dstIA,
 				slowKeyer: fakeSlowKeyer{localIA: dstIA},
 			}
-			ok, err := auth.validateE2ESetupRequestAtDestination(ctx, &tc.transitReq)
+			ok, err := auth.validateE2ESetupRequestAtDestination(ctx, &tc.transitReq, tc.transitReq.Steps)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -313,7 +319,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 				slowKeyer: fakeSlowKeyer{localIA: srcIA},
 			}
 			tc.path.CurrentStep = 0
-			ok, err := auth.ValidateResponse(ctx, tc.res, tc.path)
+			ok, err := auth.ValidateResponse(ctx, tc.res, tc.path.Steps)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -359,8 +365,6 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 							Index:     1,
 							Timestamp: util.SecsToTime(1),
 						},
-						Path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0),
 						Authenticators: make([][]byte, 3),
 					},
 					ExpirationTime: util.SecsToTime(300),
@@ -369,8 +373,9 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					MinBW:          5,
 					MaxBW:          13,
 					SplitCls:       11,
-					PathAtSource: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0),
+					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+						1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0).Steps,
+
 					PathProps: reservation.StartLocal | reservation.EndTransfer,
 				},
 			},
@@ -407,7 +412,8 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.path)
+				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.path.Steps,
+					tc.path.CurrentStep)
 				require.NoError(t, err)
 			}
 
@@ -472,8 +478,8 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 					}
 				}
 
-				err := auth.ComputeE2EResponseMAC(ctx, tc.response, tc.path,
-					addr.HostFromIP(tc.srcHost))
+				err := auth.ComputeE2EResponseMAC(ctx, tc.response, tc.path.CurrentStep,
+					tc.path.SrcIA(), addr.HostFromIP(tc.srcHost))
 				require.NoError(t, err)
 			}
 
@@ -590,8 +596,8 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					localIA:   step.IA,
 					fastKeyer: fakeFastKeyer{localIA: step.IA},
 				}
-				err := auth.ComputeE2ESetupResponseMAC(ctx, tc.response, tc.path,
-					addr.HostFromIP(tc.srcHost), tc.rsvID)
+				err := auth.ComputeE2ESetupResponseMAC(ctx, tc.response, tc.path.CurrentStep,
+					tc.path.SrcIA(), addr.HostFromIP(tc.srcHost), tc.rsvID)
 				require.NoError(t, err)
 			}
 

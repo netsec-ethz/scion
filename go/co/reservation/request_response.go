@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	col "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -45,24 +44,20 @@ func (m *MsgId) Serialize(buff []byte) {
 // It contains a reference to the reservation it requests, or nil if not yet created.
 type Request struct {
 	MsgId
-	Path           *TransparentPath // the path to the destination (hops of the reservation).
-	Authenticators [][]byte         // one MAC per transit AS created by the initiator AS
+	// one MAC per transit AS created by the initiator AS
+	// intermediate ASes update authenticators with tag for
+	// the destination AS, before forwarding the request.
+	Authenticators [][]byte
 }
 
 // NewRequest constructs the segment Request type.
 // If the authenticators argument is nil, a new and empty authenticators field is constructed.
 func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
-	path *TransparentPath) *Request {
+	steps PathSteps) *Request {
 
 	var authenticators [][]byte
-	if path == nil {
-		path = &TransparentPath{}
-	}
-	if path.RawPath == nil {
-		path.RawPath = &empty.Path{}
-	}
-	if len(path.Steps) > 0 {
-		authenticators = make([][]byte, len(path.Steps)-1)
+	if len(steps) > 0 {
+		authenticators = make([][]byte, len(steps)-1)
 	}
 	return &Request{
 		MsgId: MsgId{
@@ -70,20 +65,16 @@ func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
 			ID:        *id,
 			Index:     idx,
 		},
-		Path:           path,
 		Authenticators: authenticators,
 	}
 }
 
 // Validate ensures the data in the request is consistent. Calling methods on the request
 // before a call to Validate may result in invalid behavior or panic.
-func (r *Request) Validate() error {
-	if err := r.Path.Validate(); err != nil {
-		return serrors.WrapStr("bad path in request", err)
-	}
-	if len(r.Authenticators) != len(r.Path.Steps)-1 {
+func (r *Request) Validate(steps PathSteps) error {
+	if len(r.Authenticators) != len(steps)-1 {
 		return serrors.New("inconsistent number of authenticators",
-			"auth_count", len(r.Authenticators), "path_len", len(r.Path.Steps))
+			"auth_count", len(r.Authenticators), "path_len", len(steps))
 	}
 	if r.ID.ASID == 0 {
 		return serrors.New("bad AS id in request", "asid", r.ID.ASID)
@@ -92,45 +83,12 @@ func (r *Request) Validate() error {
 }
 
 func (r *Request) Len() int {
-	return r.MsgId.Len() + r.Path.Len()
+	return r.MsgId.Len()
 }
 
 func (r *Request) Serialize(buff []byte, options SerializeOptions) {
 	offset := r.MsgId.Len()
 	r.MsgId.Serialize(buff[:offset])
-	r.Path.Serialize(buff[offset:], options)
-}
-
-func (r *Request) IsFirstAS() bool {
-	return r.Path.CurrentStep == 0
-}
-
-func (r *Request) IsLastAS() bool { // override the use of the RequestMetadata.path with PathToDst
-	return r.Path.CurrentStep >= len(r.Path.Steps)-1
-}
-
-// Ingress returns the ingress interface of this step for this request.
-// Do not call Ingress without validating the request first.
-func (r *Request) Ingress() uint16 {
-	p := r.Path
-	return p.Steps[p.CurrentStep].Ingress
-}
-
-// Egress returns the egress interface of this step for this request.
-// Do not call Egress without validating the request first.
-func (r *Request) Egress() uint16 {
-	p := r.Path
-	return p.Steps[p.CurrentStep].Egress
-}
-
-// CurrentValidatorField returns the validator field that contains the MAC used to authenticate
-// the request by the initiator AS, for the current in-transit AS.
-// Note that there doesn't exist a field for the initiator AS, as it is itself that authenticates.
-func (r *Request) CurrentValidatorField() []byte {
-	if r.Path.CurrentStep == 0 {
-		return nil
-	}
-	return r.Authenticators[r.Path.CurrentStep-1]
 }
 
 type Response interface {

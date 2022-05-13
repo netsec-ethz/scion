@@ -71,7 +71,7 @@ func TestReservationValidate(t *testing.T) {
 	err := r.Validate()
 	require.NoError(t, err)
 	// wrong path
-	r.PathAtSource = nil
+	r.Steps = nil
 	err = r.Validate()
 	require.Error(t, err)
 	// more than one active index
@@ -96,7 +96,7 @@ func TestReservationValidate(t *testing.T) {
 	require.Error(t, err)
 	// Does not start in this AS but ingress empty
 	r = segmenttest.NewReservation()
-	r.PathAtSource = nil
+	r.Steps = nil
 	err = r.Validate()
 	require.Error(t, err)
 }

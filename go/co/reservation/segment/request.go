@@ -21,6 +21,7 @@ import (
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -37,18 +38,20 @@ type SetupReq struct {
 	SplitCls         reservation.SplitCls
 	PathProps        reservation.PathEndProps
 	AllocTrail       reservation.AllocationBeads
-	PathAtSource     *base.TransparentPath // requested path (maybe different than transport)
-	ReverseTraveling bool                  // a down rsv traveling to the core to be re-requested
-	Reservation      *Reservation          // nil if no reservation yet
+	ReverseTraveling bool         // a down rsv traveling to the core to be re-requested
+	Reservation      *Reservation // nil if no reservation yet
+
+	Steps   base.PathSteps   // retrieved from pb request (except at source)
+	RawPath slayerspath.Path // recovered from dataplane (except at source)
 }
 
 func (r *SetupReq) Validate() error {
-	if err := r.Request.Validate(); err != nil {
+	if err := r.Request.Validate(r.Steps); err != nil {
 		return err
 	}
-	if len(r.AllocTrail) > len(r.Path.Steps) {
+	if len(r.AllocTrail) > len(r.Steps) {
 		return serrors.New("inconsistent trail and setup path", "trail", r.AllocTrail,
-			"path", r.Path)
+			"path", r.Steps)
 	}
 	if err := r.PathProps.ValidateWithPathType(r.PathType); err != nil {
 		return serrors.New("incompatible path type and props", "path_type", r.PathType,
@@ -65,6 +68,20 @@ func (r *SetupReq) ValidateForReservation(rsv *Reservation) error {
 		return serrors.New("different path end props.", "req", r.PathProps, "rsv", rsv.PathEndProps)
 	}
 	return nil
+}
+
+// Ingress returns the ingress interface of this step for this request.
+// Do not call Ingress without validating the request first.
+func (r *SetupReq) Ingress() uint16 {
+	//return r.Steps[r.CurrentStep].Ingress
+	return base.IngressFromDataPlanePath(r.RawPath)
+}
+
+// Egress returns the egress interface of this step for this request.
+// Do not call Egress without validating the request first.
+func (r *SetupReq) Egress() uint16 {
+	// return r.Steps[r.CurrentStep].Egress
+	return base.EgressFromDataPlanePath(r.RawPath)
 }
 
 func (r *SetupReq) Len() int {

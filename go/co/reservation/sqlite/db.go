@@ -371,7 +371,8 @@ func (x *executor) GetAllE2ERsvs(ctx context.Context) ([]*e2e.Reservation, error
 		}
 		rsvs[i] = &e2e.Reservation{
 			ID:                  *f.rsvID,
-			Path:                f.path,
+			Steps:               f.path.Steps,
+			CurrentStep:         f.path.CurrentStep,
 			Indices:             indices,
 			SegmentReservations: segRsvs,
 		}
@@ -655,20 +656,24 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	if err != nil {
 		return err
 	}
-
-	p := rsv.PathAtSource
+	rawSteps := make([]byte, rsv.Steps.Len())
+	rsv.Steps.Serialize(rawSteps)
+	rawPath, err := base.PathToRaw(rsv.RawPath)
+	if err != nil {
+		return err
+	}
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix,
-		ingress, egress, path_type, path, end_props,
+		ingress, egress, path_type, steps, rawPath, end_props,
 		traffic_split, src_ia, dst_ia, active_index)
-		VALUES (?, ?,?,?,?,?,?,?,?,?,?)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id_as,id_suffix) DO UPDATE
-		SET ingress = ?, egress = ?, path_type = ?, path = ?, end_props = ?,
-		traffic_split = ?, src_ia = ?, dst_ia = ?, active_index = ?`
+		SET ingress = ?, egress = ?, path_type = ?, steps = ?, rawPath = ?,
+		end_props = ?, traffic_split = ?, src_ia = ?, dst_ia = ?, active_index = ?`
 	_, err = x.ExecContext(ctx, query, rsv.ID.ASID, binary.BigEndian.Uint32(rsv.ID.Suffix),
-		rsv.Ingress, rsv.Egress, rsv.PathType, p.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
-		p.SrcIA(), p.DstIA(), activeIndex,
-		rsv.Ingress, rsv.Egress, rsv.PathType, p.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
-		p.SrcIA(), p.DstIA(), activeIndex)
+		rsv.Ingress, rsv.Egress, rsv.PathType, rawSteps, rawPath, rsv.PathEndProps, rsv.TrafficSplit,
+		rsv.Steps.SrcIA(), rsv.Steps.DstIA(), activeIndex,
+		rsv.Ingress, rsv.Egress, rsv.PathType, rawSteps, rawPath, rsv.PathEndProps, rsv.TrafficSplit,
+		rsv.Steps.SrcIA(), rsv.Steps.DstIA(), activeIndex)
 	if err != nil {
 		return err
 	}
@@ -720,7 +725,8 @@ type rsvFields struct {
 	Ingress      uint16
 	Egress       uint16
 	PathType     int
-	Path         []byte
+	Steps        []byte
+	RawPath      []byte
 	EndProps     int
 	TrafficSplit int
 	ActiveIndex  int
@@ -729,7 +735,7 @@ type rsvFields struct {
 func getSegReservations(ctx context.Context, x db.Sqler, condition string, params ...interface{}) (
 	[]*segment.Reservation, error) {
 
-	const queryTmpl = `SELECT ROWID,id_as,id_suffix,ingress,egress,path_type,path,
+	const queryTmpl = `SELECT ROWID,id_as,id_suffix,ingress,egress,path_type,steps,rawPath,
 		end_props,traffic_split,active_index
 		FROM seg_reservation %s`
 	query := fmt.Sprintf(queryTmpl, condition)
@@ -743,8 +749,8 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 	reservationFields := []*rsvFields{}
 	for rows.Next() {
 		var f rsvFields
-		err := rows.Scan(&f.RowID, &f.AsID, &f.Suffix, &f.Ingress, &f.Egress, &f.PathType, &f.Path,
-			&f.EndProps, &f.TrafficSplit, &f.ActiveIndex)
+		err := rows.Scan(&f.RowID, &f.AsID, &f.Suffix, &f.Ingress, &f.Egress, &f.PathType, &f.Steps,
+			&f.RawPath, &f.EndProps, &f.TrafficSplit, &f.ActiveIndex)
 		if err != nil {
 			return nil, err
 		}
@@ -780,11 +786,17 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 	rsv.Egress = fields.Egress
 	rsv.PathType = reservation.PathType(fields.PathType)
 
-	p, err := base.TransparentPathFromRaw(fields.Path)
+	//rsv.PathAtSource = p
+	steps, err := base.PathStepsFromRaw(fields.Steps)
 	if err != nil {
 		return nil, err
 	}
-	rsv.PathAtSource = p
+	rawPath, err := base.PathFromRaw(fields.RawPath)
+	if err != nil {
+		return nil, err
+	}
+	rsv.Steps = steps
+	rsv.RawPath = rawPath
 	rsv.PathEndProps = reservation.PathEndProps(fields.EndProps)
 	rsv.TrafficSplit = reservation.SplitCls(fields.TrafficSplit)
 	rsv.Indices = indices
@@ -886,8 +898,12 @@ func deleteE2ERsv(ctx context.Context, x db.Sqler, rsvID *reservation.ID) error 
 }
 
 func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservation) error {
+	p := &base.TransparentPath{
+		Steps:       rsv.Steps,
+		CurrentStep: rsv.CurrentStep,
+	}
 	const query = `INSERT INTO e2e_reservation (reservation_id, path) VALUES (?, ?)`
-	res, err := x.ExecContext(ctx, query, rsv.ID.ToRaw(), rsv.Path.ToRaw())
+	res, err := x.ExecContext(ctx, query, rsv.ID.ToRaw(), p.ToRaw())
 	if err != nil {
 		return err
 	}
@@ -969,7 +985,8 @@ func getE2ERsvFromID(ctx context.Context, x db.Sqler, ID *reservation.ID) (
 	}
 	rsv := &e2e.Reservation{
 		ID:                  *ID.Copy(),
-		Path:                p,
+		Steps:               p.Steps,
+		CurrentStep:         p.CurrentStep,
 		Indices:             indices,
 		SegmentReservations: segRsvs,
 	}
@@ -1010,8 +1027,9 @@ func getE2ERsvsFromSegment(ctx context.Context, x db.Sqler, ID *reservation.ID) 
 			return nil, err
 		}
 		rowID2e2eIDs[rowID] = &e2e.Reservation{
-			ID:   *id,
-			Path: p,
+			ID:          *id,
+			Steps:       p.Steps,
+			CurrentStep: p.CurrentStep,
 		}
 	}
 	if err := rows.Err(); err != nil {

@@ -30,7 +30,8 @@ import (
 // Reservation represents an E2E reservation.
 type Reservation struct {
 	ID                  reservation.ID
-	Path                *base.TransparentPath
+	Steps               base.PathSteps
+	CurrentStep         int
 	SegmentReservations []*segment.Reservation // stitched segment reservations
 	Indices             Indices
 }
@@ -41,7 +42,7 @@ func (r *Reservation) String() string {
 	}
 	segs := make([]string, len(r.SegmentReservations))
 	for i, s := range r.SegmentReservations {
-		segs[i] = fmt.Sprintf("%s (%d indices) (%s)", s.ID, len(s.Indices), s.PathAtSource)
+		segs[i] = fmt.Sprintf("%s (%d indices) (%s)", s.ID, len(s.Indices), base.StepsToString(s.Steps))
 	}
 	return fmt.Sprintf("%s: %d segment(s): {%s} . IDXS: [%s]",
 		r.ID, len(r.SegmentReservations), strings.Join(segs, "; "), r.Indices)
@@ -144,13 +145,13 @@ func (r *Reservation) DstIA() addr.IA {
 	if len(r.SegmentReservations) == 0 {
 		return 0
 	}
-	return r.SegmentReservations[len(r.SegmentReservations)-1].PathAtSource.DstIA()
+	return r.SegmentReservations[len(r.SegmentReservations)-1].Steps.DstIA()
 }
 
 // GetLastSegmentPathSteps returns the path steps for the last segment in use by this e2e rsv.
 func (r *Reservation) GetLastSegmentPathSteps() []base.PathStep {
 	seg := r.SegmentReservations[len(r.SegmentReservations)-1]
-	steps := append([]base.PathStep{}, seg.PathAtSource.Steps...)
+	steps := append([]base.PathStep{}, seg.Steps...)
 	return steps
 }
 

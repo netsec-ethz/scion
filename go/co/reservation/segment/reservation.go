@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
@@ -35,7 +36,8 @@ type Reservation struct {
 	PathType     reservation.PathType     // the type of path (up,core,down)
 	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
-	PathAtSource *base.TransparentPath    // when this reservation object is at its source
+	Steps        base.PathSteps           // recovered from the pb messages
+	RawPath      slayerspath.Path         // recovered from dataplane
 }
 
 func NewReservation(asid addr.AS) *Reservation {
@@ -107,15 +109,31 @@ func (r *Reservation) Validate() error {
 			activeIndex = i
 		}
 	}
-	if (r.Ingress == 0) != (r.PathAtSource != nil && r.PathAtSource.CurrentStep == 0) {
-		return serrors.New("reservation path and ingress ID non consistent", "ingress", r.Ingress,
-			"path", r.PathAtSource.String())
+	if r.Steps == nil || len(r.Steps) < 2 {
+		return serrors.New("Wrong steps state")
 	}
+	if r.Steps[0].Ingress != 0 {
+		return serrors.New("Wrong interface for srcIA ingress", "ingress", r.Steps[0].Ingress)
+	}
+	if r.Steps[len(r.Steps)-1].Egress != 0 {
+		return serrors.New("Wrong interface for dstIA egress", "egress", r.Steps[len(r.Steps)-1].Egress)
+	}
+	if base.EgressFromDataPlanePath(r.RawPath) != r.Egress {
+		return serrors.New("Inconsisten egress from dataplane and reservation egress",
+			"dataplane", base.EgressFromDataPlanePath(r.RawPath),
+			"egress", r.Egress)
+	}
+	if base.IngressFromDataPlanePath(r.RawPath) != r.Ingress {
+		return serrors.New("Inconsisten ingress from dataplane and reservation egress",
+			"dataplane", base.IngressFromDataPlanePath(r.RawPath),
+			"ingress", r.Ingress)
+	}
+
 	err := r.PathEndProps.Validate()
 	if err != nil {
 		return serrors.WrapStr("validating reservation, end properties failed", err)
 	}
-	return r.PathAtSource.Validate()
+	return nil
 }
 
 // ActiveIndex returns the currently active Index for this reservation, or nil if none.

@@ -27,6 +27,10 @@ import (
 	"github.com/scionproto/scion/go/co/reservationstorage/backend"
 	"github.com/scionproto/scion/go/co/reservationstorage/backend/mock_backend"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	slayers "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -455,20 +459,74 @@ func newTestAdmitter(t *testing.T) *StatelessAdmission {
 	}
 }
 
+func newsnetPathWithHop(args ...interface{}) snet.Path {
+	ifaces := test.NewIfaces(args...)
+	transp, err := base.TransparentPathFromInterfaces(ifaces)
+	if err != nil {
+		panic(err)
+	}
+
+	rp := scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrINF: 0,
+				CurrHF:  1,
+				SegLen:  [3]uint8{uint8(len(transp.Steps))},
+			},
+			NumINF:  1,
+			NumHops: len(transp.Steps),
+		},
+		InfoFields: []slayers.InfoField{{
+			ConsDir: true,
+		}},
+		HopFields: make([]slayers.HopField, len(transp.Steps)),
+	}
+
+	for i, iface := range transp.Steps {
+		rp.HopFields[i] = slayers.HopField{
+			ConsIngress: iface.Ingress,
+			ConsEgress:  iface.Egress,
+		}
+	}
+	buff := make([]byte, rp.Len())
+	err = rp.SerializeTo(buff)
+	if err != nil {
+		panic(err)
+	}
+
+	return path.Path{
+		Meta: snet.PathMetadata{
+			Interfaces: ifaces,
+		},
+		DataplanePath: path.SCION{
+			Raw: buff,
+		},
+	}
+}
+
 // newTestRequest creates a request ID ff00:1:1 beefcafe
 func newTestRequest(t *testing.T, ingress, egress int,
 	minBW, maxBW reservation.BWCls) *segment.SetupReq {
 
 	ID, err := reservation.IDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
 	require.NoError(t, err)
+	p := newsnetPathWithHop("1-ff00:1:0", 1, ingress, "1-ff00:1:1", egress, 1, "1-ff00:1:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	require.NoError(t, err)
 	baseReq := base.NewRequest(util.SecsToTime(1), ID, 0,
-		test.NewPath(ingress, "1-ff00:1:1", egress))
+		transp.Steps)
+
 	return &segment.SetupReq{
-		Request:   *baseReq,
-		MinBW:     minBW,
-		MaxBW:     maxBW,
-		SplitCls:  2,
-		PathProps: reservation.StartLocal | reservation.EndLocal,
+		Request:        *baseReq,
+		ExpirationTime: util.SecsToTime(10),
+		RLC:            1,
+		PathType:       reservation.CorePath,
+		MinBW:          minBW,
+		MaxBW:          maxBW,
+		SplitCls:       2,
+		PathProps:      reservation.StartLocal | reservation.EndLocal,
+		Steps:          transp.Steps,
+		RawPath:        transp.RawPath,
 	}
 }
 
@@ -478,6 +536,14 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 	ID, err := reservation.NewID(xtest.MustParseAS(srcAS),
 		xtest.MustParseHexString(suffix))
 	require.NoError(t, err)
+
+	//only set so that validate does not panic
+	p := test.NewSnetPath("1-ff00:0:1", int(egress), int(ingress), "1-ff00:0:2")
+	transp, err := base.TransparentPathFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
+
 	rsv := &segment.Reservation{
 		ID: *ID,
 		Indices: segment.Indices{
@@ -494,6 +560,8 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 		PathType:     reservation.UpPath,
 		PathEndProps: reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
 		TrafficSplit: 2,
+		RawPath:      transp.RawPath,
+		Steps:        transp.Steps,
 	}
 	err = rsv.SetIndexConfirmed(10)
 	require.NoError(t, err)

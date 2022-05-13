@@ -25,7 +25,7 @@ import (
 )
 
 func PBufSetupReq(req *segment.SetupReq) (*colpb.SegmentSetupRequest, error) {
-	base, err := PBufRequest(&req.Request)
+	base, err := PBufRequest(&req.Request, req.Steps)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func PBufSetupReq(req *segment.SetupReq) (*colpb.SegmentSetupRequest, error) {
 }
 
 func PBufE2ERequest(req *e2e.Request) (*colpb.E2ERequest, error) {
-	base, err := PBufRequest(&req.Request)
+	base, err := PBufRequest(&req.Request, req.Steps)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,8 @@ func PBufE2ERequest(req *e2e.Request) (*colpb.E2ERequest, error) {
 		Base:        base,
 		SrcHost:     req.SrcHost,
 		DstHost:     req.DstHost,
-		CurrentStep: uint32(req.Path.CurrentStep),
+		CurrentStep: uint32(req.CurrentStep),
+		Steps:       PBufSteps(req.Steps),
 	}, err
 }
 
@@ -125,12 +126,12 @@ func PBufE2ESetupResponse(res e2e.SetupResponse) *colpb.E2ESetupResponse {
 	return msg
 }
 
-func PBufRequest(req *base.Request) (*colpb.Request, error) {
+func PBufRequest(req *base.Request, steps base.PathSteps) (*colpb.Request, error) {
 	return &colpb.Request{
 		Id:             PBufID(&req.ID),
 		Index:          uint32(req.Index),
 		Timestamp:      util.TimeToSecs(req.Timestamp),
-		Steps:          PBufSteps(req.Path.Steps),
+		Steps:          PBufSteps(steps),
 		Authenticators: PBufAuthenticators(req.Authenticators),
 	}, nil
 }
