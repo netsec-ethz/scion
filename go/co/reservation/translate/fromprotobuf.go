@@ -61,7 +61,7 @@ func SetupReq(msg *colpb.SegmentSetupRequest, rawPath slayerspath.Path) (*segmen
 	return req, nil
 }
 
-func E2ERequest(msg *colpb.E2ERequest, rawPath slayerspath.Path) (*e2e.Request, error) {
+func E2ERequest(msg *colpb.E2ERequest) (*e2e.Request, error) {
 	baseReq, err := Request(msg.Base)
 	if err != nil {
 		return nil, err
@@ -75,8 +75,8 @@ func E2ERequest(msg *colpb.E2ERequest, rawPath slayerspath.Path) (*e2e.Request, 
 	}, nil
 }
 
-func E2ESetupRequest(msg *colpb.E2ESetupRequest, rawPath slayerspath.Path) (*e2e.SetupReq, error) {
-	base, err := E2ERequest(msg.Base, rawPath)
+func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
+	base, err := E2ERequest(msg.Base)
 	if err != nil {
 		return nil, err
 	}

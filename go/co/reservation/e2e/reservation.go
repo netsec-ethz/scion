@@ -32,6 +32,7 @@ type Reservation struct {
 	ID                  reservation.ID
 	Steps               base.PathSteps
 	CurrentStep         int
+	EgressSegmentIdx    int
 	SegmentReservations []*segment.Reservation // stitched segment reservations
 	Indices             Indices
 }

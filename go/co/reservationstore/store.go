@@ -941,7 +941,6 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawP
 
 	if newSetup {
 		rsv = &e2e.Reservation{
-
 			ID:                  req.ID,
 			Steps:               req.Steps,
 			CurrentStep:         req.CurrentStep,
@@ -1048,6 +1047,8 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawP
 			Timestamp: req.Timestamp,
 		},
 	}
+
+	var ingress, egress uint16
 	if req.IsLastAS() {
 		var notAdmittedMsg string
 		if admitted {
@@ -1078,20 +1079,56 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawP
 				AllocTrail: req.AllocationTrail,
 			}, nil
 		}
+		ingress = base.IngressFromDataPlanePath(rawPath)
+		egress = base.EgressFromDataPlanePath(rawPath)
 		// all ASes in the path will create authenticators for the initiator end-host
 		res.Authenticators = make([][]byte, len(req.Steps)) // same size as path
 		token = index.Token
 	} else { // this is not the last AS
-		if isTransfer {
-			// indicate the next node we are using the next segment:
+		if s.localIA.Equal(req.Steps.SrcIA()) {
+			r, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
+			if err != nil {
+				return nil, err
+			}
+
+			if r.PathType == reservation.DownPath {
+				rawPath = r.DeriveColibriPathAtDestination()
+			} else {
+				rawPath = r.DeriveColibriPathAtSource()
+			}
+			ingress = base.IngressFromDataPlanePath(rawPath)
+			egress = base.EgressFromDataPlanePath(rawPath)
+
+			log.FromCtx(ctx).Debug("XXXJ", "ingress", ingress, "req.ingress", req.Ingress(), "rsv.Ingress", r.Ingress,
+				"egress", egress, "req.egress", req.Egress(), "rsv.Egress", r.Egress)
+		} else if isTransfer {
+			var newRawPath slayerspath.Path
 			req.CurrentSegmentRsvIndex++
+
+			r, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
+			if err != nil {
+				return nil, err
+			}
+
+			if r.PathType == reservation.DownPath {
+				newRawPath = r.DeriveColibriPathAtDestination()
+			} else {
+				newRawPath = r.DeriveColibriPathAtSource()
+			}
+			// Update egress
+			ingress = base.IngressFromDataPlanePath(rawPath)
+			egress = base.EgressFromDataPlanePath(newRawPath)
+
+			rawPath = newRawPath
+			log.FromCtx(ctx).Debug("XXXJ", "ingress", ingress, "req.ingress", req.Ingress(), "rsv.Ingress", r.Ingress,
+				"egress", egress, "req.egress", req.Egress(), "rsv.Egress", r.Egress)
 		}
 		// TODO(JordiSubira): To be changed by reservation steps
 		if err := s.authenticator.ComputeE2ESetupRequestTransitMAC(ctx, req, req.Steps.DstIA(), req.CurrentStep); err != nil {
 			return nil, serrors.WrapStr("computing in transit e2e setup request authenticator", err)
 		}
 		// authenticate request for the destination AS
-		client, err := s.operator.ColibriClient(ctx, req.Egress(), rawPath)
+		client, err := s.operator.ColibriClient(ctx, base.EgressFromDataPlanePath(rawPath), rawPath)
 		if err != nil {
 			return nil, serrors.WrapStr("while finding a colibri service client", err)
 		}
@@ -1125,8 +1162,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawP
 	}
 	// here the request was admitted and returning back from the down stream admission
 
-	step := req.Steps[req.CurrentStep]
-	err = s.computeMAC(rsv.ID.Suffix, token, req.ID.ASID, req.ID.ASID, step.Ingress, step.Egress)
+	err = s.computeMAC(rsv.ID.Suffix, token, req.ID.ASID, req.ID.ASID, ingress, egress)
 	if err != nil {
 		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
 		return failedResponse, err
@@ -1188,6 +1224,36 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request, raw
 			"id", req.ID.String())
 	}
 
+	isTransfer := false
+	if len(rsv.SegmentReservations) > 1 {
+		isTransfer = true
+	}
+
+	var r *segment.Reservation
+	if s.localIA.Equal(req.Steps.SrcIA()) || isTransfer {
+		tx, err := s.db.BeginTransaction(ctx, nil)
+		if err != nil {
+			return failedResponse, s.errWrapStr("cannot create transaction", err,
+				"id", req.ID.String())
+		}
+		defer tx.Rollback()
+		if s.localIA.Equal(req.Steps.SrcIA()) {
+
+			r, err = tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[0].ID)
+		} else {
+
+			r, err = tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[1].ID)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if r.PathType == reservation.DownPath {
+			rawPath = r.DeriveColibriPathAtDestination()
+		} else {
+			rawPath = r.DeriveColibriPathAtSource()
+		}
+	}
+
 	if rsv.Index(req.Index) != nil {
 		tx, err := s.db.BeginTransaction(ctx, nil)
 		if err != nil {
@@ -1235,7 +1301,7 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.Request, raw
 		return nil, serrors.WrapStr("computing in transit e2e base request authenticator", err)
 	}
 	// forward to next colibri service
-	client, err := s.operator.ColibriClient(ctx, req.Egress(), rawPath)
+	client, err := s.operator.ColibriClient(ctx, base.EgressFromDataPlanePath(rawPath), rawPath)
 	if err != nil {
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
@@ -1455,9 +1521,8 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 	}
 
 	// update token with new hop field
-	step := req.Steps[currentStep]
-	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, req.ID.ASID, req.ID.ASID,
-		step.Ingress, step.Egress); err != nil {
+	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, req.Steps.SrcIA().AS(), req.Steps.DstIA().AS(),
+		base.IngressFromDataPlanePath(rawPath), base.EgressFromDataPlanePath(rawPath)); err != nil {
 		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
 		return updateResponse(failedResponse)
 	}
@@ -1538,7 +1603,7 @@ func (s *Store) sendUpstreamForAdmission(ctx context.Context, req *segment.Setup
 		return s.admitSegmentReservation(ctx, req, 0, revPath)
 	}
 	// forward to next colibri service upstream
-	client, err := s.operator.ColibriClient(ctx, req.Egress(), rawPath)
+	client, err := s.operator.ColibriClient(ctx, base.EgressFromDataPlanePath(rawPath), rawPath)
 	if err != nil {
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
@@ -1580,7 +1645,9 @@ func (s *Store) computeMAC(suffix []byte, tok *reservation.Token, srcAS, dstAS a
 		Egress:  egress,
 	})
 	isE2E := tok.InfoField.PathType == reservation.E2EPath
-	return computeMAC(hf.Mac[:], s.colibriKey, suffix, tok, hf, srcAS, dstAS, isE2E)
+	err := computeMAC(hf.Mac[:], s.colibriKey, suffix, tok, hf, srcAS, dstAS, isE2E)
+
+	return err
 }
 
 // computeMAC returns the MAC into buff, which has to be at least 4 bytes long (or runtime panic).
@@ -1589,6 +1656,7 @@ func computeMAC(buff []byte,
 	srcAS, dstAS addr.AS, isE2E bool) error {
 
 	var input [libcolibri.LengthInputDataRound16]byte
+
 	libcolibri.MACInputStatic(input[:], suffix, uint32(tok.InfoField.ExpirationTick), tok.BWCls,
 		tok.RLC, !isE2E, false, tok.Idx, srcAS, dstAS, hf.Ingress, hf.Egress)
 	return libcolibri.MACStaticFromInput(buff, key, input[:])

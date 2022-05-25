@@ -191,13 +191,18 @@ func (s *ColibriService) ListReservations(ctx context.Context, msg *colpb.ListRe
 func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupRequest) (
 	*colpb.E2ESetupResponse, error) {
 
+	path, _, err := extractPathIAFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
 	msg.Base.CurrentStep++
-	req, err := translate.E2ESetupRequest(msg, empty.Path{})
+	req, err := translate.E2ESetupRequest(msg)
 	if err != nil {
 		log.Error("translating e2e setup", "err", err)
 		return nil, serrors.WrapStr("translating e2e setup", err)
 	}
-	res, err := s.Store.AdmitE2EReservation(ctx, req, empty.Path{})
+	res, err := s.Store.AdmitE2EReservation(ctx, req, path)
 	if err != nil {
 		log.Error("admitting e2e", "err", err)
 		return nil, err
@@ -209,7 +214,7 @@ func (s *ColibriService) CleanupE2EIndex(ctx context.Context, msg *colpb.Cleanup
 	*colpb.CleanupE2EIndexResponse, error) {
 
 	msg.Base.CurrentStep++
-	req, err := translate.E2ERequest(msg.Base, empty.Path{})
+	req, err := translate.E2ERequest(msg.Base)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
@@ -277,8 +282,7 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		Allocationtrail: nil,
 	}
 	pbReq.Base.Base.Authenticators.Macs = msg.Authenticators.Macs
-	// TODO: This should be a colibri.Path (Stitched SegRsvs)
-	req, err := translate.E2ESetupRequest(pbReq, empty.Path{})
+	req, err := translate.E2ESetupRequest(pbReq)
 	if err != nil {
 		log.Error("translating initial E2E setup from daemon to service", "err", err)
 		return nil, err

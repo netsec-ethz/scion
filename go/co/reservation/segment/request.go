@@ -86,12 +86,15 @@ func (r *SetupReq) Egress() uint16 {
 
 func (r *SetupReq) Len() int {
 	// basic_request + expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
-	return r.Request.Len() + 4 + 1 + 1 + 1 + 1 + 1 + 1
+	return r.Request.Len() + r.Steps.Len() + 4 + 1 + 1 + 1 + 1 + 1 + 1
 }
 
 func (r *SetupReq) Serialize(buff []byte, options base.SerializeOptions) {
 	offset := r.Request.Len()
 	r.Request.Serialize(buff[:offset], options)
+
+	offset += r.Steps.Len()
+	r.Steps.Serialize(buff[:offset])
 
 	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(r.ExpirationTime))
 	offset += 4
