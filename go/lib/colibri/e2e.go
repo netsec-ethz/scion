@@ -34,8 +34,9 @@ type BaseRequest struct {
 	TimeStamp      time.Time
 	SrcHost        net.IP
 	DstHost        net.IP
-	Path           *base.TransparentPath // non nil path. It contains SrcIA and DstIA.
-	Authenticators [][]byte              // per spec., MACs for AS_i on the immutable data
+	Steps          base.PathSteps
+	CurrentStep    int
+	Authenticators [][]byte // per spec., MACs for AS_i on the immutable data
 }
 
 func (r *BaseRequest) CreateAuthenticators(ctx context.Context, conn DRKeyGetter) error {
@@ -61,18 +62,17 @@ func NewReservation(ctx context.Context, conn DRKeyGetter,
 	fullTrip *FullTrip, srcHost, dstHost net.IP,
 	requestedBW reservation.BWCls) (*E2EReservationSetup, error) {
 
-	p := fullTrip.Path()
 	setupReq := &E2EReservationSetup{
 		BaseRequest: BaseRequest{
 			Id: reservation.ID{
-				ASID:   p.SrcIA().AS(),
+				ASID:   fullTrip.PathSteps().SrcIA().AS(),
 				Suffix: make([]byte, 12),
 			},
 			Index:     0, // new index
 			TimeStamp: time.Now(),
 			SrcHost:   srcHost,
 			DstHost:   dstHost,
-			Path:      p,
+			Steps:     fullTrip.PathSteps(),
 		},
 		RequestedBW: requestedBW,
 		Segments:    fullTrip.Segments(),
@@ -90,9 +90,9 @@ type E2EResponse struct {
 
 // ValidateAuthenticators returns nil if the source validation for all hops succeeds.
 func (r *E2EResponse) ValidateAuthenticators(ctx context.Context, conn DRKeyGetter,
-	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
+	steps base.PathSteps, srcHost net.IP, requestTimestamp time.Time) error {
 
-	return validateResponseAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
+	return validateResponseAuthenticators(ctx, conn, r, steps, srcHost, requestTimestamp)
 }
 
 type E2EResponseError struct {
@@ -106,9 +106,9 @@ func (e *E2EResponseError) Error() string {
 }
 
 func (r *E2EResponseError) ValidateAuthenticators(ctx context.Context, conn DRKeyGetter,
-	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
+	steps base.PathSteps, srcHost net.IP, requestTimestamp time.Time) error {
 
-	return validateResponseErrorAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
+	return validateResponseErrorAuthenticators(ctx, conn, r, steps, srcHost, requestTimestamp)
 }
 
 type E2ESetupError struct {
@@ -117,9 +117,9 @@ type E2ESetupError struct {
 }
 
 func (r *E2ESetupError) ValidateAuthenticators(ctx context.Context, conn DRKeyGetter,
-	requestPath *base.TransparentPath, srcHost net.IP, requestTimestamp time.Time) error {
+	steps base.PathSteps, srcHost net.IP, requestTimestamp time.Time) error {
 
-	return validateSetupErrorAuthenticators(ctx, conn, r, requestPath, srcHost, requestTimestamp)
+	return validateSetupErrorAuthenticators(ctx, conn, r, steps, srcHost, requestTimestamp)
 }
 
 // AdmissionEntry contains the fields which will be inserted into the admission list of the host

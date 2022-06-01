@@ -270,7 +270,7 @@ func (c client) run() int {
 		integration.LogFatal("no trips found")
 	}
 	// obtain an reservation
-	requestPath := trips[0].Path()
+	steps := trips[0].PathSteps()
 	rsvID, p, err := c.createRsv(ctx, trips[0], 1)
 	if err != nil {
 		integration.LogFatal("creating reservation", "err", err)
@@ -316,7 +316,7 @@ func (c client) run() int {
 		integration.LogFatal("colibri path but empty raw", "path", sraddrRawPath)
 	}
 	// clean reservation up
-	if err = c.cleanRsv(ctx, &rsvID, 0, requestPath); err != nil {
+	if err = c.cleanRsv(ctx, &rsvID, 0, steps); err != nil {
 		integration.LogFatal("cleaning reservation up", "err", err)
 	}
 	return 0
@@ -349,7 +349,7 @@ func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
-	err = res.ValidateAuthenticators(ctx, c.Daemon, fullTrip.Path(), c.Local.Host.IP, now)
+	err = res.ValidateAuthenticators(ctx, c.Daemon, fullTrip.PathSteps(), c.Local.Host.IP, now)
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
@@ -357,7 +357,7 @@ func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
 }
 
 func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservation.IndexNumber,
-	path *base.TransparentPath) error {
+	steps base.PathSteps) error {
 
 	log.Debug("cleaning e2e rsv", "id", id)
 	req := &libcol.BaseRequest{
@@ -366,7 +366,7 @@ func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservatio
 		TimeStamp: time.Now(),
 		SrcHost:   c.Local.Host.IP,
 		DstHost:   c.Remote.Host.IP,
-		Path:      path,
+		Steps:     steps,
 	}
 	err := req.CreateAuthenticators(ctx, c.Daemon)
 	if err != nil {

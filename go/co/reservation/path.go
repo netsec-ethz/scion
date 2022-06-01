@@ -418,6 +418,16 @@ func (p PathSteps) Serialize(buff []byte) {
 	}
 }
 
+func (p PathSteps) ToRaw() []byte {
+	if p == nil {
+		return []byte{}
+	}
+
+	buff := make([]byte, p.Len())
+	p.Serialize(buff)
+	return buff
+}
+
 func PathStepsFromRaw(raw []byte) (PathSteps, error) {
 	stepCount := int(binary.BigEndian.Uint16(raw))
 	raw = raw[2:]

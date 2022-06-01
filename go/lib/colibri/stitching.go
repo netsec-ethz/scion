@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -49,24 +48,12 @@ func (t FullTrip) Segments() []reservation.ID {
 	return ids
 }
 
-// Path conveniently returns a path containing the path steps for this stitched full trip.
-// The returned path is not valid for packets to traverse (has no spath.Path entries), but
-// correctly represents the path steps that a packet would take if an e2e reservation is
-// made using this trip.
-func (t FullTrip) Path() *base.TransparentPath {
-	return &base.TransparentPath{
-		CurrentStep: 0,
-		Steps:       t.PathSteps(),
-		RawPath:     &empty.Path{},
-	}
-}
-
 // PathSteps stitches together the path steps from the segment reservations in this trip.
-func (t FullTrip) PathSteps() []base.PathStep {
+func (t FullTrip) PathSteps() base.PathSteps {
 	if len(t) == 0 {
-		return []base.PathStep{}
+		return base.PathSteps{}
 	}
-	steps := append([]base.PathStep{}, t[0].PathSteps...)
+	steps := append(base.PathSteps{}, t[0].PathSteps...)
 	for i := 1; i < len(t); i++ {
 		segment := t[i].PathSteps
 		assert(len(segment) > 0, "bad segment rsv. path (empty): %s", t[i])

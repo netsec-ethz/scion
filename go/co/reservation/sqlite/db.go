@@ -322,7 +322,7 @@ func (x *executor) DeleteE2ERsv(ctx context.Context, ID *reservation.ID) error {
 }
 
 func (x *executor) GetAllE2ERsvs(ctx context.Context) ([]*e2e.Reservation, error) {
-	const query = `SELECT ROWID, reservation_id, path FROM e2e_reservation`
+	const query = `SELECT ROWID, reservation_id, steps, current_step FROM e2e_reservation`
 	rows, err := x.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -330,30 +330,33 @@ func (x *executor) GetAllE2ERsvs(ctx context.Context) ([]*e2e.Reservation, error
 	defer rows.Close()
 
 	type rowFields struct {
-		rowID int
-		rsvID *reservation.ID
-		path  *base.TransparentPath
+		rowID       int
+		rsvID       *reservation.ID
+		currentStep int
+		steps       base.PathSteps
 	}
 	fields := make([]rowFields, 0)
 	for rows.Next() {
 		var rowID int
 		var rsvID []byte
-		var rawPath []byte
-		if err := rows.Scan(&rowID, &rsvID, &rawPath); err != nil {
+		var rawSteps []byte
+		var currentStep int
+		if err := rows.Scan(&rowID, &rsvID, &rawSteps, &currentStep); err != nil {
 			return nil, err
 		}
 		ID, err := reservation.IDFromRaw(rsvID)
 		if err != nil {
 			return nil, err
 		}
-		path, err := base.TransparentPathFromRaw(rawPath)
+		steps, err := base.PathStepsFromRaw(rawSteps)
 		if err != nil {
 			return nil, err
 		}
 		fields = append(fields, rowFields{
-			rowID: rowID,
-			rsvID: ID,
-			path:  path,
+			rowID:       rowID,
+			rsvID:       ID,
+			currentStep: currentStep,
+			steps:       steps,
 		})
 	}
 	rsvs := make([]*e2e.Reservation, len(fields))
@@ -371,8 +374,8 @@ func (x *executor) GetAllE2ERsvs(ctx context.Context) ([]*e2e.Reservation, error
 		}
 		rsvs[i] = &e2e.Reservation{
 			ID:                  *f.rsvID,
-			Steps:               f.path.Steps,
-			CurrentStep:         f.path.CurrentStep,
+			Steps:               f.steps,
+			CurrentStep:         f.currentStep,
 			Indices:             indices,
 			SegmentReservations: segRsvs,
 		}
@@ -898,12 +901,8 @@ func deleteE2ERsv(ctx context.Context, x db.Sqler, rsvID *reservation.ID) error 
 }
 
 func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservation) error {
-	p := &base.TransparentPath{
-		Steps:       rsv.Steps,
-		CurrentStep: rsv.CurrentStep,
-	}
-	const query = `INSERT INTO e2e_reservation (reservation_id, path) VALUES (?, ?)`
-	res, err := x.ExecContext(ctx, query, rsv.ID.ToRaw(), p.ToRaw())
+	const query = `INSERT INTO e2e_reservation (reservation_id, steps, current_step) VALUES (?, ?, ?)`
+	res, err := x.ExecContext(ctx, query, rsv.ID.ToRaw(), rsv.Steps.ToRaw(), rsv.CurrentStep)
 	if err != nil {
 		return err
 	}
@@ -958,16 +957,17 @@ func getE2ERsvFromID(ctx context.Context, x db.Sqler, ID *reservation.ID) (
 
 	// read reservation
 	var rowID int
-	var rawPath []byte
-	const query = `SELECT ROWID, Path FROM e2e_reservation WHERE reservation_id = ?`
-	err := x.QueryRowContext(ctx, query, ID.ToRaw()).Scan(&rowID, &rawPath)
+	var rawSteps []byte
+	var currentStep int
+	const query = `SELECT ROWID, steps, current_step FROM e2e_reservation WHERE reservation_id = ?`
+	err := x.QueryRowContext(ctx, query, ID.ToRaw()).Scan(&rowID, &rawSteps, &currentStep)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
-	p, err := base.TransparentPathFromRaw(rawPath)
+	steps, err := base.PathStepsFromRaw(rawSteps)
 	if err != nil {
 		return nil, err
 	}
@@ -985,8 +985,8 @@ func getE2ERsvFromID(ctx context.Context, x db.Sqler, ID *reservation.ID) (
 	}
 	rsv := &e2e.Reservation{
 		ID:                  *ID.Copy(),
-		Steps:               p.Steps,
-		CurrentStep:         p.CurrentStep,
+		Steps:               steps,
+		CurrentStep:         currentStep,
 		Indices:             indices,
 		SegmentReservations: segRsvs,
 	}
@@ -1000,7 +1000,7 @@ func getE2ERsvsFromSegment(ctx context.Context, x db.Sqler, ID *reservation.ID) 
 		return nil, serrors.New("wrong suffix", "suffix", hex.EncodeToString(ID.Suffix))
 	}
 	rowID2e2eIDs := make(map[int]*e2e.Reservation)
-	const query = `SELECT ROWID,reservation_id,path FROM e2e_reservation WHERE ROWID IN (
+	const query = `SELECT ROWID,reservation_id, steps, current_step FROM e2e_reservation WHERE ROWID IN (
 		SELECT e2e FROM e2e_to_seg WHERE seg =  (
 			SELECT ROWID FROM seg_reservation WHERE id_as = ? AND id_suffix = ?
 		))`
@@ -1013,8 +1013,9 @@ func getE2ERsvsFromSegment(ctx context.Context, x db.Sqler, ID *reservation.ID) 
 	for rows.Next() {
 		var rowID int
 		var rsvID []byte
-		var rawPath []byte
-		err := rows.Scan(&rowID, &rsvID, &rawPath)
+		var rawSteps []byte
+		var currentStep int
+		err := rows.Scan(&rowID, &rsvID, &rawSteps, &currentStep)
 		if err != nil {
 			return nil, err
 		}
@@ -1022,14 +1023,14 @@ func getE2ERsvsFromSegment(ctx context.Context, x db.Sqler, ID *reservation.ID) 
 		if err != nil {
 			return nil, err
 		}
-		p, err := base.TransparentPathFromRaw(rawPath)
+		steps, err := base.PathStepsFromRaw(rawSteps)
 		if err != nil {
 			return nil, err
 		}
 		rowID2e2eIDs[rowID] = &e2e.Reservation{
 			ID:          *id,
-			Steps:       p.Steps,
-			CurrentStep: p.CurrentStep,
+			Steps:       steps,
+			CurrentStep: currentStep,
 		}
 	}
 	if err := rows.Err(); err != nil {

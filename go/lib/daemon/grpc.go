@@ -204,7 +204,7 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 			DstHost:        req.DstHost,
 			RequestedBw:    uint32(req.RequestedBW),
 			Segments:       pbSegs,
-			PathSteps:      translate.PBufSteps(req.Path.Steps),
+			PathSteps:      translate.PBufSteps(req.Steps),
 			Authenticators: &colpb.Authenticators{Macs: req.Authenticators},
 		},
 	}
@@ -256,7 +256,7 @@ func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseReques
 				Id:             translate.PBufID(&req.Id),
 				Index:          uint32(req.Index),
 				Timestamp:      util.TimeToSecs(time.Now()),
-				Steps:          translate.PBufSteps(req.Path.Steps),
+				Steps:          translate.PBufSteps(req.Steps),
 				Authenticators: &colpb.Authenticators{Macs: req.Authenticators},
 			},
 			SrcHost: req.SrcHost,

@@ -55,7 +55,7 @@ func SetupReq(msg *colpb.SegmentSetupRequest, rawPath slayerspath.Path) (*segmen
 		PathProps:        pathProps,
 		AllocTrail:       allocTrail,
 		ReverseTraveling: revTravel,
-		Steps:            TransparentPathSteps(msg.Base.Steps),
+		Steps:            PathSteps(msg.Base.Steps),
 		RawPath:          rawPath,
 	}
 	return req, nil
@@ -71,7 +71,7 @@ func E2ERequest(msg *colpb.E2ERequest) (*e2e.Request, error) {
 		SrcHost:     msg.SrcHost,
 		DstHost:     msg.DstHost,
 		CurrentStep: int(msg.CurrentStep),
-		Steps:       TransparentPathSteps(msg.Steps),
+		Steps:       PathSteps(msg.Steps),
 	}, nil
 }
 
@@ -245,7 +245,7 @@ func ReservationLooks(msg []*colpb.ListReservationsResponse_ReservationLooks) (
 			MaxBW:          col.BWCls(l.Maxbw),
 			AllocBW:        col.BWCls(l.Allocbw),
 			Split:          col.SplitCls(l.Splitcls),
-			PathSteps:      TransparentPathSteps(l.PathSteps),
+			PathSteps:      PathSteps(l.PathSteps),
 		}
 	}
 	return res, nil
@@ -313,8 +313,8 @@ func AllocTrail(msg []*colpb.AllocationBead) col.AllocationBeads {
 	return trail
 }
 
-func TransparentPathSteps(msg []*colpb.PathStep) []base.PathStep {
-	steps := make([]base.PathStep, len(msg))
+func PathSteps(msg []*colpb.PathStep) base.PathSteps {
+	steps := make(base.PathSteps, len(msg))
 	for i, step := range msg {
 		steps[i].IA = addr.IA(step.Ia)
 		steps[i].Ingress = uint16(step.Ingress)

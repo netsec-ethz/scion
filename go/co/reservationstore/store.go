@@ -1099,8 +1099,6 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawP
 			ingress = base.IngressFromDataPlanePath(rawPath)
 			egress = base.EgressFromDataPlanePath(rawPath)
 
-			log.FromCtx(ctx).Debug("XXXJ", "ingress", ingress, "req.ingress", req.Ingress(), "rsv.Ingress", r.Ingress,
-				"egress", egress, "req.egress", req.Egress(), "rsv.Egress", r.Egress)
 		} else if isTransfer {
 			var newRawPath slayerspath.Path
 			req.CurrentSegmentRsvIndex++
@@ -1120,8 +1118,6 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawP
 			egress = base.EgressFromDataPlanePath(newRawPath)
 
 			rawPath = newRawPath
-			log.FromCtx(ctx).Debug("XXXJ", "ingress", ingress, "req.ingress", req.Ingress(), "rsv.Ingress", r.Ingress,
-				"egress", egress, "req.egress", req.Egress(), "rsv.Egress", r.Egress)
 		}
 		// TODO(JordiSubira): To be changed by reservation steps
 		if err := s.authenticator.ComputeE2ESetupRequestTransitMAC(ctx, req, req.Steps.DstIA(), req.CurrentStep); err != nil {
