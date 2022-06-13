@@ -20,69 +20,50 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestTransparentToRawFromRaw(t *testing.T) {
+func TestPathStepsToRawFromRaw(t *testing.T) {
 	cases := map[string]struct {
-		transp *TransparentPath
+		steps    PathSteps
+		expected PathSteps
 	}{
 		"nil": {
-			transp: nil,
+			steps:    nil,
+			expected: PathSteps{},
 		},
 		"empty": {
-			transp: &TransparentPath{
-				CurrentStep: 0,
-				Steps:       []PathStep{},
-			},
+			steps:    PathSteps{},
+			expected: PathSteps{},
 		},
-		"no raw path": {
-			transp: &TransparentPath{
-				CurrentStep: 1,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  1,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
-					{
-						Ingress: 4,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
+		"path": {
+			steps: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  1,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
+				},
+				{
+					Ingress: 4,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
 				},
 			},
-		},
-		"some raw path": {
-			transp: &TransparentPath{
-				CurrentStep: 1,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  1,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
-					{
-						Ingress: 4,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
+			expected: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  1,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
 				},
-				RawPath: MustParseColibriPath("000000000000000000000003" +
-					"0123456789ab0123456789ab000000000d00000000000001" +
-					"0123456700010002012345670001000001234567"),
-			},
-		},
-		"only raw path": {
-			transp: &TransparentPath{
-				CurrentStep: 111,
-				Steps:       []PathStep{},
-				RawPath: MustParseColibriPath("000000000000000000000003" +
-					"0123456789ab0123456789ab000000000d00000000000001" +
-					"0123456700010002012345670001000001234567"),
+				{
+					Ingress: 4,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
+				},
 			},
 		},
 	}
@@ -90,10 +71,10 @@ func TestTransparentToRawFromRaw(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			raw := tc.transp.ToRaw()
-			transp, err := TransparentPathFromRaw(raw)
+			raw := tc.steps.ToRaw()
+			steps, err := PathStepsFromRaw(raw)
 			require.NoError(t, err, "buffer=%s", hex.EncodeToString(raw))
-			require.Equal(t, tc.transp, transp, "buffer=%s", hex.EncodeToString(raw))
+			require.Equal(t, tc.expected, steps, "buffer=%s", hex.EncodeToString(raw))
 		})
 	}
 }
@@ -101,82 +82,63 @@ func TestTransparentToRawFromRaw(t *testing.T) {
 func TestReverse(t *testing.T) {
 	// TODO(juagargi) use go/co/reservation/test.NewPath for the tests
 	cases := map[string]struct {
-		original    *TransparentPath
-		reversed    *TransparentPath
-		expectedErr bool
+		original PathSteps
+		reversed PathSteps
 	}{
 		"nil": {
 			original: nil,
 			reversed: nil,
 		},
 		"two_steps": {
-			original: &TransparentPath{
-				CurrentStep: 1,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  1,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
-					{
-						Ingress: 4,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
+			original: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  1,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
+				},
+				{
+					Ingress: 4,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
 				},
 			},
-			reversed: &TransparentPath{
-				CurrentStep: 0,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  4,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
-					{
-						Ingress: 1,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
+			reversed: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  4,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
+				},
+				{
+					Ingress: 1,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
 				},
 			},
 		},
 		"two_steps_with_raw_path": {
-			original: &TransparentPath{
-				CurrentStep: 1,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  1,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
-					{
-						Ingress: 4,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
+			original: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  1,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
 				},
-				RawPath: MustParseColibriPath("000000000000000000000003" +
-					"0123456789ab0123456789ab000000000d00000000000001" +
-					"0123456700010002012345670001000001234567"),
+				{
+					Ingress: 4,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
+				},
 			},
-			reversed: &TransparentPath{
-				CurrentStep: 0,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  4,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
-					{
-						Ingress: 1,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
+			reversed: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  4,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
 				},
-				RawPath: MustParseColibriPath("000000000000000040000203" +
-					"0123456789ab0123456789ab000000000d00000000010000" +
-					"0123456700010002012345670000000101234567"),
+				{
+					Ingress: 1,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
+				},
 			},
 		},
 	}
@@ -184,21 +146,16 @@ func TestReverse(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			err := tc.original.Reverse()
-			if tc.expectedErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.reversed, tc.original)
-			}
+			reversed := tc.original.Reverse()
+			require.Equal(t, tc.reversed, reversed)
 		})
 	}
 }
 
-func TestTransparentPathFromSnet(t *testing.T) {
+func TestPathStepsFromSnet(t *testing.T) {
 	cases := map[string]struct {
 		snetPath    snet.Path
-		expected    *TransparentPath
+		expected    PathSteps
 		expectedErr bool
 	}{
 		"nil": {
@@ -226,23 +183,17 @@ func TestTransparentPathFromSnet(t *testing.T) {
 						"0123456700010002012345670001000001234567"),
 				},
 			},
-			expected: &TransparentPath{
-				CurrentStep: 0,
-				Steps: []PathStep{
-					{
-						Ingress: 0,
-						Egress:  1,
-						IA:      xtest.MustParseIA("1-ff00:0:111"),
-					},
-					{
-						Ingress: 4,
-						Egress:  0,
-						IA:      xtest.MustParseIA("1-ff00:0:110"),
-					},
+			expected: PathSteps{
+				{
+					Ingress: 0,
+					Egress:  1,
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
 				},
-				RawPath: MustParseColibriPath("000000000000000080000003" +
-					"0123456789ab0123456789ab000000000d00000000000001" +
-					"0123456700010002012345670001000001234567"),
+				{
+					Ingress: 4,
+					Egress:  0,
+					IA:      xtest.MustParseIA("1-ff00:0:110"),
+				},
 			},
 		},
 	}
@@ -250,13 +201,48 @@ func TestTransparentPathFromSnet(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			tp, err := TransparentPathFromSnet(tc.snetPath)
+			steps, err := StepsFromSnet(tc.snetPath)
 
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.expected, tp)
+				require.Equal(t, tc.expected, steps)
+			}
+		})
+	}
+}
+
+func TestRawFromSnet(t *testing.T) {
+	cases := map[string]struct {
+		snetPath    snet.Path
+		expected    slayerspath.Path
+		expectedErr bool
+	}{
+		"colibri_with_raw_path": {
+			snetPath: path.Path{
+				DataplanePath: path.Colibri{
+					Raw: xtest.MustParseHexString("000000000000000080000003" +
+						"0123456789ab0123456789ab000000000d00000000000001" +
+						"0123456700010002012345670001000001234567"),
+				},
+			},
+			expected: MustParseColibriPath("000000000000000080000003" +
+				"0123456789ab0123456789ab000000000d00000000000001" +
+				"0123456700010002012345670001000001234567"),
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			raw, err := PathFromDataplanePath(tc.snetPath.Dataplane())
+
+			if tc.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, raw)
 			}
 		})
 	}

@@ -87,13 +87,17 @@ func WithID(as, suffix string) ReservationMod {
 
 func WithPath(path ...interface{}) ReservationMod {
 	snetPath := test.NewSnetPath(path...)
-	transp, err := base.TransparentPathFromSnet(snetPath)
+	steps, err := base.StepsFromSnet(snetPath)
+	if err != nil {
+		panic(err)
+	}
+	rawPath, err := base.PathFromDataplanePath(snetPath.Dataplane())
 	if err != nil {
 		panic(err)
 	}
 	return func(rsv *segment.Reservation) *segment.Reservation {
-		rsv.Steps = transp.Steps
-		rsv.RawPath = transp.RawPath
+		rsv.Steps = steps
+		rsv.RawPath = rawPath
 		rsv.Egress = base.EgressFromDataPlanePath(rsv.RawPath)
 		rsv.Ingress = base.IngressFromDataPlanePath(rsv.RawPath)
 		return rsv

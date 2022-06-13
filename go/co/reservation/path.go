@@ -429,6 +429,9 @@ func (p PathSteps) ToRaw() []byte {
 }
 
 func PathStepsFromRaw(raw []byte) (PathSteps, error) {
+	if raw == nil || len(raw) < 2 {
+		return PathSteps{}, nil
+	}
 	stepCount := int(binary.BigEndian.Uint16(raw))
 	raw = raw[2:]
 	if len(raw) < stepCount*PathStepLen {

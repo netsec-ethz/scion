@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -722,10 +721,9 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 			require.Len(t, filtered, tc.expected) // this is internal, but forces 1 req per path
 			bagOfPaths := make(map[string]struct{}, len(filtered))
 			for _, p := range filtered {
-				transp, err := base.TransparentPathFromInterfaces(p.Metadata().Interfaces)
+				steps, err := base.StepsFromSnet(p)
 				require.NoError(t, err)
-				transp.RawPath = &scion.Raw{} // mimic a path with a SCION rawpath inside
-				k := base.StepsToString(transp.Steps)
+				k := base.StepsToString(steps)
 				_, ok := bagOfPaths[k]
 				require.False(t, ok, "duplicated path in test", p)
 				bagOfPaths[k] = struct{}{}

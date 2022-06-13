@@ -18,29 +18,26 @@ import (
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	slayers "github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-// NewPath creates a TransparentPath. Use: NewPath(0,"1-ffaa:0:1", 1, 2, "1-ffaa:0:2", 0)
-func NewPath(chain ...interface{}) *base.TransparentPath {
+// NewPath creates a base.PathSteps. Use: NewPath(0,"1-ffaa:0:1", 1, 2, "1-ffaa:0:2", 0)
+func NewPath(chain ...interface{}) base.PathSteps {
 	if len(chain)%3 != 0 {
 		panic("wrong number of arguments")
 	}
-	p := &base.TransparentPath{
-		RawPath: empty.Path{},
-	}
+	steps := make(base.PathSteps, 0)
 	for i := 0; i < len(chain); i += 3 {
-		p.Steps = append(p.Steps, base.PathStep{
+		steps = append(steps, base.PathStep{
 			Ingress: uint16(chain[i].(int)),
 			Egress:  uint16(chain[i+2].(int)),
 			IA:      xtest.MustParseIA(chain[i+1].(string)),
 		})
 	}
-	return p
+	return steps
 }
 
 // NewIfaces is invoked like:
@@ -74,7 +71,7 @@ func NewIfaces(args ...interface{}) []snet.PathInterface {
 // NewSnetPath("1-ff00:0:1", 1,  2, "1-ff00:1:2", 3,     4, "1-ff00:0:3"))
 func NewSnetPath(args ...interface{}) snet.Path {
 	ifaces := NewIfaces(args...)
-	transp, err := base.TransparentPathFromInterfaces(ifaces)
+	steps, err := base.StepsFromInterfaces(ifaces)
 	if err != nil {
 		panic(err)
 	}
@@ -84,18 +81,18 @@ func NewSnetPath(args ...interface{}) snet.Path {
 			PathMeta: scion.MetaHdr{
 				CurrINF: 0,
 				CurrHF:  0,
-				SegLen:  [3]uint8{uint8(len(transp.Steps))},
+				SegLen:  [3]uint8{uint8(len(steps))},
 			},
 			NumINF:  1,
-			NumHops: len(transp.Steps),
+			NumHops: len(steps),
 		},
 		InfoFields: []slayers.InfoField{{
 			ConsDir: true,
 		}},
-		HopFields: make([]slayers.HopField, len(transp.Steps)),
+		HopFields: make([]slayers.HopField, len(steps)),
 	}
 
-	for i, iface := range transp.Steps {
+	for i, iface := range steps {
 		rp.HopFields[i] = slayers.HopField{
 			ConsIngress: iface.Ingress,
 			ConsEgress:  iface.Egress,

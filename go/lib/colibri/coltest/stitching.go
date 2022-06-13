@@ -246,42 +246,42 @@ func WithCoreSegs(pairs ...[2]int) StitchableMod {
 	}
 }
 
-func WithUpPaths(paths ...*base.TransparentPath) StitchableMod {
+func WithUpPaths(stepsList ...base.PathSteps) StitchableMod {
 	return func(generator *stitchableGenerator) {
-		for _, path := range paths {
+		for _, steps := range stepsList {
 			l := &colibri.ReservationLooks{
-				SrcIA:     path.SrcIA(),
-				DstIA:     path.DstIA(),
+				SrcIA:     steps.SrcIA(),
+				DstIA:     steps.DstIA(),
 				Id:        generator.newUpID(),
-				PathSteps: path.Steps,
+				PathSteps: steps,
 			}
 			generator.stitchable.Up = append(generator.stitchable.Up, l)
 		}
 	}
 }
 
-func WithDownPaths(paths ...*base.TransparentPath) StitchableMod {
+func WithDownPaths(stepsList ...base.PathSteps) StitchableMod {
 	return func(generator *stitchableGenerator) {
-		for _, path := range paths {
+		for _, steps := range stepsList {
 			l := &colibri.ReservationLooks{
-				SrcIA:     path.SrcIA(),
-				DstIA:     path.DstIA(),
+				SrcIA:     steps.SrcIA(),
+				DstIA:     steps.DstIA(),
 				Id:        generator.newUpID(),
-				PathSteps: path.Steps,
+				PathSteps: steps,
 			}
 			generator.stitchable.Down = append(generator.stitchable.Down, l)
 		}
 	}
 }
 
-func WithCorePaths(paths ...*base.TransparentPath) StitchableMod {
+func WithCorePaths(stepsList ...base.PathSteps) StitchableMod {
 	return func(generator *stitchableGenerator) {
-		for _, path := range paths {
+		for _, steps := range stepsList {
 			l := &colibri.ReservationLooks{
-				SrcIA:     path.SrcIA(),
-				DstIA:     path.DstIA(),
+				SrcIA:     steps.SrcIA(),
+				DstIA:     steps.DstIA(),
 				Id:        generator.newUpID(),
-				PathSteps: path.Steps,
+				PathSteps: steps,
 			}
 			generator.stitchable.Core = append(generator.stitchable.Core, l)
 		}
@@ -317,32 +317,30 @@ func (g *fullTripGenerator) newSeg(segType segTypeSelector,
 
 	src := g.GetAI(srcIdx)
 	dst := g.GetAI(dstIdx)
-	p := &base.TransparentPath{
-		Steps: []base.PathStep{
-			{Ingress: 0, IA: src, Egress: 1},
-			{Ingress: 1, IA: dst, Egress: 0},
-		},
+	steps := []base.PathStep{
+		{Ingress: 0, IA: src, Egress: 1},
+		{Ingress: 1, IA: dst, Egress: 0},
 	}
-	return g.newSegWithPath(segType, p)
+	return g.newSegWithPath(segType, steps)
 }
 
 func (g *fullTripGenerator) newSegWithPath(segType segTypeSelector,
-	p *base.TransparentPath) *colibri.ReservationLooks {
+	steps base.PathSteps) *colibri.ReservationLooks {
 
 	var id reservation.ID
 	switch segType {
 	case Up:
 		id = g.newUpID()
 	case Core:
-		id = g.newCoreID(p.SrcIA())
+		id = g.newCoreID(steps.SrcIA())
 	case Down:
 		id = g.newDownID()
 	}
 	return &colibri.ReservationLooks{
-		SrcIA:     p.SrcIA(),
-		DstIA:     p.DstIA(),
+		SrcIA:     steps.SrcIA(),
+		DstIA:     steps.DstIA(),
 		Id:        id,
-		PathSteps: p.Steps,
+		PathSteps: steps,
 	}
 }
 
@@ -452,11 +450,11 @@ func WithTrips(trips ...[]trip) FullTripMod {
 // WithTripFromPaths(Up,0,"0:0:111",1,1,"0:0:110",0, Down,0,"0:1:110",2,1,"0:1:112",0)
 // to create a FullTrip consisting on one up segment + one down segment.
 func WithTripFromPaths(args ...interface{}) FullTripMod {
-	var upseg, coreseg, downseg *base.TransparentPath
+	var upseg, coreseg, downseg base.PathSteps
 	remainingArgs := args
 	for len(remainingArgs) > 0 {
 		if t, ok := remainingArgs[0].(segTypeSelector); ok {
-			var destinationSegment **base.TransparentPath
+			var destinationSegment *base.PathSteps
 			switch t {
 			case Up:
 				if upseg != nil {

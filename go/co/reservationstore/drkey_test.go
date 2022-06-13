@@ -49,7 +49,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 				Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
 				Index:     3,
 				TimeStamp: util.SecsToTime(1),
-				Path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 					1, "1-ff00:0:112", 0),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
@@ -57,10 +57,10 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps),
+					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
-				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps,
+				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			},
 		},
 	}
@@ -83,7 +83,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 				tc.transitReq.Authenticators[i] = a
 			}
 
-			authIA := tc.clientReq.Path.Steps[1].IA
+			authIA := tc.clientReq.Steps[1].IA
 			auth := DRKeyAuthenticator{
 				localIA:   authIA,
 				fastKeyer: fakeFastKeyer{localIA: authIA},
@@ -107,7 +107,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 					Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
 					Index:     3,
 					TimeStamp: util.SecsToTime(1),
-					Path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 						1, "1-ff00:0:112", 0),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
@@ -123,11 +123,11 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
 						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 0).Steps),
+							1, "1-ff00:0:112", 0)),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 0).Steps,
+						1, "1-ff00:0:112", 0),
 				},
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
@@ -156,7 +156,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 				tc.transitReq.Authenticators[i] = a
 			}
 
-			authIA := tc.clientReq.Path.Steps[1].IA
+			authIA := tc.clientReq.Steps[1].IA
 			auth := DRKeyAuthenticator{
 				localIA:   authIA,
 				fastKeyer: fakeFastKeyer{localIA: authIA},
@@ -177,10 +177,10 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps),
+					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
-				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0).Steps,
+				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			},
 		},
 	}
@@ -227,11 +227,11 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
 						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 0).Steps),
+							1, "1-ff00:0:112", 0)),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 0).Steps,
+						1, "1-ff00:0:112", 0),
 				},
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
@@ -280,8 +280,9 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 
 func TestComputeAndValidateResponse(t *testing.T) {
 	cases := map[string]struct {
-		res  base.Response
-		path *base.TransparentPath
+		res         base.Response
+		steps       base.PathSteps
+		currentStep int
 	}{
 		"regular": {
 			res: &base.ResponseSuccess{
@@ -290,7 +291,8 @@ func TestComputeAndValidateResponse(t *testing.T) {
 					Authenticators: make([][]byte, 2),
 				},
 			},
-			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:       ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			currentStep: 0,
 		},
 	}
 	for name, tc := range cases {
@@ -301,25 +303,25 @@ func TestComputeAndValidateResponse(t *testing.T) {
 			defer cancelF()
 
 			// at the transit ASes:
-			for step := 1; step < len(tc.path.Steps); step++ {
-				tc.path.CurrentStep = step
-				authIA := tc.path.Steps[step].IA
+			for step := 1; step < len(tc.steps); step++ {
+				tc.currentStep = step
+				authIA := tc.steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeResponseMAC(ctx, tc.res, tc.path.SrcIA(), tc.path.CurrentStep)
+				err := auth.ComputeResponseMAC(ctx, tc.res, tc.steps.SrcIA(), tc.currentStep)
 				require.NoError(t, err)
 			}
 
 			// at the initiator AS:
-			srcIA := tc.path.SrcIA()
+			srcIA := tc.steps.SrcIA()
 			auth := DRKeyAuthenticator{
 				localIA:   srcIA,
 				slowKeyer: fakeSlowKeyer{localIA: srcIA},
 			}
-			tc.path.CurrentStep = 0
-			ok, err := auth.ValidateResponse(ctx, tc.res, tc.path.Steps)
+			tc.currentStep = 0
+			ok, err := auth.ValidateResponse(ctx, tc.res, tc.steps)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -329,8 +331,9 @@ func TestComputeAndValidateResponse(t *testing.T) {
 func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 	cases := map[string]struct {
 		res                   segment.SegmentSetupResponse
-		path                  *base.TransparentPath
+		steps                 base.PathSteps
 		lastStepWhichComputes int
+		currentStep           int
 	}{
 		"regular": {
 			res: &segment.SegmentSetupResponseSuccess{
@@ -346,7 +349,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					},
 				},
 			},
-			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 			lastStepWhichComputes: 2,
 		},
@@ -374,12 +377,12 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					MaxBW:          13,
 					SplitCls:       11,
 					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0).Steps,
+						1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0),
 
 					PathProps: reservation.StartLocal | reservation.EndTransfer,
 				},
 			},
-			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 2,
+			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 2,
 				1, "1-ff00:0:113", 0), // note that we don't have drkeys for 113, but that drkey
 			// should not be requested, as it is beyond the failure step.
 			lastStepWhichComputes: 2,
@@ -393,11 +396,11 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 			defer cancelF()
 
 			// at the transit ASes:
-			for step := len(tc.path.Steps) - 1; step >= 0; step-- {
-				tc.path.CurrentStep = step
+			for step := len(tc.steps) - 1; step >= 0; step-- {
+				tc.currentStep = step
 				// if success, add a hop field
 				if success, ok := tc.res.(*segment.SegmentSetupResponseSuccess); ok {
-					currStep := tc.path.Steps[tc.path.CurrentStep]
+					currStep := tc.steps[tc.currentStep]
 					success.Token.AddNewHopField(&reservation.HopField{
 						Ingress: currStep.Ingress,
 						Egress:  currStep.Egress,
@@ -407,24 +410,24 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				if step > tc.lastStepWhichComputes || step == 0 {
 					continue
 				}
-				authIA := tc.path.Steps[step].IA
+				authIA := tc.steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.path.Steps,
-					tc.path.CurrentStep)
+				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.steps,
+					tc.currentStep)
 				require.NoError(t, err)
 			}
 
 			// at the initiator AS:
-			srcIA := tc.path.SrcIA()
+			srcIA := tc.steps.SrcIA()
 			auth := DRKeyAuthenticator{
 				localIA:   srcIA,
 				slowKeyer: fakeSlowKeyer{localIA: srcIA},
 			}
-			tc.path.CurrentStep = 0
-			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.path.Steps)
+			tc.currentStep = 0
+			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.steps)
 			require.NoError(t, err)
 			require.True(t, ok, "validation failed")
 		})
@@ -433,14 +436,15 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 
 func TestComputeAndValidateE2EResponseError(t *testing.T) {
 	cases := map[string]struct {
-		timestamp time.Time
-		response  base.Response
-		path      *base.TransparentPath
-		srcHost   net.IP
+		timestamp   time.Time
+		response    base.Response
+		steps       base.PathSteps
+		srcHost     net.IP
+		currentStep int
 	}{
 		"failure": {
 			timestamp: util.SecsToTime(1),
-			path: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 			response: &base.ResponseFailure{
@@ -462,9 +466,9 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 			defer cancelF()
 
 			// colibri services, all ASes:
-			for i := len(tc.path.Steps) - 1; i >= 0; i-- { // from last to first
-				step := tc.path.Steps[i]
-				tc.path.CurrentStep = i
+			for i := len(tc.steps) - 1; i >= 0; i-- { // from last to first
+				step := tc.steps[i]
+				tc.currentStep = i
 
 				auth := DRKeyAuthenticator{
 					localIA:   step.IA,
@@ -478,8 +482,8 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 					}
 				}
 
-				err := auth.ComputeE2EResponseMAC(ctx, tc.response, tc.path.CurrentStep,
-					tc.path.SrcIA(), addr.HostFromIP(tc.srcHost))
+				err := auth.ComputeE2EResponseMAC(ctx, tc.response, tc.currentStep,
+					tc.steps.SrcIA(), addr.HostFromIP(tc.srcHost))
 				require.NoError(t, err)
 			}
 
@@ -497,7 +501,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 					Message:        res.Message,
 				}
 				err := clientRes.ValidateAuthenticators(ctx, daemon,
-					tc.path, tc.srcHost, tc.timestamp)
+					tc.steps, tc.srcHost, tc.timestamp)
 				require.NoError(t, err)
 			}
 		})
@@ -506,12 +510,13 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 
 func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 	cases := map[string]struct {
-		timestamp time.Time
-		response  e2e.SetupResponse
-		path      *base.TransparentPath
-		srcHost   net.IP
-		rsvID     *reservation.ID    // success case only
-		token     *reservation.Token // success case only
+		timestamp   time.Time
+		response    e2e.SetupResponse
+		steps       base.PathSteps
+		srcHost     net.IP
+		currentStep int
+		rsvID       *reservation.ID    // success case only
+		token       *reservation.Token // success case only
 	}{
 		"success": {
 			timestamp: util.SecsToTime(1),
@@ -521,7 +526,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					Authenticators: make([][]byte, 3), // same size as the path
 				},
 			},
-			path:    ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 			rsvID:   ct.MustParseID("ff00:0:111", "01234567890123456789abcd"),
 			token: &reservation.Token{
@@ -545,7 +550,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 				Message:    "this is a mock test message",
 				AllocTrail: []reservation.BWCls{13, 5, 13},
 			},
-			path:    ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 		},
 		"failure_at_transit": {
@@ -559,7 +564,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 				Message:    "this is a mock test message",
 				AllocTrail: []reservation.BWCls{13, 5, 13},
 			},
-			path:    ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 		},
 	}
@@ -573,9 +578,9 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 
 			// mock the compuation of the drkey authenticator by the col service of all ASes.
 			// walk in reverse from last to first AS.
-			for i := len(tc.path.Steps) - 1; i >= 0; i-- { // from last to first
-				step := tc.path.Steps[i]
-				tc.path.CurrentStep = i
+			for i := len(tc.steps) - 1; i >= 0; i-- { // from last to first
+				step := tc.steps[i]
+				tc.currentStep = i
 				switch res := tc.response.(type) {
 				case *e2e.SetupResponseSuccess:
 					tc.token.AddNewHopField(&reservation.HopField{
@@ -596,8 +601,8 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					localIA:   step.IA,
 					fastKeyer: fakeFastKeyer{localIA: step.IA},
 				}
-				err := auth.ComputeE2ESetupResponseMAC(ctx, tc.response, tc.path.CurrentStep,
-					tc.path.SrcIA(), addr.HostFromIP(tc.srcHost), tc.rsvID)
+				err := auth.ComputeE2ESetupResponseMAC(ctx, tc.response, tc.currentStep,
+					tc.steps.SrcIA(), addr.HostFromIP(tc.srcHost), tc.rsvID)
 				require.NoError(t, err)
 			}
 
@@ -622,7 +627,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 						},
 					},
 				}
-				err = clientRes.ValidateAuthenticators(ctx, daemon, tc.path, tc.srcHost,
+				err = clientRes.ValidateAuthenticators(ctx, daemon, tc.steps, tc.srcHost,
 					tc.timestamp)
 				require.NoError(t, err)
 			case *e2e.SetupResponseFailure:
@@ -634,7 +639,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					},
 					AllocationTrail: res.AllocTrail,
 				}
-				err := clientRes.ValidateAuthenticators(ctx, daemon, tc.path, tc.srcHost,
+				err := clientRes.ValidateAuthenticators(ctx, daemon, tc.steps, tc.srcHost,
 					tc.timestamp)
 				require.NoError(t, err)
 			}

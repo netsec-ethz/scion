@@ -68,13 +68,14 @@ func TestDB(t *testing.T, newDB func() backend.DB) {
 }
 
 func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.DB) {
+	var err error
 	db := newDB()
 	r := newTestReservation(t)
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	r.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
-	r.Steps = transp.Steps
-	r.RawPath = transp.RawPath
+	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	require.NoError(t, err)
 	r.Indices = segment.Indices{}
 	// no indices
 	err = db.NewSegmentRsv(ctx, r)
@@ -87,9 +88,9 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	_, err = r.NewIndex(0, util.SecsToTime(10), 2, 3, 2, 2, reservation.CorePath)
 	require.NoError(t, err)
 	p = test.NewSnetPath("1-ff00:0:1", 2, 1, "1-ff00:0:2")
-	transp, err = base.TransparentPathFromSnet(p)
-	r.Steps = transp.Steps
-	r.RawPath = transp.RawPath
+	r.Steps, err = base.StepsFromSnet(p)
+	require.NoError(t, err)
+	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
@@ -143,10 +144,10 @@ func testPersistSegmentRsv(ctx context.Context, t *testing.T, newDB func() backe
 	r.Ingress = 3
 	r.Egress = 4
 	p := test.NewSnetPath("1-ff00:0:1", 11, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	r.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
-	r.Steps = transp.Steps
-	r.RawPath = transp.RawPath
+	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	require.NoError(t, err)
 	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
@@ -1129,11 +1130,16 @@ func newToken() *reservation.Token {
 }
 
 func newTestReservation(t *testing.T) *segment.Reservation {
+	var err error
 	t.Helper()
 	r := segment.NewReservation(xtest.MustParseAS("ff00:0:1"))
 	//only set so that validate does not panic
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	r.Steps, err = base.StepsFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
+	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
 	if err != nil {
 		panic(err)
 	}
@@ -1141,8 +1147,6 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	r.Egress = 1
 	r.TrafficSplit = 3
 	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
-	r.Steps = transp.Steps
-	r.RawPath = transp.RawPath
 	expTime := util.SecsToTime(1)
 	_, err = r.NewIndex(0, expTime, 1, 3, 2, 5, reservation.CorePath)
 	require.NoError(t, err)

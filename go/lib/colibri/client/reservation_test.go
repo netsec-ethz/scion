@@ -69,8 +69,8 @@ func TestNewReservation(t *testing.T) {
 	require.Nil(t, rsv.colibriPath) // not negotiated yet
 
 	require.NotNil(t, rsv.request) // should be populated
-	require.Equal(t, dstIA, rsv.request.Path.DstIA())
-	require.Equal(t, srcIA, rsv.request.Path.SrcIA())
+	require.Equal(t, dstIA, rsv.request.Steps.DstIA())
+	require.Equal(t, srcIA, rsv.request.Steps.SrcIA())
 	require.Greater(t, len(rsv.request.Segments), 0)
 }
 

@@ -114,12 +114,15 @@ func newSegmentReservation(asidPath ...string) *segment.Reservation {
 	pathComponents[len(pathComponents)-1] = 0
 
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	var err error
+	r.Steps, err = base.StepsFromSnet(p)
 	if err != nil {
 		panic(err)
 	}
-	r.Steps = transp.Steps
-	r.RawPath = transp.RawPath
+	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	if err != nil {
+		panic(err)
+	}
 	return r
 }
 

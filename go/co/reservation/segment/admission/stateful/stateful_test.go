@@ -794,7 +794,7 @@ func newTestAdmitter(t *testing.T) *StatefulAdmission {
 
 func newsnetPathWithHop(args ...interface{}) snet.Path {
 	ifaces := test.NewIfaces(args...)
-	transp, err := base.TransparentPathFromInterfaces(ifaces)
+	steps, err := base.StepsFromInterfaces(ifaces)
 	if err != nil {
 		panic(err)
 	}
@@ -804,18 +804,18 @@ func newsnetPathWithHop(args ...interface{}) snet.Path {
 			PathMeta: scion.MetaHdr{
 				CurrINF: 0,
 				CurrHF:  1,
-				SegLen:  [3]uint8{uint8(len(transp.Steps))},
+				SegLen:  [3]uint8{uint8(len(steps))},
 			},
 			NumINF:  1,
-			NumHops: len(transp.Steps),
+			NumHops: len(steps),
 		},
 		InfoFields: []slayers.InfoField{{
 			ConsDir: true,
 		}},
-		HopFields: make([]slayers.HopField, len(transp.Steps)),
+		HopFields: make([]slayers.HopField, len(steps)),
 	}
 
-	for i, iface := range transp.Steps {
+	for i, iface := range steps {
 		rp.HopFields[i] = slayers.HopField{
 			ConsIngress: iface.Ingress,
 			ConsEgress:  iface.Egress,
@@ -844,10 +844,12 @@ func newTestRequest(t *testing.T, ingress, egress int,
 	ID, err := reservation.IDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
 	require.NoError(t, err)
 	p := newsnetPathWithHop("1-ff00:1:0", 1, ingress, "1-ff00:1:1", egress, 1, "1-ff00:1:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	steps, err := base.StepsFromSnet(p)
+	require.NoError(t, err)
+	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	baseReq := base.NewRequest(util.SecsToTime(1), ID, 0,
-		transp.Steps)
+		steps)
 
 	return &segment.SetupReq{
 		Request:        *baseReq,
@@ -858,8 +860,8 @@ func newTestRequest(t *testing.T, ingress, egress int,
 		MaxBW:          maxBW,
 		SplitCls:       2,
 		PathProps:      reservation.StartLocal | reservation.EndLocal,
-		Steps:          transp.Steps,
-		RawPath:        transp.RawPath,
+		Steps:          steps,
+		RawPath:        rawPath,
 	}
 }
 
@@ -872,7 +874,10 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 
 	//only set so that validate does not panic
 	p := test.NewSnetPath("1-ff00:0:1", int(egress), int(ingress), "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	steps, err := base.StepsFromSnet(p)
+	require.NoError(t, err)
+	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
+	require.NoError(t, err)
 	if err != nil {
 		panic(err)
 	}
@@ -893,8 +898,8 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 		PathType:     reservation.UpPath,
 		PathEndProps: reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
 		TrafficSplit: 2,
-		RawPath:      transp.RawPath,
-		Steps:        transp.Steps,
+		RawPath:      rawPath,
+		Steps:        steps,
 	}
 	err = rsv.SetIndexConfirmed(10)
 	require.NoError(t, err)

@@ -64,6 +64,7 @@ func TestNewSegSuffix(t *testing.T) {
 // As soon as one read transaction does one write operation, it is promoted to a write transaction.
 // See also https://www.sqlite.org/lang_transaction.html
 func TestTransactions(t *testing.T) {
+	var err error
 	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancelF()
 
@@ -76,15 +77,17 @@ func TestTransactions(t *testing.T) {
 
 	// create a segment reservation
 	rsv := segment.NewReservation(xtest.MustParseAS("ff00:0:111"))
-	_, err := rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
+	_, err = rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
 	require.NoError(t, err)
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	rsv.Steps, err = base.StepsFromSnet(p)
 	if err != nil {
 		panic(err)
 	}
-	rsv.Steps = transp.Steps
-	rsv.RawPath = transp.RawPath
+	rsv.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	if err != nil {
+		panic(err)
+	}
 	rsv.ID.Suffix[0]++
 	// save the reservation to DB
 	err = db.PersistSegmentRsv(ctx, rsv)
@@ -115,6 +118,7 @@ func TestTransactions(t *testing.T) {
 // TestTransactionsBusy tests that we can use several transactions at the same time, and that
 // the DB will retry to obtain a write-transaction when needed.
 func TestTransactionsBusy(t *testing.T) {
+	var err error
 	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancelF()
 
@@ -129,16 +133,18 @@ func TestTransactionsBusy(t *testing.T) {
 	// create a segment reservation
 	rsv := segment.NewReservation(ID.ASID)
 	rsv.ID = *ID
-	_, err := rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
+	_, err = rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
 	require.NoError(t, err)
 	// save the reservation to DB
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	rsv.Steps, err = base.StepsFromSnet(p)
 	if err != nil {
 		panic(err)
 	}
-	rsv.Steps = transp.Steps
-	rsv.RawPath = transp.RawPath
+	rsv.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	if err != nil {
+		panic(err)
+	}
 	err = db.PersistSegmentRsv(ctx, rsv)
 	require.NoError(t, err)
 
@@ -262,7 +268,11 @@ func TestRaceForSuffix(t *testing.T) {
 	}
 
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	transp, err := base.TransparentPathFromSnet(p)
+	steps, err := base.StepsFromSnet(p)
+	if err != nil {
+		panic(err)
+	}
+	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
 	if err != nil {
 		panic(err)
 	}
@@ -270,11 +280,11 @@ func TestRaceForSuffix(t *testing.T) {
 	rsv1 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{1, 1, 1, 1}},
 		Indices: segment.Indices{segment.Index{}},
-		Steps:   transp.Steps, RawPath: transp.RawPath}
+		Steps:   steps, RawPath: rawPath}
 	rsv2 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{2, 2, 2, 2}},
 		Indices: segment.Indices{segment.Index{}},
-		Steps:   transp.Steps, RawPath: transp.RawPath}
+		Steps:   steps, RawPath: rawPath}
 	lockAllMutexes()
 
 	go fcn(t, &rsv1, &mut1_1, &mut1_2)
