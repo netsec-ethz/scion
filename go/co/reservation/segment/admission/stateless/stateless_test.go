@@ -529,6 +529,7 @@ func newTestRequest(t *testing.T, ingress, egress int,
 		PathProps:      reservation.StartLocal | reservation.EndLocal,
 		Steps:          steps,
 		RawPath:        rawPath,
+		CurrentStep:    1,
 	}
 }
 

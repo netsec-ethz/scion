@@ -217,8 +217,7 @@ func (s *Store) ListStitchableSegments(ctx context.Context, dst addr.IA) (
 
 // InitSegmentReservation will start a new segment reservation request. The source of
 // the request will have this very AS as source.
-func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupReq,
-	rawPath slayerspath.Path) error {
+func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupReq) error {
 	if req.ID.IsEmpty() {
 		return serrors.New("bad empty ID")
 	}
@@ -243,6 +242,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	log.Info("COLIBRI requesting setup/renewal", "new_setup", newSetup,
 		"id", req.ID.String(), "idx", req.Index, "dst_ia", req.Steps.DstIA(), "path", req.Steps)
 
+	rawPath := req.RawPath
 	origPath := req.Steps.Copy()
 	rollbackChanges := func(setupRes segment.SegmentSetupResponse) {
 		if failure, ok := setupRes.(*segment.SegmentSetupResponseFailure); ok {
@@ -288,6 +288,12 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		rsv.TrafficSplit = req.SplitCls
 		rsv.Steps = req.Steps
 		rsv.RawPath = rawPath
+
+		//Check if rsv is a down-seg we invert ingress/egress
+		if rsv.PathType == reservation.DownPath {
+			rsv.Ingress = req.Egress()
+			rsv.Egress = req.Ingress()
+		}
 
 		if err := s.db.NewSegmentRsv(ctx, rsv); err != nil {
 			return s.errWrapStr("initial reservation creation", err, "dst", req.Steps.DstIA())
@@ -414,19 +420,25 @@ func (s *Store) DeleteExpiredAdmissionEntries(ctx context.Context, now time.Time
 
 // AdmitSegmentReservation receives a setup/renewal request to admit a segment reservation.
 // It is expected that this AS is not the reservation initiator.
-func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupReq,
-	currentStep int, rawPath slayerspath.Path) (
+func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupReq, rawPath slayerspath.Path) (
 	segment.SegmentSetupResponse, error) {
 
+	// Check whether
 	if req.ReverseTraveling {
-		return s.sendUpstreamForAdmission(ctx, req, currentStep, rawPath)
+		return s.sendUpstreamForAdmission(ctx, req, req.CurrentStep, rawPath)
 	}
 
-	if err := s.authenticateSegSetupReq(ctx, req, currentStep); err != nil {
+	// Check dataplane ingress/egress correspond to request ingress/egress
+	if err := checkRawPathAndCurrentStep(req.RawPath, req.Steps[req.CurrentStep].Ingress,
+		req.Steps[req.CurrentStep].Egress); err != nil {
+		return nil, err
+	}
+
+	if err := s.authenticateSegSetupReq(ctx, req, req.CurrentStep); err != nil {
 		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
 	}
 
-	return s.admitSegmentReservation(ctx, req, currentStep, rawPath)
+	return s.admitSegmentReservation(ctx, req, req.CurrentStep, rawPath)
 }
 
 func newFailedMessage(req *base.Request, currentStep int) *base.ResponseFailure {
@@ -475,6 +487,19 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, srcIA addr.IA, re
 			"auth_count", len(req.Authenticators), "path_len", len(rsv.Steps))
 		return failedResponse, nil
 	}
+	//Check dataplane ingress/egress correspond to request ingress/egress
+	if rsv.PathType == reservation.DownPath {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Egress,
+			rsv.Ingress); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Ingress,
+			rsv.Egress); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := s.authenticateReq(ctx, srcIA, req, currentStep, rsv.Steps); err != nil {
 		err = serrors.Wrap(ErrAuthenticate, err)
 		if !(currentStep == 0) {
@@ -510,7 +535,6 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, srcIA addr.IA, re
 		}
 	} else {
 		// authenticate request for the destination AS
-		// TODO(JordiSubira): To be changed by reservation steps
 		if err := s.authenticator.ComputeRequestTransitMAC(ctx, req, rsv.Steps.DstIA(),
 			currentStep, rsv.Steps); err != nil {
 			return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
@@ -599,6 +623,18 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, srcIA addr.IA,
 			}
 		}
 		return failedResponse, nil
+	}
+	//Check dataplane ingress/egress correspond to request ingress/egress
+	if rsv.PathType == reservation.DownPath {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Egress,
+			rsv.Ingress); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Ingress,
+			rsv.Egress); err != nil {
+			return nil, err
+		}
 	}
 	if err := rsv.SetIndexActive(req.Index); err != nil {
 		return failedResponse, s.errWrapStr("cannot set index to active", err,
@@ -722,7 +758,18 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, srcIA addr.IA, re
 		}
 		return failedResponse, nil
 	}
-
+	//Check dataplane ingress/egress correspond to request ingress/egress
+	if rsv.PathType == reservation.DownPath {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Egress,
+			rsv.Ingress); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Ingress,
+			rsv.Egress); err != nil {
+			return nil, err
+		}
+	}
 	if err := rsv.RemoveIndex(req.Index); err != nil {
 		// log error but continue
 		log.Info("error cleaning segment index, continuing anyway", "err", err)
@@ -836,7 +883,18 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, srcIA addr.IA, r
 		}
 		return failedResponse, nil
 	}
-
+	//Check dataplane ingress/egress correspond to request ingress/egress
+	if rsv.PathType == reservation.DownPath {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Egress,
+			rsv.Ingress); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := checkRawPathAndCurrentStep(rawPath, rsv.Ingress,
+			rsv.Egress); err != nil {
+			return nil, err
+		}
+	}
 	if err := tx.DeleteSegmentRsv(ctx, &req.ID); err != nil {
 		return failedResponse, s.errWrapStr("cannot teardown reservation", err,
 			"id", req.ID.String())
@@ -1373,6 +1431,28 @@ func (s *Store) authenticateSegSetupReq(ctx context.Context, req *segment.SetupR
 	return nil
 }
 
+func checkRawPathAndCurrentStep(rawPath slayerspath.Path, ingress, egress uint16) error {
+	dpIngress := base.IngressFromDataPlanePath(rawPath)
+	if ingress != dpIngress {
+		log.Debug("Ingress from dataplane and in req/rsv differ",
+			"dataplane ingress", dpIngress,
+			"request ingress", ingress)
+		return serrors.New("Ingress from dataplane and in req/rsv differ",
+			"dataplane ingress", dpIngress,
+			"request ingress", ingress)
+	}
+	dpEgress := base.EgressFromDataPlanePath(rawPath)
+	if egress != dpEgress {
+		log.Debug("Egress from dataplane and in req/rsv differ",
+			"dataplane Egress", dpEgress,
+			"request egress", egress)
+		return serrors.New("Egress from dataplane and in req/rsv differ",
+			"dataplane Egress", dpEgress,
+			"request egress", egress)
+	}
+	return nil
+}
+
 // authenticateE2EReq checks that the authenticators are correct.
 func (s *Store) authenticateE2EReq(ctx context.Context, req *e2e.Request) error {
 	ok, err := s.authenticator.ValidateE2ERequest(ctx, req)
@@ -1591,12 +1671,12 @@ func (s *Store) sendUpstreamForAdmission(ctx context.Context, req *segment.Setup
 		if err != nil {
 			return nil, err
 		}
-		// req.CurrentStep = 0
+		req.CurrentStep = 0
 		revPath, err := rawPath.Reverse()
 		if err != nil {
 			return nil, serrors.WrapStr("reversing rawPath", err)
 		}
-		return s.admitSegmentReservation(ctx, req, 0, revPath)
+		return s.admitSegmentReservation(ctx, req, req.CurrentStep, revPath)
 	}
 	// forward to next colibri service upstream
 	client, err := s.operator.ColibriClient(ctx, base.EgressFromDataPlanePath(rawPath), rawPath)

@@ -41,8 +41,9 @@ type SetupReq struct {
 	ReverseTraveling bool         // a down rsv traveling to the core to be re-requested
 	Reservation      *Reservation // nil if no reservation yet
 
-	Steps   base.PathSteps   // retrieved from pb request (except at source)
-	RawPath slayerspath.Path // recovered from dataplane (except at source)
+	Steps       base.PathSteps   // retrieved from pb request (except at source)
+	RawPath     slayerspath.Path // recovered from dataplane (except at source)
+	CurrentStep int              // recovered from dataplane (except at source)
 }
 
 func (r *SetupReq) Validate() error {
@@ -73,15 +74,14 @@ func (r *SetupReq) ValidateForReservation(rsv *Reservation) error {
 // Ingress returns the ingress interface of this step for this request.
 // Do not call Ingress without validating the request first.
 func (r *SetupReq) Ingress() uint16 {
-	//return r.Steps[r.CurrentStep].Ingress
-	return base.IngressFromDataPlanePath(r.RawPath)
+	return r.Steps[r.CurrentStep].Ingress
 }
 
 // Egress returns the egress interface of this step for this request.
 // Do not call Egress without validating the request first.
 func (r *SetupReq) Egress() uint16 {
-	// return r.Steps[r.CurrentStep].Egress
-	return base.EgressFromDataPlanePath(r.RawPath)
+	return r.Steps[r.CurrentStep].Egress
+
 }
 
 func (r *SetupReq) Len() int {

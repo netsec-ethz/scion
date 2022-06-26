@@ -244,7 +244,7 @@ func (m *manager) GetReservationsAtSource(ctx context.Context, dst addr.IA) (
 }
 
 func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error {
-	err := m.store.InitSegmentReservation(ctx, req, req.RawPath)
+	err := m.store.InitSegmentReservation(ctx, req)
 	if err != nil {
 		return err
 	}

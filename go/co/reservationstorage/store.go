@@ -32,7 +32,7 @@ type Store interface {
 	// ListReservations is used to get segments to other ASes.
 	ListReservations(ctx context.Context, dstIA addr.IA, pt reservation.PathType) (
 		[]*colibri.ReservationLooks, error)
-	AdmitSegmentReservation(ctx context.Context, req *sgt.SetupReq, currentStep int, rawPath slayerspath.Path) (
+	AdmitSegmentReservation(ctx context.Context, req *sgt.SetupReq, rawPath slayerspath.Path) (
 		sgt.SegmentSetupResponse, error)
 	ConfirmSegmentReservation(ctx context.Context, srcIA addr.IA, req *base.Request, currentStep int, rawPath slayerspath.Path) (
 		base.Response, error)
@@ -61,7 +61,7 @@ type Store interface {
 	// to this AS and other ASes.
 	ListStitchableSegments(ctx context.Context, dst addr.IA) (*colibri.StitchableSegments, error)
 	// InitSegmentReservation starts a new segment reservation.
-	InitSegmentReservation(ctx context.Context, req *sgt.SetupReq, rawPath slayerspath.Path) error
+	InitSegmentReservation(ctx context.Context, req *sgt.SetupReq) error
 	// InitConfirmSegmentReservation initiates a confirm request.
 	InitConfirmSegmentReservation(ctx context.Context, req *base.Request,
 		steps base.PathSteps, rawPath slayerspath.Path) (
