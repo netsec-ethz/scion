@@ -212,13 +212,18 @@ func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupReques
 func (s *ColibriService) CleanupE2EIndex(ctx context.Context, msg *colpb.CleanupE2EIndexRequest) (
 	*colpb.CleanupE2EIndexResponse, error) {
 
+	path, _, err := extractPathIAFromCtx(ctx)
+	if err != nil {
+		log.Error("setup segment", "err", err)
+		return nil, err
+	}
 	msg.Base.CurrentStep++
 	req, err := translate.E2ERequest(msg.Base)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
 		return nil, err
 	}
-	res, err := s.Store.CleanupE2EReservation(ctx, req, empty.Path{})
+	res, err := s.Store.CleanupE2EReservation(ctx, req, path)
 	if err != nil {
 		log.Error("colibri store returned an error", "err", err)
 		return nil, err

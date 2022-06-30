@@ -56,8 +56,8 @@ type macComputer interface {
 		currentStep int, steps base.PathSteps) error
 
 	ComputeSegmentSetupRequestTransitMAC(ctx context.Context, req *segment.SetupReq, dstIA addr.IA, currentStep int) error
-	ComputeE2ERequestTransitMAC(ctx context.Context, req *e2e.Request, dstIA addr.IA, currentStep int) error
-	ComputeE2ESetupRequestTransitMAC(ctx context.Context, req *e2e.SetupReq, dstIA addr.IA, currentStep int) error
+	ComputeE2ERequestTransitMAC(ctx context.Context, req *e2e.Request) error
+	ComputeE2ESetupRequestTransitMAC(ctx context.Context, req *e2e.SetupReq) error
 
 	// ComputeResponseMAC takes the response (passed as an interface here) and computes and sets
 	// the authenticators inside it.
@@ -154,23 +154,24 @@ func (a *DRKeyAuthenticator) ComputeSegmentSetupRequestTransitMAC(ctx context.Co
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ERequestTransitMAC(ctx context.Context,
-	req *e2e.Request, dstIA addr.IA, currentStep int) error {
+	req *e2e.Request) error {
 
 	if req.IsFirstAS() || req.IsLastAS() {
 		return nil
 	}
 	payload := inputTransitE2ERequest(req)
-	return a.computeTransitMACforE2EPayload(ctx, payload, req, dstIA, currentStep)
+	return a.computeTransitMACforE2EPayload(ctx, payload, req,
+		req.Steps.DstIA(), req.CurrentStep)
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ESetupRequestTransitMAC(ctx context.Context,
-	req *e2e.SetupReq, dstIA addr.IA, currentStep int) error {
-
+	req *e2e.SetupReq) error {
 	if req.IsFirstAS() || req.IsLastAS() {
 		return nil
 	}
 	payload := inputTransitE2ESetupRequest(req)
-	return a.computeTransitMACforE2EPayload(ctx, payload, &req.Request, dstIA, currentStep)
+	return a.computeTransitMACforE2EPayload(ctx, payload, &req.Request,
+		req.Steps.DstIA(), req.CurrentStep)
 }
 
 func (a *DRKeyAuthenticator) ComputeResponseMAC(ctx context.Context,
