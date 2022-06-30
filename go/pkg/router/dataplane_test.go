@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/cipher"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"sync"
@@ -1226,7 +1227,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 0, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 0, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[0].Mac = computeColibriMac(t, key, cpath, spkt, 0,
 					cpath.PacketTimestamp)
 
@@ -1256,7 +1258,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 
@@ -1286,7 +1289,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 
@@ -1306,7 +1310,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 4, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 4, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				dst := &net.IPAddr{IP: net.ParseIP("10.0.0.3").To4()}
 				spkt.SetDstAddr(dst)
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
@@ -1336,7 +1341,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 4, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 4, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[4].Mac = computeColibriMac(t, key, cpath, spkt, 4,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1367,7 +1373,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1398,7 +1405,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1419,7 +1427,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(false, false, false, 0, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(false, false, false, 0, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				dst := &net.IPAddr{IP: net.ParseIP("10.0.0.3").To4()}
 				spkt.SetSrcAddr(dst)
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
@@ -1449,7 +1458,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 0, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 0, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[0].Mac = computeColibriMac(t, key, cpath, spkt, 0,
 					cpath.PacketTimestamp)
 
@@ -1480,7 +1490,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 
@@ -1504,7 +1515,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 
@@ -1533,7 +1545,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 
@@ -1564,7 +1577,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					xtest.MustParseIA("4-ff00:0:411"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 4, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 4, 5, expTick, tsRel,
+					xtest.MustParseIA("4-ff00:0:411"))
 				cpath.HopFields[4].Mac = computeColibriMac(t, key, cpath, spkt, 4,
 					cpath.PacketTimestamp)
 
@@ -1593,7 +1607,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 4, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 4, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[4].Mac = computeColibriMac(t, key, cpath, spkt, 4,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1625,7 +1640,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1655,7 +1671,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 2, 5, expTick, tsRel,
+					xtest.MustParseIA("1-ff00:0:110"))
 				cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1687,7 +1704,8 @@ func TestProcessColibriPkt(t *testing.T) {
 					xtest.MustParseIA("2-ff00:0:222"), nil, keyBytes)
 			},
 			mockMsg: func(afterProcessing bool, expTick, tsRel uint32) *ipv4.Message {
-				spkt, cpath := prepColibriBaseMsg(true, false, false, 0, 5, expTick, tsRel)
+				spkt, cpath := prepColibriBaseMsg(true, false, false, 0, 5, expTick, tsRel,
+					xtest.MustParseIA("2-ff00:0:222"))
 				cpath.HopFields[0].Mac = computeColibriMac(t, key, cpath, spkt, 0,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)
@@ -1869,7 +1887,7 @@ func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing boo
 }
 
 func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
-	tsRel uint32) (*slayers.SCION, *colibri.ColibriPath) {
+	tsRel uint32, localIA addr.IA) (*slayers.SCION, *colibri.ColibriPath) {
 
 	// SCION common/address header
 	spkt := &slayers.SCION{
@@ -1926,6 +1944,12 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 		Mac:       []byte{0xff, 0xff, 0xff, 0xff},
 	}
 	cpath.HopFields = append(cpath.HopFields, hfLast)
+
+	// XXX(mawyss): The tests need to be adapted to support one single dispatcher serving
+	// multiple ASes. See https://github.com/netsec-ethz/scion/pull/116.
+	if cpath.InfoField.C {
+		binary.BigEndian.PutUint64(cpath.PacketTimestamp[:], uint64(localIA))
+	}
 
 	return spkt, cpath
 }
