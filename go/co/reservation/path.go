@@ -25,107 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 )
-
-func GetCurrentHopField(path slayerspath.Path) uint8 {
-	switch v := path.(type) {
-	case *colibri.ColibriPath:
-		return v.InfoField.CurrHF
-	case *colibri.ColibriPathMinimal:
-		return v.InfoField.CurrHF
-	case *scion.Raw:
-		return v.PathMeta.CurrHF
-	case empty.Path:
-		// TODO(JordiSubira): temporary hack, this value will be override with the E2ERequest currentStep.
-		// Remove this once we convery E2ESetup request over Colibri path.
-		return 0
-	default:
-		panic(fmt.Sprintf("Invalid path type %T!\n", v))
-	}
-}
-
-func EgressFromDataPlanePath(path slayerspath.Path) uint16 {
-	switch v := path.(type) {
-	case *colibri.ColibriPathMinimal:
-		return v.CurrHopField.EgressId
-	case *colibri.ColibriPath:
-		curr := v.InfoField.CurrHF
-		return v.HopFields[curr].EgressId
-	case *scion.Raw:
-		inf, err := v.GetCurrentInfoField()
-		if err != nil {
-			panic(err)
-		}
-		hf, err := v.GetCurrentHopField()
-		if err != nil {
-			panic(err)
-		}
-		if inf.ConsDir {
-			return hf.ConsEgress
-		}
-		return hf.ConsIngress
-	default:
-		panic(fmt.Sprintf("Invalid path type %T!\n", v))
-	}
-}
-
-func IngressFromDataPlanePath(path slayerspath.Path) uint16 {
-	switch v := path.(type) {
-	case *colibri.ColibriPathMinimal:
-		return v.CurrHopField.IngressId
-	case *colibri.ColibriPath:
-		curr := v.InfoField.CurrHF
-		return v.HopFields[curr].IngressId
-	case *scion.Raw:
-		inf, err := v.GetCurrentInfoField()
-		if err != nil {
-			panic(err)
-		}
-		hf, err := v.GetCurrentHopField()
-		if err != nil {
-			panic(err)
-		}
-		if inf.ConsDir {
-			return hf.ConsIngress
-		}
-		return hf.ConsEgress
-	default:
-		panic(fmt.Sprintf("Invalid path type %T!\n", v))
-	}
-}
-
-func StepsFromSnet(p snet.Path) (PathSteps, error) {
-	if p == nil {
-		return nil, nil
-	}
-	steps, err := StepsFromInterfaces(p.Metadata().Interfaces)
-	if err != nil {
-		return nil, err
-	}
-
-	return steps, err
-}
-
-func StepsFromInterfaces(ifaces []snet.PathInterface) (PathSteps, error) {
-	if len(ifaces)%2 != 0 {
-		return nil, serrors.New("wrong number of interfaces, not even", "ifaces", ifaces)
-	}
-	if len(ifaces) == 0 {
-		return PathSteps{}, nil
-	}
-	steps := make([]PathStep, len(ifaces)/2+1)
-
-	for i := 0; i < len(steps)-1; i++ {
-		steps[i].Egress = uint16(ifaces[i*2].ID)
-		steps[i].IA = ifaces[i*2].IA
-		steps[i+1].Ingress = uint16(ifaces[i*2+1].ID)
-	}
-	steps[len(steps)-1].IA = ifaces[len(ifaces)-1].IA
-	return steps, nil
-}
 
 // PathStep encompasses one-hop metadata in COLIBRI
 type PathStep struct {
@@ -273,4 +175,97 @@ func (p PathSteps) Interfaces() []snet.PathInterface {
 		ifaces[i*2+1].IA = p[i].IA
 	}
 	return ifaces[1 : len(ifaces)-1]
+}
+
+func StepsFromSnet(p snet.Path) (PathSteps, error) {
+	if p == nil {
+		return nil, nil
+	}
+	steps, err := StepsFromInterfaces(p.Metadata().Interfaces)
+	if err != nil {
+		return nil, err
+	}
+
+	return steps, err
+}
+
+func StepsFromInterfaces(ifaces []snet.PathInterface) (PathSteps, error) {
+	if len(ifaces)%2 != 0 {
+		return nil, serrors.New("wrong number of interfaces, not even", "ifaces", ifaces)
+	}
+	if len(ifaces) == 0 {
+		return PathSteps{}, nil
+	}
+	steps := make([]PathStep, len(ifaces)/2+1)
+
+	for i := 0; i < len(steps)-1; i++ {
+		steps[i].Egress = uint16(ifaces[i*2].ID)
+		steps[i].IA = ifaces[i*2].IA
+		steps[i+1].Ingress = uint16(ifaces[i*2+1].ID)
+	}
+	steps[len(steps)-1].IA = ifaces[len(ifaces)-1].IA
+	return steps, nil
+}
+
+func GetCurrentHopField(path slayerspath.Path) uint8 {
+	switch v := path.(type) {
+	case *colibri.ColibriPath:
+		return v.InfoField.CurrHF
+	case *colibri.ColibriPathMinimal:
+		return v.InfoField.CurrHF
+	case *scion.Raw:
+		return v.PathMeta.CurrHF
+	default:
+		panic(fmt.Sprintf("Invalid path type %T!\n", v))
+	}
+}
+
+func EgressFromDataPlanePath(path slayerspath.Path) uint16 {
+	switch v := path.(type) {
+	case *colibri.ColibriPathMinimal:
+		return v.CurrHopField.EgressId
+	case *colibri.ColibriPath:
+		curr := v.InfoField.CurrHF
+		return v.HopFields[curr].EgressId
+	case *scion.Raw:
+		inf, err := v.GetCurrentInfoField()
+		if err != nil {
+			panic(err)
+		}
+		hf, err := v.GetCurrentHopField()
+		if err != nil {
+			panic(err)
+		}
+		if inf.ConsDir {
+			return hf.ConsEgress
+		}
+		return hf.ConsIngress
+	default:
+		panic(fmt.Sprintf("Invalid path type %T!\n", v))
+	}
+}
+
+func IngressFromDataPlanePath(path slayerspath.Path) uint16 {
+	switch v := path.(type) {
+	case *colibri.ColibriPathMinimal:
+		return v.CurrHopField.IngressId
+	case *colibri.ColibriPath:
+		curr := v.InfoField.CurrHF
+		return v.HopFields[curr].IngressId
+	case *scion.Raw:
+		inf, err := v.GetCurrentInfoField()
+		if err != nil {
+			panic(err)
+		}
+		hf, err := v.GetCurrentHopField()
+		if err != nil {
+			panic(err)
+		}
+		if inf.ConsDir {
+			return hf.ConsIngress
+		}
+		return hf.ConsEgress
+	default:
+		panic(fmt.Sprintf("Invalid path type %T!\n", v))
+	}
 }

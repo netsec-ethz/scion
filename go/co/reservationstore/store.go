@@ -263,7 +263,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 			return
 		}
 		// uses the `req` that will have the new ID and index, but the original path
-		req := base.NewRequest(req.Timestamp, &req.ID, req.Index, origPath)
+		req := base.NewRequest(req.Timestamp, &req.ID, req.Index, len(origPath))
 		var res base.Response
 		var err error
 		if newSetup {
@@ -428,12 +428,6 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 
 	if req.ReverseTraveling {
 		return s.sendUpstreamForAdmission(ctx, req, rawPath)
-	}
-
-	// Check dataplane ingress/egress correspond to request ingress/egress
-	if err := checkRawPathAndCurrentStep(req.RawPath, req.Steps[req.CurrentStep].Ingress,
-		req.Steps[req.CurrentStep].Egress); err != nil {
-		return nil, err
 	}
 
 	if err := s.authenticateSegSetupReq(ctx, req, req.CurrentStep); err != nil {
@@ -677,7 +671,6 @@ func (s *Store) ActivateSegmentReservation(ctx context.Context, srcIA addr.IA,
 	}
 
 	// authenticate request for the destination AS
-	// TODO(JordiSubira): To be changed by reservation steps
 	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req, rsv.Steps.DstIA(),
 		currentStep, rsv.Steps); err != nil {
 		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
@@ -802,7 +795,6 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, srcIA addr.IA, re
 	}
 
 	// authenticate request for the destination AS
-	// TODO(JordiSubira): To be changed by reservation steps
 	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req, rsv.Steps.DstIA(), currentStep,
 		rsv.Steps); err != nil {
 		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
@@ -923,7 +915,6 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, srcIA addr.IA, r
 	}
 
 	// authenticate request for the destination AS
-	// TODO(JordiSubira): To be changed by reservation steps
 	if err := s.authenticator.ComputeRequestTransitMAC(ctx, req, rsv.Steps.DstIA(), currentStep,
 		rsv.Steps); err != nil {
 		return nil, serrors.WrapStr("computing in transit seg. authenticator", err)
@@ -1553,18 +1544,12 @@ func checkEgressE2E(rsv *segment.Reservation, rawPath slayerspath.Path, step bas
 func checkRawPathAndCurrentStep(rawPath slayerspath.Path, ingress, egress uint16) error {
 	dpIngress := base.IngressFromDataPlanePath(rawPath)
 	if ingress != dpIngress {
-		log.Debug("Ingress from dataplane and in req/rsv differ",
-			"dataplane ingress", dpIngress,
-			"request ingress", ingress)
 		return serrors.New("Ingress from dataplane and in req/rsv differ",
 			"dataplane ingress", dpIngress,
 			"request ingress", ingress)
 	}
 	dpEgress := base.EgressFromDataPlanePath(rawPath)
 	if egress != dpEgress {
-		log.Debug("Egress from dataplane and in req/rsv differ",
-			"dataplane Egress", dpEgress,
-			"request egress", egress)
 		return serrors.New("Egress from dataplane and in req/rsv differ",
 			"dataplane Egress", dpEgress,
 			"request egress", egress)
@@ -1623,6 +1608,8 @@ func (s *Store) admitSegmentReservation(ctx context.Context, req *segment.SetupR
 
 	logger.Debug("segment admission", "id", req.ID, "steps", req.Steps, "current", req.CurrentStep,
 		"rawPath", rawPath)
+	// Calling to req.Validate() also validates that ingress/egress from dataplane,
+	// matches ingress/egress from req.Steps[req.CurrentStep]
 	if err := req.Validate(); err != nil {
 		failedResponse.Message = s.errWrapStr("request failed validation", err).Error()
 		return updateResponse(failedResponse)

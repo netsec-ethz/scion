@@ -51,11 +51,11 @@ type macComputer interface {
 	// SegmentRequestInitialMAC computes the MAC for the immutable fields of the setup request,
 	// for each AS in transit. This MAC is only computed at the first AS.
 	// The initial AS is obtained from the first step of the path of the request.
-	ComputeSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq, steps base.PathSteps) error
+	ComputeSegmentSetupRequestInitialMAC(ctx context.Context, req *segment.SetupReq) error
 	ComputeRequestTransitMAC(ctx context.Context, req *base.Request, dstIA addr.IA,
 		currentStep int, steps base.PathSteps) error
 
-	ComputeSegmentSetupRequestTransitMAC(ctx context.Context, req *segment.SetupReq, dstIA addr.IA, currentStep int) error
+	ComputeSegmentSetupRequestTransitMAC(ctx context.Context, req *segment.SetupReq) error
 	ComputeE2ERequestTransitMAC(ctx context.Context, req *e2e.Request) error
 	ComputeE2ESetupRequestTransitMAC(ctx context.Context, req *e2e.SetupReq) error
 
@@ -83,7 +83,7 @@ type macVerifier interface {
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
 	// this request. If the request is now at the last AS, it also validates the request at
 	// the destination. Returns true if valid, false otherwise.
-	ValidateSegSetupRequest(ctx context.Context, req *segment.SetupReq, currentStep int) (bool, error)
+	ValidateSegSetupRequest(ctx context.Context, req *segment.SetupReq) (bool, error)
 	// Validates a basic E2E request while in a transit AS.
 	// The authenticators were created on the source host.
 	ValidateE2ERequest(ctx context.Context, req *e2e.Request) (bool, error)
@@ -96,7 +96,7 @@ type macVerifier interface {
 	ValidateResponse(ctx context.Context, res base.Response,
 		steps base.PathSteps) (bool, error)
 	ValidateSegmentSetupResponse(ctx context.Context,
-		res segment.SegmentSetupResponse, steps []base.PathStep) (bool, error)
+		res segment.SegmentSetupResponse, steps base.PathSteps) (bool, error)
 }
 
 // DRKeyAuthenticator implements macComputer and macVerifier using DRKey.
@@ -127,10 +127,10 @@ func (a *DRKeyAuthenticator) ComputeRequestInitialMAC(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) ComputeSegmentSetupRequestInitialMAC(ctx context.Context,
-	req *segment.SetupReq, steps base.PathSteps) error {
+	req *segment.SetupReq) error {
 
 	payload := inputInitialSegSetupRequest(req)
-	return a.computeInitialMACforPayloadWithSegKeys(ctx, payload, &req.Request, steps)
+	return a.computeInitialMACforPayloadWithSegKeys(ctx, payload, &req.Request, req.Steps)
 }
 
 func (a *DRKeyAuthenticator) ComputeRequestTransitMAC(ctx context.Context,
@@ -144,13 +144,13 @@ func (a *DRKeyAuthenticator) ComputeRequestTransitMAC(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) ComputeSegmentSetupRequestTransitMAC(ctx context.Context,
-	req *segment.SetupReq, dstIA addr.IA, currentStep int) error {
+	req *segment.SetupReq) error {
 
-	if currentStep == 0 || currentStep >= len(req.Steps)-1 {
+	if req.CurrentStep == 0 || req.CurrentStep >= len(req.Steps)-1 {
 		return nil
 	}
 	payload := inputTransitSegSetupRequest(req)
-	return a.computeTransitMACforPayload(ctx, payload, &req.Request, dstIA, currentStep)
+	return a.computeTransitMACforPayload(ctx, payload, &req.Request, req.Steps.DstIA(), req.CurrentStep)
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ERequestTransitMAC(ctx context.Context,
@@ -255,15 +255,15 @@ func (a *DRKeyAuthenticator) ValidateRequest(ctx context.Context, remote addr.IA
 }
 
 func (a *DRKeyAuthenticator) ValidateSegSetupRequest(ctx context.Context,
-	req *segment.SetupReq, currentStep int) (bool, error) {
+	req *segment.SetupReq) (bool, error) {
 
-	if currentStep == 0 {
+	if req.CurrentStep == 0 {
 		return true, nil
 	}
 	ok, err := a.validateSegmentPayloadInitialMAC(ctx, req.ID, req.Steps.SrcIA(),
-		req.Authenticators[currentStep-1], req.Timestamp,
+		req.Authenticators[req.CurrentStep-1], req.Timestamp,
 		inputInitialSegSetupRequest(req))
-	if err == nil && ok && currentStep >= len(req.Steps)-1 {
+	if err == nil && ok && req.CurrentStep >= len(req.Steps)-1 {
 		ok, err = a.validateSegmentSetupRequestAtDestination(ctx, req, req.Steps)
 	}
 	return ok, err
@@ -317,7 +317,7 @@ func (a *DRKeyAuthenticator) ValidateResponse(ctx context.Context, res base.Resp
 }
 
 func (a *DRKeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
-	res segment.SegmentSetupResponse, steps []base.PathStep) (bool, error) {
+	res segment.SegmentSetupResponse, steps base.PathSteps) (bool, error) {
 
 	stepsLength := len(steps)
 	if failure, ok := res.(*segment.SegmentSetupResponseFailure); ok {
@@ -348,7 +348,7 @@ func (a *DRKeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) validateRequestAtDestination(ctx context.Context,
-	req *base.Request, steps []base.PathStep) (
+	req *base.Request, steps base.PathSteps) (
 	bool, error) {
 
 	return a.validateAtDestination(ctx, req, steps, func(i int) []byte {
@@ -357,7 +357,7 @@ func (a *DRKeyAuthenticator) validateRequestAtDestination(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) validateSegmentSetupRequestAtDestination(ctx context.Context,
-	req *segment.SetupReq, steps []base.PathStep) (bool, error) {
+	req *segment.SetupReq, steps base.PathSteps) (bool, error) {
 
 	return a.validateAtDestination(ctx, &req.Request, steps, func(step int) []byte {
 		return inputTransitSegSetupRequestForStep(req, step)
@@ -365,7 +365,7 @@ func (a *DRKeyAuthenticator) validateSegmentSetupRequestAtDestination(ctx contex
 }
 
 func (a *DRKeyAuthenticator) validateE2ERequestAtDestination(ctx context.Context,
-	req *e2e.Request, steps []base.PathStep) (bool, error) {
+	req *e2e.Request, steps base.PathSteps) (bool, error) {
 
 	return a.validateAtDestination(ctx, &req.Request, steps, func(step int) []byte {
 		return inputTransitE2ERequest(req)
@@ -373,7 +373,7 @@ func (a *DRKeyAuthenticator) validateE2ERequestAtDestination(ctx context.Context
 }
 
 func (a *DRKeyAuthenticator) validateE2ESetupRequestAtDestination(ctx context.Context,
-	req *e2e.SetupReq, steps []base.PathStep) (bool, error) {
+	req *e2e.SetupReq, steps base.PathSteps) (bool, error) {
 
 	return a.validateAtDestination(ctx, &req.Request.Request, steps, func(step int) []byte {
 		return inputTransitE2ESetupRequestForStep(req, step)

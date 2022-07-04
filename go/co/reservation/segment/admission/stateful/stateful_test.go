@@ -849,7 +849,7 @@ func newTestRequest(t *testing.T, ingress, egress int,
 	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	baseReq := base.NewRequest(util.SecsToTime(1), ID, 0,
-		steps)
+		len(steps))
 
 	return &segment.SetupReq{
 		Request:        *baseReq,

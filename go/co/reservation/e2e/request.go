@@ -26,8 +26,11 @@ import (
 
 type Request struct {
 	base.Request
-	SrcHost     net.IP
-	DstHost     net.IP
+	SrcHost net.IP
+	DstHost net.IP
+	// XXX(JordiSubira): There's not a simple way to extract
+	// the current step from the dataplane. Thus it is conveyed
+	// as part of the request.
 	CurrentStep int
 	Steps       base.PathSteps
 }

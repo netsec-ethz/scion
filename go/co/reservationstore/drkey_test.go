@@ -57,7 +57,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+					3),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
 				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
@@ -122,8 +122,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 				Request: e2e.Request{
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 0)),
+						3),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
@@ -177,7 +176,7 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
 					ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-					ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+					3),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
 				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
@@ -226,8 +225,7 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 				Request: e2e.Request{
 					Request: *base.NewRequest(util.SecsToTime(1),
 						ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"), 3,
-						ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-							1, "1-ff00:0:112", 0)),
+						3),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,

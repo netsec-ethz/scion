@@ -659,8 +659,7 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	if err != nil {
 		return err
 	}
-	rawSteps := make([]byte, rsv.Steps.Len())
-	rsv.Steps.Serialize(rawSteps)
+	rawSteps := rsv.Steps.ToRaw()
 	rawPath, err := base.PathToRaw(rsv.RawPath)
 	if err != nil {
 		return err
@@ -789,7 +788,6 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 	rsv.Egress = fields.Egress
 	rsv.PathType = reservation.PathType(fields.PathType)
 
-	//rsv.PathAtSource = p
 	steps, err := base.PathStepsFromRaw(fields.Steps)
 	if err != nil {
 		return nil, err

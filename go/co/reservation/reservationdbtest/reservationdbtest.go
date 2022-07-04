@@ -71,11 +71,6 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	var err error
 	db := newDB()
 	r := newTestReservation(t)
-	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	r.Steps, err = base.StepsFromSnet(p)
-	require.NoError(t, err)
-	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
 	r.Indices = segment.Indices{}
 	// no indices
 	err = db.NewSegmentRsv(ctx, r)
@@ -87,7 +82,7 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	// at least one index, and change path
 	_, err = r.NewIndex(0, util.SecsToTime(10), 2, 3, 2, 2, reservation.CorePath)
 	require.NoError(t, err)
-	p = test.NewSnetPath("1-ff00:0:1", 2, 1, "1-ff00:0:2")
+	p := test.NewSnetPath("1-ff00:0:1", 2, 1, "1-ff00:0:2")
 	r.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
 	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())

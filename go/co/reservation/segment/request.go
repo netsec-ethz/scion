@@ -38,12 +38,11 @@ type SetupReq struct {
 	SplitCls         reservation.SplitCls
 	PathProps        reservation.PathEndProps
 	AllocTrail       reservation.AllocationBeads
-	ReverseTraveling bool         // a down rsv traveling to the core to be re-requested
-	Reservation      *Reservation // nil if no reservation yet
-
-	Steps       base.PathSteps   // retrieved from pb request (except at source)
-	RawPath     slayerspath.Path // recovered from dataplane (except at source)
-	CurrentStep int              // recovered from dataplane (except at source)
+	ReverseTraveling bool             // a down rsv traveling to the core to be re-requested
+	Reservation      *Reservation     // nil if no reservation yet
+	Steps            base.PathSteps   // retrieved from pb request (except at source)
+	RawPath          slayerspath.Path // recovered from dataplane (except at source)
+	CurrentStep      int              // recovered from dataplane (except at source)
 }
 
 func (r *SetupReq) Validate() error {
@@ -58,6 +57,30 @@ func (r *SetupReq) Validate() error {
 		return serrors.New("incompatible path type and props", "path_type", r.PathType,
 			"props", r.PathProps)
 	}
+	if r.Steps == nil || len(r.Steps) < 2 {
+		return serrors.New("Wrong steps state")
+	}
+	if r.CurrentStep < 0 || r.CurrentStep >= len(r.Steps) {
+		return serrors.New("invalid current step for the given steps", "currentStep", r.CurrentStep,
+			"steps len", len(r.Steps))
+	}
+	if r.Steps[0].Ingress != 0 {
+		return serrors.New("Wrong interface for srcIA ingress", "ingress", r.Steps[0].Ingress)
+	}
+	if r.Steps[len(r.Steps)-1].Egress != 0 {
+		return serrors.New("Wrong interface for dstIA egress", "egress", r.Steps[len(r.Steps)-1].Egress)
+	}
+	if base.EgressFromDataPlanePath(r.RawPath) != r.Egress() {
+		return serrors.New("Inconsisten egress from dataplane and reservation egress",
+			"dataplane", base.EgressFromDataPlanePath(r.RawPath),
+			"egress", r.Egress)
+	}
+	if base.IngressFromDataPlanePath(r.RawPath) != r.Ingress() {
+		return serrors.New("Inconsisten ingress from dataplane and reservation egress",
+			"dataplane", base.IngressFromDataPlanePath(r.RawPath),
+			"ingress", r.Ingress)
+	}
+
 	return nil
 }
 
@@ -85,7 +108,7 @@ func (r *SetupReq) Egress() uint16 {
 }
 
 func (r *SetupReq) Len() int {
-	// basic_request + expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
+	// basic_request + steps len + expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
 	return r.Request.Len() + r.Steps.Len() + 4 + 1 + 1 + 1 + 1 + 1 + 1
 }
 

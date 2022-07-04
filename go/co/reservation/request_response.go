@@ -53,11 +53,11 @@ type Request struct {
 // NewRequest constructs the segment Request type.
 // If the authenticators argument is nil, a new and empty authenticators field is constructed.
 func NewRequest(ts time.Time, id *reservation.ID, idx reservation.IndexNumber,
-	steps PathSteps) *Request {
+	lenSteps int) *Request {
 
 	var authenticators [][]byte
-	if len(steps) > 0 {
-		authenticators = make([][]byte, len(steps)-1)
+	if lenSteps > 0 {
+		authenticators = make([][]byte, lenSteps-1)
 	}
 	return &Request{
 		MsgId: MsgId{

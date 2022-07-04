@@ -362,10 +362,9 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 		return nil, err
 	}
 
-	// TODO: RawPath must be recovered from the existing reservation to clean
 	req := &e2e.Request{
 		Request: *base.NewRequest(time.Now(), translate.ID(msg.Base.Id),
-			reservation.IndexNumber(msg.Base.Index), translate.PathSteps(msg.Base.Steps)),
+			reservation.IndexNumber(msg.Base.Index), len(translate.PathSteps(msg.Base.Steps))),
 		SrcHost:     msg.SrcHost,
 		DstHost:     msg.DstHost,
 		Steps:       translate.PathSteps(msg.Base.Steps),
