@@ -173,7 +173,6 @@ func Request(msg *colpb.Request) (*base.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(JordiSubira): Refactor this, once we decide how we pass rawPath from E2ESetupReservation
 	timestamp := util.SecsToTime(msg.Timestamp)
 	return &base.Request{
 		MsgId: base.MsgId{
