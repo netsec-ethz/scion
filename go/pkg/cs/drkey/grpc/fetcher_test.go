@@ -62,6 +62,11 @@ func dialer(creds credentials.TransportCredentials,
 }
 
 func TestLvl1KeyFetching(t *testing.T) {
+
+	if *updateNonDeterministic {
+		t.Skip("test crypto is being updated")
+	}
+
 	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
 	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
 	key111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key"

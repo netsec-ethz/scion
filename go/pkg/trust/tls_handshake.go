@@ -59,8 +59,9 @@ func (m *TLSCryptoManager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Cert
 }
 
 // GetClientCertificate retrieves a client certificate to be presented during TLS handshake.
-func (m *TLSCryptoManager) GetClientCertificate(reqInfo *tls.CertificateRequestInfo) (*tls.Certificate,
-	error) {
+func (m *TLSCryptoManager) GetClientCertificate(
+	reqInfo *tls.CertificateRequestInfo,
+) (*tls.Certificate, error) {
 	c, err := m.loader.LoadX509KeyPair(reqInfo.Context(), x509.ExtKeyUsageClientAuth)
 	if err != nil {
 		return nil, serrors.WrapStr("loading client key pair", err)
