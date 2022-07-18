@@ -64,7 +64,7 @@ func (p X509KeyPairProvider) LoadX509KeyPair(ctx context.Context, extKeyUsage x5
 		if cert == nil {
 			continue
 		}
-		if bestChain != nil && bestExpiry.Before(expiry) {
+		if bestChain != nil && bestExpiry.After(expiry) {
 			continue
 		}
 		bestChain = cert
