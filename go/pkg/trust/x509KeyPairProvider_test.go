@@ -15,6 +15,7 @@
 package trust_test
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -61,6 +62,12 @@ func TestLoadX509KeyPair(t *testing.T) {
 	shorter := getChain(t)
 	shorter[0].NotAfter = shorter[0].NotAfter.Add(-time.Hour)
 	shorter[0].SubjectKeyId = []byte("shorter")
+
+	longestKey := loadSigner(t, filepath.Join(goldenDir, "ISD1/ASff00_0_111/crypto/as/cp-as.key"))
+	longestChain := xtest.LoadChain(t,
+		filepath.Join(goldenDir, "ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"))
+	longestChain[0].NotAfter = longestChain[0].NotAfter.Add(2 * time.Hour)
+	longestChain[0].SubjectKeyId = []byte("longest")
 
 	testCases := map[string]struct {
 		keyLoader    func(mctrcl *gomock.Controller) trust.KeyRing
@@ -141,6 +148,52 @@ func TestLoadX509KeyPair(t *testing.T) {
 					Certificate: certificate,
 					PrivateKey:  key,
 					Leaf:        longer[0],
+				}
+			},
+		},
+		"newest multiple keys": {
+			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
+
+				loader := mock_trust.NewMockKeyRing(mctrl)
+				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
+					[]crypto.Signer{key, longestKey}, nil,
+				)
+				return loader
+			},
+			db: func(mctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(mctrl)
+
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
+					trc, nil,
+				)
+				db.EXPECT().Chains(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+					func(
+						_ context.Context,
+						chainQuery trust.ChainQuery,
+					) ([][]*x509.Certificate, error) {
+						skid, err := cppki.SubjectKeyID(longestKey.Public())
+						if err != nil {
+							return nil, err
+						}
+						if bytes.Equal(chainQuery.SubjectKeyID, skid) {
+							return [][]*x509.Certificate{longestChain}, nil
+						}
+						return [][]*x509.Certificate{chain, longer, shorter}, nil
+					},
+				)
+				return db
+			},
+			assertFunc:  assert.NoError,
+			extKeyUsage: x509.ExtKeyUsageServerAuth,
+			expectedCert: func() *tls.Certificate {
+				certificate := make([][]byte, len(longestChain))
+				for i := range longer {
+					certificate[i] = longestChain[i].Raw
+				}
+				return &tls.Certificate{
+					Certificate: certificate,
+					PrivateKey:  key,
+					Leaf:        longestChain[0],
 				}
 			},
 		},
