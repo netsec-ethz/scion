@@ -124,6 +124,7 @@ func TestUpdateCrypto(t *testing.T) {
 	cmd.SetArgs([]string{
 		"-t", "testdata/golden.topo",
 		"-o", dir,
+		"--as-validity", "1y",
 	})
 	err := cmd.Execute()
 	require.NoError(t, err)
