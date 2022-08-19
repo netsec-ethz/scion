@@ -633,6 +633,7 @@ func realMain(ctx context.Context) error {
 			defer log.HandlePanic()
 			return quicTLSServer.Serve(quicStack.TLSListener)
 		})
+		cleanup.Add(func() error { quicTLSServer.GracefulStop(); return nil })
 	}
 
 	if globalCfg.API.Addr != "" {
