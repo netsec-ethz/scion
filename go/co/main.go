@@ -78,25 +78,25 @@ func realMain(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	manager, err := setupColibri(g, cfg, cfgObjs, topo)
+	var cleanup app.Cleanup
+	err = setupColibri(g, &cleanup, cfg, cfgObjs, topo)
 	if err != nil {
 		return err
 	}
-	defer manager.Kill()
 
 	g.Go(func() error {
 		defer log.HandlePanic()
 		<-errCtx.Done()
-		return nil
+		return cleanup.Do()
 	})
 	return g.Wait()
 }
 
-// cfgObjs contains the objects needed for the confinguration of colibri.
+// cfgObjs contains the objects needed for the configuration of colibri.
 type cfgObjs struct {
 	masterKey keyconf.Master
 	stack     *coliquic.ServerStack
-	dialer    *libgrpc.TCPDialer
+	tcpDialer *libgrpc.TCPDialer
 }
 
 func setup(ctx context.Context, cfg *config.Config, topo *topology.Loader) (*cfgObjs, error) {
@@ -146,28 +146,29 @@ func setupNetwork(ctx context.Context, cfg *config.Config, topo *topology.Loader
 	}
 
 	return &cfgObjs{
-		stack:  stack,
-		dialer: dialer,
+		stack:     stack,
+		tcpDialer: dialer,
 	}, nil
 }
 
 // setupColibri returns the running manager.
-func setupColibri(g *errgroup.Group, cfg *config.Config, cfgObjs *cfgObjs, topo *topology.Loader) (
-	*periodic.Runner, error) {
+func setupColibri(g *errgroup.Group, cleanup *app.Cleanup, cfg *config.Config, cfgObjs *cfgObjs,
+	topo *topology.Loader) error {
 
 	db, err := storage.NewColibriStorage(cfg.Colibri.DB)
 	if err != nil {
-		return nil, serrors.WrapStr("error initializing COLIBRI DB", err)
+		return serrors.WrapStr("error initializing COLIBRI DB", err)
 	}
+	cleanup.Add(func() error { return db.Close() })
 
 	admitter := &admission.StatelessAdmission{
 		Caps:  cfg.Colibri.Capacities,
 		Delta: cfg.Colibri.Delta,
 	}
-	colibriStore, err := reservationstore.NewStore(topo, cfgObjs.dialer,
+	colibriStore, err := reservationstore.NewStore(topo, cfgObjs.tcpDialer,
 		cfgObjs.stack.Router, cfgObjs.stack.Dialer, db, admitter, cfgObjs.masterKey.Key0)
 	if err != nil {
-		return nil, serrors.WrapStr("initializing colibri store", err)
+		return serrors.WrapStr("initializing colibri store", err)
 	}
 
 	colibriService := &colgrpc.ColibriService{
@@ -185,20 +186,24 @@ func setupColibri(g *errgroup.Group, cfg *config.Config, cfgObjs *cfgObjs, topo 
 		log.Debug("colibri grpc server listening quic", "addr", lis.Addr())
 		return colServer.Serve(lis)
 	})
+	cleanup.Add(func() error { colServer.GracefulStop(); return nil })
+
 	g.Go(func() error {
 		defer log.HandlePanic()
 		tcpListener := cfgObjs.stack.TCPListener
 		log.Debug("colibri grpc server listening tcp", "tcp_addr", tcpListener.Addr())
 		return tcpColServer.Serve(tcpListener)
 	})
+	cleanup.Add(func() error { tcpColServer.GracefulStop(); return nil })
 
 	manager, err := colibriManager(topo, cfgObjs.stack.Router, colibriStore,
 		cfg.Colibri.Reservations)
 	if err != nil {
-		return nil, serrors.WrapStr("starting colibri manager", err)
+		return serrors.WrapStr("starting colibri manager", err)
 	}
+	cleanup.Add(func() error { manager.Kill(); return nil })
 
-	return manager, nil
+	return nil
 }
 
 func colibriManager(topo *topology.Loader, router snet.Router, store reservationstorage.Store,
