@@ -563,11 +563,11 @@ func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context,
 		step := steps[i+1]
 		if step.IA.Equal(a.localIA) {
 			return nil, serrors.New("request path contains initiator after first step",
-				"steps", base.StepsToString(steps))
+				"steps", steps)
 		}
 		if _, ok := seen[step.IA]; ok {
 			return nil, serrors.New("IA is twice in request path", "ia", step.IA,
-				"steps", base.StepsToString(steps))
+				"steps", steps)
 		}
 		seen[step.IA] = struct{}{}
 		key, err := getKeyWithFastSide(ctx, step.IA)

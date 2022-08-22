@@ -66,6 +66,7 @@ func NewTransaction(ctx context.Context, createTxFun func() (*sql.Tx, error),
 	// because transactions in sqlite are deferred until first sql instruction, SELECT something
 	// now just to force to begin the read-transaction at this point
 	rows, err := tx.QueryContext(ctx, "SELECT 0 FROM e2e_index WHERE ROWID = -1")
+	defer rows.Close()
 	if err == nil {
 		for rows.Next() { // we actually need to call Next()
 		}

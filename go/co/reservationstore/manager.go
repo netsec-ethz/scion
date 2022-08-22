@@ -128,7 +128,7 @@ func (m *manager) Run(ctx context.Context) {
 				r.Steps.DstIA(),
 				len(r.Indices.Filter(segment.NotConfirmed())),
 				r.RawPath.Type(),
-				base.StepsToString(r.Steps)))
+				r.Steps))
 		}
 		if len(rsvs) > 0 {
 			log.Debug("----------- colibri segments ------------\n" + strings.Join(table, "\n"))

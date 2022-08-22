@@ -1030,8 +1030,8 @@ func (s *Store) AdmitE2EReservation(
 		assert(rsv.SegmentReservations[0].Steps.DstIA().Equal(s.localIA),
 			"logic error: incoming segment in transfer node doesn't end here. Segs: %s, "+
 				"first segment: %s, second segment: %s", req.SegmentRsvs,
-			base.StepsToString(rsv.SegmentReservations[0].Steps),
-			base.StepsToString(rsv.SegmentReservations[1].Steps))
+			rsv.SegmentReservations[0].Steps,
+			rsv.SegmentReservations[1].Steps)
 	}
 
 	// check the seg. reservations

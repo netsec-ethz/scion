@@ -64,18 +64,6 @@ func PathFromRaw(raw []byte) (slayerspath.Path, error) {
 	return rp, nil
 }
 
-func StepsToString(steps []PathStep) string {
-	strs := make([]string, len(steps))
-	for i, s := range steps {
-		if s.IA.IsZero() {
-			strs[i] = fmt.Sprintf("%d,%d", s.Ingress, s.Egress)
-		} else {
-			strs[i] = fmt.Sprintf("%d,%s,%d", s.Ingress, s.IA, s.Egress)
-		}
-	}
-	return strings.Join(strs, " > ")
-}
-
 type PathSteps []PathStep
 
 func (p PathSteps) SrcIA() addr.IA {
@@ -151,7 +139,7 @@ func (p PathSteps) Interfaces() []snet.PathInterface {
 	return ifaces[1 : len(ifaces)-1]
 }
 
-func (p PathSteps) StepsToString() string {
+func (p PathSteps) String() string {
 	strs := make([]string, len(p))
 	for i, s := range p {
 		if s.IA.IsZero() {

@@ -749,17 +749,17 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 			for _, p := range filtered {
 				steps, err := base.StepsFromSnet(p)
 				require.NoError(t, err)
-				k := base.StepsToString(steps)
+				k := steps.String()
 				_, ok := bagOfPaths[k]
 				require.False(t, ok, "duplicated path in test", p)
 				bagOfPaths[k] = struct{}{}
 			}
 			for _, req := range requests {
 				// check req.PathToDst is in filtered paths
-				_, ok := bagOfPaths[base.StepsToString(req.Steps)]
-				require.True(t, ok, "path: %s, len(bag)=%d, bag:%s", base.StepsToString(req.Steps),
+				_, ok := bagOfPaths[req.Steps.String()]
+				require.True(t, ok, "path: %s, len(bag)=%d, bag:%s", req.Steps,
 					len(bagOfPaths), bagOfPaths)
-				delete(bagOfPaths, base.StepsToString(req.Steps))
+				delete(bagOfPaths, req.Steps.String())
 				// check the rest of the request
 				require.Equal(t, tc.requirements.minBW, req.MinBW)
 				require.Equal(t, tc.requirements.maxBW, req.MaxBW)

@@ -45,7 +45,7 @@ func (r *Reservation) String() string {
 		segs[i] = fmt.Sprintf("%s (%d indices) (%s)",
 			s.ID,
 			len(s.Indices),
-			base.StepsToString(s.Steps),
+			s.Steps,
 		)
 	}
 	return fmt.Sprintf("%s: %d segment(s): {%s} . IDXS: [%s]",

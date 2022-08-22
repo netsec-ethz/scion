@@ -327,6 +327,7 @@ func (x *executor) GetAllE2ERsvs(ctx context.Context) ([]*e2e.Reservation, error
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	type rowFields struct {
 		rowID       int
 		rsvID       *reservation.ID
@@ -566,6 +567,7 @@ func (x *executor) CheckAdmissionList(ctx context.Context, now time.Time,
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var validUntilSecs int32
