@@ -121,7 +121,7 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.ID) 
 
 // GetSegmentRsvsFromSrcDstIA returns all reservations that start at src AS and end in dst AS.
 // Both srcIA and dstIA can use wildcards: 1-0, 0-ff00:1:1, or 0-0 are valid.
-// The path type argument is ignored if it equals UnknownPath, or used to match against otherwise.
+// The path type is optional: if not UnknownPath, it will match against it.
 func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA,
 	pathType reservation.PathType) ([]*segment.Reservation, error) {
 

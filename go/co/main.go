@@ -79,7 +79,7 @@ func realMain(ctx context.Context, cfg *config.Config) error {
 	}
 
 	var cleanup app.Cleanup
-	err = setupColibri(g, &cleanup, cfg, cfgObjs, topo)
+	err = setupColibri(ctx, g, &cleanup, cfg, cfgObjs, topo)
 	if err != nil {
 		return err
 	}
@@ -152,8 +152,8 @@ func setupNetwork(ctx context.Context, cfg *config.Config, topo *topology.Loader
 }
 
 // setupColibri returns the running manager.
-func setupColibri(g *errgroup.Group, cleanup *app.Cleanup, cfg *config.Config, cfgObjs *cfgObjs,
-	topo *topology.Loader) error {
+func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, cfg *config.Config,
+	cfgObjs *cfgObjs, topo *topology.Loader) error {
 
 	db, err := storage.NewColibriStorage(cfg.Colibri.DB)
 	if err != nil {
@@ -197,7 +197,7 @@ func setupColibri(g *errgroup.Group, cleanup *app.Cleanup, cfg *config.Config, c
 	})
 	cleanup.Add(func() error { tcpColServer.GracefulStop(); return nil })
 
-	manager, err := colibriManager(topo, cfgObjs.stack.Router, colibriStore,
+	manager, err := colibriManager(ctx, topo, cfgObjs.stack.Router, colibriStore,
 		cfg.Colibri.Reservations)
 	if err != nil {
 		return serrors.WrapStr("starting colibri manager", err)
@@ -207,13 +207,13 @@ func setupColibri(g *errgroup.Group, cleanup *app.Cleanup, cfg *config.Config, c
 	return nil
 }
 
-func colibriManager(topo *topology.Loader, router snet.Router, store reservationstorage.Store,
+func colibriManager(ctx context.Context, topo *topology.Loader, router snet.Router, store reservationstorage.Store,
 	initialRsvs *coli_conf.Reservations) (*periodic.Runner, error) {
 
 	if store == nil {
 		return nil, nil
 	}
-	mgr, err := reservationstore.NewColibriManager(topo.IA(), router, store, initialRsvs)
+	mgr, err := reservationstore.NewColibriManager(ctx, topo.IA(), router, store, initialRsvs)
 	if err != nil {
 		return nil, serrors.WrapStr("could not start colibri manager", err)
 	}

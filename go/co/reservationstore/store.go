@@ -126,10 +126,16 @@ func (s *Store) ReportE2EReservationsInDB(ctx context.Context) ([]*e2e.Reservati
 	return s.db.GetAllE2ERsvs(ctx)
 }
 
-func (s *Store) GetReservationsAtSource(ctx context.Context, dstIA addr.IA) (
+func (s *Store) GetReservationsAtSourceDeleteme(ctx context.Context, dstIA addr.IA) (
 	[]*segment.Reservation, error) {
 
 	return s.db.GetSegmentRsvsFromSrcDstIA(ctx, s.localIA, dstIA, reservation.UnknownPath)
+}
+
+func (s *Store) GetReservationsAtSource(ctx context.Context) (
+	[]*segment.Reservation, error) {
+
+	return s.db.GetSegmentRsvsFromSrcDstIA(ctx, s.localIA, 0, reservation.UnknownPath)
 }
 
 // ListStitchableSegments will first get the rsv. segments starting from this store.

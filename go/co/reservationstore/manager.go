@@ -41,7 +41,8 @@ type Manager interface {
 	LocalIA() addr.IA
 	// TODO(juagargi) move to sub interface, e.g. pather, comms manager,...
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
-	GetReservationsAtSource(ctx context.Context, dst addr.IA) ([]*segment.Reservation, error)
+	GetReservationsAtSourceDeleteme(ctx context.Context, dst addr.IA) ([]*segment.Reservation, error)
+	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	SetupManyRequest(ctx context.Context, reqs []*segment.SetupReq) []error
 	ActivateRequest(
@@ -73,8 +74,8 @@ type manager struct {
 	router              snet.Router
 }
 
-func NewColibriManager(localIA addr.IA, router snet.Router, store reservationstorage.Store,
-	initial *conf.Reservations) (Manager, error) {
+func NewColibriManager(ctx context.Context, localIA addr.IA, router snet.Router,
+	store reservationstorage.Store, initial *conf.Reservations) (Manager, error) {
 
 	m := &manager{
 		now:        time.Now,
@@ -84,7 +85,7 @@ func NewColibriManager(localIA addr.IA, router snet.Router, store reservationsto
 		router:     router,
 	}
 
-	keeper, err := NewKeeper(m, initial)
+	keeper, err := NewKeeper(ctx, m, initial)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +180,7 @@ func (m *manager) Run(ctx context.Context) {
 		logger.Debug("Reservation manager starting")
 		defer logger.Debug("Reservation manager finished")
 
+		// wakeupTime, err := m.keeper.OneShotDeleteme(ctx)
 		wakeupTime, err := m.keeper.OneShot(ctx)
 		if err != nil {
 			logger.Error("while keeping the reservations", "err", err)
@@ -247,10 +249,16 @@ func (m *manager) PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	return paths, err
 }
 
-func (m *manager) GetReservationsAtSource(ctx context.Context, dst addr.IA) (
+func (m *manager) GetReservationsAtSourceDeleteme(ctx context.Context, dst addr.IA) (
 	[]*segment.Reservation, error) {
 
-	return m.store.GetReservationsAtSource(ctx, dst)
+	return m.store.GetReservationsAtSourceDeleteme(ctx, dst)
+}
+
+func (m *manager) GetReservationsAtSource(ctx context.Context) (
+	[]*segment.Reservation, error) {
+
+	return m.store.GetReservationsAtSource(ctx)
 }
 
 func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error {

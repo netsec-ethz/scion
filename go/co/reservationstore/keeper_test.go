@@ -39,19 +39,19 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestKeepOneShot(t *testing.T) {
+func TestKeepOneShotDeleteme(t *testing.T) {
 	now := util.SecsToTime(10)
 	tomorrow := now.AddDate(0, 0, 1)
 	endProps1 := reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer
 	cases := map[string]struct {
-		destinations          map[addr.IA][]requirements
+		destinations          map[addr.IA][]requirementsDeleteme
 		paths                 map[addr.IA][]snet.Path
 		reservations          map[addr.IA][]*segment.Reservation
 		expectedRequestsCalls int
 		expectedWakeupTime    time.Time
 	}{
 		"regular": {
-			destinations: map[addr.IA][]requirements{
+			destinations: map[addr.IA][]requirementsDeleteme{
 				xtest.MustParseIA("1-ff00:0:2"): {{
 					predicate:     newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
 					minBW:         10,
@@ -123,7 +123,7 @@ func TestKeepOneShot(t *testing.T) {
 			expectedWakeupTime:    now.Add(sleepAtMost),
 		},
 		"all compliant expiring tomorrow": {
-			destinations: map[addr.IA][]requirements{
+			destinations: map[addr.IA][]requirementsDeleteme{
 				xtest.MustParseIA("1-ff00:0:2"): {{
 					predicate:     newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
 					minBW:         10,
@@ -164,8 +164,8 @@ func TestKeepOneShot(t *testing.T) {
 
 			manager := mockManager(ctrl, now, localIA)
 			keeper := keeper{
-				manager: manager,
-				entries: tc.destinations,
+				manager:   manager,
+				deletemes: tc.destinations,
 			}
 			manager.EXPECT().GetReservationsAtSource(gomock.Any(), gomock.Any()).
 				Times(len(tc.destinations)).DoAndReturn(
@@ -199,7 +199,7 @@ func TestKeepOneShot(t *testing.T) {
 					return make([]error, len(reqs), len(paths))
 				})
 
-			wakeupTime, err := keeper.OneShot(ctx)
+			wakeupTime, err := keeper.OneShotDeleteme(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedWakeupTime, wakeupTime)
 		})
@@ -208,12 +208,12 @@ func TestKeepOneShot(t *testing.T) {
 
 func TestSetupsPerDestination(t *testing.T) {
 	cases := map[string]struct {
-		requirements  []requirements
+		requirements  []requirementsDeleteme
 		paths         []snet.Path
 		expectedCalls int
 	}{
 		"regular": {
-			requirements: []requirements{
+			requirements: []requirementsDeleteme{
 				{
 					predicate: newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
 					minBW:     10,
@@ -278,7 +278,7 @@ func TestSetupsPerDestination(t *testing.T) {
 
 func TestRequestNSuccessfulRsvs(t *testing.T) {
 	cases := map[string]struct {
-		requirements      requirements
+		requirements      requirementsDeleteme
 		paths             []snet.Path
 		requiredCount     int // amount of rsvs we want
 		successfulPerCall int // manager will only obtain these per call
@@ -286,7 +286,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 		expectedReqs      []int // setup request # expected at the manager, per call. nil == error
 	}{
 		"empty": {
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, ""),
 				minBW:     10,
 				maxBW:     42,
@@ -301,7 +301,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 			expectError:       true,
 		},
 		"ask 2 get 2": {
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
 				minBW:     10,
 				maxBW:     42,
@@ -321,7 +321,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 			expectedReqs:      []int{2},
 		},
 		"ask too many": { // predicate(4 paths) -> 2 paths -> 2 requests; but desired is 4
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
 				minBW:     10,
 				maxBW:     42,
@@ -342,7 +342,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 			expectedReqs:      []int{2},
 		},
 		"ask 3 return 2": {
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, ""),
 				minBW:     10,
 				maxBW:     42,
@@ -376,8 +376,8 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 
 			manager := mockManager(ctrl, now, localIA)
 			keeper := keeper{
-				manager: manager,
-				entries: map[addr.IA][]requirements{dstIA: {tc.requirements}},
+				manager:   manager,
+				deletemes: map[addr.IA][]requirementsDeleteme{dstIA: {tc.requirements}},
 			}
 			// prepare the sequence of returns from the manager
 			managerMutex := new(sync.Mutex)
@@ -433,7 +433,7 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 func TestRequirementsFilter(t *testing.T) {
 	now := util.SecsToTime(0)
 	tomorrow := now.Add(3600 * 24 * time.Second)
-	reqs := requirements{
+	reqs := requirementsDeleteme{
 		predicate:     newSequence(t, "1-ff00:0:1#0,1 1-ff00:0:2 0*"),
 		minBW:         10,
 		maxBW:         42,
@@ -443,7 +443,7 @@ func TestRequirementsFilter(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		requirements           requirements
+		requirements           requirementsDeleteme
 		atLeastUntil           time.Time
 		expectedCompliant      int
 		expectedNeedActivation int
@@ -528,7 +528,7 @@ func TestRequirementsFilter(t *testing.T) {
 func TestRequirementsCompliance(t *testing.T) {
 	now := util.SecsToTime(0)
 	tomorrow := now.Add(3600 * 24 * time.Second)
-	reqs := requirements{
+	reqs := requirementsDeleteme{
 		pathType:      reservation.UpPath,
 		predicate:     newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
 		minBW:         10,
@@ -538,7 +538,7 @@ func TestRequirementsCompliance(t *testing.T) {
 		minActiveRsvs: 1,
 	}
 	cases := map[string]struct {
-		requirements       requirements
+		requirements       requirementsDeleteme
 		rsv                *segment.Reservation
 		atLeastUntil       time.Time
 		expectedCompliance Compliance
@@ -674,17 +674,17 @@ func TestRequirementsCompliance(t *testing.T) {
 
 func TestEntryPrepareSetupRequests(t *testing.T) {
 	cases := map[string]struct {
-		requirements requirements
+		requirements requirementsDeleteme
 		paths        []snet.Path
 		expected     int
 	}{
 		"empty": {
-			requirements: requirements{},
+			requirements: requirementsDeleteme{},
 			paths:        nil,
 			expected:     0,
 		},
 		"no paths": {
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, "1-ff00:0:1 0* 1-ff00:0:2"),
 				minBW:     10,
 				maxBW:     42,
@@ -697,7 +697,7 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 			expected: 0,
 		},
 		"starts here and ends there": {
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, "1-ff00:0:1 0* 1-ff00:0:2"),
 				minBW:     10,
 				maxBW:     42,
@@ -715,7 +715,7 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 			expected: 4,
 		},
 		"all filtered out": {
-			requirements: requirements{
+			requirements: requirementsDeleteme{
 				predicate: newSequence(t, "1-ff00:0:1 0* 1-ff00:0:2"),
 				minBW:     10,
 				maxBW:     42,
@@ -772,7 +772,7 @@ func TestEntryPrepareSetupRequests(t *testing.T) {
 }
 
 func TestEntrySelectRequests(t *testing.T) {
-	entry := requirements{
+	entry := requirementsDeleteme{
 		predicate:     newSequence(t, "1-ff00:0:1#0,1 1-ff00:0:2 0*"),
 		minBW:         10,
 		maxBW:         42,
@@ -864,12 +864,12 @@ func TestSplitRequests(t *testing.T) {
 func TestParseInitial(t *testing.T) {
 	cases := map[string]struct {
 		conf            conf.Reservations
-		expectedEntries map[addr.IA][]requirements
+		expectedEntries map[addr.IA][]requirementsDeleteme
 		expectedError   bool
 	}{
 		"empty": {
 			conf:            conf.Reservations{},
-			expectedEntries: map[addr.IA][]requirements{},
+			expectedEntries: map[addr.IA][]requirementsDeleteme{},
 		},
 		"good": {
 			conf: conf.Reservations{Rsvs: []conf.ReservationEntry{
@@ -884,7 +884,7 @@ func TestParseInitial(t *testing.T) {
 					RequiredCount: 2,
 				},
 			}},
-			expectedEntries: map[addr.IA][]requirements{
+			expectedEntries: map[addr.IA][]requirementsDeleteme{
 				xtest.MustParseIA("1-ff00:0:2"): {
 					{
 						pathType:      reservation.UpPath,
@@ -959,7 +959,7 @@ func TestParseInitial(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			entries, err := parseInitial(&tc.conf)
+			entries, err := parseInitialDeleteme(&tc.conf)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
