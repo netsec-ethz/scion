@@ -35,7 +35,6 @@ type BaseRequest struct {
 	SrcHost        net.IP
 	DstHost        net.IP
 	Steps          base.PathSteps
-	CurrentStep    int
 	Authenticators [][]byte // per spec., MACs for AS_i on the immutable data
 }
 
@@ -58,21 +57,28 @@ func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context,
 }
 
 // NewReservation creates a new E2EReservationSetup, including the authenticator fields.
-func NewReservation(ctx context.Context, conn DRKeyGetter,
-	fullTrip *FullTrip, srcHost, dstHost net.IP,
-	requestedBW reservation.BWCls) (*E2EReservationSetup, error) {
+func NewReservation(
+	ctx context.Context,
+	conn DRKeyGetter,
+	fullTrip *FullTrip,
+	srcHost,
+	dstHost net.IP,
+	requestedBW reservation.BWCls,
+) (*E2EReservationSetup, error) {
+
+	steps := fullTrip.PathSteps()
 
 	setupReq := &E2EReservationSetup{
 		BaseRequest: BaseRequest{
 			Id: reservation.ID{
-				ASID:   fullTrip.PathSteps().SrcIA().AS(),
+				ASID:   steps.SrcIA().AS(),
 				Suffix: make([]byte, 12),
 			},
 			Index:     0, // new index
 			TimeStamp: time.Now(),
 			SrcHost:   srcHost,
 			DstHost:   dstHost,
-			Steps:     fullTrip.PathSteps(),
+			Steps:     steps,
 		},
 		RequestedBW: requestedBW,
 		Segments:    fullTrip.Segments(),

@@ -79,34 +79,19 @@ func StepsToString(steps []PathStep) string {
 type PathSteps []PathStep
 
 func (p PathSteps) SrcIA() addr.IA {
-	if p == nil {
-		return 0
-	}
 	return p[0].IA
 }
 
 func (p PathSteps) DstIA() addr.IA {
-	if p == nil || len(p) == 0 {
-		return 0
-	}
 	return p[len(p)-1].IA
 }
 
-func (p PathSteps) Step(i int) (PathStep, error) {
-	if p == nil || i >= len(p) {
-		return PathStep{}, serrors.New("wrong index", "idx", i, "len", len(p))
-	}
-	return p[i], nil
-}
-
-func (p PathSteps) Len() int {
+// Size returns PathSteps size in bytes
+func (p PathSteps) Size() int {
 	return 2 + len(p)*PathStepLen
 }
 
 func (p PathSteps) Serialize(buff []byte) {
-	if len(buff) < p.Len() {
-		panic("short buffer")
-	}
 	binary.BigEndian.PutUint16(buff, uint16(len(p)))
 	buff = buff[2:]
 	for _, step := range p {
@@ -118,25 +103,14 @@ func (p PathSteps) Serialize(buff []byte) {
 }
 
 func (p PathSteps) ToRaw() []byte {
-	if p == nil {
-		return []byte{}
-	}
-
-	buff := make([]byte, p.Len())
+	buff := make([]byte, p.Size())
 	p.Serialize(buff)
 	return buff
 }
 
-func PathStepsFromRaw(raw []byte) (PathSteps, error) {
-	if raw == nil || len(raw) < 2 {
-		return PathSteps{}, nil
-	}
+func PathStepsFromRaw(raw []byte) PathSteps {
 	stepCount := int(binary.BigEndian.Uint16(raw))
 	raw = raw[2:]
-	if len(raw) < stepCount*PathStepLen {
-		return nil, serrors.New("buffer too small for these path", "step_count", stepCount,
-			"len", len(raw))
-	}
 	steps := make([]PathStep, stepCount)
 	for i := 0; i < stepCount; i++ {
 		steps[i].Ingress = binary.BigEndian.Uint16(raw)
@@ -144,7 +118,7 @@ func PathStepsFromRaw(raw []byte) (PathSteps, error) {
 		steps[i].IA = addr.IA(binary.BigEndian.Uint64(raw[4:]))
 		raw = raw[12:]
 	}
-	return steps, nil
+	return steps
 }
 
 func (p PathSteps) Copy() PathSteps {
@@ -152,9 +126,6 @@ func (p PathSteps) Copy() PathSteps {
 }
 
 func (p PathSteps) Reverse() PathSteps {
-	if p == nil {
-		return p
-	}
 	rev := make([]PathStep, len(p))
 	for i, s := range p {
 		s.Ingress, s.Egress = s.Egress, s.Ingress
@@ -163,6 +134,8 @@ func (p PathSteps) Reverse() PathSteps {
 	return rev
 }
 
+// Interfaces return a snet.PathInterfaces leaving out the leading and trailing
+// virtual interfaces.
 func (p PathSteps) Interfaces() []snet.PathInterface {
 	if p == nil {
 		return []snet.PathInterface{}
@@ -174,7 +147,20 @@ func (p PathSteps) Interfaces() []snet.PathInterface {
 		ifaces[i*2+1].ID = common.IFIDType(p[i].Egress)
 		ifaces[i*2+1].IA = p[i].IA
 	}
+	//
 	return ifaces[1 : len(ifaces)-1]
+}
+
+func (p PathSteps) StepsToString() string {
+	strs := make([]string, len(p))
+	for i, s := range p {
+		if s.IA.IsZero() {
+			strs[i] = fmt.Sprintf("%d,%d", s.Ingress, s.Egress)
+		} else {
+			strs[i] = fmt.Sprintf("%d,%s,%d", s.Ingress, s.IA, s.Egress)
+		}
+	}
+	return strings.Join(strs, " > ")
 }
 
 func StepsFromSnet(p snet.Path) (PathSteps, error) {

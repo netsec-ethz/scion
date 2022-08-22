@@ -184,9 +184,18 @@ func TestKeepOneShot(t *testing.T) {
 				func(_ context.Context, reqs []*segment.SetupReq) []error {
 					return make([]error, len(reqs))
 				})
-			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-				AnyTimes().DoAndReturn(
-				func(_ context.Context, reqs []*base.Request, steps []base.PathSteps, paths []slayerspath.Path) []error {
+			manager.EXPECT().ActivateManyRequest(
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any(),
+			).AnyTimes().DoAndReturn(
+				func(
+					_ context.Context,
+					reqs []*base.Request,
+					steps []base.PathSteps,
+					paths []slayerspath.Path,
+				) []error {
 					return make([]error, len(reqs), len(paths))
 				})
 
@@ -247,11 +256,19 @@ func TestSetupsPerDestination(t *testing.T) {
 			keeper := keeper{
 				manager: manager,
 			}
-			manager.EXPECT().SetupManyRequest(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
+			manager.EXPECT().SetupManyRequest(
+				gomock.Any(),
+				gomock.Any(),
+			).Times(2).DoAndReturn(
 				func(_ context.Context, reqs []*segment.SetupReq) []error {
 					return make([]error, len(reqs))
 				})
-			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			manager.EXPECT().ActivateManyRequest(
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any(),
+			).AnyTimes()
 
 			_, err := keeper.setupsPerDestination(ctx, dstIA, tc.requirements, tc.paths, noRsvs)
 			require.NoError(t, err)
@@ -382,10 +399,19 @@ func TestRequestNSuccessfulRsvs(t *testing.T) {
 					}
 					return errs
 				})
-			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			manager.EXPECT().ActivateManyRequest(
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any(),
+			).AnyTimes()
 			// build requests from paths (tested elsewhere)
-			requests, err := tc.requirements.PrepareSetupRequests(tc.paths, localIA.AS(),
-				now, now.Add(time.Hour))
+			requests, err := tc.requirements.PrepareSetupRequests(
+				tc.paths,
+				localIA.AS(),
+				now,
+				now.Add(time.Hour),
+			)
 			require.NoError(t, err)
 			// call and check
 			err = keeper.requestNSuccessfulRsvs(ctx, dstIA,

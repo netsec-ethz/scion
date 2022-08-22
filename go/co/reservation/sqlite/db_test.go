@@ -81,13 +81,9 @@ func TestTransactions(t *testing.T) {
 	require.NoError(t, err)
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
 	rsv.Steps, err = base.StepsFromSnet(p)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	rsv.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	rsv.ID.Suffix[0]++
 	// save the reservation to DB
 	err = db.PersistSegmentRsv(ctx, rsv)
@@ -138,13 +134,9 @@ func TestTransactionsBusy(t *testing.T) {
 	// save the reservation to DB
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
 	rsv.Steps, err = base.StepsFromSnet(p)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	rsv.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	err = db.PersistSegmentRsv(ctx, rsv)
 	require.NoError(t, err)
 
@@ -269,13 +261,9 @@ func TestRaceForSuffix(t *testing.T) {
 
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
 	steps, err := base.StepsFromSnet(p)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	rsv1 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{1, 1, 1, 1}},

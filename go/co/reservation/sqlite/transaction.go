@@ -69,7 +69,9 @@ func NewTransaction(ctx context.Context, createTxFun func() (*sql.Tx, error),
 	if err == nil {
 		for rows.Next() { // we actually need to call Next()
 		}
-		rows.Close()
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
 	}
 	return &phoenixTx{
 		executor: &executor{

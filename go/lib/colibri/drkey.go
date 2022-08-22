@@ -173,7 +173,7 @@ func getKeysWithLocalIA(ctx context.Context, conn DRKeyGetter, steps []base.Path
 func minSizeBaseReq(req *BaseRequest) int {
 	return req.Id.Len() + 1 + 4 + // ID + index + time_stamp
 		16 + 16 + // srcHost + dstHost
-		base.PathSteps(req.Steps).Len()
+		base.PathSteps(req.Steps).Size()
 }
 
 func minSizeE2ESetupReq(req *E2EReservationSetup) int {

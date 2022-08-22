@@ -27,10 +27,6 @@ import (
 	"github.com/scionproto/scion/go/co/reservationstorage/backend"
 	"github.com/scionproto/scion/go/co/reservationstorage/backend/mock_backend"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	slayers "github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -459,58 +455,13 @@ func newTestAdmitter(t *testing.T) *StatelessAdmission {
 	}
 }
 
-func newsnetPathWithHop(args ...interface{}) snet.Path {
-	ifaces := test.NewIfaces(args...)
-	steps, err := base.StepsFromInterfaces(ifaces)
-	if err != nil {
-		panic(err)
-	}
-
-	rp := scion.Decoded{
-		Base: scion.Base{
-			PathMeta: scion.MetaHdr{
-				CurrINF: 0,
-				CurrHF:  1,
-				SegLen:  [3]uint8{uint8(len(steps))},
-			},
-			NumINF:  1,
-			NumHops: len(steps),
-		},
-		InfoFields: []slayers.InfoField{{
-			ConsDir: true,
-		}},
-		HopFields: make([]slayers.HopField, len(steps)),
-	}
-
-	for i, iface := range steps {
-		rp.HopFields[i] = slayers.HopField{
-			ConsIngress: iface.Ingress,
-			ConsEgress:  iface.Egress,
-		}
-	}
-	buff := make([]byte, rp.Len())
-	err = rp.SerializeTo(buff)
-	if err != nil {
-		panic(err)
-	}
-
-	return path.Path{
-		Meta: snet.PathMetadata{
-			Interfaces: ifaces,
-		},
-		DataplanePath: path.SCION{
-			Raw: buff,
-		},
-	}
-}
-
 // newTestRequest creates a request ID ff00:1:1 beefcafe
 func newTestRequest(t *testing.T, ingress, egress int,
 	minBW, maxBW reservation.BWCls) *segment.SetupReq {
 
 	ID, err := reservation.IDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
 	require.NoError(t, err)
-	p := newsnetPathWithHop("1-ff00:1:0", 1, ingress, "1-ff00:1:1", egress, 1, "1-ff00:1:2")
+	p := test.NewSnetPathWithHop("1-ff00:1:0", 1, ingress, "1-ff00:1:1", egress, 1, "1-ff00:1:2")
 	steps, err := base.StepsFromSnet(p)
 	require.NoError(t, err)
 	rawPath, err := base.PathFromDataplanePath(p.Dataplane())

@@ -42,7 +42,11 @@ func (r *Reservation) String() string {
 	}
 	segs := make([]string, len(r.SegmentReservations))
 	for i, s := range r.SegmentReservations {
-		segs[i] = fmt.Sprintf("%s (%d indices) (%s)", s.ID, len(s.Indices), base.StepsToString(s.Steps))
+		segs[i] = fmt.Sprintf("%s (%d indices) (%s)",
+			s.ID,
+			len(s.Indices),
+			base.StepsToString(s.Steps),
+		)
 	}
 	return fmt.Sprintf("%s: %d segment(s): {%s} . IDXS: [%s]",
 		r.ID, len(r.SegmentReservations), strings.Join(segs, "; "), r.Indices)

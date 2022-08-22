@@ -449,7 +449,11 @@ func extractPathIAFromCtx(ctx context.Context) (slayerspath.Path, addr.IA, error
 	peer, ok := gPeer.Addr.(*snet.UDPAddr)
 	if !ok {
 		logger.Debug("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
-		return nil, addr.IA(0), serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
+		return nil, addr.IA(0), serrors.New(
+			"peer must be *snet.UDPAddr",
+			"actual",
+			fmt.Sprintf("%T", gPeer),
+		)
 	}
 
 	path, err := base.PathFromDataplanePath(peer.Path)

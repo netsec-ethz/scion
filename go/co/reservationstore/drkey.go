@@ -150,7 +150,13 @@ func (a *DRKeyAuthenticator) ComputeSegmentSetupRequestTransitMAC(ctx context.Co
 		return nil
 	}
 	payload := inputTransitSegSetupRequest(req)
-	return a.computeTransitMACforPayload(ctx, payload, &req.Request, req.Steps.DstIA(), req.CurrentStep)
+	return a.computeTransitMACforPayload(
+		ctx,
+		payload,
+		&req.Request,
+		req.Steps.DstIA(),
+		req.CurrentStep,
+	)
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ERequestTransitMAC(ctx context.Context,
@@ -380,8 +386,14 @@ func (a *DRKeyAuthenticator) validateE2ESetupRequestAtDestination(ctx context.Co
 	})
 }
 
-func (a *DRKeyAuthenticator) validateSegmentPayloadInitialMAC(ctx context.Context, reqID reservation.ID,
-	srcIA addr.IA, currValidator []byte, ts time.Time, immutableInput []byte) (bool, error) {
+func (a *DRKeyAuthenticator) validateSegmentPayloadInitialMAC(
+	ctx context.Context,
+	reqID reservation.ID,
+	srcIA addr.IA,
+	currValidator []byte,
+	ts time.Time,
+	immutableInput []byte,
+) (bool, error) {
 
 	key, err := a.fastAS2AS(ctx, srcIA, ts)
 	if err != nil {

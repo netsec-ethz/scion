@@ -268,7 +268,9 @@ message E2ERequest {
     bytes src_host = 2;
     // address of the destination host.
     bytes dst_host = 3;
+    // current index in the steps sequence.
     uint32 current_step = 4;
+    // the path the request will follow.
     repeated PathStep steps = 5;
 }
 

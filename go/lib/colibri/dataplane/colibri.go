@@ -389,10 +389,3 @@ func MACInputE2E(buffer []byte, ts colibri.Timestamp, inf *colibri.InfoField,
 	binary.BigEndian.PutUint16(buffer[8:10], total16)
 	return nil
 }
-
-func max(x, y uint32) uint32 {
-	if x < y {
-		return y
-	}
-	return x
-}

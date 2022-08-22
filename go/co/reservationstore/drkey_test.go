@@ -60,7 +60,11 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 					3),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
-				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+				Steps: ct.NewPath(
+					0, "1-ff00:0:111", 1,
+					1, "1-ff00:0:110", 2,
+					1, "1-ff00:0:112", 0,
+				),
 			},
 		},
 	}
@@ -179,7 +183,11 @@ func TestE2ERequestTransitMac(t *testing.T) {
 					3),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
-				Steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+				Steps: ct.NewPath(
+					0, "1-ff00:0:111", 1,
+					1, "1-ff00:0:110", 2,
+					1, "1-ff00:0:112", 0,
+				),
 			},
 		},
 	}
@@ -209,7 +217,11 @@ func TestE2ERequestTransitMac(t *testing.T) {
 				localIA:   dstIA,
 				slowKeyer: fakeSlowKeyer{localIA: dstIA},
 			}
-			ok, err := auth.validateE2ERequestAtDestination(ctx, &tc.transitReq, tc.transitReq.Steps)
+			ok, err := auth.validateE2ERequestAtDestination(
+				ctx,
+				&tc.transitReq,
+				tc.transitReq.Steps,
+			)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -228,8 +240,11 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 						3),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
-					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 0),
+					Steps: ct.NewPath(
+						0, "1-ff00:0:111", 1,
+						1, "1-ff00:0:110", 2,
+						1, "1-ff00:0:112", 0,
+					),
 				},
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
@@ -269,7 +284,11 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 				localIA:   dstIA,
 				slowKeyer: fakeSlowKeyer{localIA: dstIA},
 			}
-			ok, err := auth.validateE2ESetupRequestAtDestination(ctx, &tc.transitReq, tc.transitReq.Steps)
+			ok, err := auth.validateE2ESetupRequestAtDestination(
+				ctx,
+				&tc.transitReq,
+				tc.transitReq.Steps,
+			)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -289,7 +308,11 @@ func TestComputeAndValidateResponse(t *testing.T) {
 					Authenticators: make([][]byte, 2),
 				},
 			},
-			steps:       ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps: ct.NewPath(
+				0, "1-ff00:0:111", 1,
+				1, "1-ff00:0:110", 2,
+				1, "1-ff00:0:112", 0,
+			),
 			currentStep: 0,
 		},
 	}

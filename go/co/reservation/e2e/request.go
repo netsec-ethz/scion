@@ -36,7 +36,7 @@ type Request struct {
 }
 
 func (r *Request) Len() int {
-	return r.Request.Len() + 16 + 16 + r.Steps.Len()
+	return r.Request.Len() + 16 + 16 + r.Steps.Size()
 }
 func (r *Request) Serialize(buff []byte, options base.SerializeOptions) {
 	offset := r.Request.Len()
@@ -49,6 +49,9 @@ func (r *Request) Serialize(buff []byte, options base.SerializeOptions) {
 }
 
 func (r *Request) Validate() error {
+	if len(r.Steps) < 2 {
+		return serrors.New("Wrong steps state")
+	}
 	return r.Request.Validate(r.Steps)
 }
 

@@ -65,18 +65,20 @@ func (r *SetupReq) Validate() error {
 			"steps len", len(r.Steps))
 	}
 	if r.Steps[0].Ingress != 0 {
-		return serrors.New("Wrong interface for srcIA ingress", "ingress", r.Steps[0].Ingress)
+		return serrors.New("Wrong interface for srcIA ingress",
+			"ingress", r.Steps[0].Ingress)
 	}
 	if r.Steps[len(r.Steps)-1].Egress != 0 {
-		return serrors.New("Wrong interface for dstIA egress", "egress", r.Steps[len(r.Steps)-1].Egress)
+		return serrors.New("Wrong interface for dstIA egress",
+			"egress", r.Steps[len(r.Steps)-1].Egress)
 	}
 	if base.EgressFromDataPlanePath(r.RawPath) != r.Egress() {
-		return serrors.New("Inconsisten egress from dataplane and reservation egress",
+		return serrors.New("Inconsistent egress from dataplane and reservation egress",
 			"dataplane", base.EgressFromDataPlanePath(r.RawPath),
 			"egress", r.Egress)
 	}
 	if base.IngressFromDataPlanePath(r.RawPath) != r.Ingress() {
-		return serrors.New("Inconsisten ingress from dataplane and reservation egress",
+		return serrors.New("Inconsistent ingress from dataplane and reservation egress",
 			"dataplane", base.IngressFromDataPlanePath(r.RawPath),
 			"ingress", r.Ingress)
 	}
@@ -109,14 +111,14 @@ func (r *SetupReq) Egress() uint16 {
 
 func (r *SetupReq) Len() int {
 	// basic_request + steps len + expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
-	return r.Request.Len() + r.Steps.Len() + 4 + 1 + 1 + 1 + 1 + 1 + 1
+	return r.Request.Len() + r.Steps.Size() + 4 + 1 + 1 + 1 + 1 + 1 + 1
 }
 
 func (r *SetupReq) Serialize(buff []byte, options base.SerializeOptions) {
 	offset := r.Request.Len()
 	r.Request.Serialize(buff[:offset], options)
 
-	offset += r.Steps.Len()
+	offset += r.Steps.Size()
 	r.Steps.Serialize(buff[:offset])
 
 	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(r.ExpirationTime))

@@ -15,7 +15,12 @@
 package test
 
 import (
+	base "github.com/scionproto/scion/go/co/reservation"
 	col "github.com/scionproto/scion/go/lib/colibri/reservation"
+	slayers "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -25,4 +30,49 @@ func MustParseID(asid, suffix string) *col.ID {
 		panic(err)
 	}
 	return id
+}
+
+func NewSnetPathWithHop(args ...interface{}) snet.Path {
+	ifaces := NewIfaces(args...)
+	steps, err := base.StepsFromInterfaces(ifaces)
+	if err != nil {
+		panic(err)
+	}
+
+	rp := scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrINF: 0,
+				CurrHF:  1,
+				SegLen:  [3]uint8{uint8(len(steps))},
+			},
+			NumINF:  1,
+			NumHops: len(steps),
+		},
+		InfoFields: []slayers.InfoField{{
+			ConsDir: true,
+		}},
+		HopFields: make([]slayers.HopField, len(steps)),
+	}
+
+	for i, iface := range steps {
+		rp.HopFields[i] = slayers.HopField{
+			ConsIngress: iface.Ingress,
+			ConsEgress:  iface.Egress,
+		}
+	}
+	buff := make([]byte, rp.Len())
+	err = rp.SerializeTo(buff)
+	if err != nil {
+		panic(err)
+	}
+
+	return path.Path{
+		Meta: snet.PathMetadata{
+			Interfaces: ifaces,
+		},
+		DataplanePath: path.SCION{
+			Raw: buff,
+		},
+	}
 }

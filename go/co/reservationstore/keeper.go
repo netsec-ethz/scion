@@ -211,7 +211,7 @@ func (k *keeper) setupsPerDestination(ctx context.Context, dstIA addr.IA, entrie
 // activateIndices expects reservations that have a confirmed index that can be activated.
 func (k *keeper) activateIndices(ctx context.Context, rsvs []*segment.Reservation) error {
 	reqs := make([]*base.Request, len(rsvs))
-	steps := make([]base.PathSteps, len(rsvs))
+	stepsCollection := make([]base.PathSteps, len(rsvs))
 	paths := make([]slayerspath.Path, len(rsvs))
 	for i, rsv := range rsvs {
 		index := rsv.NextIndexToActivate()
@@ -220,10 +220,10 @@ func (k *keeper) activateIndices(ctx context.Context, rsvs []*segment.Reservatio
 				"indices", rsv.Indices.String())
 		}
 		reqs[i] = base.NewRequest(k.manager.Now(), &rsv.ID, index.Idx, len(rsv.Steps.Copy()))
-		steps[i] = rsv.Steps.Copy()
+		stepsCollection[i] = rsv.Steps.Copy()
 		paths[i] = rsv.RawPath
 	}
-	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, reqs, steps, paths))
+	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, reqs, stepsCollection, paths))
 	if len(errs) > 0 {
 		log.Info("errors while activating rsvs", "errs", errs)
 		return serrors.New("errors in activation")
@@ -307,7 +307,12 @@ func (k *keeper) requestNSuccessfulRsvs(ctx context.Context, dstIA addr.IA, entr
 		return serrors.New("could not request the minimum required of reservations",
 			"dst", dstIA, "requests_len", len(requests))
 	}
-	errs := filterEmptyErrors(k.manager.ActivateManyRequest(ctx, needActivation, needActivationSteps, needActivationPaths))
+	errs := filterEmptyErrors(k.manager.ActivateManyRequest(
+		ctx,
+		needActivation,
+		needActivationSteps,
+		needActivationPaths,
+	))
 	if len(errs) > 0 {
 		log.Info("errors while activating reservations", "errs", errs)
 		return serrors.New("could not activate all reservations", "err_count", len(errs))

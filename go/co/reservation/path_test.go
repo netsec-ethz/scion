@@ -72,8 +72,7 @@ func TestPathStepsToRawFromRaw(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			raw := tc.steps.ToRaw()
-			steps, err := PathStepsFromRaw(raw)
-			require.NoError(t, err, "buffer=%s", hex.EncodeToString(raw))
+			steps := PathStepsFromRaw(raw)
 			require.Equal(t, tc.expected, steps, "buffer=%s", hex.EncodeToString(raw))
 		})
 	}
@@ -87,7 +86,7 @@ func TestReverse(t *testing.T) {
 	}{
 		"nil": {
 			original: nil,
-			reversed: nil,
+			reversed: PathSteps{},
 		},
 		"two_steps": {
 			original: PathSteps{

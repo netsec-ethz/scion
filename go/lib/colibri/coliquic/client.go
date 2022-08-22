@@ -100,8 +100,11 @@ func (o *ServiceClientOperator) DialSvcCOL(ctx context.Context, dst *addr.IA) (
 // ColibriClient finds or creates a ColibriClient that can reach the next neighbor in
 // the path passed as argument. The underneath connection will be COLIBRI or regular SCION,
 // depending on the type of the path passed as argument.
-func (o *ServiceClientOperator) ColibriClient(ctx context.Context, egressID uint16,
-	rawPath slayerspath.Path) (
+func (o *ServiceClientOperator) ColibriClient(
+	ctx context.Context,
+	egressID uint16,
+	rawPath slayerspath.Path,
+) (
 	colpb.ColibriServiceClient, error) {
 	// XXX(JordiSubira): We pass egressID because E2ESetupRequest travel hop-by-hop
 	// path in peer address does not contain the complete path. To be changed, once
