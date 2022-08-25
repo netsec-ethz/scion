@@ -90,7 +90,7 @@ func (r *SetupReq) Validate(getNeighborIA func(ifaceID uint16) addr.IA) error {
 			"local", getNeighborIA(0))
 	}
 	// next IA correct?
-	if r.CurrentStep < len(r.Steps)+1 &&
+	if r.CurrentStep+1 < len(r.Steps) &&
 		getNeighborIA(r.Egress()) != r.Steps[r.CurrentStep+1].IA {
 		return serrors.New("next IA according to steps and topology not same",
 			"steps", r.Steps[r.CurrentStep+1].IA,
