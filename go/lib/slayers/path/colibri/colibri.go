@@ -19,6 +19,11 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 )
 
+type ColibriPathFacade interface {
+	GetInfoField() *InfoField
+	GetCurrentHopField() *HopField
+}
+
 type Timestamp [8]byte
 
 type ColibriPath struct {
@@ -28,6 +33,14 @@ type ColibriPath struct {
 	InfoField *InfoField
 	// HopFields denote the COLIBRI hop fields.
 	HopFields []*HopField
+}
+
+func (c *ColibriPath) GetInfoField() *InfoField {
+	return c.InfoField
+}
+
+func (c *ColibriPath) GetCurrentHopField() *HopField {
+	return c.HopFields[c.InfoField.CurrHF]
 }
 
 func (c *ColibriPath) DecodeFromBytes(b []byte) error {

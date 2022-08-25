@@ -22,6 +22,7 @@ import (
 
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -151,6 +152,174 @@ func TestReverse(t *testing.T) {
 	}
 }
 
+func TestPathStepsValidateEquivalent(t *testing.T) {
+	// test topology for all cases:
+	//
+	//					+---+  1 2   +---+  3 4   +----+  5 7   +---+
+	//					| E | -----> | D | -----> | C  | -----> | A |
+	//					+---+        +---+        +----+        +---+
+	//
+	steps_ACD := PathSteps{ // A->C->D    This is one seg. reservation only
+		{
+			Ingress: 0,
+			Egress:  7,
+		},
+		{
+			Ingress: 5,
+			Egress:  4,
+		},
+		{
+			Ingress: 3,
+			Egress:  0,
+		},
+	}
+	steps_EDC := PathSteps{ // E -> D -> C
+		{
+			Ingress: 0,
+			Egress:  1,
+		},
+		{
+			Ingress: 2,
+			Egress:  3,
+		},
+		{
+			Ingress: 4,
+			Egress:  0,
+		},
+	}
+	col_ACD_at_1 := &colibri.ColibriPath{ // A->C->D    at C
+		InfoField: &colibri.InfoField{
+			ResIdSuffix: xtest.MustParseHexString("0123456789abcdef01234567"),
+			HFCount:     3,
+			CurrHF:      1,
+			S:           true,
+		},
+		HopFields: []*colibri.HopField{
+			{
+				IngressId: 0,
+				EgressId:  7,
+				Mac:       xtest.MustParseHexString("01234567"),
+			},
+			{
+				IngressId: 5,
+				EgressId:  4,
+				Mac:       xtest.MustParseHexString("01234567"),
+			},
+			{
+				IngressId: 3,
+				EgressId:  0,
+				Mac:       xtest.MustParseHexString("01234567"),
+			},
+		},
+	}
+	col2_ACD_at_1 := MustDeserializeColibriMinimalPath(t, MustSerializePath(t, col_ACD_at_1))
+	scion_ED := &scion.Decoded{ // E -> D
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				SegLen:  [3]uint8{2, 0, 0},
+				CurrINF: 0,
+				CurrHF:  1,
+			},
+			NumINF:  1,
+			NumHops: 2,
+		},
+		InfoFields: []slayerspath.InfoField{
+			{
+				ConsDir: true,
+				SegID:   1,
+			},
+		},
+		HopFields: []slayerspath.HopField{
+			{
+				ConsIngress: 0,
+				ConsEgress:  1,
+			},
+			{
+				ConsIngress: 2,
+				ConsEgress:  0,
+			},
+		},
+	}
+	scion_AC := &scion.Decoded{ // C -> D
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				SegLen:  [3]uint8{2, 0, 0},
+				CurrINF: 0,
+				CurrHF:  1,
+			},
+			NumINF:  1,
+			NumHops: 2,
+		},
+		InfoFields: []slayerspath.InfoField{
+			{
+				ConsDir: false,
+				SegID:   1,
+			},
+		},
+		HopFields: []slayerspath.HopField{
+			{
+				ConsIngress: 7,
+				ConsEgress:  0,
+			},
+			{
+				ConsIngress: 4,
+				ConsEgress:  5,
+			},
+		},
+	}
+	scion2_CD := MustDeserializeScionRawPath(t, MustSerializePath(t, scion_AC))
+	cases := map[string]struct {
+		expectError bool
+		steps       PathSteps
+		atStep      int
+		path        slayerspath.Path
+	}{
+		"colibri": {
+			expectError: false,
+			steps:       steps_ACD,
+			atStep:      1,
+			path:        col_ACD_at_1,
+		},
+		"colibri2": {
+			expectError: false,
+			steps:       steps_ACD,
+			atStep:      1,
+			path:        col2_ACD_at_1,
+		},
+		"scionConsDir": {
+			expectError: false,
+			steps:       steps_EDC,
+			atStep:      1,
+			path:        scion_ED,
+		},
+		"scionReverseDir1": {
+			expectError: false,
+			steps:       steps_ACD,
+			atStep:      1,
+			path:        scion_AC,
+		},
+		"scionReverseDir2": {
+			expectError: false,
+			steps:       steps_ACD,
+			atStep:      1,
+			path:        scion2_CD,
+		},
+		// TODO deleteme shortcut case
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			err := tc.steps.ValidateEquivalent(tc.path, tc.atStep)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestPathStepsFromSnet(t *testing.T) {
 	cases := map[string]struct {
 		snetPath    snet.Path
@@ -226,8 +395,8 @@ func TestRawFromSnet(t *testing.T) {
 						"0123456700010002012345670001000001234567"),
 				},
 			},
-			expected: MustParseColibriPath("000000000000000080000003" +
-				"0123456789ab0123456789ab000000000d00000000000001" +
+			expected: MustParseColibriPath(t, "000000000000000080000003"+
+				"0123456789ab0123456789ab000000000d00000000000001"+
 				"0123456700010002012345670001000001234567"),
 		},
 	}
@@ -247,12 +416,35 @@ func TestRawFromSnet(t *testing.T) {
 	}
 }
 
-func MustParseColibriPath(hexString string) *colibri.ColibriPathMinimal {
-	buff := xtest.MustParseHexString(hexString)
+func MustParseColibriPath(t *testing.T, hexString string) *colibri.ColibriPathMinimal {
+	return MustDeserializeColibriMinimalPath(t, xtest.MustParseHexString(hexString))
+}
+
+func MustSerializePath(t *testing.T, p slayerspath.Path) []byte {
+	t.Helper()
+	buff := make([]byte, p.Len())
+	err := p.SerializeTo(buff)
+	require.NoError(t, err)
+	return buff
+}
+
+func MustDeserializeColibriMinimalPath(t *testing.T, buff []byte) *colibri.ColibriPathMinimal {
 	p := &colibri.ColibriPathMinimal{}
 	err := p.DecodeFromBytes(buff)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+	return p
+}
+
+func MustDeserializeScionRawPath(t *testing.T, buff []byte) *scion.Raw {
+	p := &scion.Raw{}
+	err := p.DecodeFromBytes(buff)
+	require.NoError(t, err)
+	return p
+}
+
+func MustDeserializeScionDecodedPath(t *testing.T, buff []byte) *scion.Decoded {
+	p := &scion.Decoded{}
+	err := p.DecodeFromBytes(buff)
+	require.NoError(t, err)
 	return p
 }

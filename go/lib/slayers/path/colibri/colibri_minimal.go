@@ -50,6 +50,14 @@ type ColibriPathMinimal struct {
 	Raw []byte
 }
 
+func (c *ColibriPathMinimal) GetInfoField() *InfoField {
+	return c.InfoField
+}
+
+func (c *ColibriPathMinimal) GetCurrentHopField() *HopField {
+	return c.CurrHopField
+}
+
 func (c *ColibriPathMinimal) DecodeFromBytes(b []byte) error {
 	if c == nil {
 		return serrors.New("colibri path must not be nil")

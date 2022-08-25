@@ -19,6 +19,7 @@ import (
 	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
@@ -45,7 +46,7 @@ type SetupReq struct {
 	CurrentStep      int              // recovered from dataplane (except at source)
 }
 
-func (r *SetupReq) Validate() error {
+func (r *SetupReq) Validate(getNeighborIA func(ifaceID uint16) addr.IA) error {
 	if err := r.Request.Validate(r.Steps); err != nil {
 		return err
 	}
@@ -72,15 +73,28 @@ func (r *SetupReq) Validate() error {
 		return serrors.New("Wrong interface for dstIA egress",
 			"egress", r.Steps[len(r.Steps)-1].Egress)
 	}
-	if base.EgressFromDataPlanePath(r.RawPath) != r.Egress() {
-		return serrors.New("Inconsistent egress from dataplane and reservation egress",
-			"dataplane", base.EgressFromDataPlanePath(r.RawPath),
-			"egress", r.Egress)
+	if err := r.Steps.ValidateEquivalent(r.RawPath, r.CurrentStep); err != nil {
+		return serrors.WrapStr("invalid steps/raw path", err)
 	}
-	if base.IngressFromDataPlanePath(r.RawPath) != r.Ingress() {
-		return serrors.New("Inconsistent ingress from dataplane and reservation egress",
-			"dataplane", base.IngressFromDataPlanePath(r.RawPath),
-			"ingress", r.Ingress)
+	// previous IA correct?
+	if r.CurrentStep > 0 &&
+		getNeighborIA(r.Ingress()) != r.Steps[r.CurrentStep-1].IA {
+		return serrors.New("previous IA according to steps and topology not same",
+			"steps", r.Steps[r.CurrentStep-1].IA,
+			"topo", getNeighborIA(r.Ingress()))
+	}
+	// this IA correct?
+	if r.Steps[r.CurrentStep].IA != getNeighborIA(0) {
+		return serrors.New("current IA according to steps not same as local",
+			"steps", r.Steps[r.CurrentStep].IA,
+			"local", getNeighborIA(0))
+	}
+	// next IA correct?
+	if r.CurrentStep < len(r.Steps)+1 &&
+		getNeighborIA(r.Egress()) != r.Steps[r.CurrentStep+1].IA {
+		return serrors.New("next IA according to steps and topology not same",
+			"steps", r.Steps[r.CurrentStep+1].IA,
+			"topo", getNeighborIA(r.Egress()))
 	}
 
 	return nil
@@ -106,7 +120,6 @@ func (r *SetupReq) Ingress() uint16 {
 // Do not call Egress without validating the request first.
 func (r *SetupReq) Egress() uint16 {
 	return r.Steps[r.CurrentStep].Egress
-
 }
 
 func (r *SetupReq) Len() int {

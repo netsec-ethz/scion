@@ -96,7 +96,7 @@ func (s *Store) err(err error) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("@%s: %s", s.localIA, err)
+	return fmt.Errorf("@%s: %v", s.localIA, err)
 }
 
 func (s *Store) errNew(msg string, params ...interface{}) error {
@@ -1643,7 +1643,7 @@ func (s *Store) admitSegmentReservation(
 	)
 	// Calling to req.Validate() also validates that ingress/egress from dataplane,
 	// matches ingress/egress from req.Steps[req.CurrentStep]
-	if err := req.Validate(); err != nil {
+	if err := req.Validate(s.operator.Neighbor); err != nil {
 		failedResponse.Message = s.errWrapStr("request failed validation", err).Error()
 		return updateResponse(failedResponse)
 	}

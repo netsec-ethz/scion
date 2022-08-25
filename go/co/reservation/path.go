@@ -151,6 +151,65 @@ func (p PathSteps) String() string {
 	return strings.Join(strs, " > ")
 }
 
+// ValidateEquivalent checks that these steps are compatible with the path.
+// Compatible means the ingress/egress interface of the current step is the same
+// as those of the raw path if the raw path is colibri, or in the case the raw path
+// is of type scion, that the ingress is the same and that the path consists of only 2 hops.
+// This is because the regular scion path type can only be used to contact the
+// colibri service from the previous colibri service.
+// TODO(juagargi) support colibri EER paths
+func (p PathSteps) ValidateEquivalent(path slayerspath.Path, atStep int) error {
+	var in, eg int
+	doColibriPath := func(p colibri.ColibriPathFacade) {
+		if !p.GetInfoField().S {
+			panic("colibri EER paths are not yet supported")
+		}
+		hf := p.GetCurrentHopField()
+		in, eg = int(hf.IngressId), int(hf.EgressId)
+	}
+	doScionPath := func(p *scion.Decoded) error {
+		if p.Base.NumINF != 1 || p.Base.NumHops != 2 || p.Base.PathMeta.CurrHF != 1 {
+			return serrors.New("steps not compatible with this scion path: must be direct",
+				"inf_count", p.Base.NumINF, "hop_count", p.Base.NumHops,
+				"curr_hop", p.Base.PathMeta.CurrHF)
+		}
+		in, eg = int(p.HopFields[1].ConsIngress), int(p.HopFields[1].ConsEgress)
+		if !p.InfoFields[0].ConsDir {
+			in = eg
+		}
+		eg = -1
+		return nil
+	}
+	switch v := path.(type) {
+	case *colibri.ColibriPathMinimal:
+		doColibriPath(v)
+	case *colibri.ColibriPath:
+		doColibriPath(v)
+	case *scion.Raw:
+		p := &scion.Decoded{}
+		if err := p.DecodeFromBytes(v.Raw); err != nil {
+			return err
+		}
+		if err := doScionPath(p); err != nil {
+			return err
+		}
+	case *scion.Decoded:
+		if err := doScionPath(v); err != nil {
+			return err
+		}
+	default:
+		return serrors.New(fmt.Sprintf("Invalid path type %T!\n", v))
+	}
+	if in != int(p[atStep].Ingress) || (eg != -1 && eg != int(p[atStep].Egress)) {
+		return serrors.New("steps and path are not equivalent",
+			"path_type", path.Type().String(),
+			"path", fmt.Sprintf("[%d,%d]", in, eg),
+			"steps", fmt.Sprintf("[%d,%d]", p[atStep].Ingress, p[atStep].Egress))
+	}
+
+	return nil
+}
+
 func StepsFromSnet(p snet.Path) (PathSteps, error) {
 	if p == nil {
 		return nil, nil

@@ -48,20 +48,21 @@ type GRPCClientDialer interface {
 // - Ensure we return a gRPC client using the correct path (the path is used at the server to
 //   measure the BW used by the services).
 type ServiceClientOperator struct {
-	connDialer       GRPCClientDialer
-	neighbors        map[uint16]*snet.UDPAddr // SvcCOL addr per interface ID
-	neighborsMutex   sync.Mutex
-	srvResolver      ColSrvResolver
-	colServices      map[addr.IA]*snet.UDPAddr // cached discovered addresses
-	colServicesMutex sync.Mutex
+	connDialer           GRPCClientDialer
+	neighboringColSvcs   map[uint16]*snet.UDPAddr // SvcCOL addr per interface ID
+	neighboringColSvcsMu sync.Mutex
+	neighboringIAs       map[uint16]addr.IA
+	srvResolver          ColSrvResolver
+	colServices          map[addr.IA]*snet.UDPAddr // cached discovered addresses
+	colServicesMutex     sync.Mutex
 }
 
 func NewServiceClientOperator(topo *topology.Loader, router snet.Router,
 	clientConn GRPCClientDialer) (*ServiceClientOperator, error) {
 
 	operator := &ServiceClientOperator{
-		connDialer: clientConn,
-		neighbors:  make(map[uint16]*snet.UDPAddr, len(topo.InterfaceIDs())),
+		connDialer:         clientConn,
+		neighboringColSvcs: make(map[uint16]*snet.UDPAddr, len(topo.InterfaceIDs())),
 		srvResolver: &DiscoveryColSrvRes{
 			Router: router,
 			Dialer: clientConn,
@@ -71,6 +72,11 @@ func NewServiceClientOperator(topo *topology.Loader, router snet.Router,
 	operator.initialize(topo)
 
 	return operator, nil
+}
+
+// Neighbors returns a map of the neighboring IAs, keyed by interface ID connecting to them.
+func (o *ServiceClientOperator) Neighbor(interfaceID uint16) addr.IA {
+	return o.neighboringIAs[interfaceID]
 }
 
 func (o *ServiceClientOperator) DialSvcCOL(ctx context.Context, dst *addr.IA) (
@@ -114,7 +120,7 @@ func (o *ServiceClientOperator) ColibriClient(
 	rAddr, ok := o.neighborAddr(egressID)
 	if !ok {
 		return nil, serrors.New("client operator not yet initialized for this egress ID",
-			"egress_id", egressID, "neighbor_count", len(o.neighbors))
+			"egress_id", egressID, "neighbor_count", len(o.neighboringColSvcs))
 	}
 	rAddr = rAddr.Copy() // preserve the original data
 
@@ -142,16 +148,18 @@ func (o *ServiceClientOperator) ColibriClient(
 }
 
 func (o *ServiceClientOperator) neighborAddr(egressID uint16) (*snet.UDPAddr, bool) {
-	o.neighborsMutex.Lock()
-	defer o.neighborsMutex.Unlock()
+	o.neighboringColSvcsMu.Lock()
+	defer o.neighboringColSvcsMu.Unlock()
 
-	addr, ok := o.neighbors[egressID]
+	addr, ok := o.neighboringColSvcs[egressID]
 	return addr, ok
 }
 
 // initialize waits in the background until this operator can obtain paths to all the remaining IAs.
 func (o *ServiceClientOperator) initialize(topo *topology.Loader) {
-
+	o.neighboringIAs = neighbors(topo)
+	o.neighboringIAs[0] = topo.IA() // interface with ID 0 is ourselves
+	// a new local copy to find their addresses and keep track of the remaining neighbors
 	remainingIAs := neighbors(topo)
 	go func() {
 		defer log.HandlePanic()
@@ -163,11 +171,11 @@ func (o *ServiceClientOperator) initialize(topo *topology.Loader) {
 			newNeighbors := make(map[uint16]*snet.UDPAddr)
 			remainingIAs = o.findNeighbors(newNeighbors, remainingIAs)
 			if len(newNeighbors) > 0 {
-				o.neighborsMutex.Lock()
+				o.neighboringColSvcsMu.Lock()
 				for egressID, addr := range newNeighbors {
-					o.neighbors[egressID] = addr
+					o.neighboringColSvcs[egressID] = addr
 				}
-				o.neighborsMutex.Unlock()
+				o.neighboringColSvcsMu.Unlock()
 			}
 		}
 		log.Info("colibri client operator initialization complete")
@@ -210,9 +218,9 @@ func (o *ServiceClientOperator) periodicResolveNeighbors(topo *topology.Loader) 
 				"missing_count", len(remainingIAs), "total", len(neighbors),
 				"missing", strings.Join(missing, ","))
 		} else {
-			o.neighborsMutex.Lock()
-			o.neighbors = newAddrBook
-			o.neighborsMutex.Unlock()
+			o.neighboringColSvcsMu.Lock()
+			o.neighboringColSvcs = newAddrBook
+			o.neighboringColSvcsMu.Unlock()
 		}
 	}
 }
