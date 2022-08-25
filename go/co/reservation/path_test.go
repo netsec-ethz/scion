@@ -274,7 +274,7 @@ func TestPathStepsValidateEquivalent(t *testing.T) {
 		atStep      int
 		path        slayerspath.Path
 	}{
-		"colibri": {
+		"colibri1": {
 			expectError: false,
 			steps:       steps_ACD,
 			atStep:      1,
@@ -304,7 +304,25 @@ func TestPathStepsValidateEquivalent(t *testing.T) {
 			atStep:      1,
 			path:        scion2_CD,
 		},
-		// TODO deleteme shortcut case
+		// expect errors
+		"colibri_bad_curr_step1": {
+			expectError: true,
+			steps:       steps_ACD,
+			atStep:      2,
+			path:        col_ACD_at_1,
+		},
+		"colibri_bad_curr_step2": {
+			expectError: true,
+			steps:       steps_ACD,
+			atStep:      0,
+			path:        col_ACD_at_1,
+		},
+		"wrongPath": {
+			expectError: true,
+			steps:       steps_ACD,
+			atStep:      0,
+			path:        scion_ED,
+		},
 	}
 	for name, tc := range cases {
 		name, tc := name, tc
