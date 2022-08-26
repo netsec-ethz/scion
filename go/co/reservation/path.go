@@ -44,6 +44,41 @@ func PathFromDataplanePath(p snet.DataplanePath) (slayerspath.Path, error) {
 	return s.Path, err
 }
 
+// TODO(juagargi) remove the need for this function: the initial path is not used for anything.
+// Maybe have the client operator find the path to the next hop in the case of a initial reservation.
+func ChoppedPathFromDataplane(dataplanePath snet.DataplanePath) (slayerspath.Path, error) {
+	longPath, err := PathFromDataplanePath(dataplanePath)
+	if err != nil {
+		return nil, err
+	}
+	var p *scion.Decoded
+	switch v := longPath.(type) {
+	case *scion.Raw:
+		p = &scion.Decoded{}
+		if err = p.DecodeFromBytes(v.Raw); err != nil {
+			return nil, err
+		}
+	case *scion.Decoded:
+		p = v
+	default:
+		return nil, serrors.New(fmt.Sprintf("unknown path type %T", longPath))
+	}
+	shortPath := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				SegLen:  [3]uint8{1, 0, 0},
+				CurrINF: 0,
+				CurrHF:  0,
+			},
+			NumINF:  1,
+			NumHops: 1,
+		},
+		InfoFields: p.InfoFields[:1],
+		HopFields:  p.HopFields[:1],
+	}
+	return shortPath, nil
+}
+
 func PathToRaw(p slayerspath.Path) ([]byte, error) {
 	if p == nil {
 		return nil, nil
@@ -168,12 +203,15 @@ func (p PathSteps) ValidateEquivalent(path slayerspath.Path, atStep int) error {
 		in, eg = int(hf.IngressId), int(hf.EgressId)
 	}
 	doScionPath := func(p *scion.Decoded) error {
-		if p.Base.NumINF != 1 || p.Base.NumHops != 2 || p.Base.PathMeta.CurrHF != 1 {
+		if p.Base.NumINF != 1 || p.Base.NumHops > 2 ||
+			int(p.Base.PathMeta.CurrHF) != len(p.HopFields)-1 {
+
 			return serrors.New("steps not compatible with this scion path: must be direct",
 				"inf_count", p.Base.NumINF, "hop_count", p.Base.NumHops,
 				"curr_hop", p.Base.PathMeta.CurrHF)
 		}
-		in, eg = int(p.HopFields[1].ConsIngress), int(p.HopFields[1].ConsEgress)
+		hf := p.HopFields[p.Base.PathMeta.CurrHF]
+		in, eg = int(hf.ConsIngress), int(hf.ConsEgress)
 		if !p.InfoFields[0].ConsDir {
 			in = eg
 		}

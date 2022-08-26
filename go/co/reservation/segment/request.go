@@ -46,6 +46,9 @@ type SetupReq struct {
 	CurrentStep      int              // recovered from dataplane (except at source)
 }
 
+// Validate takes as argument a function that returns the neighboring IA given the
+// interface ID. When 0, the function must return the local IA.
+// Validate returns an error if not valid, or nil if okay.
 func (r *SetupReq) Validate(getNeighborIA func(ifaceID uint16) addr.IA) error {
 	if err := r.Request.Validate(r.Steps); err != nil {
 		return err

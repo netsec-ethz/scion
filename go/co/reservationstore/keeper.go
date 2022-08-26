@@ -396,10 +396,12 @@ func (e *requirements) PrepareSetupRequests(paths []snet.Path,
 		if err != nil {
 			return nil, err
 		}
-		rawPath, err := base.PathFromDataplanePath(p.Dataplane())
+		// chop all hop fields except those to reach the next AS
+		rawPath, err := base.ChoppedPathFromDataplane(p.Dataplane())
 		if err != nil {
 			return nil, err
 		}
+
 		id := reservation.ID{
 			ASID:   localAS,
 			Suffix: make([]byte, reservation.IDSuffixSegLen),
@@ -432,7 +434,6 @@ func (e *requirements) PrepareRenewalRequests(rsvs []*seg.Reservation, now, expT
 		if !e.predicate.EvalInterfaces(rsv.Steps.Interfaces()) {
 			continue
 		}
-
 		req := &seg.SetupReq{
 			Request: *base.NewRequest(now, &rsv.ID, rsv.NextIndexToRenew(),
 				len(rsv.Steps)),
