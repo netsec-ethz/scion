@@ -118,6 +118,8 @@ func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *add
 	return o.colibriClient(ctx, addr)
 }
 
+// the client seems not to be working correctly (it dials to a wrong destination??)
+
 // ColibriClient finds or creates a ColibriClient that can reach the next neighbor in
 // the path passed as argument. The underneath connection will be COLIBRI or regular SCION,
 // depending on the type of the path passed as argument.
@@ -142,7 +144,7 @@ func (o *ServiceClientOperator) ColibriClient(
 	// prepare remote address with the new path
 	switch rawPath.Type() {
 	case scion.PathType: // don't touch the service path
-		//rAddr.Path = snetpath.SCION{Raw: buf}
+		// rAddr.Path = snetpath.SCION{Raw: buf}
 	case colibri.PathType:
 		rAddr.Path = snetpath.Colibri{Raw: buf}
 	default:
@@ -197,7 +199,7 @@ func (o *ServiceClientOperator) initialize(topo TopoLoader) {
 				time.Sleep(2 * time.Second)
 			}
 		}
-		log.Info("colibri client operator initialization complete")
+		log.Info("colibri client operator initialization complete <" + strings.Repeat("=", 100))
 		go func() {
 			defer log.HandlePanic()
 			o.periodicResolveNeighbors(topo)

@@ -130,6 +130,7 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 		return nil, err
 	}
 	// get existing reservations
+	// TODO(juagargi) cleanup expired indices before reading reservations
 	rsvs, err := manager.GetReservationsAtSource(ctx)
 	if err != nil {
 		return nil, err
@@ -144,7 +145,7 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 	for _, r := range entries {
 		rsvsCount += len(r)
 	}
-	log.Debug("colibri keeper", "destinations", len(entries), "rsvs", rsvsCount)
+	log.Debug("colibri keeper", "reservations", rsvsCount)
 	return &keeper{
 		sleepUntil: time.Now().Add(-time.Nanosecond),
 		manager:    manager,
@@ -440,7 +441,7 @@ func (k *keeper) askNewReservation(ctx context.Context, e *entry) (*seg.Reservat
 			}
 			return req.Reservation, nil
 		}
-		log.Info("failed creating new reservation from best effort path", "path", p)
+		log.Info("error creating new reservation from best effort path", "path", p)
 	}
 	return nil, serrors.New("no more best effort paths to create reservation", "dst", e.conf.dst)
 }

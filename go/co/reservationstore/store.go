@@ -288,6 +288,11 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 			log.Info("while cleaning reservations down the path, received failure response",
 				"new_setup", newSetup, "res", res)
 		}
+		if newSetup {
+			if err := s.db.DeleteSegmentRsv(ctx, &rsv.ID); err != nil {
+				log.Info("error removing unfinished reservation")
+			}
+		}
 		log.Debug("reservation has been rollback", "new_setup", newSetup)
 	}
 	// create new reservation in DB
@@ -333,6 +338,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		res, err = s.admitSegmentReservation(ctx, req, rawPath)
 	}
 	if err != nil {
+		log.Info("error initializing reservation", "id", rsv.ID.String(), "err", err)
 		rollbackChanges(res)
 		return err
 	}
@@ -1416,7 +1422,7 @@ func (s *Store) CleanupE2EReservation(
 func (s *Store) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, time.Time, error) {
 	n, err := s.db.DeleteExpiredIndices(ctx, now)
 	if err != nil {
-		return 0, time.Time{}, serrors.WrapStr("deleting expired indices", err)
+		return 0, time.Time{}, err
 	}
 	exp, err := s.db.NextExpirationTime(ctx)
 	// we will return the next expiration time as earliest(now+16 , exp)

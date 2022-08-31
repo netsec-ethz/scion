@@ -132,7 +132,8 @@ func (m *manager) Run(ctx context.Context) {
 				r.Steps))
 		}
 		if len(rsvs) > 0 {
-			log.Debug("----------- colibri segments ------------\n" + strings.Join(table, "\n"))
+			log.Debug("----------- colibri segments ------------\n" + strings.Join(table, "\n") +
+				"\n" + strings.Repeat("-", 150))
 		}
 	}()
 	go func() { // periodic report of e2e reservations
