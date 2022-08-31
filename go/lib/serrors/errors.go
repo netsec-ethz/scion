@@ -236,6 +236,21 @@ func (e List) ToError() error {
 	return e
 }
 
+// Coalesce returns the coalesced error from all the non-nil errors contained in the list.
+// If all errors are nil (or list is empty) it returns nil.
+func (e List) Coalesce() error {
+	s := make([]string, 0, len(e))
+	for _, err := range e {
+		if err != nil {
+			s = append(s, err.Error())
+		}
+	}
+	if len(s) == 0 {
+		return nil
+	}
+	return fmt.Errorf("[ %s ]", strings.Join(s, "; "))
+}
+
 // MarshalLogArray implements zapcore.ArrayMarshaller for nicer logging format
 // of error lists.
 func (e List) MarshalLogArray(ae zapcore.ArrayEncoder) error {
