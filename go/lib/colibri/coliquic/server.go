@@ -288,13 +288,13 @@ func (h *statsHandler) HandleRPC(ctx context.Context, st stats.RPCStats) {
 	}
 	prevRaw := colibriRawPath(prev.(*snet.UDPAddr))
 	if prevRaw == nil || !bytes.Equal(peerRaw, prevRaw) {
-		logger.Error("value from context not matching stats handler",
+		logger.Info("error value from context not matching stats handler",
 			"ctx_value", prev, "peer_addr", peer.Addr)
 		return
 	}
 	handlerCtx := ctx.Value(statsHandlerKey{})
 	if handlerCtx == nil || handlerCtx != h {
-		logger.Error("handler from context not matching stats handler",
+		logger.Info("error handler from context not matching stats handler",
 			"ctx_handler", handlerCtx, "handler", h, "peer", peer.Addr)
 		return
 	}
@@ -315,11 +315,11 @@ func (h *statsHandler) HandleRPC(ctx context.Context, st stats.RPCStats) {
 	case *stats.OutTrailer:
 		// this case is special: its wirelength is deprecated and never set
 	default:
-		logger.Error("unknown stats type", "type", common.TypeOf(st))
+		logger.Info("error unknown stats type", "type", common.TypeOf(st))
 		return
 	}
 	if size < 0 {
-		logger.Error("stats size is negative", "size", size, "peer", peer.Addr)
+		logger.Info("error stats size is negative", "size", size, "peer", peer.Addr)
 		return
 	}
 	h.addUsage(prevRaw, uint64(size))

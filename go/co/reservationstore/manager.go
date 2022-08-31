@@ -115,19 +115,19 @@ func (m *manager) Run(ctx context.Context) {
 		// list segments
 		rsvs, err := m.store.ReportSegmentReservationsInDB(ctx)
 		if err != nil {
-			log.Error("reporting segment reservations in db", "err", err)
+			log.Info("error reporting segment reservations in db", "err", err)
 			return
 		}
 		table := make([]string, 0, len(rsvs)+1)
-		table = append(table, fmt.Sprintf("%24s %4s %15s %15s %8s %11s %s",
-			"id", "dir", "src", "dst", "ok_idxs", "rawpath_type", "path"))
+		table = append(table, fmt.Sprintf("%24s %4s %15s %4s %20s %11s %s",
+			"id", "dir", "dst", "|i|", "exp", "rawpath_type", "path"))
 		for _, r := range rsvs {
-			table = append(table, fmt.Sprintf("%24s %4s %15s %15s %8d %11s %s",
+			table = append(table, fmt.Sprintf("%24s %4s %15s %4d %20s %11s %s",
 				r.ID.String(),
 				r.PathType,
-				r.Steps.SrcIA(),
 				r.Steps.DstIA(),
-				len(r.Indices.Filter(segment.NotConfirmed())),
+				r.Indices.Len(),
+				r.Indices.NewestExp().Format(time.Stamp),
 				r.RawPath.Type(),
 				r.Steps))
 		}
@@ -144,7 +144,7 @@ func (m *manager) Run(ctx context.Context) {
 		// list e2e reservations
 		rsvs, err := m.store.ReportE2EReservationsInDB(ctx)
 		if err != nil {
-			log.Error("reporting e2e reservations in db", "err", err)
+			log.Info("error reporting e2e reservations in db", "err", err)
 			return
 		}
 		table := make([]string, 0, len(rsvs)+1)
@@ -183,7 +183,7 @@ func (m *manager) Run(ctx context.Context) {
 		// wakeupTime, err := m.keeper.OneShotDeleteme(ctx)
 		wakeupTime, err := m.keeper.OneShot(ctx)
 		if err != nil {
-			logger.Error("while keeping the reservations", "err", err)
+			logger.Info("error while keeping the reservations", "err", err)
 		}
 		logger.Info("will wait until the specified time", "wakeup_time", wakeupTime)
 		m.wakeupKeeper = wakeupTime
@@ -196,7 +196,7 @@ func (m *manager) Run(ctx context.Context) {
 		}
 		n, wakeupTime, err := m.store.DeleteExpiredIndices(ctx, m.now())
 		if err != nil {
-			logger.Error("deleting expired indices", "deleted_count", n, "err", err)
+			logger.Info("error deleting expired indices", "deleted_count", n, "err", err)
 		}
 		if n > 0 {
 			logger.Debug("deleted expired indices", "count", n)
@@ -214,7 +214,7 @@ func (m *manager) Run(ctx context.Context) {
 		}
 		n, wakeupTime, err := m.store.DeleteExpiredAdmissionEntries(ctx, m.now())
 		if err != nil {
-			logger.Error("deleting expired admission list entries", "err", err)
+			logger.Info("error deleting expired admission list entries", "err", err)
 		}
 		if n > 0 {
 			logger.Debug("deleted expired indices", "count", n)

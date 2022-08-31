@@ -120,7 +120,7 @@ func (f *defaultFetcher) sheperd(dstIA addr.IA, req *sdpb.ColibriListRsvsRequest
 			res, err := f.fetch(ctx, dstIA, &f.fetchDedup, req)
 			cancelF()
 			if err != nil {
-				log.Error("keeping destination listing updated", "err", err)
+				log.Info("error keeping destination listing updated", "err", err)
 			} else {
 				e.response = res
 			}

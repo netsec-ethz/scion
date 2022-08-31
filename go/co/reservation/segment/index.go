@@ -84,6 +84,40 @@ func (idxs Indices) String() string {
 	return strings.Join(strs, ",")
 }
 
+func (idxs Indices) OldestExp() time.Time {
+	switch len(idxs) {
+	case 0:
+		return time.Time{}
+	case 1:
+		return idxs[0].Expiration
+	default:
+		exp := idxs[0].Expiration
+		for i := 1; i < len(idxs); i++ {
+			if idxs[i].Expiration.Before(exp) {
+				exp = idxs[i].Expiration
+			}
+		}
+		return exp
+	}
+}
+
+func (idxs Indices) NewestExp() time.Time {
+	switch len(idxs) {
+	case 0:
+		return time.Time{}
+	case 1:
+		return idxs[0].Expiration
+	default:
+		exp := idxs[0].Expiration
+		for i := 1; i < len(idxs); i++ {
+			if idxs[i].Expiration.After(exp) {
+				exp = idxs[i].Expiration
+			}
+		}
+		return exp
+	}
+}
+
 // IndexFilter returns true if the index is to be kept.
 // Returning false ensures the index is filtered out.
 type IndexFilter func(Index) bool

@@ -230,7 +230,7 @@ func (o *ServiceClientOperator) periodicResolveNeighbors(topo TopoLoader) {
 			for id, ia := range remainingIAs {
 				missing = append(missing, fmt.Sprintf("%s on ifid %d", ia, id))
 			}
-			log.Error("periodic resolve neighbors: neighbors without address",
+			log.Info("error periodic resolve neighbors: neighbors without address",
 				"missing_count", len(remainingIAs), "total", len(neighbors),
 				"missing", strings.Join(missing, ","))
 		} else {

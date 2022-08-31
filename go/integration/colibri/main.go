@@ -61,7 +61,7 @@ func realMain() int {
 
 	closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
 	if err != nil {
-		log.Error("Tracer initialization failed", "err", err)
+		log.Info("error tracer initialization failed", "err", err)
 		return 1
 	}
 	defer closeTracer()
@@ -120,7 +120,7 @@ func (s server) run() {
 		// Needed for integration test ready signal.
 		addr, err := net.ResolveUDPAddr("udp", conn.LocalAddr().String())
 		if err != nil {
-			log.Error("unable to parse listening address", "err", err)
+			log.Info("error unable to parse listening address", "err", err)
 		}
 		fmt.Printf("Port=%d\n", addr.Port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)

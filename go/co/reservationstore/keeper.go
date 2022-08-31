@@ -157,6 +157,7 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 // that still have no reservation ID for its config will request a new one.
 // The function returns the time when it should be called next.
 func (k *keeper) OneShot(ctx context.Context) (time.Time, error) {
+	wakeupAtLatest := k.manager.Now().Add(sleepAtMost)
 	wg := sync.WaitGroup{}
 	times := make([]time.Time, len(k.entries))
 	errs := make(serrors.List, len(k.entries))
@@ -170,16 +171,15 @@ func (k *keeper) OneShot(ctx context.Context) (time.Time, error) {
 		}()
 	}
 	wg.Wait()
-	earliest := k.manager.Now().Add(sleepAtMost)
-	if err := errs.ToError(); err != nil {
-		return earliest, err
-	}
 	for _, t := range times {
-		if !t.IsZero() && t.Before(earliest) {
-			earliest = t
+		if t.Before(wakeupAtLatest) {
+			wakeupAtLatest = t
 		}
 	}
-	return earliest, nil
+	if wakeupAtLatest.Sub(k.manager.Now()) < sleepAtLeast {
+		wakeupAtLatest = k.manager.Now().Add(sleepAtLeast)
+	}
+	return wakeupAtLatest, errs.Coalesce()
 }
 
 // OneShotDeleteme returns the time when it expects to be called again. Before this time it has

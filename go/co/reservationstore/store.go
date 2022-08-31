@@ -401,7 +401,7 @@ func (s *Store) ListReservations(ctx context.Context, dstIA addr.IA,
 	pathType reservation.PathType) ([]*colibri.ReservationLooks, error) {
 	rsvs, err := s.db.GetSegmentRsvsFromSrcDstIA(ctx, s.localIA, dstIA, pathType)
 	if err != nil {
-		log.Error("listing reservations", "err", err)
+		log.Info("error listing reservations", "err", err)
 		return nil, s.err(err)
 	}
 	return reservationsToLooks(rsvs, s.localIA), nil
@@ -640,7 +640,7 @@ func (s *Store) ActivateSegmentReservation(
 	if isFirstASInReservation(rsv, currentStep) {
 		_, rawPath, err := pathFromReservation(rsv)
 		if err != nil {
-			log.Error("error obtaining colibri path from reservation", "err", err)
+			log.Info("error obtaining colibri path from reservation", "err", err)
 		} else {
 			// if no errors, use the colibri path
 			// rsv.Steps = steps
@@ -985,7 +985,7 @@ func (s *Store) AdmitE2EReservation(
 	if err != nil {
 		err := s.errWrapStr("cannot obtain e2e reservation", err, "id", req.ID.String())
 		failedResponse.Message = err.Error()
-		log.Error("retrieving e2e reservation", "err", err)
+		log.Info("error retrieving e2e reservation", "err", err)
 		return failedResponse, err
 	}
 	newSetup := (rsv == nil)
@@ -1770,7 +1770,7 @@ func (s *Store) sendUpstreamForAdmission(
 	// at this point, the reservation has been accepted. Update the request link with it:
 	req.Reservation, err = s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
-		log.Error("reloading the admitted reservation", "err", err)
+		log.Info("error reloading the admitted reservation", "err", err)
 		return nil, serrors.WrapStr("reloading the admitted reservation", err)
 	}
 
@@ -1901,7 +1901,7 @@ func freeAfterTransfer(ctx context.Context, tx backend.Transaction, rsv *e2e.Res
 	// the available BW for this e2e rsv is the effective minus the already used
 	avail := int64(effectiveE2ETraffic) - alreadyUsed
 	if avail < 0 {
-		log.Error("internal error: negative result in free after transfer",
+		log.Info("error internal error: negative result in free after transfer",
 			"ratio", ratio, "effective", effectiveE2ETraffic, "renewal", renewal,
 			"already_used", alreadyUsed, "this_rsv_alloc", rsv.AllocResv())
 		avail = 0
