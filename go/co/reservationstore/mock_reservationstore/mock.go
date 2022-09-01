@@ -40,20 +40,6 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 	return m.recorder
 }
 
-// ActivateManyRequest mocks base method.
-func (m *MockManager) ActivateManyRequest(arg0 context.Context, arg1 []*reservation.Request, arg2 []reservation.PathSteps, arg3 []path.Path) []error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivateManyRequest", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([]error)
-	return ret0
-}
-
-// ActivateManyRequest indicates an expected call of ActivateManyRequest.
-func (mr *MockManagerMockRecorder) ActivateManyRequest(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateManyRequest", reflect.TypeOf((*MockManager)(nil).ActivateManyRequest), arg0, arg1, arg2, arg3)
-}
-
 // ActivateRequest mocks base method.
 func (m *MockManager) ActivateRequest(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path) error {
 	m.ctrl.T.Helper()
@@ -150,20 +136,6 @@ func (m *MockManager) Run(arg0 context.Context) {
 func (mr *MockManagerMockRecorder) Run(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockManager)(nil).Run), arg0)
-}
-
-// SetupManyRequest mocks base method.
-func (m *MockManager) SetupManyRequest(arg0 context.Context, arg1 []*segment.SetupReq) []error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetupManyRequest", arg0, arg1)
-	ret0, _ := ret[0].([]error)
-	return ret0
-}
-
-// SetupManyRequest indicates an expected call of SetupManyRequest.
-func (mr *MockManagerMockRecorder) SetupManyRequest(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupManyRequest", reflect.TypeOf((*MockManager)(nil).SetupManyRequest), arg0, arg1)
 }
 
 // SetupRequest mocks base method.

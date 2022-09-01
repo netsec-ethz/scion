@@ -43,19 +43,7 @@ type Manager interface {
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
-	SetupManyRequest(ctx context.Context, reqs []*segment.SetupReq) []error
-	ActivateRequest(
-		ctx context.Context,
-		req *base.Request,
-		steps base.PathSteps,
-		path slayerspath.Path,
-	) error
-	ActivateManyRequest(
-		ctx context.Context,
-		reqs []*base.Request,
-		stepsCollection []base.PathSteps,
-		paths []slayerspath.Path,
-	) []error
+	ActivateRequest(ctx context.Context, req *base.Request, steps base.PathSteps, path slayerspath.Path) error
 }
 
 // manager takes care of the health of the segment reservations.
@@ -276,29 +264,7 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	return err
 }
 
-func (m *manager) SetupManyRequest(ctx context.Context, reqs []*segment.SetupReq) []error {
-	wg := sync.WaitGroup{}
-	wg.Add(len(reqs))
-	errs := make([]error, len(reqs))
-	for i, req := range reqs {
-		i, req := i, req
-		go func() {
-			defer log.HandlePanic()
-			defer wg.Done()
-			errs[i] = m.SetupRequest(ctx, req)
-		}()
-	}
-	wg.Wait()
-	return errs
-}
-
-func (m *manager) ActivateRequest(
-	ctx context.Context,
-	req *base.Request,
-	steps base.PathSteps,
-	path slayerspath.Path,
-) error {
-
+func (m *manager) ActivateRequest(ctx context.Context, req *base.Request, steps base.PathSteps, path slayerspath.Path) error {
 	res, err := m.store.InitActivateSegmentReservation(ctx, req, steps, path)
 	if err != nil {
 		return err
@@ -308,28 +274,6 @@ func (m *manager) ActivateRequest(
 		return serrors.New("error activating index", "msg", failure.Message)
 	}
 	return nil
-}
-
-func (m *manager) ActivateManyRequest(
-	ctx context.Context,
-	reqs []*base.Request,
-	stepsCollection []base.PathSteps,
-	paths []slayerspath.Path,
-) []error {
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(reqs))
-	errs := make([]error, len(reqs))
-	for i := range reqs {
-		i, req, step, path := i, reqs[i], stepsCollection[i], paths[i]
-		go func() {
-			defer log.HandlePanic()
-			defer wg.Done()
-			errs[i] = m.ActivateRequest(ctx, req, step, path)
-		}()
-	}
-	wg.Wait()
-	return errs
 }
 
 func findEarliest(times ...time.Time) time.Time {
