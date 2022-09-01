@@ -69,18 +69,18 @@ func (mr *MockManagerMockRecorder) ActivateRequest(arg0, arg1, arg2, arg3 interf
 }
 
 // GetReservationsAtSource mocks base method.
-func (m *MockManager) GetReservationsAtSource(arg0 context.Context, arg1 addr.IA) ([]*segment.Reservation, error) {
+func (m *MockManager) GetReservationsAtSource(arg0 context.Context) ([]*segment.Reservation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetReservationsAtSource", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetReservationsAtSource", arg0)
 	ret0, _ := ret[0].([]*segment.Reservation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetReservationsAtSource indicates an expected call of GetReservationsAtSource.
-func (mr *MockManagerMockRecorder) GetReservationsAtSource(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetReservationsAtSource(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReservationsAtSource", reflect.TypeOf((*MockManager)(nil).GetReservationsAtSource), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReservationsAtSource", reflect.TypeOf((*MockManager)(nil).GetReservationsAtSource), arg0)
 }
 
 // LocalIA mocks base method.
