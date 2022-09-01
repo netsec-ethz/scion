@@ -39,11 +39,11 @@ type Manager interface {
 	periodic.Task
 	Now() time.Time
 	LocalIA() addr.IA
-	// TODO(juagargi) move to sub interface, e.g. pather, comms manager,...
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
-	ActivateRequest(ctx context.Context, req *base.Request, steps base.PathSteps, path slayerspath.Path) error
+	ActivateRequest(context.Context, *base.Request, base.PathSteps, slayerspath.Path) error
+	DeleteExpiredIndices(ctx context.Context) error
 }
 
 // manager takes care of the health of the segment reservations.
@@ -220,6 +220,11 @@ func (m *manager) Run(ctx context.Context) {
 		m.wakeupKeeper,
 		m.wakeupExpirer,
 		m.wakeupAdmissionList)
+}
+
+func (m *manager) DeleteExpiredIndices(ctx context.Context) error {
+	_, _, err := m.store.DeleteExpiredIndices(ctx, m.now())
+	return err
 }
 
 func (m *manager) Now() time.Time {

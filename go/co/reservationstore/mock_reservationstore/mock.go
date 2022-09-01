@@ -54,6 +54,20 @@ func (mr *MockManagerMockRecorder) ActivateRequest(arg0, arg1, arg2, arg3 interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateRequest", reflect.TypeOf((*MockManager)(nil).ActivateRequest), arg0, arg1, arg2, arg3)
 }
 
+// DeleteExpiredIndices mocks base method.
+func (m *MockManager) DeleteExpiredIndices(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteExpiredIndices", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteExpiredIndices indicates an expected call of DeleteExpiredIndices.
+func (mr *MockManagerMockRecorder) DeleteExpiredIndices(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredIndices", reflect.TypeOf((*MockManager)(nil).DeleteExpiredIndices), arg0)
+}
+
 // GetReservationsAtSource mocks base method.
 func (m *MockManager) GetReservationsAtSource(arg0 context.Context) ([]*segment.Reservation, error) {
 	m.ctrl.T.Helper()
