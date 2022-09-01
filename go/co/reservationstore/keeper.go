@@ -115,8 +115,11 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 	if err != nil {
 		return nil, err
 	}
+	// cleanup expired indices before reading reservations
+	if err := manager.DeleteExpiredIndices(ctx); err != nil {
+		return nil, err
+	}
 	// get existing reservations
-	// TODO(juagargi) cleanup expired indices before reading reservations
 	rsvs, err := manager.GetReservationsAtSource(ctx)
 	if err != nil {
 		return nil, err
