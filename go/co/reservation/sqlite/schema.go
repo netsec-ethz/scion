@@ -28,6 +28,7 @@ const (
 		egress	INTEGER NOT NULL,
 		path_type	INTEGER NOT NULL,
 		steps BLOB,
+		currentStep INTEGER NOT NULL,
 		rawPath BLOB,
 		end_props	INTEGER NOT NULL,
 		traffic_split	INTEGER NOT NULL,

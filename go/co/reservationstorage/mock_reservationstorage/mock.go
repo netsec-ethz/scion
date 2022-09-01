@@ -133,18 +133,18 @@ func (mr *MockStoreMockRecorder) CleanupSegmentReservation(arg0, arg1, arg2, arg
 }
 
 // ConfirmSegmentReservation mocks base method.
-func (m *MockStore) ConfirmSegmentReservation(arg0 context.Context, arg1 addr.IA, arg2 *reservation.Request, arg3 int, arg4 path.Path) (reservation.Response, error) {
+func (m *MockStore) ConfirmSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 path.Path) (reservation.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConfirmSegmentReservation", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "ConfirmSegmentReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(reservation.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ConfirmSegmentReservation indicates an expected call of ConfirmSegmentReservation.
-func (mr *MockStoreMockRecorder) ConfirmSegmentReservation(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockStoreMockRecorder) ConfirmSegmentReservation(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfirmSegmentReservation", reflect.TypeOf((*MockStore)(nil).ConfirmSegmentReservation), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfirmSegmentReservation", reflect.TypeOf((*MockStore)(nil).ConfirmSegmentReservation), arg0, arg1, arg2)
 }
 
 // DeleteExpiredAdmissionEntries mocks base method.

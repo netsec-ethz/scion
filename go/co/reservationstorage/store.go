@@ -32,34 +32,29 @@ type Store interface {
 	// ListReservations is used to get segments to other ASes.
 	ListReservations(ctx context.Context, dstIA addr.IA, pt reservation.PathType) (
 		[]*colibri.ReservationLooks, error)
-	AdmitSegmentReservation(ctx context.Context, req *sgt.SetupReq, rawPath slayerspath.Path) (
-		sgt.SegmentSetupResponse, error)
+	AdmitSegmentReservation(
+		ctx context.Context,
+		req *sgt.SetupReq,
+		rawPath slayerspath.Path,
+	) (sgt.SegmentSetupResponse, error)
 	ConfirmSegmentReservation(
 		ctx context.Context,
-		srcIA addr.IA,
 		req *base.Request,
-		currentStep int,
 		rawPath slayerspath.Path,
 	) (base.Response, error)
 	ActivateSegmentReservation(
 		ctx context.Context,
-		srcIA addr.IA,
 		req *base.Request,
-		currentStep int,
 		rawPath slayerspath.Path,
 	) (base.Response, error)
 	CleanupSegmentReservation(
 		ctx context.Context,
-		srcIA addr.IA,
 		req *base.Request,
-		currentStep int,
 		rawPath slayerspath.Path,
 	) (base.Response, error)
 	TearDownSegmentReservation(
 		ctx context.Context,
-		srcIA addr.IA,
 		req *base.Request,
-		currentStep int,
 		rawPath slayerspath.Path,
 	) (base.Response, error)
 	AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq, rawPath slayerspath.Path) (

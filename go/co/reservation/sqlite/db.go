@@ -670,16 +670,16 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 		return err
 	}
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix,
-		ingress, egress, path_type, steps, rawPath, end_props,
+		ingress, egress, path_type, steps, currentStep, rawPath, end_props,
 		traffic_split, src_ia, dst_ia, active_index)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id_as,id_suffix) DO UPDATE
-		SET ingress = ?, egress = ?, path_type = ?, steps = ?, rawPath = ?,
+		SET ingress = ?, egress = ?, path_type = ?, steps = ?, currentStep = ?, rawPath = ?,
 		end_props = ?, traffic_split = ?, src_ia = ?, dst_ia = ?, active_index = ?`
 	_, err = x.ExecContext(
 		ctx, query, rsv.ID.ASID, binary.BigEndian.Uint32(rsv.ID.Suffix), rsv.Ingress, rsv.Egress,
-		rsv.PathType, rawSteps, rawPath, rsv.PathEndProps, rsv.TrafficSplit, rsv.Steps.SrcIA(),
-		rsv.Steps.DstIA(), activeIndex, rsv.Ingress, rsv.Egress, rsv.PathType, rawSteps, rawPath,
+		rsv.PathType, rawSteps, rsv.CurrentStep, rawPath, rsv.PathEndProps, rsv.TrafficSplit, rsv.Steps.SrcIA(),
+		rsv.Steps.DstIA(), activeIndex, rsv.Ingress, rsv.Egress, rsv.PathType, rawSteps, rsv.CurrentStep, rawPath,
 		rsv.PathEndProps, rsv.TrafficSplit, rsv.Steps.SrcIA(), rsv.Steps.DstIA(), activeIndex)
 	if err != nil {
 		return err
@@ -733,6 +733,7 @@ type rsvFields struct {
 	Egress       uint16
 	PathType     int
 	Steps        []byte
+	CurrentStep  int
 	RawPath      []byte
 	EndProps     int
 	TrafficSplit int
@@ -742,7 +743,7 @@ type rsvFields struct {
 func getSegReservations(ctx context.Context, x db.Sqler, condition string, params ...interface{}) (
 	[]*segment.Reservation, error) {
 
-	const queryTmpl = `SELECT ROWID,id_as,id_suffix,ingress,egress,path_type,steps,rawPath,
+	const queryTmpl = `SELECT ROWID,id_as,id_suffix,ingress,egress,path_type,steps,currentStep,rawPath,
 		end_props,traffic_split,active_index
 		FROM seg_reservation %s`
 	query := fmt.Sprintf(queryTmpl, condition)
@@ -756,7 +757,7 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 	reservationFields := []*rsvFields{}
 	for rows.Next() {
 		var f rsvFields
-		err := rows.Scan(&f.RowID, &f.AsID, &f.Suffix, &f.Ingress, &f.Egress, &f.PathType, &f.Steps,
+		err := rows.Scan(&f.RowID, &f.AsID, &f.Suffix, &f.Ingress, &f.Egress, &f.PathType, &f.Steps, &f.CurrentStep,
 			&f.RawPath, &f.EndProps, &f.TrafficSplit, &f.ActiveIndex)
 		if err != nil {
 			return nil, err
@@ -799,6 +800,7 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 		return nil, err
 	}
 	rsv.Steps = steps
+	rsv.CurrentStep = fields.CurrentStep
 	rsv.RawPath = rawPath
 	rsv.PathEndProps = reservation.PathEndProps(fields.EndProps)
 	rsv.TrafficSplit = reservation.SplitCls(fields.TrafficSplit)

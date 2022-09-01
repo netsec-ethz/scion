@@ -100,10 +100,8 @@ message Request {
     uint32 index = 2;
     // the timestamp when the request was issued.
     uint32 timestamp = 3;
-    // the path the request will follow.
-    repeated PathStep steps = 4;
     // drkey authenticators.
-    Authenticators authenticators = 5;
+    Authenticators authenticators = 4;
 }
 
 message Response {
@@ -152,6 +150,9 @@ message SegmentSetupRequest {
         // when a down rsv., indicates the req. is just traveling to the last AS to be
         // re-requested from there (admission is done in the direction of the reservation).
         bool reverse_traveling = 10;
+        uint32 currentStep = 11;
+        // the path the request will follow.
+        repeated PathStep steps = 12;
     }
 
     // the basic parameters of the request: ID, index, timestamp and path.
@@ -405,6 +406,9 @@ message CleanupReservationRequest {
     bytes src_host = 2;
     // address of the destination host.
     bytes dst_host = 3;
+    // the path the request will follow.
+    repeated PathStep steps = 4;
+
 }
 
 message CleanupReservationResponse {

@@ -256,11 +256,11 @@ func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseReques
 				Id:             translate.PBufID(&req.Id),
 				Index:          uint32(req.Index),
 				Timestamp:      util.TimeToSecs(time.Now()),
-				Steps:          translate.PBufSteps(req.Steps),
 				Authenticators: &colpb.Authenticators{Macs: req.Authenticators},
 			},
 			SrcHost: req.SrcHost,
 			DstHost: req.DstHost,
+			Steps:   translate.PBufSteps(req.Steps),
 		},
 	}
 	client := sdpb.NewDaemonServiceClient(c.conn)

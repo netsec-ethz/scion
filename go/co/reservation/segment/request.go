@@ -42,8 +42,8 @@ type SetupReq struct {
 	ReverseTraveling bool             // a down rsv traveling to the core to be re-requested
 	Reservation      *Reservation     // nil if no reservation yet
 	Steps            base.PathSteps   // retrieved from pb request (except at source)
+	CurrentStep      int              // recovered from pb request (except at source)
 	RawPath          slayerspath.Path // recovered from dataplane (except at source)
-	CurrentStep      int              // recovered from dataplane (except at source)
 }
 
 // Validate takes as argument a function that returns the neighboring IA given the
@@ -99,7 +99,6 @@ func (r *SetupReq) Validate(getNeighborIA func(ifaceID uint16) addr.IA) error {
 			"steps", r.Steps[r.CurrentStep+1].IA,
 			"topo", getNeighborIA(r.Egress()))
 	}
-
 	return nil
 }
 
@@ -131,11 +130,10 @@ func (r *SetupReq) Len() int {
 }
 
 func (r *SetupReq) Serialize(buff []byte, options base.SerializeOptions) {
+	r.Request.Serialize(buff[:], options)
 	offset := r.Request.Len()
-	r.Request.Serialize(buff[:offset], options)
-
+	r.Steps.Serialize(buff[offset:])
 	offset += r.Steps.Size()
-	r.Steps.Serialize(buff[:offset])
 
 	binary.BigEndian.PutUint32(buff[offset:], util.TimeToSecs(r.ExpirationTime))
 	offset += 4

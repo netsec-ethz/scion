@@ -37,7 +37,10 @@ type Reservation struct {
 	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
 	Steps        base.PathSteps           // recovered from the pb messages
-	RawPath      slayerspath.Path         // only used at source IA
+	// TODO(JordiSubira): Remove unnecessary redundant data,
+	// Ingess == Steps[CurrentStep].Ingress
+	CurrentStep int
+	RawPath     slayerspath.Path // only used at source IA
 }
 
 func NewReservation(asid addr.AS) *Reservation {

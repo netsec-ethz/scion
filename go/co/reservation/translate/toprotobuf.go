@@ -131,7 +131,6 @@ func PBufRequest(req *base.Request, steps base.PathSteps) (*colpb.Request, error
 		Id:             PBufID(&req.ID),
 		Index:          uint32(req.Index),
 		Timestamp:      util.TimeToSecs(req.Timestamp),
-		Steps:          PBufSteps(steps),
 		Authenticators: PBufAuthenticators(req.Authenticators),
 	}, nil
 }
@@ -154,6 +153,8 @@ func PBufSetupRequestParams(req *segment.SetupReq) *colpb.SegmentSetupRequest_Pa
 		},
 		Allocationtrail:  PBufAllocTrail(req.AllocTrail),
 		ReverseTraveling: req.ReverseTraveling,
+		Steps:            PBufSteps(req.Steps),
+		CurrentStep:      uint32(req.CurrentStep),
 	}
 }
 
