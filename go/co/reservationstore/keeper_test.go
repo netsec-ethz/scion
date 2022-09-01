@@ -15,211 +15,178 @@
 package reservationstore
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/co/reservation/segment"
+	base "github.com/scionproto/scion/go/co/reservation"
 	seg "github.com/scionproto/scion/go/co/reservation/segment"
 	st "github.com/scionproto/scion/go/co/reservation/segmenttest"
+	te "github.com/scionproto/scion/go/co/reservation/test"
 	mockmanager "github.com/scionproto/scion/go/co/reservationstore/mock_reservationstore"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-// func TestKeepOneShotDeleteme(t *testing.T) {
-// 	now := util.SecsToTime(10)
-// 	tomorrow := now.AddDate(0, 0, 1)
-// 	endProps1 := reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer
-// 	cases := map[string]struct {
-// 		configured            []requirements
-// 		reservations          []*segment.Reservation
-// 		paths                 map[addr.IA][]snet.Path
-// 		expectedRequestsCalls int
-// 		expectedWakeupTime    time.Time
-// 	}{
-// 		"regular": {
-// 			configured: []requirements{
-// 				{
-// 					dst:           xtest.MustParseIA("1-ff00:0:2"),
-// 					predicate:     newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
-// 					minBW:         10,
-// 					maxBW:         42,
-// 					splitCls:      2,
-// 					endProps:      endProps1,
-// 					minActiveRsvs: 1,
-// 				},
-// 				{
-// 					dst:           xtest.MustParseIA("1-ff00:0:2"),
-// 					predicate:     newSequence(t, "1-ff00:0:1 0+ 1-ff00:0:2"), // not direct
-// 					minBW:         10,
-// 					maxBW:         42,
-// 					splitCls:      2,
-// 					endProps:      endProps1,
-// 					minActiveRsvs: 1,
-// 				},
-// 				{
-// 					dst:           xtest.MustParseIA("1-ff00:0:2"),
-// 					predicate:     newSequence(t, "1-ff00:0:1 1-ff00:0:3"), // direct
-// 					minBW:         10,
-// 					maxBW:         42,
-// 					splitCls:      2,
-// 					endProps:      endProps1,
-// 					minActiveRsvs: 1,
-// 				},
-// 				{
-// 					dst:           xtest.MustParseIA("1-ff00:0:2"),
-// 					predicate:     newSequence(t, "1-ff00:0:1 0+ 1-ff00:0:3"), // not direct
-// 					minBW:         10,
-// 					maxBW:         42,
-// 					splitCls:      2,
-// 					endProps:      endProps1,
-// 					minActiveRsvs: 1,
-// 				},
-// 			},
-// 			paths: map[addr.IA][]snet.Path{
-// 				xtest.MustParseIA("1-ff00:0:2"): {
-// 					te.NewSnetPath("1-ff00:0:1", 1, 2, "1-ff00:0:2"), // direct
-// 					te.NewSnetPath("1-ff00:0:1", 2, 3, "1-ff00:0:2"), // direct
-// 					te.NewSnetPath("1-ff00:0:1", 3, 88, "1-ff00:0:88", 99, 4, "1-ff00:0:2"),
-// 				},
-// 				xtest.MustParseIA("1-ff00:0:3"): {
-// 					te.NewSnetPath("1-ff00:0:1", 1, 2, "1-ff00:0:3"), // direct
-// 					te.NewSnetPath("1-ff00:0:1", 2, 3, "1-ff00:0:3"), // direct
-// 					te.NewSnetPath("1-ff00:0:1", 3, 88, "1-ff00:0:88", 99, 4, "1-ff00:0:3"),
-// 				},
-// 			},
-// 			// reservations: map[addr.IA][]*segment.Reservation{
-// 			// 	xtest.MustParseIA("1-ff00:0:2"): modOneRsv(
-// 			// 		st.NewRsvs(2, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
-// 			// 			st.AddIndex(0, st.WithBW(12, 42, 0),
-// 			// 				st.WithExpiration(tomorrow)),
-// 			// 			st.AddIndex(1, st.WithBW(12, 24, 0),
-// 			// 				st.WithExpiration(tomorrow.Add(24*time.Hour))),
-// 			// 			st.ConfirmAllIndices(),
-// 			// 			st.WithActiveIndex(0),
-// 			// 			st.WithTrafficSplit(2),
-// 			// 			st.WithEndProps(endProps1)),
-// 			// 		0, st.ModIndex(0, st.WithBW(3, 0, 0))), // change rsv 0 to could_be_compliant
-// 			// 	xtest.MustParseIA("1-ff00:0:3"): modOneRsv(
-// 			// 		st.NewRsvs(2, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3"),
-// 			// 			st.AddIndex(0, st.WithBW(12, 42, 0),
-// 			// 				st.WithExpiration(tomorrow)),
-// 			// 			st.AddIndex(1, st.WithBW(12, 24, 0),
-// 			// 				st.WithExpiration(tomorrow.Add(24*time.Hour))),
-// 			// 			st.ConfirmAllIndices(),
-// 			// 			st.WithActiveIndex(0),
-// 			// 			st.WithTrafficSplit(2),
-// 			// 			st.WithEndProps(endProps1)),
-// 			// 		0, st.ModIndex(0, st.WithBW(3, 0, 0))), // change rsv 0 to could_be_compliant
-// 			// },
-// 			reservations: append(
-// 				modOneRsv(
-// 					st.NewRsvs(2, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
-// 						st.AddIndex(0, st.WithBW(12, 42, 0),
-// 							st.WithExpiration(tomorrow)),
-// 						st.AddIndex(1, st.WithBW(12, 24, 0),
-// 							st.WithExpiration(tomorrow.Add(24*time.Hour))),
-// 						st.ConfirmAllIndices(),
-// 						st.WithActiveIndex(0),
-// 						st.WithTrafficSplit(2),
-// 						st.WithEndProps(endProps1)),
-// 					0, st.ModIndex(0, st.WithBW(3, 0, 0))), // change rsv 0 to could_be_compliant
-// 				modOneRsv(
-// 					st.NewRsvs(2, st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3"),
-// 						st.AddIndex(0, st.WithBW(12, 42, 0),
-// 							st.WithExpiration(tomorrow)),
-// 						st.AddIndex(1, st.WithBW(12, 24, 0),
-// 							st.WithExpiration(tomorrow.Add(24*time.Hour))),
-// 						st.ConfirmAllIndices(),
-// 						st.WithActiveIndex(0),
-// 						st.WithTrafficSplit(2),
-// 						st.WithEndProps(endProps1)),
-// 					0, st.ModIndex(0, st.WithBW(3, 0, 0)))..., // change rsv 0 to could_be_compliant
-// 			),
-// 			expectedRequestsCalls: 2,
-// 			expectedWakeupTime:    now.Add(sleepAtMost),
-// 		},
-// 		"all compliant expiring tomorrow": {
-// 			configured: map[addr.IA][]requirementsDeleteme{
-// 				xtest.MustParseIA("1-ff00:0:2"): {{
-// 					predicate:     newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
-// 					minBW:         10,
-// 					maxBW:         42,
-// 					splitCls:      2,
-// 					endProps:      endProps1,
-// 					minActiveRsvs: 1,
-// 				}},
-// 			},
-// 			paths: map[addr.IA][]snet.Path{
-// 				xtest.MustParseIA("1-ff00:0:2"): {
-// 					te.NewSnetPath("1-ff00:0:1", 1, 2, "1-ff00:0:2"), // direct
-// 				},
-// 			},
-// 			reservations: map[addr.IA][]*segment.Reservation{
-// 				xtest.MustParseIA("1-ff00:0:2"): st.NewRsvs(1,
-// 					st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
-// 					st.AddIndex(0, st.WithBW(12, 42, 0), st.WithExpiration(tomorrow)),
-// 					st.AddIndex(1, st.WithBW(12, 24, 0),
-// 						st.WithExpiration(tomorrow.Add(24*time.Hour))),
-// 					st.WithActiveIndex(0),
-// 					st.WithTrafficSplit(2),
-// 					st.WithEndProps(endProps1)),
-// 			},
-// 			expectedRequestsCalls: 0,
-// 			expectedWakeupTime:    now.Add(sleepAtMost),
-// 		},
-// 	}
-// 	for name, tc := range cases {
-// 		name, tc := name, tc
-// 		t.Run(name, func(t *testing.T) {
-// 			t.Parallel()
-// 			ctx := context.Background()
-// 			ctrl := gomock.NewController(t)
-// 			defer ctrl.Finish()
+func TestKeepOneShotDeleteme(t *testing.T) {
+	allPaths := map[addr.IA][]snet.Path{
+		xtest.MustParseIA("1-ff00:0:2"): {
+			te.NewSnetPath("1-ff00:0:1", 1, 2, "1-ff00:0:2"), // direct
+			te.NewSnetPath("1-ff00:0:1", 2, 3, "1-ff00:0:2"), // direct
+			te.NewSnetPath("1-ff00:0:1", 3, 88, "1-ff00:0:88", 99, 4, "1-ff00:0:2"),
+		},
+		xtest.MustParseIA("1-ff00:0:3"): {
+			te.NewSnetPath("1-ff00:0:1", 1, 2, "1-ff00:0:3"), // direct
+			te.NewSnetPath("1-ff00:0:1", 2, 3, "1-ff00:0:3"), // direct
+			te.NewSnetPath("1-ff00:0:1", 3, 88, "1-ff00:0:88", 99, 4, "1-ff00:0:3"),
+		},
+	}
+	now := util.SecsToTime(10)
+	tomorrow := now.AddDate(0, 0, 1)
+	c1 := &configuration{
+		dst:       xtest.MustParseIA("1-ff00:0:2"),
+		predicate: newSequence(t, "1-ff00:0:1 1-ff00:0:2"), // direct
+		minBW:     10,
+		maxBW:     42,
+		splitCls:  2,
+		endProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
+	}
+	c2 := &configuration{
+		dst:       xtest.MustParseIA("1-ff00:0:3"),
+		predicate: newSequence(t, "1-ff00:0:1 1-ff00:0:3"), // direct
+		minBW:     10,
+		maxBW:     42,
+		splitCls:  2,
+		endProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
+	}
+	c2_notDirect := &configuration{
+		dst:       xtest.MustParseIA("1-ff00:0:3"),
+		predicate: newSequence(t, "1-ff00:0:1 0-0 1-ff00:0:3"), // not direct
+		minBW:     10,
+		maxBW:     42,
+		splitCls:  2,
+		endProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
+	}
+	c3 := &configuration{
+		dst:       xtest.MustParseIA("1-ff00:0:4"),
+		predicate: newSequence(t, "1-ff00:0:1 0-0 1-ff00:0:4"),
+		minBW:     10,
+		maxBW:     42,
+		splitCls:  2,
+		endProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
+	}
+	r1 := st.NewRsv(st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:2"),
+		st.AddIndex(0, st.WithBW(12, 42, 0),
+			st.WithExpiration(tomorrow)),
+		st.AddIndex(1, st.WithBW(12, 24, 0),
+			st.WithExpiration(tomorrow.Add(24*time.Hour))),
+		st.ConfirmAllIndices(),
+		st.WithActiveIndex(0),
+		st.WithTrafficSplit(2),
+		st.WithEndProps(reservation.StartLocal|reservation.EndLocal|reservation.EndTransfer))
+	r2 := st.ModRsv(cloneR(r1), st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3"))
+	cases := map[string]struct {
+		config              []*configuration
+		reservations        []*seg.Reservation
+		paths               map[addr.IA][]snet.Path
+		expectedNewRequests int
+		expectedWakeupTime  time.Time
+		expectError         bool
+	}{
+		"simple": {
+			config:              []*configuration{c1},
+			paths:               allPaths,
+			reservations:        []*seg.Reservation{r1},
+			expectedNewRequests: 0,
+			expectedWakeupTime:  now.Add(sleepAtMost),
+		},
+		"regular": {
+			config: []*configuration{c1, c2},
+			paths:  allPaths,
+			reservations: []*seg.Reservation{
+				cloneR(r1),
+				cloneR(r2),
+			},
+			expectedNewRequests: 0,
+			expectedWakeupTime:  now.Add(sleepAtMost),
+		},
+		"missing1": {
+			config: []*configuration{c1, c2_notDirect},
+			paths:  allPaths,
+			reservations: []*seg.Reservation{
+				cloneR(r1),
+				cloneR(r2),
+			},
+			expectedNewRequests: 1,
+			expectedWakeupTime:  now.Add(sleepAtMost),
+		},
+		"missing_all": {
+			config:              []*configuration{c1, c2, c2_notDirect},
+			paths:               allPaths,
+			reservations:        []*seg.Reservation{},
+			expectedNewRequests: 3,
+			expectedWakeupTime:  now.Add(sleepAtMost),
+		},
+		"no_paths": {
+			config:              []*configuration{c1, c2, c2_notDirect, c3},
+			paths:               allPaths,
+			reservations:        []*seg.Reservation{},
+			expectedNewRequests: 3,
+			expectedWakeupTime:  now.Add(sleepAtLeast),
+			expectError:         true,
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-// 			localIA := xtest.MustParseIA("1-ff00:0:1")
+			localIA := xtest.MustParseIA("1-ff00:0:1")
 
-// 			manager := mockManager(ctrl, now, localIA)
-// 			entries := matchRsvsWithConfiguration(tc.reservations, tc.configured)
-// 			keeper := keeper{
-// 				manager:   manager,
-// 				deletemes: tc.configured,
-// 			}
-// 			manager.EXPECT().GetReservationsAtSource(gomock.Any(), gomock.Any()).
-// 				Times(len(tc.configured)).DoAndReturn(
-// 				func(_ context.Context, dstIA addr.IA) (
-// 					[]*segment.Reservation, error) {
+			manager := mockManager(ctrl, now, localIA)
+			entries := matchRsvsWithConfiguration(tc.reservations, tc.config)
+			keeper := keeper{
+				manager: manager,
+				entries: entries,
+			}
+			manager.EXPECT().PathsTo(gomock.Any(),
+				gomock.Any()).AnyTimes().DoAndReturn(
+				func(_ context.Context, dstIA addr.IA) ([]snet.Path, error) {
+					return tc.paths[dstIA], nil
+				})
+			manager.EXPECT().SetupRequest(gomock.Any(), gomock.Any()).
+				Times(tc.expectedNewRequests).DoAndReturn(
+				func(_ context.Context, req *seg.SetupReq) error {
+					req.Reservation = &seg.Reservation{}
+					return nil
+				})
+			manager.EXPECT().ActivateRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				AnyTimes().DoAndReturn(
+				func(_ context.Context, req *base.Request, steps []base.PathSteps, path slayerspath.Path) error {
+					return nil
+				})
 
-// 					return tc.reservations[dstIA], nil
-// 				})
-// 			manager.EXPECT().PathsTo(gomock.Any(),
-// 				gomock.Any()).Times(len(tc.configured)).DoAndReturn(
-// 				func(_ context.Context, dstIA addr.IA) ([]snet.Path, error) {
-// 					return tc.paths[dstIA], nil
-// 				})
-// 			manager.EXPECT().SetupManyRequest(gomock.Any(), gomock.Any()).
-// 				Times(tc.expectedRequestsCalls).DoAndReturn(
-// 				func(_ context.Context, reqs []*segment.SetupReq) []error {
-// 					return make([]error, len(reqs))
-// 				})
-// 			manager.EXPECT().ActivateManyRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-// 				AnyTimes().DoAndReturn(
-// 				func(_ context.Context, reqs []*base.Request, steps []base.PathSteps, paths []slayerspath.Path) []error {
-// 					return make([]error, len(reqs), len(paths))
-// 				})
-
-// 			wakeupTime, err := keeper.OneShot(ctx)
-// 			require.NoError(t, err)
-// 			require.Equal(t, tc.expectedWakeupTime, wakeupTime)
-// 		})
-// 	}
-// }
+			wakeupTime, err := keeper.OneShot(ctx)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.expectedWakeupTime, wakeupTime)
+		})
+	}
+}
 
 func TestRequirementsCompliance(t *testing.T) {
 	now := util.SecsToTime(0)
@@ -234,7 +201,7 @@ func TestRequirementsCompliance(t *testing.T) {
 	}
 	cases := map[string]struct {
 		conf               *configuration
-		rsv                *segment.Reservation
+		rsv                *seg.Reservation
 		atLeastUntil       time.Time
 		expectedCompliance Compliance
 	}{
@@ -527,20 +494,6 @@ func TestFindCompatibleConfiguration(t *testing.T) {
 	}
 }
 
-func fakeReqs(ids ...int) []*segment.SetupReq {
-	reqs := make([]*segment.SetupReq, len(ids))
-	for i, id := range ids {
-		reqs[i] = fakeReq(id)
-	}
-	return reqs
-}
-
-func fakeReq(id int) *segment.SetupReq {
-	return &segment.SetupReq{
-		MinBW: reservation.BWCls(id),
-	}
-}
-
 func newSequence(t *testing.T, str string) *pathpol.Sequence {
 	t.Helper()
 	seq, err := pathpol.NewSequence(str)
@@ -548,18 +501,14 @@ func newSequence(t *testing.T, str string) *pathpol.Sequence {
 	return seq
 }
 
-func modOneRsv(rsvs []*segment.Reservation, whichRsv int,
-	mods ...st.ReservationMod) []*segment.Reservation {
-
-	rsvs[whichRsv] = st.ModRsv(rsvs[whichRsv], mods...)
-	return rsvs
-}
-
-func mockManager(ctrl *gomock.Controller, now time.Time,
-	localIA addr.IA) *mockmanager.MockManager {
-
+func mockManager(ctrl *gomock.Controller, now time.Time, localIA addr.IA) *mockmanager.MockManager {
 	m := mockmanager.NewMockManager(ctrl)
 	m.EXPECT().LocalIA().AnyTimes().Return(localIA)
 	m.EXPECT().Now().AnyTimes().Return(now)
 	return m
+}
+
+func cloneR(r *seg.Reservation) *seg.Reservation {
+	c := *r
+	return &c
 }
