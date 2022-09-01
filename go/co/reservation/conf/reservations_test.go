@@ -43,7 +43,6 @@ func TestReservationsJson(t *testing.T) {
 						SplitCls:      7,
 						EndProps: EndProps(reservation.NewPathEndProps(true, true,
 							true, true)),
-						RequiredCount: 3,
 					},
 				},
 			},
@@ -61,7 +60,6 @@ func TestReservationsJson(t *testing.T) {
 						SplitCls:      7,
 						EndProps: EndProps(reservation.NewPathEndProps(false, false,
 							false, false)),
-						RequiredCount: 1,
 					},
 					{
 						DstAS:         xtest.MustParseIA("1-ff00:1:113"),
@@ -72,7 +70,6 @@ func TestReservationsJson(t *testing.T) {
 						SplitCls:      7,
 						EndProps: EndProps(reservation.NewPathEndProps(false, true,
 							true, false)),
-						RequiredCount: 2,
 					},
 				},
 			},

@@ -41,7 +41,6 @@ type Manager interface {
 	LocalIA() addr.IA
 	// TODO(juagargi) move to sub interface, e.g. pather, comms manager,...
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
-	GetReservationsAtSourceDeleteme(ctx context.Context, dst addr.IA) ([]*segment.Reservation, error)
 	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	SetupManyRequest(ctx context.Context, reqs []*segment.SetupReq) []error
