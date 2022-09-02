@@ -1127,8 +1127,47 @@ func getExpiredSegIndexRowIDs(ctx context.Context, x db.Sqler, now time.Time) (
 func deleteSegIndicesFromRowIDs(ctx context.Context, x db.Sqler, rowIDs []interface{}) (
 	int, error) {
 
-	const queryTmpl = `DELETE FROM seg_index WHERE ROWID IN (?%s)`
-	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(rowIDs)-1))
+	// check if any index is active, and change the reservation to no active index in that case
+	query := `SELECT DISTINCT reservation FROM seg_index WHERE state = ? AND ROWID IN (?%s)`
+	query = fmt.Sprintf(query, strings.Repeat(",?", len(rowIDs)-1))
+	params := []interface{}{segment.IndexActive}
+	rows, err := x.QueryContext(ctx, query, append(params, rowIDs...)...)
+	if err != nil {
+		return 0, err
+	}
+
+	rsvRowIds := make([]int, 0)
+	for rows.Next() {
+		var rsvRowId int
+		if err := rows.Scan(&rsvRowId); err != nil {
+			return 0, err
+		}
+		rsvRowIds = append(rsvRowIds, rsvRowId)
+	}
+	if len(rsvRowIds) > 0 {
+		// need to update the active index
+		query = `UPDATE seg_reservation SET active_index=-1 WHERE ROWID IN(?%s)`
+		query = fmt.Sprintf(query, strings.Repeat(",?", len(rsvRowIds)-1))
+		params := make([]interface{}, len(rsvRowIds))
+		for i, id := range rsvRowIds {
+			params[i] = id
+		}
+		res, err := x.ExecContext(ctx, query, params...)
+		if err != nil {
+			return 0, err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		if int(n) != len(rsvRowIds) {
+			return 0, serrors.New(fmt.Sprintf("error updating active_index after deleting index; "+
+				"updated %d reservations but wanted %d", n, len(rsvRowIds)))
+		}
+	}
+
+	query = `DELETE FROM seg_index WHERE ROWID IN (?%s)`
+	query = fmt.Sprintf(query, strings.Repeat(",?", len(rowIDs)-1))
 	res, err := x.ExecContext(ctx, query, rowIDs...)
 	if err != nil {
 		return 0, err
