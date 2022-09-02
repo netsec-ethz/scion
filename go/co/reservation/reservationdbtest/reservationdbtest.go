@@ -71,7 +71,9 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	var err error
 	db := newDB()
 	r := newTestReservation(t)
-	r.Indices = segment.Indices{}
+	err = r.RemoveIndex(0)
+	require.NoError(t, err)
+	require.Len(t, r.Indices, 0)
 	// no indices
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
@@ -451,7 +453,9 @@ func testDeleteSegmentRsv(ctx context.Context, t *testing.T, newDB func() backen
 	require.Nil(t, rsv)
 	// with no indices
 	r = newTestReservation(t)
-	r.Indices = segment.Indices{}
+	err = r.RemoveIndex(0)
+	require.NoError(t, err)
+	require.Len(t, r.Indices, 0)
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	err = db.DeleteSegmentRsv(ctx, &r.ID)
@@ -1146,6 +1150,8 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	_, err = r.NewIndex(0, expTime, 1, 3, 2, 5, reservation.CorePath)
 	require.NoError(t, err)
 	err = r.SetIndexConfirmed(0)
+	require.NoError(t, err)
+	err = r.SetIndexActive(0)
 	require.NoError(t, err)
 	return r
 }
