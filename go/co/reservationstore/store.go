@@ -101,6 +101,10 @@ func NewStore(
 	}, nil
 }
 
+func (s *Store) Ready() bool {
+	return s.operator.Initialized()
+}
+
 func (s *Store) err(err error) error {
 	if err == nil {
 		return nil

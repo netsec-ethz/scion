@@ -29,6 +29,7 @@ import (
 
 // Store is the interface to interact with the reservation store.
 type Store interface {
+	Ready() bool
 	// ListReservations is used to get segments to other ASes.
 	ListReservations(ctx context.Context, dstIA addr.IA, pt reservation.PathType) (
 		[]*colibri.ReservationLooks, error)

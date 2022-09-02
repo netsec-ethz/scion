@@ -91,6 +91,11 @@ func (m *manager) Run(ctx context.Context) {
 	if now.Before(m.wakeupTime) {
 		return
 	}
+	if !m.store.Ready() {
+		log.Info("colibri store not yet ready")
+		m.wakeupTime = m.Now().Add(2 * time.Second)
+		return
+	}
 	wg := sync.WaitGroup{}
 	wg.Add(5)
 	go func() { // periodic report of segment reservations

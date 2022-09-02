@@ -53,6 +53,7 @@ type TopoLoader interface {
 // - Ensure we return a gRPC client using the correct path (the path is used at the server to
 //   measure the BW used by the services).
 type ServiceClientOperator struct {
+	initialized          bool
 	gRPCDialer           grpc.Dialer
 	neighboringColSvcs   map[uint16]*snet.UDPAddr // SvcCOL addr per egress interface ID
 	neighboringColSvcsMu sync.Mutex
@@ -98,6 +99,12 @@ func NewServiceClientOperator(topo TopoLoader, pconn net.PacketConn, router snet
 // Neighbors returns a map of the neighboring IAs, keyed by interface ID connecting to them.
 func (o *ServiceClientOperator) Neighbor(interfaceID uint16) addr.IA {
 	return o.neighboringIAs[interfaceID]
+}
+
+func (o *ServiceClientOperator) Initialized() bool {
+	o.neighboringColSvcsMu.Lock()
+	defer o.neighboringColSvcsMu.Unlock()
+	return o.initialized
 }
 
 func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *addr.IA) (
@@ -199,7 +206,10 @@ func (o *ServiceClientOperator) initialize(topo TopoLoader) {
 				time.Sleep(2 * time.Second)
 			}
 		}
-		log.Info("colibri client operator initialization complete <" + strings.Repeat("=", 100))
+		o.neighboringColSvcsMu.Lock()
+		o.initialized = true
+		o.neighboringColSvcsMu.Unlock()
+		log.Info("colibri client operator initialization complete")
 		go func() {
 			defer log.HandlePanic()
 			o.periodicResolveNeighbors(topo)
