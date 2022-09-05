@@ -203,9 +203,8 @@ func (p PathSteps) ValidateEquivalent(path slayerspath.Path, atStep int) error {
 		in, eg = int(hf.IngressId), int(hf.EgressId)
 	}
 	doScionPath := func(p *scion.Decoded) error {
-		if p.Base.NumINF != 1 || p.Base.NumHops > 2 ||
-			int(p.Base.PathMeta.CurrHF) != len(p.HopFields)-1 {
-
+		// scion path must be 2 hops only
+		if p.Base.NumINF != 1 || p.Base.NumHops > 2 {
 			return serrors.New("steps not compatible with this scion path: must be direct",
 				"inf_count", p.Base.NumINF, "hop_count", p.Base.NumHops,
 				"curr_hop", p.Base.PathMeta.CurrHF)
