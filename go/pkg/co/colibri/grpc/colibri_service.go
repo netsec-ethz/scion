@@ -456,7 +456,12 @@ func extractPathIAFromCtx(ctx context.Context) (slayerspath.Path, error) {
 		return nil, serrors.WrapStr("decoding path information", err)
 	}
 
-	// XXX(JordiSubira): Hack, reverse path again to recover forwarding direction path
+	// Hack: The path extracted from the remote address is actually the replyPath (i.e.,
+	// the path already reversed to answer back to the remote);
+	// e.g. AS_{n-1}->...-> AS_Local -> AS_i -> ... AS_0.
+	// However, here we want to extract the forwarding path. We reverse the
+	// path again to recover forwarding direction path;
+	// e.g. AS_0 -> ... -> AS_i -> AS_Local -> ... -> AS_{n_1}
 	fwdPath, err := copyFrom(path).Reverse()
 	if err != nil {
 		return nil, serrors.WrapStr("reversing path", err)
