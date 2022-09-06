@@ -38,7 +38,7 @@ type Reservation struct {
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
 	Steps        base.PathSteps           // recovered from the pb messages
 	// TODO(JordiSubira): Remove unnecessary redundant data,
-	// Ingess == Steps[CurrentStep].Ingress
+	// Ingress == Steps[CurrentStep].Ingress
 	CurrentStep int
 	RawPath     slayerspath.Path // only used at source IA
 }
