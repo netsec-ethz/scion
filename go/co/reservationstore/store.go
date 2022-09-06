@@ -992,6 +992,13 @@ func (s *Store) AdmitE2EReservation(
 				rsv.SegmentReservations = append(rsv.SegmentReservations, r)
 			}
 		}
+		// This is the only moment where we need to validate req.Steps against the segments.Steps.
+		// After this, we will store the rsv.Steps built from req.Steps and not touch them again
+		if err := validateE2ESteps(
+			s.localIA, rsv.SegmentReservations, req.Steps, req.CurrentStep); err != nil {
+			failedResponse.Message = err.Error()
+			return failedResponse, err
+		}
 	} else {
 		if index := rsv.Index(req.Index); index != nil {
 			// renewal with index clash
@@ -1001,11 +1008,18 @@ func (s *Store) AdmitE2EReservation(
 		}
 		assert(len(rsv.SegmentReservations) < 3, "logic error, too many segments in AS. ID: %s, "+
 			"seg. ids: %s", req.ID, req.SegmentRsvs)
-		// TODO(juagargi) check rsv.Path and req.Path coincide
+
 	}
-	isTransfer := false
+	// validate the steps in the request against those stored in the reservation
+	if !rsv.Steps.Equal(req.Steps) {
+		err = serrors.New("request and reservation steps differ",
+			"req_steps", req.Steps.String(), "rsv_steps", rsv.Steps.String())
+		failedResponse.Message = err.Error()
+		return failedResponse, err
+	}
+	isStitchPoint := false
 	if len(rsv.SegmentReservations) > 1 {
-		isTransfer = true
+		isStitchPoint = true
 		assert(len(rsv.SegmentReservations) == 2, "logic error: too many segments in AS: %v",
 			rsv.SegmentReservations)
 		assert(rsv.SegmentReservations[0].Steps.DstIA().Equal(s.localIA),
@@ -1051,7 +1065,7 @@ func (s *Store) AdmitE2EReservation(
 		free = free + rsv.AllocResv() // don't count this E2E request in the used BW
 	}
 
-	if isTransfer {
+	if isStitchPoint {
 		freeOutgoing, err := freeAfterTransfer(ctx, tx, rsv, !newSetup)
 		if err != nil {
 			failedResponse.Message = s.errWrapStr("cannot compute transfer", err,
@@ -1084,6 +1098,11 @@ func (s *Store) AdmitE2EReservation(
 		},
 	}
 
+	// Check dataplane path
+	if err := rsv.Steps.ValidateEquivalent(rawPath, rsv.CurrentStep); err != nil {
+		return nil, err
+	}
+
 	var ingress, egress uint16
 	if req.IsLastAS() {
 		var notAdmittedMsg string
@@ -1091,13 +1110,13 @@ func (s *Store) AdmitE2EReservation(
 			// check white/black (admission) list of endhost
 			admitted = false
 			res, err := tx.CheckAdmissionList(ctx, time.Now(), req.DstHost,
-				req.Steps.SrcIA(), req.SrcHost.String())
+				rsv.Steps.SrcIA(), req.SrcHost.String())
 			log.Debug(
 				"checked admission list",
 				"admit", res,
 				"err", err,
 				"host", req.DstHost.String(),
-				"src_ia", req.Steps.SrcIA(),
+				"src_ia", rsv.Steps.SrcIA(),
 				"src_host", req.SrcHost,
 			)
 			switch {
@@ -1121,25 +1140,13 @@ func (s *Store) AdmitE2EReservation(
 				AllocTrail: req.AllocationTrail,
 			}, nil
 		}
-		// Check that dataplane ingress corresponds to Steps ingress and
-		// rsv.SegmentCurrentStep ingress.
-		r, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
-		if err != nil {
-			return nil, err
-		}
-		if err := checkIngressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-			return nil, err
-		}
-		if err := checkEgressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-			return nil, err
-		}
-		ingress = base.IngressFromDataPlanePath(rawPath)
-		egress = base.EgressFromDataPlanePath(rawPath)
+		ingress = rsv.Steps[rsv.CurrentStep].Ingress
+		egress = rsv.Steps[rsv.CurrentStep].Egress
 		// all ASes in the path will create authenticators for the initiator end-host
-		res.Authenticators = make([][]byte, len(req.Steps)) // same size as path
+		res.Authenticators = make([][]byte, len(rsv.Steps)) // same size as path
 		token = index.Token
 	} else { // this is not the last AS
-		if s.localIA.Equal(req.Steps.SrcIA()) {
+		if s.localIA.Equal(rsv.Steps.SrcIA()) {
 			r, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
 			if err != nil {
 				return nil, err
@@ -1150,33 +1157,7 @@ func (s *Store) AdmitE2EReservation(
 			} else {
 				rawPath = r.DeriveColibriPathAtSource()
 			}
-			// Check that dataplane ingress corresponds to Steps ingress and
-			// rsv.SegmentCurrentStep ingress. In the source AS all values
-			// should be 0.
-			if err := checkIngressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-			if err := checkEgressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-
-			ingress = base.IngressFromDataPlanePath(rawPath)
-			egress = base.EgressFromDataPlanePath(rawPath)
-
-		} else if isTransfer {
-			rIncoming, err := tx.GetSegmentRsvFromID(
-				ctx,
-				&req.SegmentRsvs[req.CurrentSegmentRsvIndex],
-			)
-			if err != nil {
-				return nil, err
-			}
-			// Check that dataplane ingress corresponds to Steps ingress and
-			// rsv.SegmentCurrentStep ingress, for the incoming segment.
-			if err := checkIngressE2E(rIncoming, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-
+		} else if isStitchPoint {
 			var newRawPath slayerspath.Path
 			req.CurrentSegmentRsvIndex++
 			rNext, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
@@ -1188,17 +1169,10 @@ func (s *Store) AdmitE2EReservation(
 			} else {
 				newRawPath = rNext.DeriveColibriPathAtSource()
 			}
-			// Check that dataplane egress corresponds to Steps ingress and
-			// rsv.SegmentCurrentStep egress, for the next segment.
-			if err := checkEgressE2E(rNext, newRawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-			// Update egress
-			ingress = base.IngressFromDataPlanePath(rawPath)
-			egress = base.EgressFromDataPlanePath(newRawPath)
-
 			rawPath = newRawPath
 		}
+		ingress = rsv.Steps[rsv.CurrentStep].Ingress
+		egress = rsv.Steps[rsv.CurrentStep].Egress
 		if err := s.authenticator.ComputeE2ESetupRequestTransitMAC(ctx, req); err != nil {
 			return nil, serrors.WrapStr("computing in transit e2e setup request authenticator", err)
 		}
@@ -1257,7 +1231,7 @@ func (s *Store) AdmitE2EReservation(
 
 	// create authenticators before passing the response to the previous node in the path
 	if err := s.authenticator.ComputeE2ESetupResponseMAC(ctx, res, req.CurrentStep,
-		req.Steps.SrcIA(), addr.HostFromIP(req.SrcHost), &req.ID); err != nil {
+		rsv.Steps.SrcIA(), addr.HostFromIP(req.SrcHost), &req.ID); err != nil {
 		return failedResponse, s.errWrapStr("computing authenticators for response", err)
 	}
 	// return the token upstream
@@ -1312,18 +1286,19 @@ func (s *Store) CleanupE2EReservation(
 		isTransfer = true
 	}
 
-	var r *segment.Reservation
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, s.errWrapStr("cannot create transaction", err,
 			"id", req.ID.String())
 	}
 	defer tx.Rollback()
+	// Check dataplane path
+	if err := rsv.Steps.ValidateEquivalent(rawPath, rsv.CurrentStep); err != nil {
+		return nil, err
+	}
 	if s.localIA.Equal(req.Steps.SrcIA()) || isTransfer {
-
 		if s.localIA.Equal(req.Steps.SrcIA()) {
-
-			r, err = tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[0].ID)
+			r, err := tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[0].ID)
 			if err != nil {
 				return nil, err
 			}
@@ -1331,28 +1306,9 @@ func (s *Store) CleanupE2EReservation(
 				rawPath = r.DeriveColibriPathAtDestination()
 			} else {
 				rawPath = r.DeriveColibriPathAtSource()
-			}
-			// Check that dataplane ingress corresponds to Steps ingress and
-			// rsv.SegmentCurrentStep ingress. In the source AS all values
-			// should be 0.
-			if err := checkIngressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-			if err := checkEgressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
 			}
 		} else {
-			rIncoming, err := tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[0].ID)
-			if err != nil {
-				return nil, err
-			}
-			// Check that dataplane ingress corresponds to Steps ingress and
-			// rsv.SegmentCurrentStep ingress, for the incoming segment.
-			if err := checkIngressE2E(rIncoming, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-
-			r, err = tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[1].ID)
+			r, err := tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[1].ID)
 			if err != nil {
 				return nil, err
 			}
@@ -1361,22 +1317,6 @@ func (s *Store) CleanupE2EReservation(
 			} else {
 				rawPath = r.DeriveColibriPathAtSource()
 			}
-			// Check that dataplane egress corresponds to Steps ingress and
-			// rsv.SegmentCurrentStep egress, for the next segment.
-			if err := checkEgressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		r, err = tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[0].ID)
-		if err != nil {
-			return nil, err
-		}
-		if err := checkIngressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-			return nil, err
-		}
-		if err := checkEgressE2E(r, rawPath, req.Steps[req.CurrentStep]); err != nil {
-			return nil, err
 		}
 	}
 
@@ -1426,7 +1366,7 @@ func (s *Store) CleanupE2EReservation(
 		return nil, serrors.WrapStr("computing in transit e2e base request authenticator", err)
 	}
 	// forward to next colibri service
-	client, err := s.operator.ColibriClient(ctx, r.Egress, rawPath)
+	client, err := s.operator.ColibriClient(ctx, rsv.Steps[rsv.CurrentStep].Egress, rawPath)
 	if err != nil {
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
@@ -1502,46 +1442,39 @@ func (s *Store) authenticateSegSetupReq(ctx context.Context, req *segment.SetupR
 	return nil
 }
 
-func checkIngressE2E(rsv *segment.Reservation, rawPath slayerspath.Path, step base.PathStep) error {
-	var rawPathFromRsv slayerspath.Path
-	if rsv.PathType == reservation.DownPath {
-		rawPathFromRsv = rsv.DeriveColibriPathAtDestination()
-	} else {
-		rawPathFromRsv = rsv.DeriveColibriPathAtSource()
-	}
+// validateE2ESteps checks that the current step obtained in the possible dual segment
+// corresponds to that of the current step from the request steps.
+func validateE2ESteps(localIA addr.IA, segments []*segment.Reservation,
+	steps base.PathSteps, currStep int) error {
 
-	if base.IngressFromDataPlanePath(rawPath) != base.IngressFromDataPlanePath(rawPathFromRsv) {
-		return serrors.New("Ingress from dataplane and from segment reservation do not match",
-			"dp ingress", base.IngressFromDataPlanePath(rawPath),
-			"segRsv ingress", base.IngressFromDataPlanePath(rawPathFromRsv))
+	stitched := append(base.PathSteps{}, segments[0].Steps...)
+	for i := 1; i < len(segments); i++ {
+		s := segments[i].Steps
+		// no need to check: by standard s[0].Ingress == stitched[last].Egress == 0
+		stitched[len(stitched)-1].Egress = s[0].Egress
+		stitched = append(stitched, s[1:]...)
 	}
-
-	if base.IngressFromDataPlanePath(rawPath) != step.Ingress {
-		return serrors.New("Ingress from dataplane and from message steps do not match",
-			"dp ingress", base.IngressFromDataPlanePath(rawPath),
-			"message ingress", step.Ingress)
+	prebuiltErr := serrors.New("steps validation error, request differs from segments",
+		"rsvs", stitched.String(), "req", steps.String(), "curr_step", currStep)
+	isStitchPoint := len(segments) > 1
+	var currInStitched int
+	for ; currInStitched < len(segments[0].Steps); currInStitched++ {
+		if segments[0].Steps[currInStitched].IA == localIA {
+			break
+		}
 	}
-	return nil
-}
-
-func checkEgressE2E(rsv *segment.Reservation, rawPath slayerspath.Path, step base.PathStep) error {
-	var rawPathFromRsv slayerspath.Path
-	if rsv.PathType == reservation.DownPath {
-		rawPathFromRsv = rsv.DeriveColibriPathAtDestination()
-	} else {
-		rawPathFromRsv = rsv.DeriveColibriPathAtSource()
+	if currInStitched >= len(segments[0].Steps) {
+		return serrors.WrapStr("local AS not found", prebuiltErr)
 	}
-
-	if base.EgressFromDataPlanePath(rawPath) != base.EgressFromDataPlanePath(rawPathFromRsv) {
-		return serrors.New("Egress from dataplane and from segment reservation do not match",
-			"dp egress", base.EgressFromDataPlanePath(rawPath),
-			"segRsv egress", base.EgressFromDataPlanePath(rawPathFromRsv))
+	if isStitchPoint &&
+		(currInStitched != len(segments[0].Steps)-1 || segments[1].Steps[0].IA != localIA) {
+		return serrors.WrapStr("local AS found in wrong position", prebuiltErr)
 	}
-
-	if base.EgressFromDataPlanePath(rawPath) != step.Egress {
-		return serrors.New("Egress from dataplane and from message steps do not match",
-			"dp egress", base.EgressFromDataPlanePath(rawPath),
-			"message egress", step.Egress)
+	assert(stitched[currInStitched].IA == localIA, "bad local IA or curr step: %v", prebuiltErr)
+	if stitched[currInStitched].IA != steps[currStep].IA ||
+		addr.IA(stitched[currInStitched].Ingress) != addr.IA(steps[currStep].Ingress) ||
+		addr.IA(stitched[currInStitched].Egress) != addr.IA(steps[currStep].Egress) {
+		return serrors.WrapStr("bad curr index", prebuiltErr)
 	}
 	return nil
 }

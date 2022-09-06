@@ -169,15 +169,10 @@ func (r *Reservation) Validate() error {
 		return serrors.New("Wrong interface for dstIA egress",
 			"egress", r.Steps[len(r.Steps)-1].Egress)
 	}
-	if base.EgressFromDataPlanePath(r.RawPath) != r.Egress {
-		return serrors.New("Inconsistent egress from dataplane and reservation egress",
-			"dataplane", base.EgressFromDataPlanePath(r.RawPath),
-			"egress", r.Egress)
-	}
-	if base.IngressFromDataPlanePath(r.RawPath) != r.Ingress {
-		return serrors.New("Inconsistent ingress from dataplane and reservation egress",
-			"dataplane", base.IngressFromDataPlanePath(r.RawPath),
-			"ingress", r.Ingress)
+	if in, eg := base.InEgFromDataplanePath(r.RawPath); in != r.Ingress || eg != r.Egress {
+		return serrors.New("Inconsistent ingress/egress from dataplane and reservation",
+			"dataplane_in", in, "reservation_in", r.Ingress,
+			"dataplane_eg", eg, "reservation_eg", r.Egress)
 	}
 
 	err := r.PathEndProps.Validate()
