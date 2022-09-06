@@ -28,12 +28,13 @@ import (
 // Extension is the internal repesentation of the StaticInfoExtension path
 // segment extension.
 type Extension struct {
-	Latency      LatencyInfo
-	Bandwidth    BandwidthInfo
-	Geo          GeoInfo
-	LinkType     LinkTypeInfo
-	InternalHops InternalHopsInfo
-	Note         string
+	Latency         LatencyInfo
+	Bandwidth       BandwidthInfo
+	CarbonIntensity CarbonIntensityInfo
+	Geo             GeoInfo
+	LinkType        LinkTypeInfo
+	InternalHops    InternalHopsInfo
+	Note            string
 }
 
 // LatencyInfo is the internal repesentation of `latency` in the
@@ -46,6 +47,13 @@ type LatencyInfo struct {
 // BandwidthInfo is the internal repesentation of `bandwidth` in the
 // StaticInfoExtension.
 type BandwidthInfo struct {
+	Intra map[common.IFIDType]uint64
+	Inter map[common.IFIDType]uint64
+}
+
+// CarbonIntensityInfo is the internal repesentation of `carbon_intensity` in the
+// StaticInfoExtension.
+type CarbonIntensityInfo struct {
 	Intra map[common.IFIDType]uint64
 	Inter map[common.IFIDType]uint64
 }
@@ -88,12 +96,13 @@ func FromPB(pb *cppb.StaticInfoExtension) *Extension {
 		return nil
 	}
 	return &Extension{
-		Latency:      latencyInfoFromPB(pb.Latency),
-		Bandwidth:    bandwidthInfoFromPB(pb.Bandwidth),
-		Geo:          geoInfoFromPB(pb.Geo),
-		LinkType:     linkTypeInfoFromPB(pb.LinkType),
-		InternalHops: internalHopsInfoFromPB(pb.InternalHops),
-		Note:         pb.Note,
+		Latency:         latencyInfoFromPB(pb.Latency),
+		Bandwidth:       bandwidthInfoFromPB(pb.Bandwidth),
+		CarbonIntensity: carbonIntensityInfoFromPB(pb.CarbonIntensity),
+		Geo:             geoInfoFromPB(pb.Geo),
+		LinkType:        linkTypeInfoFromPB(pb.LinkType),
+		InternalHops:    internalHopsInfoFromPB(pb.InternalHops),
+		Note:            pb.Note,
 	}
 }
 
@@ -128,6 +137,24 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) BandwidthInfo {
 		inter[common.IFIDType(ifid)] = v
 	}
 	return BandwidthInfo{
+		Intra: intra,
+		Inter: inter,
+	}
+}
+
+func carbonIntensityInfoFromPB(pb *cppb.CarbonIntensityInfo) CarbonIntensityInfo {
+	if pb == nil || len(pb.Intra) == 0 && len(pb.Inter) == 0 {
+		return CarbonIntensityInfo{}
+	}
+	intra := make(map[common.IFIDType]uint64, len(pb.Intra))
+	for ifid, v := range pb.Intra {
+		intra[common.IFIDType(ifid)] = v
+	}
+	inter := make(map[common.IFIDType]uint64, len(pb.Inter))
+	for ifid, v := range pb.Inter {
+		inter[common.IFIDType(ifid)] = v
+	}
+	return CarbonIntensityInfo{
 		Intra: intra,
 		Inter: inter,
 	}
@@ -190,12 +217,13 @@ func ToPB(si *Extension) *cppb.StaticInfoExtension {
 	}
 
 	return &cppb.StaticInfoExtension{
-		Latency:      latencyInfoToPB(si.Latency),
-		Bandwidth:    bandwidthInfoToPB(si.Bandwidth),
-		Geo:          geoInfoToPB(si.Geo),
-		LinkType:     linkTypeInfoToPB(si.LinkType),
-		InternalHops: internalHopsInfoToPB(si.InternalHops),
-		Note:         si.Note,
+		Latency:         latencyInfoToPB(si.Latency),
+		Bandwidth:       bandwidthInfoToPB(si.Bandwidth),
+		CarbonIntensity: carbonIntensityInfoToPB(si.CarbonIntensity),
+		Geo:             geoInfoToPB(si.Geo),
+		LinkType:        linkTypeInfoToPB(si.LinkType),
+		InternalHops:    internalHopsInfoToPB(si.InternalHops),
+		Note:            si.Note,
 	}
 }
 
@@ -235,6 +263,23 @@ func bandwidthInfoToPB(bwi BandwidthInfo) *cppb.BandwidthInfo {
 	}
 }
 
+func carbonIntensityInfoToPB(cii CarbonIntensityInfo) *cppb.CarbonIntensityInfo {
+	if len(cii.Intra) == 0 && len(cii.Inter) == 0 {
+		return nil
+	}
+	intra := make(map[uint64]uint64, len(cii.Intra))
+	for ifid, v := range cii.Intra {
+		intra[uint64(ifid)] = v
+	}
+	inter := make(map[uint64]uint64, len(cii.Inter))
+	for ifid, v := range cii.Inter {
+		inter[uint64(ifid)] = v
+	}
+	return &cppb.CarbonIntensityInfo{
+		Intra: intra,
+		Inter: inter,
+	}
+}
 func geoInfoToPB(gi GeoInfo) map[uint64]*cppb.GeoCoordinates {
 	if len(gi) == 0 {
 		return nil

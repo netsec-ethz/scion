@@ -50,6 +50,10 @@ const (
 	bandwidth_inter_3   uint64 = 80
 	bandwidth_inter_5   uint64 = 120
 
+	carbon_intensity_intra_1_2 uint64 = 300
+	carbon_intensity_inter_1   uint64 = 780
+	carbon_intensity_inter_2   uint64 = 400
+
 	link_type_1 staticinfo.LinkType = staticinfo.LinkTypeDirect
 	link_type_2 staticinfo.LinkType = staticinfo.LinkTypeOpennet
 	link_type_3 staticinfo.LinkType = staticinfo.LinkTypeMultihop
@@ -163,6 +167,20 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 				},
 			},
 		},
+		CarbonIntensity: map[common.IFIDType]beaconing.InterfaceCarbonIntensities{
+			1: {
+				Inter: carbon_intensity_inter_1,
+				Intra: map[common.IFIDType]uint64{
+					2: carbon_intensity_intra_1_2,
+				},
+			},
+			2: {
+				Inter: carbon_intensity_inter_2,
+				Intra: map[common.IFIDType]uint64{
+					1: carbon_intensity_intra_1_2,
+				},
+			},
+		},
 		LinkType: map[common.IFIDType]beaconing.LinkType{
 			1: beaconing.LinkType(link_type_1),
 			2: beaconing.LinkType(link_type_2),
@@ -270,6 +288,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: bandwidth_inter_5,
 					},
 				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{
+						2: carbon_intensity_intra_1_2,
+					},
+					Inter: map[common.IFIDType]uint64{
+						1: carbon_intensity_inter_1,
+					},
+				},
 				Geo: staticinfo.GeoInfo{
 					1: geo_1,
 					3: geo_3,
@@ -313,6 +339,12 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: bandwidth_inter_5,
 					},
 				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{
+						2: carbon_intensity_inter_2,
+					},
+				},
 				Geo: staticinfo.GeoInfo{
 					2: geo_2,
 					3: geo_3,
@@ -346,6 +378,10 @@ func TestGenerateStaticInfo(t *testing.T) {
 					Inter: map[common.IFIDType]uint64{
 						5: bandwidth_inter_5,
 					},
+				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{},
 				},
 				Geo: staticinfo.GeoInfo{
 					3: geo_3,
@@ -382,6 +418,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 					Inter: map[common.IFIDType]uint64{
 						1: bandwidth_inter_1,
 						5: bandwidth_inter_5,
+					},
+				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{
+						2: carbon_intensity_intra_1_2,
+					},
+					Inter: map[common.IFIDType]uint64{
+						1: carbon_intensity_inter_1,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
@@ -421,6 +465,12 @@ func TestGenerateStaticInfo(t *testing.T) {
 					Inter: map[common.IFIDType]uint64{
 						2: bandwidth_inter_2,
 						5: bandwidth_inter_5,
+					},
+				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{
+						2: carbon_intensity_inter_2,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
@@ -463,6 +513,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 						2: bandwidth_inter_2,
 					},
 				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{
+						1: carbon_intensity_intra_1_2,
+					},
+					Inter: map[common.IFIDType]uint64{
+						2: carbon_intensity_inter_2,
+					},
+				},
 				Geo: staticinfo.GeoInfo{
 					2: geo_2,
 				},
@@ -493,6 +551,12 @@ func TestGenerateStaticInfo(t *testing.T) {
 					Intra: map[common.IFIDType]uint64{},
 					Inter: map[common.IFIDType]uint64{
 						1: bandwidth_inter_1,
+					},
+				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{
+						1: carbon_intensity_inter_1,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
@@ -527,6 +591,12 @@ func TestGenerateStaticInfo(t *testing.T) {
 						1: bandwidth_inter_1,
 					},
 				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{
+						1: carbon_intensity_inter_1,
+					},
+				},
 				Geo: staticinfo.GeoInfo{
 					1: geo_1,
 					3: geo_3,
@@ -551,6 +621,10 @@ func TestGenerateStaticInfo(t *testing.T) {
 					Inter: map[common.IFIDType]time.Duration{},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{},
+				},
+				CarbonIntensity: staticinfo.CarbonIntensityInfo{
 					Intra: map[common.IFIDType]uint64{},
 					Inter: map[common.IFIDType]uint64{},
 				},
