@@ -434,6 +434,7 @@ func checkLocalCaller(ctx context.Context) (*net.TCPAddr, error) {
 	return tcpaddr, nil
 }
 
+// extractPathIAFromCtx returns the forwarding path that was used to reach the service.
 func extractPathIAFromCtx(ctx context.Context) (slayerspath.Path, error) {
 	gPeer, ok := peer.FromContext(ctx)
 	if !ok {
@@ -456,7 +457,7 @@ func extractPathIAFromCtx(ctx context.Context) (slayerspath.Path, error) {
 		return nil, serrors.WrapStr("decoding path information", err)
 	}
 
-	// Hack: The path extracted from the remote address is actually the replyPath (i.e.,
+	// The path extracted from the remote address is actually the replyPath (i.e.,
 	// the path already reversed to answer back to the remote);
 	// e.g. AS_{n-1}->...-> AS_Local -> AS_i -> ... AS_0.
 	// However, here we want to extract the forwarding path. We reverse the
