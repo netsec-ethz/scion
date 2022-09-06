@@ -355,7 +355,6 @@ func (x *executor) GetAllE2ERsvs(ctx context.Context) ([]*e2e.Reservation, error
 			steps:       steps,
 		})
 	}
-	// Lint: https://github.com/jingyugao/rowserrcheck
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
@@ -594,8 +593,6 @@ func (x *executor) CheckAdmissionList(ctx context.Context, now time.Time,
 			return -1, nil
 		}
 	}
-
-	// Lint: https://github.com/jingyugao/rowserrcheck
 	if rows.Err() != nil {
 		return 0, rows.Err()
 	}
