@@ -97,7 +97,7 @@ message Path {
     // equivalently, milligrams of CO2 per gigabyte).
     // Entry i describes the carbon intensity between interface i and i+1.
     // Consequently, there are N-1 entries for N interfaces.
-    repeated uint64 carbon_intensity = 12;
+    repeated int64 carbon_intensity = 12;
     // Geo lists the geographical position of the border routers along the
     // path.
     // Entry i describes the position of the router for interface i.

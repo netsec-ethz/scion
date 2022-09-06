@@ -43,16 +43,17 @@ type Result struct {
 
 // Path holds information about the discovered path.
 type Path struct {
-	FullPath    snet.Path       `json:"-"`
-	Fingerprint string          `json:"fingerprint"`
-	Hops        []Hop           `json:"hops"`
-	NextHop     string          `json:"next_hop"`
-	Expiry      time.Time       `json:"expiry"`
-	MTU         uint16          `json:"mtu"`
-	Latency     []time.Duration `json:"latency"`
-	Status      string          `json:"status,omitempty"`
-	StatusInfo  string          `json:"status_info,omitempty"`
-	Local       net.IP          `json:"local_ip,omitempty"`
+	FullPath        snet.Path       `json:"-"`
+	Fingerprint     string          `json:"fingerprint"`
+	Hops            []Hop           `json:"hops"`
+	NextHop         string          `json:"next_hop"`
+	Expiry          time.Time       `json:"expiry"`
+	MTU             uint16          `json:"mtu"`
+	Latency         []time.Duration `json:"latency"`
+	CarbonIntensity []int64         `json:"carbon_intensity"`
+	Status          string          `json:"status,omitempty"`
+	StatusInfo      string          `json:"status_info,omitempty"`
+	Local           net.IP          `json:"local_ip,omitempty"`
 }
 
 // Hop represents an hop on the path.
@@ -102,6 +103,7 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 			entries = append(entries, filteredKeyValues(cs,
 				"Latency", humanLatency(meta),
 				"Bandwidth", humanBandwidth(meta),
+				"CarbonIntensity", humanCarbonIntensity(meta),
 				"Geo", humanGeo(meta, cs),
 				"LinkType", humanLinkType(meta),
 				"InternalHops", humanInternalHops(meta),
@@ -178,6 +180,27 @@ func humanBandwidth(p *snet.PathMetadata) string {
 	}
 	if bottleneck < math.MaxUint64 {
 		return fmt.Sprintf("%dKbit/s (information incomplete)", bottleneck)
+	}
+	return ""
+}
+
+// humanCarbonIntensity summarizes the carbon intensity information in the meta
+// data in a human readable string. Returns empty string if no information is
+// available.
+func humanCarbonIntensity(p *snet.PathMetadata) string {
+	complete := true
+	var tot int64 = 0
+	for _, v := range p.CarbonIntensity {
+		complete = complete && v >= 0
+		if v >= 0 {
+			tot += v
+		}
+	}
+	if complete {
+		return fmt.Sprintf("%dgCO2/TB", tot)
+	}
+	if tot > 0 {
+		return fmt.Sprintf(">%dgCO2/TB (information incomplete)", tot)
 	}
 	return ""
 }
@@ -373,13 +396,14 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		}
 		pathMeta := path.Metadata()
 		rpath := Path{
-			FullPath:    path,
-			Fingerprint: fingerprint,
-			NextHop:     nextHop,
-			Expiry:      pathMeta.Expiry,
-			MTU:         pathMeta.MTU,
-			Latency:     pathMeta.Latency,
-			Hops:        []Hop{},
+			FullPath:        path,
+			Fingerprint:     fingerprint,
+			NextHop:         nextHop,
+			Expiry:          pathMeta.Expiry,
+			MTU:             pathMeta.MTU,
+			Latency:         pathMeta.Latency,
+			CarbonIntensity: pathMeta.CarbonIntensity,
+			Hops:            []Hop{},
 		}
 		for _, hop := range path.Metadata().Interfaces {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA, IfID: hop.ID})

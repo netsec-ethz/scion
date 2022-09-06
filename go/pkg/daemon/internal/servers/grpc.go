@@ -172,15 +172,16 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		Interface: &sdpb.Interface{
 			Address: &sdpb.Underlay{Address: nextHopStr},
 		},
-		Interfaces:   interfaces,
-		Mtu:          uint32(meta.MTU),
-		Expiration:   &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
-		Latency:      latency,
-		Bandwidth:    meta.Bandwidth,
-		Geo:          geo,
-		LinkType:     linkType,
-		InternalHops: meta.InternalHops,
-		Notes:        meta.Notes,
+		Interfaces:      interfaces,
+		Mtu:             uint32(meta.MTU),
+		Expiration:      &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
+		Latency:         latency,
+		Bandwidth:       meta.Bandwidth,
+		CarbonIntensity: meta.CarbonIntensity,
+		Geo:             geo,
+		LinkType:        linkType,
+		InternalHops:    meta.InternalHops,
+		Notes:           meta.Notes,
 	}
 
 }
