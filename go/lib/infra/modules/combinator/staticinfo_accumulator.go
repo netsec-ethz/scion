@@ -222,7 +222,7 @@ func collectCarbonIntensity(p pathInfo) []int64 {
 }
 
 // addHopCarbonIntensity adds the bandwidth of hop a-b to the map. Handle conflicting entries by
-// chosing the more conservative value (i.e. keep lower bandwidth value).
+// chosing the more conservative value (i.e. keep higher value).
 func addHopCarbonIntensity(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
 	// Skip incomplete entries; not strictly necessary, we'd just not look this up
 	if a.ID == 0 || b.ID == 0 {
@@ -232,7 +232,7 @@ func addHopCarbonIntensity(m map[hopKey]uint64, a, b snet.PathInterface, v uint6
 		return
 	}
 	k := makeHopKey(a, b)
-	if vExisting, exists := m[k]; !exists || vExisting > v {
+	if vExisting, exists := m[k]; !exists || vExisting < v {
 		m[k] = v
 	}
 }
