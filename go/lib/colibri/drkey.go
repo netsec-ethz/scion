@@ -43,9 +43,9 @@ type DRKeyGetter interface {
 }
 
 func createAuthsForBaseRequest(ctx context.Context, conn DRKeyGetter,
-	req *BaseRequest) error {
+	req *BaseRequest, steps base.PathSteps) error {
 
-	keys, err := getKeys(ctx, conn, req.Steps, req.SrcHost, req.TimeStamp)
+	keys, err := getKeys(ctx, conn, steps, req.SrcHost, req.TimeStamp)
 	if err != nil {
 		return err
 	}
@@ -171,14 +171,24 @@ func getKeysWithLocalIA(ctx context.Context, conn DRKeyGetter, steps []base.Path
 }
 
 func minSizeBaseReq(req *BaseRequest) int {
-	return req.Id.Len() + 1 + 4 + // ID + index + time_stamp
-		16 + 16 + // srcHost + dstHost
-		base.PathSteps(req.Steps).Size()
+	// fail to compile if these fields are not there
+	_ = req.Id
+	_ = req.Index
+	_ = req.TimeStamp
+	_ = req.SrcHost
+	_ = req.DstHost
+	return (6 + reservation.IDSuffixE2ELen) + 1 + 4 + // ID + index + time_stamp
+		16 + 16 // srcHost + dstHost
 }
 
 func minSizeE2ESetupReq(req *E2EReservationSetup) int {
-	// BaseRequest + BW + Segment reservation IDs
-	return minSizeBaseReq(&req.BaseRequest) + 1 + len(req.Segments)*reservation.IDSegLen
+	// fail to compile if these fields are not there
+	_ = req.BaseRequest
+	_ = req.RequestedBW
+	_ = req.Segments
+	// BaseRequest + BW + Segment reservation IDs + Steps
+	return minSizeBaseReq(&req.BaseRequest) +
+		1 + len(req.Segments)*reservation.IDSegLen + req.Steps.Size()
 }
 
 func serializeBaseRequest(buff []byte, req *BaseRequest) {
@@ -196,8 +206,6 @@ func serializeBaseRequest(buff []byte, req *BaseRequest) {
 	copy(buff[offset:], req.SrcHost.To16())
 	offset += 16
 	copy(buff[offset:], req.DstHost.To16())
-	offset += 16
-	base.PathSteps(req.Steps).Serialize(buff[offset:])
 }
 
 func serializeE2EReservationSetup(buff []byte, req *E2EReservationSetup) {
@@ -206,6 +214,10 @@ func serializeE2EReservationSetup(buff []byte, req *E2EReservationSetup) {
 		len(buff), minSize)
 	offset := minSizeBaseReq(&req.BaseRequest)
 	serializeBaseRequest(buff[:offset], &req.BaseRequest)
+
+	// steps:
+	req.Steps.Serialize(buff[offset:])
+	offset += req.Steps.Size()
 
 	// BW and segments:
 	buff[offset] = byte(req.RequestedBW)

@@ -366,11 +366,10 @@ func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservatio
 		TimeStamp: time.Now(),
 		SrcHost:   c.Local.Host.IP,
 		DstHost:   c.Remote.Host.IP,
-		Steps:     steps,
 	}
-	err := req.CreateAuthenticators(ctx, c.Daemon)
+	err := req.CreateAuthenticators(ctx, c.Daemon, steps)
 	if err != nil {
 		return err
 	}
-	return c.Daemon.ColibriCleanupRsv(ctx, req)
+	return c.Daemon.ColibriCleanupRsv(ctx, req, steps)
 }

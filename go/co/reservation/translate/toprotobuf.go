@@ -25,7 +25,7 @@ import (
 )
 
 func PBufSetupReq(req *segment.SetupReq) (*colpb.SegmentSetupRequest, error) {
-	base, err := PBufRequest(&req.Request, req.Steps)
+	base, err := PBufRequest(&req.Request)
 	if err != nil {
 		return nil, err
 	}
@@ -36,16 +36,14 @@ func PBufSetupReq(req *segment.SetupReq) (*colpb.SegmentSetupRequest, error) {
 }
 
 func PBufE2ERequest(req *e2e.Request) (*colpb.E2ERequest, error) {
-	base, err := PBufRequest(&req.Request, req.Steps)
+	base, err := PBufRequest(&req.Request)
 	if err != nil {
 		return nil, err
 	}
 	return &colpb.E2ERequest{
-		Base:        base,
-		SrcHost:     req.SrcHost,
-		DstHost:     req.DstHost,
-		CurrentStep: uint32(req.CurrentStep),
-		Steps:       PBufSteps(req.Steps),
+		Base:    base,
+		SrcHost: req.SrcHost,
+		DstHost: req.DstHost,
 	}, err
 }
 
@@ -70,6 +68,8 @@ func PBufE2ESetupReq(req *e2e.SetupReq) (*colpb.E2ESetupRequest, error) {
 		Params: &colpb.E2ESetupRequest_PathParams{
 			Segments:       segs,
 			CurrentSegment: uint32(req.CurrentSegmentRsvIndex),
+			Steps:          PBufSteps(req.Steps),
+			CurrentStep:    uint32(req.CurrentStep),
 		},
 		Allocationtrail: trail,
 	}, nil
@@ -126,7 +126,7 @@ func PBufE2ESetupResponse(res e2e.SetupResponse) *colpb.E2ESetupResponse {
 	return msg
 }
 
-func PBufRequest(req *base.Request, steps base.PathSteps) (*colpb.Request, error) {
+func PBufRequest(req *base.Request) (*colpb.Request, error) {
 	return &colpb.Request{
 		Id:             PBufID(&req.ID),
 		Index:          uint32(req.Index),

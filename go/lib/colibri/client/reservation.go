@@ -100,8 +100,8 @@ func NewReservation(ctx context.Context,
 			Index:   index,
 			SrcHost: srcHost,
 			DstHost: dstHost,
-			Steps:   trip.PathSteps(),
 		},
+		Steps:       trip.PathSteps(),
 		RequestedBW: bw,
 		Segments:    trip.Segments(),
 	}
@@ -163,7 +163,7 @@ func (r *Reservation) Close(ctx context.Context) error {
 	r.runner.Stop()
 	r.runner = nil
 
-	return r.daemon.ColibriCleanupRsv(ctx, &r.request.BaseRequest)
+	return r.daemon.ColibriCleanupRsv(ctx, &r.request.BaseRequest, r.request.Steps)
 }
 
 func (r *Reservation) CurrentTrip() colibri.FullTrip {

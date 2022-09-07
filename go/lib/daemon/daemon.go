@@ -21,6 +21,7 @@ import (
 	"net"
 	"time"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	col "github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/common"
@@ -90,7 +91,7 @@ type Connector interface {
 	ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSetup) (*col.E2EResponse, error)
 	// ColibriCleanupRsv cleans an E2E reservation. The ID must be E2E compliant.
 	// This method may return an E2EResponseError.
-	ColibriCleanupRsv(ctx context.Context, req *col.BaseRequest) error
+	ColibriCleanupRsv(ctx context.Context, req *col.BaseRequest, steps base.PathSteps) error
 	// ColibriAddAdmissionEntry adds an entry to the admission list. It returns the effective
 	// validity time for the entry in the list.
 	ColibriAddAdmissionEntry(ctx context.Context, entry *col.AdmissionEntry) (time.Time, error)

@@ -22,6 +22,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
@@ -242,7 +243,7 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	}, nil
 }
 
-func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseRequest) error {
+func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseRequest, steps base.PathSteps) error {
 
 	if req == nil {
 		return serrors.New("invalid nil request")
@@ -260,7 +261,7 @@ func (c grpcConn) ColibriCleanupRsv(ctx context.Context, req *colibri.BaseReques
 			},
 			SrcHost: req.SrcHost,
 			DstHost: req.DstHost,
-			Steps:   translate.PBufSteps(req.Steps),
+			Steps:   translate.PBufSteps(steps),
 		},
 	}
 	client := sdpb.NewDaemonServiceClient(c.conn)

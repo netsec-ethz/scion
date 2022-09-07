@@ -530,7 +530,7 @@ func (s *Store) ConfirmSegmentReservation(
 			return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 		}
 
-		base, err := translate.PBufRequest(req, steps)
+		base, err := translate.PBufRequest(req)
 		if err != nil {
 			return failedResponse, s.err(err)
 		}
@@ -666,7 +666,7 @@ func (s *Store) ActivateSegmentReservation(
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
-	base, err := translate.PBufRequest(req, steps)
+	base, err := translate.PBufRequest(req)
 	if err != nil {
 		return failedResponse, s.errWrapStr("translation failed", err)
 	}
@@ -784,7 +784,7 @@ func (s *Store) CleanupSegmentReservation(
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
-	base, err := translate.PBufRequest(req, steps)
+	base, err := translate.PBufRequest(req)
 	if err != nil {
 		return failedResponse, s.errWrapStr("translation failed", err)
 	}
@@ -900,7 +900,7 @@ func (s *Store) TearDownSegmentReservation(
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
 
-	base, err := translate.PBufRequest(req, steps)
+	base, err := translate.PBufRequest(req)
 	if err != nil {
 		return failedResponse, s.errWrapStr("translation failed", err)
 	}
@@ -937,8 +937,8 @@ func (s *Store) AdmitE2EReservation(
 	log.Debug(
 		"e2e admission request",
 		"id", req.ID,
-		"steps", req.Steps,
 		"currentStep", req.CurrentStep,
+		"steps", req.Steps,
 		"segments", reservation.IDs(req.SegmentRsvs),
 		"curr_segment", req.CurrentSegmentRsvIndex,
 	)
@@ -974,7 +974,6 @@ func (s *Store) AdmitE2EReservation(
 		return failedResponse, err
 	}
 	newSetup := (rsv == nil)
-
 	if newSetup {
 		rsv = &e2e.Reservation{
 			ID:                  req.ID,
@@ -1010,6 +1009,7 @@ func (s *Store) AdmitE2EReservation(
 			"seg. ids: %s", req.ID, req.SegmentRsvs)
 
 	}
+
 	// validate the steps in the request against those stored in the reservation
 	if !rsv.Steps.Equal(req.Steps) {
 		err = serrors.New("request and reservation steps differ",
@@ -1017,6 +1017,7 @@ func (s *Store) AdmitE2EReservation(
 		failedResponse.Message = err.Error()
 		return failedResponse, err
 	}
+
 	isStitchPoint := false
 	if len(rsv.SegmentReservations) > 1 {
 		isStitchPoint = true
@@ -1245,40 +1246,37 @@ func (s *Store) CleanupE2EReservation(
 	rawPath slayerspath.Path,
 ) (base.Response, error) {
 
-	if err := s.authenticateE2EReq(ctx, req); err != nil {
-		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
-	}
-
 	log.Debug(
 		"e2e cleanup request",
 		"id", req.ID,
-		"steps", req.Steps,
-		"currentStep", req.CurrentStep,
 	)
 	failedResponse := &base.ResponseFailure{
 		AuthenticatedResponse: base.AuthenticatedResponse{
 			Timestamp:      req.Timestamp,
 			Authenticators: make([][]byte, len(req.Authenticators)),
 		},
-		FailedStep: uint8(req.CurrentStep),
-		Message:    "failed to cleanup e2e index",
+		Message: "failed to cleanup e2e index",
 	}
-	if !req.IsFirstAS() {
-		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse,
-			req.Steps.SrcIA(), req.CurrentStep); err != nil {
-			return nil, serrors.WrapStr("authenticating response", err)
-		}
-	}
-
-	if err := req.Validate(); err != nil {
-		failedResponse.Message = "request validation failed: " + s.err(err).Error()
-		return failedResponse, nil
-	}
-
 	rsv, err := s.db.GetE2ERsvFromID(ctx, &req.ID)
 	if err != nil {
 		return failedResponse, s.errWrapStr("obtaining e2e reservation", err,
 			"id", req.ID.String())
+	}
+	failedResponse.FailedStep = uint8(rsv.CurrentStep)
+	if err := s.authenticateE2EReq(ctx, req, rsv.Steps, rsv.CurrentStep); err != nil {
+		return nil, s.errWrapStr("error validating request", err, "id", req.ID.String())
+	}
+
+	if !rsv.IsFirstAS() {
+		if err := s.authenticator.ComputeResponseMAC(ctx, failedResponse,
+			rsv.Steps.SrcIA(), rsv.CurrentStep); err != nil {
+			return nil, serrors.WrapStr("authenticating response", err)
+		}
+	}
+
+	if err := req.Validate(rsv.Steps); err != nil {
+		failedResponse.Message = "request validation failed: " + s.err(err).Error()
+		return failedResponse, nil
 	}
 
 	isTransfer := false
@@ -1296,8 +1294,8 @@ func (s *Store) CleanupE2EReservation(
 	if err := rsv.Steps.ValidateEquivalent(rawPath, rsv.CurrentStep); err != nil {
 		return nil, err
 	}
-	if s.localIA.Equal(req.Steps.SrcIA()) || isTransfer {
-		if s.localIA.Equal(req.Steps.SrcIA()) {
+	if s.localIA.Equal(rsv.Steps.SrcIA()) || isTransfer {
+		if s.localIA.Equal(rsv.Steps.SrcIA()) {
 			r, err := tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[0].ID)
 			if err != nil {
 				return nil, err
@@ -1344,25 +1342,27 @@ func (s *Store) CleanupE2EReservation(
 			return failedResponse, s.errWrapStr("cannot commit transaction", err,
 				"id", req.ID.String())
 		}
-		log.Debug("e2e cleanup successful", "id", req.ID, "steps", req.Steps,
-			"currentStep", req.CurrentStep)
+		log.Debug("e2e cleanup successful", "id", req.ID, "steps", rsv.Steps,
+			"currentStep", rsv.CurrentStep)
 	}
 
-	if req.IsLastAS() {
+	if rsv.IsLastAS() {
 		res := &base.ResponseSuccess{
 			AuthenticatedResponse: base.AuthenticatedResponse{
 				Timestamp:      req.Timestamp,
 				Authenticators: make([][]byte, len(req.Authenticators)),
 			},
 		}
-		err = s.authenticator.ComputeResponseMAC(ctx, res, req.Steps.SrcIA(), req.CurrentStep)
+		err = s.authenticator.ComputeResponseMAC(ctx, res, rsv.Steps.SrcIA(), rsv.CurrentStep)
 		if err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 		return res, nil
 	}
 	// authenticate the semi mutable parts of the request, to be validated at the destination
-	if err := s.authenticator.ComputeE2ERequestTransitMAC(ctx, req); err != nil {
+	if err := s.authenticator.ComputeE2ERequestTransitMAC(ctx, req, rsv.Steps,
+		rsv.CurrentStep); err != nil {
+
 		return nil, serrors.WrapStr("computing in transit e2e base request authenticator", err)
 	}
 	// forward to next colibri service
@@ -1381,16 +1381,16 @@ func (s *Store) CleanupE2EReservation(
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
 	res := translate.Response(pbRes.Base)
-	if req.IsFirstAS() {
-		ok, err := s.authenticator.ValidateResponse(ctx, res, req.Steps)
+	if rsv.IsFirstAS() {
+		ok, err := s.authenticator.ValidateResponse(ctx, res, rsv.Steps)
 		if !ok || err != nil {
 			return failedResponse, s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
 	} else {
 		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeResponseMAC(ctx, res, req.Steps.SrcIA(),
-			req.CurrentStep); err != nil {
+		if err := s.authenticator.ComputeResponseMAC(ctx, res, rsv.Steps.SrcIA(),
+			rsv.CurrentStep); err != nil {
 			return failedResponse, s.errWrapStr("computing authenticators for response", err)
 		}
 	}
@@ -1480,8 +1480,10 @@ func validateE2ESteps(localIA addr.IA, segments []*segment.Reservation,
 }
 
 // authenticateE2EReq checks that the authenticators are correct.
-func (s *Store) authenticateE2EReq(ctx context.Context, req *e2e.Request) error {
-	ok, err := s.authenticator.ValidateE2ERequest(ctx, req)
+func (s *Store) authenticateE2EReq(ctx context.Context, req *e2e.Request, steps base.PathSteps,
+	currentStep int) error {
+
+	ok, err := s.authenticator.ValidateE2ERequest(ctx, req, steps, currentStep)
 	if err != nil {
 		return serrors.WrapStr("validating source authentication mac", err)
 	}

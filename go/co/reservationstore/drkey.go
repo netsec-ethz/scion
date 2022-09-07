@@ -56,7 +56,8 @@ type macComputer interface {
 		currentStep int, steps base.PathSteps) error
 
 	ComputeSegmentSetupRequestTransitMAC(ctx context.Context, req *segment.SetupReq) error
-	ComputeE2ERequestTransitMAC(ctx context.Context, req *e2e.Request) error
+	ComputeE2ERequestTransitMAC(ctx context.Context, req *e2e.Request, steps base.PathSteps,
+		currentStep int) error
 	ComputeE2ESetupRequestTransitMAC(ctx context.Context, req *e2e.SetupReq) error
 
 	// ComputeResponseMAC takes the response (passed as an interface here) and computes and sets
@@ -86,7 +87,8 @@ type macVerifier interface {
 	ValidateSegSetupRequest(ctx context.Context, req *segment.SetupReq) (bool, error)
 	// Validates a basic E2E request while in a transit AS.
 	// The authenticators were created on the source host.
-	ValidateE2ERequest(ctx context.Context, req *e2e.Request) (bool, error)
+	ValidateE2ERequest(ctx context.Context, req *e2e.Request, steps base.PathSteps,
+		currentStep int) (bool, error)
 	// ValidateE2ESetupRequest verifies the validity of the source authentication
 	// created by the initial AS for this particular transit AS as, for the immutable parts of
 	// this request. If the request is now at the last AS, it also validates the request at
@@ -160,18 +162,19 @@ func (a *DRKeyAuthenticator) ComputeSegmentSetupRequestTransitMAC(ctx context.Co
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ERequestTransitMAC(ctx context.Context,
-	req *e2e.Request) error {
+	req *e2e.Request, steps base.PathSteps, currentStep int) error {
 
-	if req.IsFirstAS() || req.IsLastAS() {
+	if isFirstAS(steps, currentStep) || isLastAS(steps, currentStep) {
 		return nil
 	}
 	payload := inputTransitE2ERequest(req)
 	return a.computeTransitMACforE2EPayload(ctx, payload, req,
-		req.Steps.DstIA(), req.CurrentStep)
+		steps.DstIA(), currentStep)
 }
 
 func (a *DRKeyAuthenticator) ComputeE2ESetupRequestTransitMAC(ctx context.Context,
 	req *e2e.SetupReq) error {
+
 	if req.IsFirstAS() || req.IsLastAS() {
 		return nil
 	}
@@ -275,7 +278,24 @@ func (a *DRKeyAuthenticator) ValidateSegSetupRequest(ctx context.Context,
 	return ok, err
 }
 
-func (a *DRKeyAuthenticator) ValidateE2ERequest(ctx context.Context, req *e2e.Request) (
+func (a *DRKeyAuthenticator) ValidateE2ERequest(ctx context.Context, req *e2e.Request,
+	steps base.PathSteps, currentStep int) (bool, error) {
+
+	if isFirstAS(steps, currentStep) {
+		return true, nil
+	}
+	payload := make([]byte, req.Len())
+	req.Serialize(payload, base.SerializeImmutable)
+
+	ok, err := a.validateE2EPayloadInitialMAC(ctx, req, steps, currentStep, payload)
+	if err == nil && ok && isLastAS(steps, currentStep) {
+		ok, err = a.validateE2ERequestAtDestination(ctx, req, steps)
+	}
+
+	return ok, err
+}
+
+func (a *DRKeyAuthenticator) ValidateE2ESetupRequest(ctx context.Context, req *e2e.SetupReq) (
 	bool, error) {
 
 	if req.IsFirstAS() {
@@ -284,26 +304,10 @@ func (a *DRKeyAuthenticator) ValidateE2ERequest(ctx context.Context, req *e2e.Re
 	payload := make([]byte, req.Len())
 	req.Serialize(payload, base.SerializeImmutable)
 
-	ok, err := a.validateE2EPayloadInitialMAC(ctx, req, payload)
+	ok, err := a.validateE2EPayloadInitialMAC(ctx, &req.Request,
+		req.Steps, req.CurrentStep, payload)
 	if err == nil && ok && req.IsLastAS() {
-		ok, err = a.validateE2ERequestAtDestination(ctx, req, req.Steps)
-	}
-
-	return ok, err
-}
-
-func (a *DRKeyAuthenticator) ValidateE2ESetupRequest(ctx context.Context,
-	req *e2e.SetupReq) (bool, error) {
-
-	if req.IsFirstAS() {
-		return true, nil
-	}
-	payload := make([]byte, req.Len())
-	req.Serialize(payload, base.SerializeImmutable)
-
-	ok, err := a.validateE2EPayloadInitialMAC(ctx, &req.Request, payload)
-	if err == nil && ok && req.IsLastAS() {
-		ok, err = a.validateE2ESetupRequestAtDestination(ctx, req, req.Steps)
+		ok, err = a.validateE2ESetupRequestAtDestination(ctx, req)
 	}
 	return ok, err
 
@@ -354,8 +358,7 @@ func (a *DRKeyAuthenticator) ValidateSegmentSetupResponse(ctx context.Context,
 }
 
 func (a *DRKeyAuthenticator) validateRequestAtDestination(ctx context.Context,
-	req *base.Request, steps base.PathSteps) (
-	bool, error) {
+	req *base.Request, steps base.PathSteps) (bool, error) {
 
 	return a.validateAtDestination(ctx, req, steps, func(i int) []byte {
 		return inputTransitSegRequest(req)
@@ -379,9 +382,9 @@ func (a *DRKeyAuthenticator) validateE2ERequestAtDestination(ctx context.Context
 }
 
 func (a *DRKeyAuthenticator) validateE2ESetupRequestAtDestination(ctx context.Context,
-	req *e2e.SetupReq, steps base.PathSteps) (bool, error) {
+	req *e2e.SetupReq) (bool, error) {
 
-	return a.validateAtDestination(ctx, &req.Request.Request, steps, func(step int) []byte {
+	return a.validateAtDestination(ctx, &req.Request.Request, req.Steps, func(step int) []byte {
 		return inputTransitE2ESetupRequestForStep(req, step)
 	})
 }
@@ -417,25 +420,26 @@ func (a *DRKeyAuthenticator) validateSegmentPayloadInitialMAC(
 
 // validateE2EPayloadInitialMAC obtains the (fast side this) key according to req.Path and
 // uses them to compute the MAC from payload and compare it with the current req.Authenticators.
-func (a *DRKeyAuthenticator) validateE2EPayloadInitialMAC(ctx context.Context,
-	req *e2e.Request, immutableInput []byte) (bool, error) {
+func (a *DRKeyAuthenticator) validateE2EPayloadInitialMAC(ctx context.Context, req *e2e.Request,
+	steps base.PathSteps, currentStep int, immutableInput []byte) (bool, error) {
 
-	key, err := a.fastAS2Host(ctx, req.Steps.SrcIA(), addr.HostFromIP(req.SrcHost), req.Timestamp)
+	key, err := a.fastAS2Host(ctx, steps.SrcIA(), addr.HostFromIP(req.SrcHost), req.Timestamp)
 	if err != nil {
 		return false, serrors.WrapStr("obtaining drkey", err, "fast", a.localIA,
-			"slow_ia", req.Steps.SrcIA(), "slow_host", req.SrcHost)
+			"slow_ia", steps.SrcIA(), "slow_host", req.SrcHost)
 	}
 	mac, err := MAC(immutableInput, key.Key)
 	if err != nil {
 		return false, serrors.WrapStr("validating e2e initial request", err)
 	}
-	res := subtle.ConstantTimeCompare(mac, req.CurrentValidatorField())
+	currentAuthenticatorField := req.Authenticators[currentStep-1]
+	res := subtle.ConstantTimeCompare(mac, currentAuthenticatorField)
 	if res != 1 {
 		log.FromCtx(ctx).Info("source authentication failed", "id", req.ID,
 			"fast_side", a.localIA,
-			"slow_ia", req.Steps.SrcIA(), "slow_host", req.SrcHost,
+			"slow_ia", steps.SrcIA(), "slow_host", req.SrcHost,
 			"mac", hex.EncodeToString(mac),
-			"expected", hex.EncodeToString(req.CurrentValidatorField()))
+			"expected", hex.EncodeToString(currentAuthenticatorField))
 		return false, nil
 	}
 	return true, nil
@@ -447,8 +451,7 @@ func (a *DRKeyAuthenticator) validateE2EPayloadInitialMAC(ctx context.Context,
 // but since there is no need to authenticate it to itself, it's left empty.
 // payloadFcn takes the index of the path step we want to compute the payload for.
 func (a *DRKeyAuthenticator) validateAtDestination(ctx context.Context, req *base.Request,
-	steps base.PathSteps,
-	payloadFcn func(int) []byte) (bool, error) {
+	steps base.PathSteps, payloadFcn func(int) []byte) (bool, error) {
 
 	if len(req.Authenticators) != len(steps)-1 {
 		return false, serrors.New("insconsistent length in request",
@@ -538,9 +541,8 @@ func (a *DRKeyAuthenticator) computeTransitMACforE2EPayload(ctx context.Context,
 
 // slowAS2ASFromPath gets the AS-AS keys from the slow side to all ASes in the path.
 // Note: this is the slow side.
-func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context,
-	steps base.PathSteps, ts time.Time) (
-	[]drkey.Key, error) {
+func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context, steps base.PathSteps,
+	ts time.Time) ([]drkey.Key, error) {
 
 	return a.slowKeysFromPath(ctx, steps, func(ctx context.Context,
 		fast addr.IA) (drkey.Key, error) {
@@ -552,10 +554,11 @@ func (a *DRKeyAuthenticator) slowAS2ASFromPath(ctx context.Context,
 // slowKeysFromPath retrieves the drkeys specified in the steps[1]..steps[n-1]. It skips the
 // first step as it is the initiator. The IAs in the steps are used as the fast side of the
 // drkeys, and the function `getKeyWithFastSide` is called with them, to retrieve the drkeys.
-func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context,
+func (a *DRKeyAuthenticator) slowKeysFromPath(
+	ctx context.Context,
 	steps base.PathSteps,
-	getKeyWithFastSide func(ctx context.Context,
-		fast addr.IA) (drkey.Key, error)) ([]drkey.Key, error) {
+	getKeyWithFastSide func(ctx context.Context, fast addr.IA) (drkey.Key, error),
+) ([]drkey.Key, error) {
 
 	seen := make(map[addr.IA]struct{})
 	keys := make([]drkey.Key, len(steps)-1)
@@ -581,6 +584,7 @@ func (a *DRKeyAuthenticator) slowKeysFromPath(ctx context.Context,
 
 func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA,
 	valTime time.Time) (drkey.Lvl1Key, error) {
+
 	return a.fastKeyer.Lvl1(ctx, drkey.Lvl1Meta{
 		ProtoId:  drkey.COLIBRI,
 		Validity: valTime,
@@ -591,6 +595,7 @@ func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA,
 
 func (a *DRKeyAuthenticator) slowAS2AS(ctx context.Context, remoteIA addr.IA,
 	valTime time.Time) (drkey.Lvl1Key, error) {
+
 	return a.slowKeyer.Lvl1(ctx, drkey.Lvl1Meta{
 		ProtoId:  drkey.COLIBRI,
 		Validity: valTime,
@@ -874,4 +879,12 @@ func (f *cachingSVfetcher) fetch(ctx context.Context, meta drkey.SVMeta) (drkey.
 		return drkey.SV{}, serrors.WrapStr("obtaining SV from reply", err)
 	}
 	return key, nil
+}
+
+func isFirstAS(steps base.PathSteps, currentStep int) bool {
+	return currentStep == 0
+}
+
+func isLastAS(steps base.PathSteps, currentStep int) bool {
+	return currentStep == len(steps)-1
 }

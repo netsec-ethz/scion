@@ -269,10 +269,6 @@ message E2ERequest {
     bytes src_host = 2;
     // address of the destination host.
     bytes dst_host = 3;
-    // current index in the steps sequence.
-    uint32 current_step = 4;
-    // the path the request will follow.
-    repeated PathStep steps = 5;
 }
 
 message E2ESetupRequest {
@@ -282,6 +278,10 @@ message E2ESetupRequest {
         // index of the current segment.
         // If the node is transfer, the first segment it belongs to.
         uint32 current_segment = 2;
+        // current index in the steps sequence.
+        uint32 current_step = 4;
+        // the path the request will follow.
+        repeated PathStep steps = 5;
     }
     message E2ESetupBead {
         // each on path AS writes here the max. BW it's willing to give.

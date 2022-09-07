@@ -36,6 +36,14 @@ type Reservation struct {
 	Indices             Indices
 }
 
+func (r *Reservation) IsFirstAS() bool {
+	return r.CurrentStep == 0
+}
+
+func (r *Reservation) IsLastAS() bool {
+	return r.CurrentStep == len(r.Steps)-1
+}
+
 func (r *Reservation) String() string {
 	if r == nil {
 		return "<nil>"

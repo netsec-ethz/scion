@@ -68,11 +68,9 @@ func E2ERequest(msg *colpb.E2ERequest) (*e2e.Request, error) {
 		return nil, err
 	}
 	return &e2e.Request{
-		Request:     *baseReq,
-		SrcHost:     msg.SrcHost,
-		DstHost:     msg.DstHost,
-		CurrentStep: int(msg.CurrentStep),
-		Steps:       PathSteps(msg.Steps),
+		Request: *baseReq,
+		SrcHost: msg.SrcHost,
+		DstHost: msg.DstHost,
 	}, nil
 }
 
@@ -93,6 +91,8 @@ func E2ESetupRequest(msg *colpb.E2ESetupRequest) (*e2e.SetupReq, error) {
 		Request:                *base,
 		SegmentRsvs:            segIds,
 		CurrentSegmentRsvIndex: int(msg.Params.CurrentSegment),
+		Steps:                  PathSteps(msg.Params.Steps),
+		CurrentStep:            int(msg.Params.CurrentStep),
 		RequestedBW:            col.BWCls(msg.RequestedBw),
 		AllocationTrail:        trail,
 	}, nil

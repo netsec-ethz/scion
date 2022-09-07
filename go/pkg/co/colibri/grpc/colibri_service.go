@@ -191,7 +191,7 @@ func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupReques
 		log.Error("setup segment", "err", err)
 		return nil, err
 	}
-	msg.Base.CurrentStep++
+	msg.Params.CurrentStep++
 	req, err := translate.E2ESetupRequest(msg)
 	if err != nil {
 		log.Error("translating e2e setup", "err", err)
@@ -213,7 +213,6 @@ func (s *ColibriService) CleanupE2EIndex(ctx context.Context, msg *colpb.Cleanup
 		log.Error("setup segment", "err", err)
 		return nil, err
 	}
-	msg.Base.CurrentStep++
 	req, err := translate.E2ERequest(msg.Base)
 	if err != nil {
 		log.Error("error unmarshalling", "err", err)
@@ -268,15 +267,15 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 				Timestamp:      msg.Timestamp,
 				Authenticators: &colpb.Authenticators{},
 			},
-			SrcHost:     msg.SrcHost,
-			DstHost:     msg.DstHost,
-			CurrentStep: 0,
-			Steps:       msg.PathSteps,
+			SrcHost: msg.SrcHost,
+			DstHost: msg.DstHost,
 		},
 		RequestedBw: msg.RequestedBw,
 		Params: &colpb.E2ESetupRequest_PathParams{
 			Segments:       msg.Segments,
 			CurrentSegment: 0,
+			Steps:          msg.PathSteps,
+			CurrentStep:    0,
 		},
 		Allocationtrail: nil,
 	}
@@ -359,11 +358,9 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 
 	req := &e2e.Request{
 		Request: *base.NewRequest(time.Now(), translate.ID(msg.Base.Id),
-			reservation.IndexNumber(msg.Base.Index), len(translate.PathSteps(msg.Steps))),
-		SrcHost:     msg.SrcHost,
-		DstHost:     msg.DstHost,
-		Steps:       translate.PathSteps(msg.Steps),
-		CurrentStep: 0,
+			reservation.IndexNumber(msg.Base.Index), len(msg.Base.Authenticators.Macs)),
+		SrcHost: msg.SrcHost,
+		DstHost: msg.DstHost,
 	}
 	req.Authenticators = msg.Base.Authenticators.Macs
 

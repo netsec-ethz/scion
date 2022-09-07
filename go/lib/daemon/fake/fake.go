@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/common"
@@ -216,8 +217,7 @@ func (c connector) ColibriSetupRsv(context.Context, *colibri.E2EReservationSetup
 	panic("not implemented")
 }
 
-func (c connector) ColibriCleanupRsv(context.Context, *colibri.BaseRequest) error {
-
+func (c connector) ColibriCleanupRsv(context.Context, *colibri.BaseRequest, base.PathSteps) error {
 	panic("not implemented")
 }
 

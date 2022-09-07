@@ -34,25 +34,23 @@ type BaseRequest struct {
 	TimeStamp      time.Time
 	SrcHost        net.IP
 	DstHost        net.IP
-	Steps          base.PathSteps
 	Authenticators [][]byte // per spec., MACs for AS_i on the immutable data
 }
 
-func (r *BaseRequest) CreateAuthenticators(ctx context.Context, conn DRKeyGetter) error {
-
-	return createAuthsForBaseRequest(ctx, conn, r)
+func (r *BaseRequest) CreateAuthenticators(ctx context.Context, conn DRKeyGetter,
+	steps base.PathSteps) error {
+	return createAuthsForBaseRequest(ctx, conn, r, steps)
 }
 
 // E2EReservationSetup has the necessary data for an endhost to setup/renew an e2e reservation.
 type E2EReservationSetup struct {
 	BaseRequest
+	Steps       base.PathSteps
 	RequestedBW reservation.BWCls
 	Segments    []reservation.ID
 }
 
-func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context,
-	conn DRKeyGetter) error {
-
+func (r *E2EReservationSetup) CreateAuthenticators(ctx context.Context, conn DRKeyGetter) error {
 	return createAuthsForE2EReservationSetup(ctx, conn, r)
 }
 
@@ -67,7 +65,6 @@ func NewReservation(
 ) (*E2EReservationSetup, error) {
 
 	steps := fullTrip.PathSteps()
-
 	setupReq := &E2EReservationSetup{
 		BaseRequest: BaseRequest{
 			Id: reservation.ID{
@@ -78,8 +75,8 @@ func NewReservation(
 			TimeStamp: time.Now(),
 			SrcHost:   srcHost,
 			DstHost:   dstHost,
-			Steps:     steps,
 		},
+		Steps:       steps,
 		RequestedBW: requestedBW,
 		Segments:    fullTrip.Segments(),
 	}

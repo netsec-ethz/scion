@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	// TODO(juagargi) unify test packages
+	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/client/sorting"
@@ -142,8 +143,8 @@ func TestReservationOpen(t *testing.T) {
 	require.Equal(t, testPaths[2], rsv.colibriPath) // last path available before the error
 
 	// stop and check
-	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, req *colibri.BaseRequest) error {
+	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *colibri.BaseRequest, steps base.PathSteps) error {
 			require.Equal(t, rsv.request.Id, req.Id)
 			require.Equal(t, reservation.NewIndexNumber(timesCalled-1), req.Index)
 			return nil
@@ -210,7 +211,7 @@ func TestReservationOpenSuccessfully(t *testing.T) {
 	require.Equal(t, timesCalled-1, renewalsCalled)
 
 	// stop and check
-	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any()).Return(nil)
+	daemon.EXPECT().ColibriCleanupRsv(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	err = rsv.Close(ctx)
 	require.NoError(t, err)
 }

@@ -41,18 +41,19 @@ import (
 
 func TestE2EBaseReqInitialMac(t *testing.T) {
 	cases := map[string]struct {
+		steps      base.PathSteps
 		clientReq  libcol.BaseRequest
 		transitReq e2e.Request
 	}{
 		"regular": {
+			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				1, "1-ff00:0:112", 0),
 			clientReq: libcol.BaseRequest{
 				Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
 				Index:     3,
 				TimeStamp: util.SecsToTime(1),
-				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-					1, "1-ff00:0:112", 0),
-				SrcHost: net.ParseIP(srcHost()),
-				DstHost: net.ParseIP(dstHost()),
+				SrcHost:   net.ParseIP(srcHost()),
+				DstHost:   net.ParseIP(dstHost()),
 			},
 			transitReq: e2e.Request{
 				Request: *base.NewRequest(util.SecsToTime(1),
@@ -60,11 +61,6 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 					3),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
-				Steps: ct.NewPath(
-					0, "1-ff00:0:111", 1,
-					1, "1-ff00:0:110", 2,
-					1, "1-ff00:0:112", 0,
-				),
 			},
 		},
 	}
@@ -80,20 +76,20 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			daemon := mock_daemon.NewMockConnector(ctrl)
 			mockDRKeys(t, daemon, srcIA(), net.ParseIP(srcHost()))
 
-			err := tc.clientReq.CreateAuthenticators(ctx, daemon)
+			err := tc.clientReq.CreateAuthenticators(ctx, daemon, tc.steps)
 			require.NoError(t, err)
 			// copy authenticators to transit request, as if they were received
 			for i, a := range tc.clientReq.Authenticators {
 				tc.transitReq.Authenticators[i] = a
 			}
 
-			authIA := tc.clientReq.Steps[1].IA
+			authIA := tc.steps[1].IA
 			auth := DRKeyAuthenticator{
 				localIA:   authIA,
 				fastKeyer: fakeFastKeyer{localIA: authIA},
 			}
-			tc.transitReq.CurrentStep = 1 // second AS, first transit AS
-			ok, err := auth.ValidateE2ERequest(ctx, &tc.transitReq)
+			// second AS, first transit AS -> currentStep == 1
+			ok, err := auth.ValidateE2ERequest(ctx, &tc.transitReq, tc.steps, 1)
 			require.NoError(t, err)
 			require.True(t, ok)
 		})
@@ -111,11 +107,11 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 					Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
 					Index:     3,
 					TimeStamp: util.SecsToTime(1),
-					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 0),
-					SrcHost: net.ParseIP(srcHost()),
-					DstHost: net.ParseIP(dstHost()),
+					SrcHost:   net.ParseIP(srcHost()),
+					DstHost:   net.ParseIP(dstHost()),
 				},
+				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+					1, "1-ff00:0:112", 0),
 				RequestedBW: 11,
 				Segments: []reservation.ID{
 					*ct.MustParseID("ff00:0:111", "01234567"),
@@ -129,9 +125,9 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 						3),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
-					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 0),
 				},
+				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+					1, "1-ff00:0:112", 0),
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
 					*ct.MustParseID("ff00:0:111", "01234567"),
@@ -175,6 +171,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 func TestE2ERequestTransitMac(t *testing.T) {
 	cases := map[string]struct {
 		transitReq e2e.Request
+		steps      base.PathSteps
 	}{
 		"regular": {
 			transitReq: e2e.Request{
@@ -183,12 +180,12 @@ func TestE2ERequestTransitMac(t *testing.T) {
 					3),
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
-				Steps: ct.NewPath(
-					0, "1-ff00:0:111", 1,
-					1, "1-ff00:0:110", 2,
-					1, "1-ff00:0:112", 0,
-				),
 			},
+			steps: ct.NewPath(
+				0, "1-ff00:0:111", 1,
+				1, "1-ff00:0:110", 2,
+				1, "1-ff00:0:112", 0,
+			),
 		},
 	}
 	for name, tc := range cases {
@@ -199,20 +196,18 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			defer cancelF()
 
 			// at the transit ASes:
-			for step := 1; step < len(tc.transitReq.Steps); step++ {
-				tc.transitReq.CurrentStep = step
-				authIA := tc.transitReq.Steps[step].IA
+			for step := 1; step < len(tc.steps); step++ {
+				authIA := tc.steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
 					fastKeyer: fakeFastKeyer{localIA: authIA},
 				}
-				err := auth.ComputeE2ERequestTransitMAC(ctx, &tc.transitReq)
+				err := auth.ComputeE2ERequestTransitMAC(ctx, &tc.transitReq, tc.steps, step)
 				require.NoError(t, err)
 			}
 
 			// at the destination AS:
-			tc.transitReq.CurrentStep = len(tc.transitReq.Steps) - 1
-			dstIA := tc.transitReq.Steps.DstIA()
+			dstIA := tc.steps.DstIA()
 			auth := DRKeyAuthenticator{
 				localIA:   dstIA,
 				slowKeyer: fakeSlowKeyer{localIA: dstIA},
@@ -220,7 +215,7 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			ok, err := auth.validateE2ERequestAtDestination(
 				ctx,
 				&tc.transitReq,
-				tc.transitReq.Steps,
+				tc.steps,
 			)
 			require.NoError(t, err)
 			require.True(t, ok)
@@ -240,12 +235,12 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 						3),
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
-					Steps: ct.NewPath(
-						0, "1-ff00:0:111", 1,
-						1, "1-ff00:0:110", 2,
-						1, "1-ff00:0:112", 0,
-					),
 				},
+				Steps: ct.NewPath(
+					0, "1-ff00:0:111", 1,
+					1, "1-ff00:0:110", 2,
+					1, "1-ff00:0:112", 0,
+				),
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
 					*ct.MustParseID("ff00:0:111", "01234567"),
@@ -287,7 +282,6 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 			ok, err := auth.validateE2ESetupRequestAtDestination(
 				ctx,
 				&tc.transitReq,
-				tc.transitReq.Steps,
 			)
 			require.NoError(t, err)
 			require.True(t, ok)
