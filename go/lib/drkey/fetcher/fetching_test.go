@@ -28,8 +28,8 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/scionproto/scion/go/lib/drkey"
+	dkfetcher "github.com/scionproto/scion/go/lib/drkey/fetcher"
 	"github.com/scionproto/scion/go/lib/xtest"
-	sd_grpc "github.com/scionproto/scion/go/pkg/daemon/drkey/grpc"
 	"github.com/scionproto/scion/go/pkg/grpc/mock_grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	mock_cppb "github.com/scionproto/scion/go/pkg/proto/control_plane/mock_control_plane"
@@ -91,7 +91,7 @@ func TestGetHostHost(t *testing.T) {
 	dialer := mock_grpc.NewMockDialer(ctrl)
 	dialer.EXPECT().Dial(gomock.Any(), gomock.Any()).Return(conn, nil)
 
-	fetcher := sd_grpc.Fetcher{
+	fetcher := &dkfetcher.Fetcher{
 		Dialer: dialer,
 	}
 

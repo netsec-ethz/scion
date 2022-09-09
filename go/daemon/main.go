@@ -33,6 +33,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	libdrkey "github.com/scionproto/scion/go/lib/drkey"
+	dkfetcher "github.com/scionproto/scion/go/lib/drkey/fetcher"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
@@ -54,7 +55,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/daemon/colibri"
 	"github.com/scionproto/scion/go/pkg/daemon/config"
 	"github.com/scionproto/scion/go/pkg/daemon/drkey"
-	dk_grpc "github.com/scionproto/scion/go/pkg/daemon/drkey/grpc"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
@@ -198,7 +198,7 @@ func realMain(ctx context.Context) error {
 		drkeyDB = libdrkey.Lvl2WithMetrics(string(storage.BackendSqlite), drkeyDB)
 		defer drkeyDB.Close()
 
-		drkeyFetcher := dk_grpc.Fetcher{
+		drkeyFetcher := &dkfetcher.Fetcher{
 			Dialer: dialer,
 		}
 		drkeyClientEngine = drkey.NewClientEngine(topo.IA(), drkeyDB, drkeyFetcher)

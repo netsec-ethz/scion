@@ -15,6 +15,7 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/fetcher:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/segfetcher:go_default_library",
         "//go/lib/infra/modules/segfetcher/grpc:go_default_library",
@@ -36,7 +37,6 @@ go_library(
         "//go/pkg/daemon/colibri:go_default_library",
         "//go/pkg/daemon/config:go_default_library",
         "//go/pkg/daemon/drkey:go_default_library",
-        "//go/pkg/daemon/drkey/grpc:go_default_library",
         "//go/pkg/daemon/fetcher:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/hiddenpath:go_default_library",
