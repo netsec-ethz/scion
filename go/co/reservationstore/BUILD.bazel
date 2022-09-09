@@ -66,6 +66,7 @@ go_library(
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/ctrl/drkey:go_default_library",
         "//go/lib/drkey:go_default_library",
+        "//go/lib/drkey/fetcher:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathpol:go_default_library",
         "//go/lib/periodic:go_default_library",

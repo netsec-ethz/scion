@@ -678,7 +678,7 @@ type fakeFastKeyer struct {
 	localIA addr.IA
 }
 
-func (f fakeFastKeyer) Lvl1(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (f fakeFastKeyer) Lvl1Key(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	if meta.SrcIA != f.localIA {
 		panic(fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
 			meta.SrcIA, f.localIA))
@@ -686,7 +686,7 @@ func (f fakeFastKeyer) Lvl1(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1K
 	return fakedrkey.Lvl1Key(meta), nil
 }
 
-func (f fakeFastKeyer) ASHost(_ context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+func (f fakeFastKeyer) ASHostKey(_ context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 	if meta.SrcIA != f.localIA {
 		panic(fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
 			meta.SrcIA, f.localIA))
@@ -698,7 +698,7 @@ type fakeSlowKeyer struct {
 	localIA addr.IA
 }
 
-func (f fakeSlowKeyer) Lvl1(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (f fakeSlowKeyer) Lvl1Key(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	if meta.DstIA != f.localIA {
 		panic(fmt.Sprintf("cannot fetch, DstIA != localIA, DstIA=%s, localIA=%s",
 			meta.DstIA, f.localIA))

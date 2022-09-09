@@ -33,29 +33,6 @@ type Fetcher struct {
 
 var _ sd_drkey.Fetcher = (*Fetcher)(nil)
 
-func (f *Fetcher) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
-	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
-	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
-	}
-	defer conn.Close()
-	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := ctrl.IntraLvl1ToProtoRequest(meta)
-	if err != nil {
-		return drkey.Lvl1Key{},
-			serrors.WrapStr("parsing AS-AS request to protobuf", err)
-	}
-	rep, err := client.IntraLvl1(ctx, protoReq)
-	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("requesting AS-AS key", err)
-	}
-	key, err := ctrl.GetASASKeyFromReply(meta, rep)
-	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining AS-AS key from reply", err)
-	}
-	return key, nil
-}
-
 func (f Fetcher) ASHostKey(ctx context.Context,
 	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 
@@ -134,5 +111,51 @@ func (f Fetcher) HostHostKey(ctx context.Context,
 		return drkey.HostHostKey{}, serrors.WrapStr("obtaining Host-Host key from reply", err)
 	}
 
+	return key, nil
+}
+
+func (f *Fetcher) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
+	}
+	defer conn.Close()
+	client := cppb.NewDRKeyIntraServiceClient(conn)
+	protoReq, err := ctrl.IntraLvl1ToProtoRequest(meta)
+	if err != nil {
+		return drkey.Lvl1Key{},
+			serrors.WrapStr("parsing AS-AS request to protobuf", err)
+	}
+	rep, err := client.IntraLvl1(ctx, protoReq)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("requesting AS-AS key", err)
+	}
+	key, err := ctrl.GetASASKeyFromReply(meta, rep)
+	if err != nil {
+		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining AS-AS key from reply", err)
+	}
+	return key, nil
+}
+
+func (f *Fetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
+	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	if err != nil {
+		return drkey.SV{}, serrors.WrapStr("dialing", err)
+	}
+	defer conn.Close()
+	client := cppb.NewDRKeyIntraServiceClient(conn)
+	protoReq, err := ctrl.SVMetaToProtoRequest(meta)
+	if err != nil {
+		return drkey.SV{},
+			serrors.WrapStr("parsing SV request to protobuf", err)
+	}
+	rep, err := client.SV(ctx, protoReq)
+	if err != nil {
+		return drkey.SV{}, serrors.WrapStr("requesting SV", err)
+	}
+	key, err := ctrl.GetSVFromReply(meta.ProtoId, rep)
+	if err != nil {
+		return drkey.SV{}, serrors.WrapStr("obtaining SV from reply", err)
+	}
 	return key, nil
 }

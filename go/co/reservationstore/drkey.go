@@ -30,12 +30,11 @@ import (
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	drkeyctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
+	dkfetcher "github.com/scionproto/scion/go/lib/drkey/fetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
-	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 type Authenticator interface {
@@ -110,13 +109,8 @@ type DRKeyAuthenticator struct {
 
 func NewDRKeyAuthenticator(localIA addr.IA, dialer libgrpc.Dialer) Authenticator {
 	return &DRKeyAuthenticator{
-		localIA: localIA,
-		fastKeyer: &deriver{
-			localIA: localIA,
-			secreter: &cachingSVfetcher{
-				dialer: dialer,
-			},
-		},
+		localIA:   localIA,
+		fastKeyer: newDeriver(localIA, dialer),
 		slowKeyer: newLvl1Fetcher(localIA, dialer),
 	}
 }
@@ -585,7 +579,7 @@ func (a *DRKeyAuthenticator) slowKeysFromPath(
 func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA,
 	valTime time.Time) (drkey.Lvl1Key, error) {
 
-	return a.fastKeyer.Lvl1(ctx, drkey.Lvl1Meta{
+	return a.fastKeyer.Lvl1Key(ctx, drkey.Lvl1Meta{
 		ProtoId:  drkey.COLIBRI,
 		Validity: valTime,
 		SrcIA:    a.localIA,
@@ -596,7 +590,7 @@ func (a *DRKeyAuthenticator) fastAS2AS(ctx context.Context, remoteIA addr.IA,
 func (a *DRKeyAuthenticator) slowAS2AS(ctx context.Context, remoteIA addr.IA,
 	valTime time.Time) (drkey.Lvl1Key, error) {
 
-	return a.slowKeyer.Lvl1(ctx, drkey.Lvl1Meta{
+	return a.slowKeyer.Lvl1Key(ctx, drkey.Lvl1Meta{
 		ProtoId:  drkey.COLIBRI,
 		Validity: valTime,
 		SrcIA:    remoteIA,
@@ -607,7 +601,7 @@ func (a *DRKeyAuthenticator) slowAS2AS(ctx context.Context, remoteIA addr.IA,
 func (a *DRKeyAuthenticator) fastAS2Host(ctx context.Context, remoteIA addr.IA,
 	remoteHost addr.HostAddr, valTime time.Time) (drkey.ASHostKey, error) {
 
-	return a.fastKeyer.ASHost(ctx, drkey.ASHostMeta{
+	return a.fastKeyer.ASHostKey(ctx, drkey.ASHostMeta{
 		Lvl2Meta: drkey.Lvl2Meta{
 			ProtoId:  drkey.COLIBRI,
 			Validity: valTime,
@@ -688,8 +682,8 @@ func MAC(payload []byte, key drkey.Key) ([]byte, error) {
 }
 
 type fastKeyer interface {
-	Lvl1(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
-	ASHost(context.Context, drkey.ASHostMeta) (drkey.ASHostKey, error)
+	Lvl1Key(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
+	ASHostKey(context.Context, drkey.ASHostMeta) (drkey.ASHostKey, error)
 }
 
 type deriver struct {
@@ -698,7 +692,18 @@ type deriver struct {
 	deriver  drkey.SpecificDeriver
 }
 
-func (d *deriver) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func newDeriver(localIA addr.IA, dialer libgrpc.Dialer) *deriver {
+	return &deriver{
+		localIA: localIA,
+		secreter: &cachingSVfetcher{
+			fetcher: &dkfetcher.Fetcher{
+				Dialer: dialer,
+			},
+		},
+	}
+}
+
+func (d *deriver) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	if meta.SrcIA != d.localIA {
 		panic(fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
 			meta.SrcIA, d.localIA))
@@ -725,14 +730,14 @@ func (d *deriver) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key,
 	}, nil
 }
 
-func (d *deriver) ASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+func (d *deriver) ASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 	lvl1Meta := drkey.Lvl1Meta{
 		Validity: meta.Validity,
 		SrcIA:    meta.SrcIA,
 		DstIA:    meta.DstIA,
 		ProtoId:  meta.ProtoId,
 	}
-	lvl1, err := d.Lvl1(ctx, lvl1Meta)
+	lvl1, err := d.Lvl1Key(ctx, lvl1Meta)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -751,25 +756,27 @@ func (d *deriver) ASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHo
 }
 
 type slowKeyer interface {
-	Lvl1(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
+	Lvl1Key(context.Context, drkey.Lvl1Meta) (drkey.Lvl1Key, error)
 }
 
 type lvl1Fetcher struct {
 	mtx     sync.Mutex
 	localIA addr.IA
-	dialer  libgrpc.Dialer
 	cache   map[addr.IA][]drkey.Lvl1Key // TODO expired entries should be cleaned up periodically
+	fetcher *dkfetcher.Fetcher
 }
 
 func newLvl1Fetcher(localIA addr.IA, dialer libgrpc.Dialer) *lvl1Fetcher {
 	return &lvl1Fetcher{
 		localIA: localIA,
-		dialer:  dialer,
 		cache:   map[addr.IA][]drkey.Lvl1Key{},
+		fetcher: &dkfetcher.Fetcher{
+			Dialer: dialer,
+		},
 	}
 }
 
-func (f *lvl1Fetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (f *lvl1Fetcher) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
@@ -793,7 +800,7 @@ func (f *lvl1Fetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1
 	}
 
 	// get it from local CS
-	lvl1Key, err := f.fetch(ctx, meta)
+	lvl1Key, err := f.fetcher.Lvl1Key(ctx, meta)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
 	}
@@ -802,37 +809,14 @@ func (f *lvl1Fetcher) Lvl1(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1
 	return lvl1Key, nil
 }
 
-func (f *lvl1Fetcher) fetch(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
-	conn, err := f.dialer.Dial(ctx, addr.SvcCS)
-	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
-	}
-	defer conn.Close()
-	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := drkeyctrl.IntraLvl1ToProtoRequest(meta)
-	if err != nil {
-		return drkey.Lvl1Key{},
-			serrors.WrapStr("parsing AS-AS request to protobuf", err)
-	}
-	rep, err := client.IntraLvl1(ctx, protoReq)
-	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("requesting AS-AS key", err)
-	}
-	key, err := drkeyctrl.GetASASKeyFromReply(meta, rep)
-	if err != nil {
-		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining AS-AS key from reply", err)
-	}
-	return key, nil
-}
-
 type secreter interface {
 	SV(context.Context, drkey.SVMeta) (drkey.SV, error)
 }
 
 type cachingSVfetcher struct {
-	dialer libgrpc.Dialer
-	cache  []drkey.SV // TODO expired entries should be cleaned up periodically
-	mtx    sync.Mutex // TODO could use RWMutex, but should be careful to avoid double-fetching SV!
+	cache   []drkey.SV // TODO expired entries should be cleaned up periodically
+	mtx     sync.Mutex // TODO could use RWMutex, but should be careful to avoid double-fetching SV!
+	fetcher *dkfetcher.Fetcher
 }
 
 func (f *cachingSVfetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
@@ -850,34 +834,11 @@ func (f *cachingSVfetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV,
 		}
 	}
 
-	key, err := f.fetch(ctx, meta)
+	key, err := f.fetcher.SV(ctx, meta)
 	if err != nil {
 		return drkey.SV{}, err
 	}
 	f.cache = append(f.cache, key)
-	return key, nil
-}
-
-func (f *cachingSVfetcher) fetch(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
-	conn, err := f.dialer.Dial(ctx, addr.SvcCS)
-	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("dialing", err)
-	}
-	defer conn.Close()
-	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := drkeyctrl.SVMetaToProtoRequest(meta)
-	if err != nil {
-		return drkey.SV{},
-			serrors.WrapStr("parsing SV request to protobuf", err)
-	}
-	rep, err := client.SV(ctx, protoReq)
-	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("requesting SV", err)
-	}
-	key, err := drkeyctrl.GetSVFromReply(meta.ProtoId, rep)
-	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("obtaining SV from reply", err)
-	}
 	return key, nil
 }
 
