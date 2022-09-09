@@ -39,7 +39,7 @@ import (
 
 // DRKeyGetter is the interface used to obtain AS-Host DRKeys. Usually this is just the daemon.
 type DRKeyGetter interface {
-	DRKeyGetASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
+	ASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
 }
 
 func createAuthsForBaseRequest(ctx context.Context, conn DRKeyGetter,
@@ -152,7 +152,7 @@ func getKeysWithLocalIA(ctx context.Context, conn DRKeyGetter, steps []base.Path
 
 	keys := make([]drkey.Key, len(steps))
 	for i, step := range steps {
-		key, err := conn.DRKeyGetASHostKey(ctx,
+		key, err := conn.ASHostKey(ctx,
 			drkey.ASHostMeta{
 				Lvl2Meta: drkey.Lvl2Meta{
 					ProtoId:  drkey.COLIBRI,

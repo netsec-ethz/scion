@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/daemon/drkey/adapter"
 )
 
 func TestE2EBaseReqInitialMac(t *testing.T) {
@@ -76,7 +77,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			daemon := mock_daemon.NewMockConnector(ctrl)
 			mockDRKeys(t, daemon, srcIA(), net.ParseIP(srcHost()))
 
-			err := tc.clientReq.CreateAuthenticators(ctx, daemon, tc.steps)
+			err := tc.clientReq.CreateAuthenticators(ctx, adapter.WithDaemon(daemon), tc.steps)
 			require.NoError(t, err)
 			// copy authenticators to transit request, as if they were received
 			for i, a := range tc.clientReq.Authenticators {
@@ -148,7 +149,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 			daemon := mock_daemon.NewMockConnector(ctrl)
 			mockDRKeys(t, daemon, srcIA(), net.ParseIP(srcHost()))
 
-			err := tc.clientReq.CreateAuthenticators(ctx, daemon)
+			err := tc.clientReq.CreateAuthenticators(ctx, adapter.WithDaemon(daemon))
 			require.NoError(t, err)
 			// copy authenticators to transit request, as if they were received
 			for i, a := range tc.clientReq.Authenticators {
@@ -515,7 +516,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 					FailedAS:       int(res.FailedStep),
 					Message:        res.Message,
 				}
-				err := clientRes.ValidateAuthenticators(ctx, daemon,
+				err := clientRes.ValidateAuthenticators(ctx, adapter.WithDaemon(daemon),
 					tc.steps, tc.srcHost, tc.timestamp)
 				require.NoError(t, err)
 			}
@@ -642,7 +643,8 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 						},
 					},
 				}
-				err = clientRes.ValidateAuthenticators(ctx, daemon, tc.steps, tc.srcHost,
+				err = clientRes.ValidateAuthenticators(ctx, adapter.WithDaemon(daemon),
+					tc.steps, tc.srcHost,
 					tc.timestamp)
 				require.NoError(t, err)
 			case *e2e.SetupResponseFailure:
@@ -654,7 +656,8 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					},
 					AllocationTrail: res.AllocTrail,
 				}
-				err := clientRes.ValidateAuthenticators(ctx, daemon, tc.steps, tc.srcHost,
+				err := clientRes.ValidateAuthenticators(ctx, adapter.WithDaemon(daemon),
+					tc.steps, tc.srcHost,
 					tc.timestamp)
 				require.NoError(t, err)
 			}

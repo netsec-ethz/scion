@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
+	dkfetcher "github.com/scionproto/scion/go/lib/drkey/fetcher"
 	libint "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -41,6 +42,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/grpc"
+	"google.golang.org/grpc/resolver"
 )
 
 func main() {
@@ -72,13 +75,12 @@ func realMain() int {
 		}.run()
 		return 0
 	}
-	c := client{
-		Daemon:  integration.SDConn(),
-		Timeout: timeout.Duration,
-		Metrics: scionConnMetrics,
-		Local:   &integration.Local,
-		Remote:  &remote,
-	}
+	c := *newClient(
+		integration.SDConn(),
+		timeout.Duration,
+		scionConnMetrics,
+		&remote,
+	)
 	return c.run()
 }
 
@@ -188,11 +190,46 @@ func (s server) accept(conn *snet.Conn, buffer []byte) error {
 }
 
 type client struct {
-	Daemon  daemon.Connector
-	Timeout time.Duration
-	Metrics snet.SCIONNetworkMetrics
-	Local   *snet.UDPAddr
-	Remote  *snet.UDPAddr
+	Daemon     daemon.Connector
+	KeyFetcher *dkfetcher.Fetcher
+	Timeout    time.Duration
+	Metrics    snet.SCIONNetworkMetrics
+	Local      *snet.UDPAddr
+	Remote     *snet.UDPAddr
+}
+
+func newClient(daemon daemon.Connector, timeout time.Duration, metrics snet.SCIONNetworkMetrics,
+	remoteAddr *snet.UDPAddr) *client {
+
+	ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelF()
+
+	addrMap, err := daemon.SVCInfo(ctx, []addr.HostSVC{addr.SvcCS})
+	if err != nil {
+		integration.LogFatal("cannot obtain info about the CS")
+	}
+	addrs := make([]resolver.Address, 1)
+	addrs[0] = resolver.Address{
+		Addr: addrMap[addr.SvcCS],
+	}
+	grpcDialer := &grpc.TCPDialer{
+		LocalAddr: &net.TCPAddr{
+			IP: integration.Local.Host.IP,
+		},
+		SvcResolver: func(hs addr.HostSVC) []resolver.Address {
+			return addrs
+		},
+	}
+	return &client{
+		Daemon: daemon,
+		KeyFetcher: &dkfetcher.Fetcher{
+			Dialer: grpcDialer,
+		},
+		Timeout: timeout,
+		Metrics: metrics,
+		Local:   &integration.Local,
+		Remote:  remoteAddr,
+	}
 }
 
 func (c client) run() int {
@@ -269,7 +306,7 @@ func (c client) run() int {
 	if len(trips) == 0 {
 		integration.LogFatal("no trips found")
 	}
-	// obtain an reservation
+	// obtain a reservation
 	steps := trips[0].PathSteps()
 	rsvID, p, err := c.createRsv(ctx, trips[0], 1)
 	if err != nil {
@@ -340,7 +377,7 @@ func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
 	requestBW reservation.BWCls) (reservation.ID, snet.Path, error) {
 
 	now := time.Now()
-	setupReq, err := libcol.NewReservation(ctx, c.Daemon, fullTrip, c.Local.Host.IP,
+	setupReq, err := libcol.NewReservation(ctx, c.KeyFetcher, fullTrip, c.Local.Host.IP,
 		c.Remote.Host.IP, requestBW)
 	if err != nil {
 		return reservation.ID{}, nil, err
@@ -349,7 +386,7 @@ func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
-	err = res.ValidateAuthenticators(ctx, c.Daemon, fullTrip.PathSteps(), c.Local.Host.IP, now)
+	err = res.ValidateAuthenticators(ctx, c.KeyFetcher, fullTrip.PathSteps(), c.Local.Host.IP, now)
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
@@ -360,6 +397,7 @@ func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservatio
 	steps base.PathSteps) error {
 
 	log.Debug("cleaning e2e rsv", "id", id)
+
 	req := &libcol.BaseRequest{
 		Id:        *id,
 		Index:     idx,
@@ -367,7 +405,7 @@ func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservatio
 		SrcHost:   c.Local.Host.IP,
 		DstHost:   c.Remote.Host.IP,
 	}
-	err := req.CreateAuthenticators(ctx, c.Daemon, steps)
+	err := req.CreateAuthenticators(ctx, c.KeyFetcher, steps)
 	if err != nil {
 		return err
 	}
