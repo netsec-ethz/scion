@@ -21,5 +21,5 @@ func (r *Reservation) SetActiveIndexForTesting(index int) {
 }
 
 func (index *Index) SetStateForTesting(state IndexState) {
-	index.state = state
+	index.State = state
 }

@@ -36,7 +36,7 @@ const (
 type Index struct {
 	Idx        reservation.IndexNumber
 	Expiration time.Time
-	state      IndexState
+	State      IndexState
 	MinBW      reservation.BWCls
 	MaxBW      reservation.BWCls
 	AllocBW    reservation.BWCls
@@ -49,17 +49,12 @@ func NewIndex(idx reservation.IndexNumber, expiration time.Time, state IndexStat
 	return &Index{
 		Idx:        idx,
 		Expiration: expiration,
-		state:      state,
+		State:      state,
 		MinBW:      minBW,
 		MaxBW:      maxBW,
 		AllocBW:    allocBW,
 		Token:      token,
 	}
-}
-
-// State returns the read-only state.
-func (index *Index) State() IndexState {
-	return index.state
 }
 
 // Indices is a collection of Index that implements IndicesInterface.
@@ -164,14 +159,14 @@ func ByMaxBW(maxBW reservation.BWCls) IndexFilter {
 // NotConfirmed filters out indices that are not in a state active or pending.
 func NotConfirmed() IndexFilter {
 	return func(index Index) bool {
-		return index.state == IndexActive || index.state == IndexPending
+		return index.State == IndexActive || index.State == IndexPending
 	}
 }
 
 // NotActive filters out indices that are not active (keeps only active indices).
 func NotActive() IndexFilter {
 	return func(index Index) bool {
-		return index.state == IndexActive
+		return index.State == IndexActive
 	}
 }
 

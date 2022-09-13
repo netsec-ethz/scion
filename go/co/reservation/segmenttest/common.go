@@ -176,7 +176,7 @@ func ConfirmAllIndices() ReservationMod {
 			return rsv
 		}
 		for _, idx := range rsv.Indices {
-			if idx.State() != segment.IndexActive {
+			if idx.State != segment.IndexActive {
 				if err := rsv.SetIndexConfirmed(idx.Idx); err != nil {
 					panic(err)
 				}

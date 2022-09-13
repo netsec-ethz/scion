@@ -702,7 +702,7 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 		params := make([]interface{}, 0, 8*len(rsv.Indices))
 		for _, index := range rsv.Indices {
 			params = append(params, rsvRowID, index.Idx,
-				util.TimeToSecs(index.Expiration), index.State(), index.MinBW, index.MaxBW,
+				util.TimeToSecs(index.Expiration), index.State, index.MinBW, index.MaxBW,
 				index.AllocBW, index.Token.ToRaw())
 			if _, err := reservation.TokenFromRaw(index.Token.ToRaw()); err != nil {
 				log.Error("inconsistent token being saved", "err", err, "id", rsv.ID.String(),

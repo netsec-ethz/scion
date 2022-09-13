@@ -77,79 +77,79 @@ func TestIndexFilters(t *testing.T) {
 			expected: false,
 		},
 		"confirmed (pending)": {
-			index:    Index{state: IndexPending},
+			index:    Index{State: IndexPending},
 			filter:   NotConfirmed(),
 			expected: true,
 		},
 		"confirmed (active)": {
-			index:    Index{state: IndexActive},
+			index:    Index{State: IndexActive},
 			filter:   NotConfirmed(),
 			expected: true,
 		},
 		"not confirmed (temporary)": {
-			index:    Index{state: IndexTemporary},
+			index:    Index{State: IndexTemporary},
 			filter:   NotConfirmed(),
 			expected: false,
 		},
 		"same index": {
 			index: Index{
 				Expiration: now,
-				state:      IndexActive},
+				State:      IndexActive},
 			filter: NotSwitchableFrom(&Index{
 				Expiration: now,
-				state:      IndexActive}),
+				State:      IndexActive}),
 			expected: true,
 		},
 		"future index": {
 			index: Index{
 				Expiration: now.Add(time.Second),
-				state:      IndexPending},
+				State:      IndexPending},
 			filter: NotSwitchableFrom(&Index{
 				Expiration: now,
-				state:      IndexActive}),
+				State:      IndexActive}),
 			expected: true,
 		},
 		"future index from pending": {
 			index: Index{
 				Expiration: now.Add(time.Second),
-				state:      IndexPending},
+				State:      IndexPending},
 			filter: NotSwitchableFrom(&Index{
 				Expiration: now,
-				state:      IndexPending}),
+				State:      IndexPending}),
 			expected: true,
 		},
 		"future index from temporary": {
 			index: Index{
 				Expiration: now.Add(time.Second),
-				state:      IndexPending},
+				State:      IndexPending},
 			filter: NotSwitchableFrom(&Index{
 				Expiration: now,
-				state:      IndexTemporary}),
+				State:      IndexTemporary}),
 			expected: true,
 		},
 		"no reference index": {
 			index: Index{
 				Expiration: now,
-				state:      IndexActive},
+				State:      IndexActive},
 			filter:   NotSwitchableFrom(nil),
 			expected: false,
 		},
 		"index in the past": {
 			index: Index{
 				Expiration: now.Add(-time.Second),
-				state:      IndexActive},
+				State:      IndexActive},
 			filter: NotSwitchableFrom(&Index{
 				Expiration: now,
-				state:      IndexPending}),
+				State:      IndexPending}),
 			expected: false,
 		},
 		"future index but not confirmed": {
 			index: Index{
 				Expiration: now.Add(time.Second),
-				state:      IndexTemporary},
+				State:      IndexTemporary},
 			filter: NotSwitchableFrom(&Index{
 				Expiration: now,
-				state:      IndexActive}),
+				State:      IndexActive}),
 			expected: false,
 		},
 	}

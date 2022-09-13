@@ -36,7 +36,7 @@ func TestNewIndex(t *testing.T) {
 	require.Equal(t, reservation.IndexNumber(0), idx)
 	require.Equal(t, idx, r.Indices[0].Idx)
 	require.Equal(t, expTime, r.Indices[0].Expiration)
-	require.Equal(t, segment.IndexTemporary, r.Indices[0].State())
+	require.Equal(t, segment.IndexTemporary, r.Indices[0].State)
 	require.Equal(t, reservation.BWCls(1), r.Indices[0].MinBW)
 	require.Equal(t, reservation.BWCls(3), r.Indices[0].MaxBW)
 	require.Equal(t, reservation.BWCls(2), r.Indices[0].AllocBW)
@@ -122,15 +122,15 @@ func TestSetIndexConfirmed(t *testing.T) {
 	r := segmenttest.NewReservation()
 	expTime := util.SecsToTime(1)
 	id, _ := r.NewIndex(0, expTime, 0, 0, 0, 0, reservation.CorePath)
-	require.Equal(t, segment.IndexTemporary, r.Indices[0].State())
+	require.Equal(t, segment.IndexTemporary, r.Indices[0].State)
 	err := r.SetIndexConfirmed(id)
 	require.NoError(t, err)
-	require.Equal(t, segment.IndexPending, r.Indices[0].State())
+	require.Equal(t, segment.IndexPending, r.Indices[0].State)
 
 	// confirm already confirmed
 	err = r.SetIndexConfirmed(id)
 	require.NoError(t, err)
-	require.Equal(t, segment.IndexPending, r.Indices[0].State())
+	require.Equal(t, segment.IndexPending, r.Indices[0].State)
 }
 
 func TestSetIndexActive(t *testing.T) {
@@ -146,7 +146,7 @@ func TestSetIndexActive(t *testing.T) {
 	r.SetIndexConfirmed(idx)
 	err = r.SetIndexActive(idx)
 	require.NoError(t, err)
-	require.Equal(t, segment.IndexActive, r.Indices[0].State())
+	require.Equal(t, segment.IndexActive, r.Indices[0].State)
 	require.Equal(t, 0, r.GetActiveIndexForTesting())
 
 	// already active

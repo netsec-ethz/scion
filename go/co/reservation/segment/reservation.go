@@ -150,7 +150,7 @@ func (r *Reservation) Validate() error {
 	}
 	activeIndex := -1
 	for i, index := range r.Indices {
-		if index.State() == IndexActive {
+		if index.State == IndexActive {
 			if activeIndex != -1 {
 				return serrors.New("more than one active index",
 					"first_active", r.Indices[activeIndex].Idx, "another_active", index.Idx)
@@ -261,10 +261,10 @@ func (r *Reservation) SetIndexConfirmed(idx reservation.IndexNumber) error {
 	if err != nil {
 		return err
 	}
-	if r.Indices[sliceIndex].state == IndexActive {
+	if r.Indices[sliceIndex].State == IndexActive {
 		return serrors.New("cannot confirm an already active index", "index_number", idx)
 	}
-	r.Indices[sliceIndex].state = IndexPending
+	r.Indices[sliceIndex].State = IndexPending
 	return nil
 }
 
@@ -279,9 +279,9 @@ func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
 		return nil // already active
 	}
 	// valid states are Pending (nominal) and Active (reconstructing from DB needs this)
-	if r.Indices[sliceIndex].state != IndexPending && r.Indices[sliceIndex].state != IndexActive {
+	if r.Indices[sliceIndex].State != IndexPending && r.Indices[sliceIndex].State != IndexActive {
 		return serrors.New("attempt to activate a non confirmed index", "index_number", idx,
-			"state", r.Indices[sliceIndex].state)
+			"state", r.Indices[sliceIndex].State)
 	}
 	if r.activeIndex > -1 {
 		if r.activeIndex > sliceIndex {
@@ -292,7 +292,7 @@ func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
 	// remove indices [lastActive,currActive) so that currActive is at position 0
 	r.Indices = r.Indices[sliceIndex:]
 	r.activeIndex = 0
-	r.Indices[0].state = IndexActive
+	r.Indices[0].State = IndexActive
 	return nil
 }
 
