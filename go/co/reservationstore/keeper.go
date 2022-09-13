@@ -55,7 +55,7 @@ const newIndexMinDuration = 2 * minDuration
 type keeper struct {
 	sleepUntil time.Time // nothing to do in the keeper until this time
 	manager    Manager
-	entries    []entry
+	entries    []*entry
 }
 
 type entry struct {
@@ -148,7 +148,7 @@ func (k *keeper) OneShot(ctx context.Context) (time.Time, error) {
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()
-			times[i], errs[i] = k.keepReservation(ctx, &e)
+			times[i], errs[i] = k.keepReservation(ctx, e)
 		}()
 	}
 	wg.Wait()
@@ -169,15 +169,19 @@ func (k *keeper) keepReservation(ctx context.Context, e *entry) (time.Time, erro
 	var err error
 	if e.rsv == nil {
 		e.rsv, err = k.askNewReservation(ctx, e)
-	} else {
-		switch compliance(e, k.manager.Now().Add(minDuration)) {
-		case Compliant:
-		case NeedsActivation:
-			err = k.activateIndex(ctx, e)
-		case NeedsIndices:
-			err = k.askNewIndices(ctx, e)
+		if err != nil {
+			return time.Time{}, err
 		}
 	}
+
+	switch compliance(e, k.manager.Now().Add(minDuration)) {
+	case Compliant:
+	case NeedsIndices:
+		err = k.askNewIndices(ctx, e)
+	case NeedsActivation:
+		err = k.activateIndex(ctx, e)
+	}
+
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -188,16 +192,16 @@ func (k *keeper) keepReservation(ctx context.Context, e *entry) (time.Time, erro
 // It returns the appropriate entries to manage from the keeper.
 // Those entries without a reservation ID must obtain a new reservation;
 // those with a reservation ID will need index activation, etc.
-func matchRsvsWithConfiguration(rsvs []*seg.Reservation, conf []*configuration) []entry {
+func matchRsvsWithConfiguration(rsvs []*seg.Reservation, conf []*configuration) []*entry {
 	conf = append(conf[:0:0], conf...)
 	// greedy strategy: for each reservation try to match it with the first compatible configuration
-	entries := make([]entry, 0)
+	entries := make([]*entry, 0)
 	for _, r := range rsvs {
 		i := findCompatibleConfiguration(r, conf)
 		if i < 0 {
 			continue
 		}
-		entries = append(entries, entry{
+		entries = append(entries, &entry{
 			conf: conf[i],
 			rsv:  r,
 		})
@@ -205,7 +209,7 @@ func matchRsvsWithConfiguration(rsvs []*seg.Reservation, conf []*configuration) 
 		conf = append(conf[:i], conf[i+1:]...)
 	}
 	for _, c := range conf {
-		entries = append(entries, entry{
+		entries = append(entries, &entry{
 			conf: c,
 		})
 	}
@@ -236,6 +240,9 @@ func findCompatibleConfiguration(r *seg.Reservation, conf []*configuration) int 
 func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
 	req := base.NewRequest(k.manager.Now(), &e.rsv.ID, e.rsv.NextIndexToActivate().Idx,
 		len(e.rsv.Steps))
+	if err := e.rsv.SetIndexActive(req.Index); err != nil {
+		return err
+	}
 	return k.manager.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.RawPath)
 }
 

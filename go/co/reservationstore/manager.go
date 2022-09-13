@@ -111,14 +111,15 @@ func (m *manager) Run(ctx context.Context) {
 			return
 		}
 		table := make([]string, 0, len(rsvs)+1)
-		table = append(table, fmt.Sprintf("%24s %4s %15s %4s %20s %11s %s",
-			"id", "dir", "dst", "|i|", "exp", "rawpath_type", "path"))
+		table = append(table, fmt.Sprintf("%24s %4s %15s %4s %4s %20s %11s %s",
+			"id", "dir", "dst", "|i|", "act", "exp", "rawpath_type", "path"))
 		for _, r := range rsvs {
-			table = append(table, fmt.Sprintf("%24s %4s %15s %4d %20s %11s %s",
+			table = append(table, fmt.Sprintf("%24s %4s %15s %4d %4d %20s %11s %s",
 				r.ID.String(),
 				r.PathType,
 				r.Steps.DstIA(),
 				r.Indices.Len(),
+				len(r.Indices.Filter(segment.NotActive())),
 				r.Indices.NewestExp().Format(time.Stamp),
 				r.RawPath.Type(),
 				r.Steps))
@@ -266,6 +267,9 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	}
 	// confirm new index
 	confirmReq := base.NewRequest(m.now(), &req.Reservation.ID, req.Index, len(req.Steps))
+	if err = req.Reservation.SetIndexConfirmed(req.Index); err != nil {
+		return err
+	}
 	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq, req.Steps, req.RawPath)
 	if err != nil || !res.Success() {
 		log.Info("failed to confirm the index", "id", req.ID, "idx", req.Index,

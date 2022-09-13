@@ -36,7 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestKeepOneShotDeleteme(t *testing.T) {
+func TestKeepOneShot(t *testing.T) {
 	allPaths := map[addr.IA][]snet.Path{
 		xtest.MustParseIA("1-ff00:0:2"): {
 			te.NewSnetPath("1-ff00:0:1", 1, 2, "1-ff00:0:2"), // direct
@@ -93,6 +93,8 @@ func TestKeepOneShotDeleteme(t *testing.T) {
 		st.WithTrafficSplit(2),
 		st.WithEndProps(reservation.StartLocal|reservation.EndLocal|reservation.EndTransfer))
 	r2 := st.ModRsv(cloneR(r1), st.WithPath("1-ff00:0:1", 1, 1, "1-ff00:0:3"))
+	r3 := st.ModRsv(cloneR(r1), st.WithPath("1-ff00:0:1", 1, 8, "1-ff00:0:2", 9, 1, "1-ff00:0:4"),
+		st.WithNoActiveIndex())
 	cases := map[string]struct {
 		config              []*configuration
 		reservations        []*seg.Reservation
@@ -135,11 +137,18 @@ func TestKeepOneShotDeleteme(t *testing.T) {
 			expectedNewRequests: 3,
 			expectedWakeupTime:  now.Add(sleepAtMost),
 		},
+		"not_active": {
+			config:              []*configuration{c3},
+			paths:               allPaths,
+			reservations:        []*seg.Reservation{r3},
+			expectedNewRequests: 0,
+			expectedWakeupTime:  now.Add(sleepAtMost),
+		},
 		"no_paths": {
 			config:              []*configuration{c1, c2, c2_notDirect, c3},
-			paths:               allPaths,
+			paths:               nil,
 			reservations:        []*seg.Reservation{},
-			expectedNewRequests: 3,
+			expectedNewRequests: 0,
 			expectedWakeupTime:  now.Add(sleepAtLeast),
 			expectError:         true,
 		},
@@ -168,12 +177,23 @@ func TestKeepOneShotDeleteme(t *testing.T) {
 			manager.EXPECT().SetupRequest(gomock.Any(), gomock.Any()).
 				Times(tc.expectedNewRequests).DoAndReturn(
 				func(_ context.Context, req *seg.SetupReq) error {
-					req.Reservation = &seg.Reservation{}
+					req.Reservation = &seg.Reservation{
+						Indices: seg.Indices{
+							{
+								Idx:        0,
+								Expiration: tomorrow,
+								MinBW:      10,
+								MaxBW:      42,
+							},
+						},
+					}
+					err := req.Reservation.SetIndexConfirmed(0)
+					require.NoError(t, err)
 					return nil
 				})
 			manager.EXPECT().ActivateRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 				AnyTimes().DoAndReturn(
-				func(_ context.Context, req *base.Request, steps []base.PathSteps, path slayerspath.Path) error {
+				func(_ context.Context, req *base.Request, steps base.PathSteps, path slayerspath.Path) error {
 					return nil
 				})
 

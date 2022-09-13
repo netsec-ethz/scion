@@ -168,6 +168,13 @@ func NotConfirmed() IndexFilter {
 	}
 }
 
+// NotActive filters out indices that are not active (keeps only active indices).
+func NotActive() IndexFilter {
+	return func(index Index) bool {
+		return index.state == IndexActive
+	}
+}
+
 // NotSwitchableFrom filters out indices not reachable from the argument.
 // A typical use would be to pass the active index to filter all non confirmed non future indices.
 func NotSwitchableFrom(index *Index) IndexFilter {

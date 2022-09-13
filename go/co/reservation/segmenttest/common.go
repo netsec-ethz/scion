@@ -149,6 +149,27 @@ func WithActiveIndex(idx int) ReservationMod {
 	}
 }
 
+// WithNoActiveIndex resets the active index to confirmed, if any active index exists.
+func WithNoActiveIndex() ReservationMod {
+	return func(rsv *segment.Reservation) *segment.Reservation {
+		if act := rsv.ActiveIndex(); act != nil {
+			rsv.RemoveIndex(act.Idx)
+			newIdx := segment.Index{
+				Idx:        act.Idx,
+				Expiration: act.Expiration,
+				MinBW:      act.MinBW,
+				MaxBW:      act.MaxBW,
+				AllocBW:    act.AllocBW,
+				Token:      act.Token,
+			}
+			// the active reservation is always the first one: place newIdx there
+			rsv.Indices = append(append(rsv.Indices[:0:0], newIdx), rsv.Indices...)
+			rsv.SetIndexConfirmed(newIdx.Idx)
+		}
+		return rsv
+	}
+}
+
 func ConfirmAllIndices() ReservationMod {
 	return func(rsv *segment.Reservation) *segment.Reservation {
 		if rsv == nil || rsv.Indices.Len() == 0 {
