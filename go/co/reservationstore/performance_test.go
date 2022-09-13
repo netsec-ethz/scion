@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/co/reservation/sqlite"
-	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/co/reservationstorage/backend"
 	"github.com/scionproto/scion/go/co/reservationstore"
 	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
@@ -37,22 +36,16 @@ import (
 
 const REPS = 100
 
-func TestStore(t *testing.T) {
-	var s reservationstorage.Store = &reservationstore.Store{}
-	_ = s
-}
-
 func TestDebugAdmitSegmentReservation(t *testing.T) {
-	// TODO(juagargi) enable the tests again
-	// // run for 1 distinct source AS:
-	// timeAdmitSegmentReservationManyRsvsSameAS(t, 1)
-	// // and with a different balance, for 100 distinct source ASes:
-	// timeAdmitSegmentReservationManySourceASes(t, 10)
+	// run for 1 distinct source AS:
+	timeAdmitSegmentReservationManyRsvsSameAS(t, 1)
+	// and with a different balance, for 100 distinct source ASes:
+	timeAdmitSegmentReservationManySourceASes(t, 10)
 }
 
 func TestDebugAdmitE2EReservation(t *testing.T) {
-	// timeAdmitE2EReservationManyEndhosts(t, 1)
-	// timeAdmitE2EReservationManySegments(t, 1)
+	timeAdmitE2EReservationManyEndhosts(t, 1)
+	timeAdmitE2EReservationManySegments(t, 1)
 }
 
 // TestComputeMAC tests that the MAC computation functions in the BR and the store are consistent.
