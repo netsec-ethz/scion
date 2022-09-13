@@ -7,12 +7,12 @@ go_test(
         "drkey_test.go",
         "export_test.go",
         "keeper_test.go",
+        "performance_test.go",
         "store_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
         "//go/co/reservation:go_default_library",
-        "//go/co/reservation/conf:go_default_library",
         "//go/co/reservation/e2e:go_default_library",
         "//go/co/reservation/segment:go_default_library",
         "//go/co/reservation/segmenttest:go_default_library",
