@@ -138,7 +138,6 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 // that still have no reservation ID for its config will request a new one.
 // The function returns the time when it should be called next.
 func (k *keeper) OneShot(ctx context.Context) (time.Time, error) {
-	wakeupAtLatest := k.manager.Now().Add(sleepAtMost)
 	wg := sync.WaitGroup{}
 	times := make([]time.Time, len(k.entries))
 	errs := make(serrors.List, len(k.entries))
@@ -152,15 +151,21 @@ func (k *keeper) OneShot(ctx context.Context) (time.Time, error) {
 		}()
 	}
 	wg.Wait()
+	if err := errs.Coalesce(); err != nil {
+		return k.manager.Now().Add(sleepAtLeast), err
+	}
+	// wakeupAtLatest is the maximum to wake up the keeper
+	wakeupAtLatest := k.manager.Now().Add(sleepAtMost)
 	for _, t := range times {
 		if t.Before(wakeupAtLatest) {
 			wakeupAtLatest = t
 		}
 	}
+	// but the keeper must sleep at least a minimum amount of time
 	if wakeupAtLatest.Sub(k.manager.Now()) < sleepAtLeast {
 		wakeupAtLatest = k.manager.Now().Add(sleepAtLeast)
 	}
-	return wakeupAtLatest, errs.Coalesce()
+	return wakeupAtLatest, nil
 }
 
 // keepReservation will ensure that the reservation exists or a request is created.
@@ -243,7 +248,12 @@ func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
 	if err := e.rsv.SetIndexActive(req.Index); err != nil {
 		return err
 	}
-	return k.manager.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.RawPath)
+	err := k.manager.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.RawPath)
+	if err != nil {
+		// rollback the index state
+		e.rsv.SetIndexInactive()
+	}
+	return err
 }
 
 // askNewIndices requests a renewal

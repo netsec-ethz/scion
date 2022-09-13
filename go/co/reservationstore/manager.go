@@ -272,8 +272,18 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	}
 	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq, req.Steps, req.RawPath)
 	if err != nil || !res.Success() {
+		origErr := err
+		if !res.Success() {
+			origErr = fmt.Errorf(res.(*base.ResponseFailure).Message)
+		}
 		log.Info("failed to confirm the index", "id", req.ID, "idx", req.Index,
 			"err", err, "res", res)
+		// rollback the index state
+		i, err := base.FindIndex(req.Reservation.Indices, req.Index)
+		if err == nil {
+			req.Reservation.Indices[i].State = segment.IndexTemporary
+		}
+		return serrors.WrapStr("failed to confirm the index", origErr)
 	}
 	return err
 }
@@ -284,8 +294,7 @@ func (m *manager) ActivateRequest(ctx context.Context, req *base.Request, steps 
 		return err
 	}
 	if !res.Success() {
-		failure := res.(*base.ResponseFailure)
-		return serrors.New("error activating index", "msg", failure.Message)
+		return serrors.New("error activating index", "msg", res.(*base.ResponseFailure).Message)
 	}
 	return nil
 }

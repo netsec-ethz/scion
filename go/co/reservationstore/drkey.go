@@ -559,7 +559,7 @@ func (a *DRKeyAuthenticator) slowKeysFromPath(
 	for i := 0; i < len(steps)-1; i++ {
 		step := steps[i+1]
 		if step.IA.Equal(a.localIA) {
-			return nil, serrors.New("request path contains initiator after first step",
+			return nil, serrors.New("request path contains initiator IA after first step",
 				"steps", steps)
 		}
 		if _, ok := seen[step.IA]; ok {

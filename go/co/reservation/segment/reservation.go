@@ -296,6 +296,13 @@ func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
 	return nil
 }
 
+func (r *Reservation) SetIndexInactive() {
+	if r.activeIndex == 0 {
+		r.Indices[0].State = IndexPending
+		r.activeIndex = -1
+	}
+}
+
 // RemoveIndex removes all indices from the beginning until this one, inclusive.
 func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
 	sliceIndex, err := base.FindIndex(r.Indices, idx)
