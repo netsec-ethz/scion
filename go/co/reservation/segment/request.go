@@ -39,11 +39,12 @@ type SetupReq struct {
 	SplitCls         reservation.SplitCls
 	PathProps        reservation.PathEndProps
 	AllocTrail       reservation.AllocationBeads
-	ReverseTraveling bool             // a down rsv traveling to the core to be re-requested
-	Reservation      *Reservation     // nil if no reservation yet
-	Steps            base.PathSteps   // retrieved from pb request (except at source)
-	CurrentStep      int              // recovered from pb request (except at source)
-	RawPath          slayerspath.Path // recovered from dataplane (except at source)
+	ReverseTraveling bool // a down rsv traveling to the core to be re-requested
+	// TODO(juagargi) remove Reservation from this type
+	Reservation   *Reservation     // nil if no reservation yet
+	Steps         base.PathSteps   // retrieved from pb request (except at source)
+	CurrentStep   int              // recovered from pb request (except at source)
+	TransportPath slayerspath.Path // recovered from dataplane (except at source)
 }
 
 // Validate takes as argument a function that returns the neighboring IA given the
@@ -76,7 +77,7 @@ func (r *SetupReq) Validate(getNeighborIA func(ifaceID uint16) addr.IA) error {
 		return serrors.New("Wrong interface for dstIA egress",
 			"egress", r.Steps[len(r.Steps)-1].Egress)
 	}
-	if err := r.Steps.ValidateEquivalent(r.RawPath, r.CurrentStep); err != nil {
+	if err := r.Steps.ValidateEquivalent(r.TransportPath, r.CurrentStep); err != nil {
 		return serrors.WrapStr("invalid steps/raw path", err)
 	}
 	// previous IA correct?

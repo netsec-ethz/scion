@@ -130,12 +130,6 @@ func (s *Store) ReportE2EReservationsInDB(ctx context.Context) ([]*e2e.Reservati
 	return s.db.GetAllE2ERsvs(ctx)
 }
 
-func (s *Store) GetReservationsAtSourceDeleteme(ctx context.Context, dstIA addr.IA) (
-	[]*segment.Reservation, error) {
-
-	return s.db.GetSegmentRsvsFromSrcDstIA(ctx, s.localIA, dstIA, reservation.UnknownPath)
-}
-
 func (s *Store) GetReservationsAtSource(ctx context.Context) (
 	[]*segment.Reservation, error) {
 
@@ -232,9 +226,6 @@ func (s *Store) ListStitchableSegments(ctx context.Context, dst addr.IA) (
 // InitSegmentReservation will start a new segment reservation request. The source of
 // the request will have this very AS as source.
 func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupReq) error {
-	if req.CurrentStep >= len(req.Steps)-1 {
-		return s.errNew("cannot initiate a reservation with this AS only in the path")
-	}
 	if req.ID.IsEmpty() {
 		return s.errNew("bad empty ID")
 	}
@@ -242,10 +233,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		return s.errNew("bad reservation id", "as", req.ID.ASID)
 	}
 
-	newSetup := false
-	if req.ID.IsEmptySuffix() {
-		newSetup = true
-	}
+	newSetup := req.ID.IsEmptySuffix()
 
 	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
@@ -259,31 +247,33 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	log.Info("COLIBRI requesting setup/renewal", "new_setup", newSetup,
 		"id", req.ID.String(), "idx", req.Index, "dst_ia", req.Steps.DstIA(), "path", req.Steps)
 
-	rawPath := req.RawPath
-	origPath := req.Steps.Copy()
+	rawPath := req.TransportPath
+	origSteps := req.Steps.Copy()
+	reverseTraveling := req.ReverseTraveling
 	rollbackChanges := func(setupRes segment.SegmentSetupResponse) {
+		// TODO(juagargi) allow to unit test this
 		if failure, ok := setupRes.(*segment.SegmentSetupResponseFailure); ok {
-			if !req.ReverseTraveling {
-				if len(failure.FailedRequest.AllocTrail)+1 < len(origPath) {
+			if !reverseTraveling {
+				if len(failure.FailedRequest.AllocTrail)+1 < len(origSteps) {
 					// shorten the path to exclude those nodes the request never transited.
 					// the last node in allocTrail could (or not) have stored the index and
 					// thus would need cleaning.
-					origPath = origPath[:len(failure.FailedRequest.AllocTrail)+1]
+					origSteps = origSteps[:len(failure.FailedRequest.AllocTrail)+1]
 				}
 			}
 		}
-		if len(origPath) < 2 {
+		if len(origSteps) < 2 {
 			// only this AS to contact (or not even here), just don't send any RPC
 			return
 		}
 		// uses the `req` that will have the new ID and index, but the original path
-		req := base.NewRequest(req.Timestamp, &req.ID, req.Index, len(origPath))
+		req := base.NewRequest(req.Timestamp, &req.ID, req.Index, len(origSteps))
 		var res base.Response
 		var err error
 		if newSetup {
-			res, err = s.InitTearDownSegmentReservation(ctx, req, origPath, rawPath)
+			res, err = s.InitTearDownSegmentReservation(ctx, req, origSteps, rawPath)
 		} else {
-			res, err = s.InitCleanupSegmentReservation(ctx, req, origPath, rawPath)
+			res, err = s.InitCleanupSegmentReservation(ctx, req, origSteps, rawPath)
 		}
 		if err != nil {
 			log.Info("while cleaning reservations down the path an error occurred",
@@ -309,18 +299,11 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		rsv.PathEndProps = req.PathProps
 		rsv.TrafficSplit = req.SplitCls
 		rsv.Steps = req.Steps
-		rsv.RawPath = rawPath
-
-		//Check if rsv is a down-seg we invert ingress/egress
-		if rsv.PathType == reservation.DownPath {
-			rsv.Ingress = req.Egress()
-			rsv.Egress = req.Ingress()
-			rsv.Steps = req.Steps.Reverse()
-			rsv.CurrentStep = len(rsv.Steps) - 1
-		}
+		rsv.CurrentStep = req.CurrentStep
+		rsv.TransportPath = rawPath
 
 		if err := s.db.NewSegmentRsv(ctx, rsv); err != nil {
-			return s.errWrapStr("initial reservation creation", err, "dst", req.Steps.DstIA())
+			return s.errWrapStr("initial reservation creation", err, "dst", rsv.Steps.DstIA())
 		}
 		req.ID = rsv.ID // the DB created a new suffix for the rsv.; copy it to the request
 	}
@@ -346,22 +329,25 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		rollbackChanges(res)
 		return err
 	}
+	if _, ok := res.(*segment.SegmentSetupResponseSuccess); !ok {
+		rollbackChanges(res)
+		return serrors.New("error in setup", "response", res)
+	}
+
 	// TODO(juagargi) deprecate the use of ReverseTraveling and all the complexity that it involves.
 	if req.PathType != reservation.DownPath {
-		ok, err := s.authenticator.ValidateSegmentSetupResponse(ctx, res, req.Steps)
+		ok, err := s.authenticator.ValidateSegmentSetupResponse(ctx, res, rsv.Steps)
 		if !ok || err != nil {
 			return s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
 	}
-	if _, ok := res.(*segment.SegmentSetupResponseSuccess); !ok {
-		rollbackChanges(res)
-		return serrors.New("failure in setup", "response", res)
-	}
 
 	return nil
 }
 
+// InitConfirmSegmentReservation needs the steps variable in the order of transport: this means
+// in the direction of the SegR if core or up path, but reverse direction if down path.
 func (s *Store) InitConfirmSegmentReservation(ctx context.Context, req *base.Request,
 	steps base.PathSteps, rawPath slayerspath.Path) (
 	base.Response, error) {
@@ -374,6 +360,8 @@ func (s *Store) InitConfirmSegmentReservation(ctx context.Context, req *base.Req
 
 }
 
+// InitActivateSegmentReservation needs the steps variable in the order of transport: this means
+// in the direction of the SegR if core or up path, but reverse direction if down path.
 func (s *Store) InitActivateSegmentReservation(ctx context.Context, req *base.Request,
 	steps base.PathSteps, rawPath slayerspath.Path) (
 	base.Response, error) {
@@ -452,6 +440,8 @@ func (s *Store) AdmitSegmentReservation(
 ) (segment.SegmentSetupResponse, error) {
 
 	if req.ReverseTraveling {
+		// amend the currentStep: is always incremented by one but we travel in reverse
+		req.CurrentStep -= 2
 		return s.sendUpstreamForAdmission(ctx, req, rawPath)
 	}
 	if err := s.authenticateSegSetupReq(ctx, req, req.CurrentStep); err != nil {
@@ -471,6 +461,9 @@ func newFailedMessage(req *base.Request, currentStep int) *base.ResponseFailure 
 }
 
 // ConfirmSegmentReservation changes the state of an index from temporary to confirmed.
+// TODO(juagargi) this RPC travels in reverse in the case of a down path: if a down-path SegR
+// A<-B-<-C is initiated/triggered at A, the authenticators are computed at A, and validated
+// at B and C.
 func (s *Store) ConfirmSegmentReservation(
 	ctx context.Context,
 	req *base.Request,
@@ -494,9 +487,12 @@ func (s *Store) ConfirmSegmentReservation(
 	if rsv == nil {
 		return nil, serrors.New("no reservation found")
 	}
+
 	currentStep := rsv.CurrentStep
 	steps := rsv.Steps
 	egress := rsv.Egress
+	// because canonical storage of steps and current step is always in the direction of the
+	// reservation, reverse them if we are traveling in the reverse direction:
 	if rsv.PathType == reservation.DownPath {
 		currentStep = len(rsv.Steps) - 1 - rsv.CurrentStep
 		steps = rsv.Steps.Reverse()
@@ -504,9 +500,9 @@ func (s *Store) ConfirmSegmentReservation(
 	}
 
 	failedResponse := newFailedMessage(req, currentStep)
-	if len(req.Authenticators) != len(steps)-1 {
-		failedResponse.Message = fmt.Sprintln("inconsistent number of authenticators",
-			"auth_count", len(req.Authenticators), "path_len", len(steps))
+	if err := req.Validate(steps); err != nil {
+		failedResponse.Message = fmt.Sprintln("error validating request",
+			"err", err.Error())
 		return failedResponse, nil
 	}
 
@@ -531,7 +527,7 @@ func (s *Store) ConfirmSegmentReservation(
 	}
 
 	var res base.Response
-	if currentStep >= len(steps)-1 {
+	if currentStep == len(steps)-1 {
 		res = &base.ResponseSuccess{
 			AuthenticatedResponse: base.AuthenticatedResponse{
 				Timestamp:      req.Timestamp,
@@ -614,6 +610,8 @@ func (s *Store) ActivateSegmentReservation(
 	currentStep := rsv.CurrentStep
 	steps := rsv.Steps
 	egress := rsv.Egress
+	// because canonical storage of steps and current step is always in the direction of the
+	// reservation, reverse them if we are traveling in the reverse direction:
 	if rsv.PathType == reservation.DownPath {
 		currentStep = len(rsv.Steps) - 1 - rsv.CurrentStep
 		steps = rsv.Steps.Reverse()
@@ -654,7 +652,7 @@ func (s *Store) ActivateSegmentReservation(
 		} else {
 			// if no errors, use the colibri path
 			// rsv.Steps = steps
-			rsv.RawPath = rawPath
+			rsv.TransportPath = rawPath
 		}
 	}
 	if err = tx.PersistSegmentRsv(ctx, rsv); err != nil {
@@ -1606,7 +1604,7 @@ func (s *Store) admitSegmentReservation(
 		rsv.TrafficSplit = req.SplitCls
 		rsv.CurrentStep = req.CurrentStep
 		rsv.Steps = req.Steps
-		rsv.RawPath = rawPath
+		rsv.TransportPath = rawPath
 	}
 
 	req.Reservation = rsv
@@ -1643,7 +1641,8 @@ func (s *Store) admitSegmentReservation(
 			Authenticators: make([][]byte, len(req.Authenticators)),
 		},
 	}
-	if req.CurrentStep >= len(req.Steps)-1 {
+	// if this is the last step, create a token from the new empty index
+	if req.CurrentStep == len(req.Steps)-1 {
 		res.Token = *index.Token
 	} else {
 		// forward the request to the next COLIBRI service
@@ -1661,8 +1660,8 @@ func (s *Store) admitSegmentReservation(
 	}
 
 	// update token with new hop field
-	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, req.Steps.SrcIA().AS(), req.Steps.DstIA().AS(),
-		req.Ingress(), req.Egress()); err != nil {
+	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, rsv.Steps.SrcIA().AS(), rsv.Steps.DstIA().AS(),
+		rsv.Ingress, rsv.Egress); err != nil {
 		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
 		return updateResponse(failedResponse)
 	}
@@ -1724,6 +1723,7 @@ func (s *Store) sendUpstreamForAdmission(
 	rawPath slayerspath.Path,
 ) (segment.SegmentSetupResponse, error) {
 
+	log.Debug("climbing upstream for admission", "curr_step", req.CurrentStep, "steps", req.Steps)
 	// TODO(juagargi) this assert will fail: sendUpstreamForAdmission is called with
 	// req.ReverseTraveling==false for core ASes.
 	assert(req.ReverseTraveling,
@@ -1733,22 +1733,26 @@ func (s *Store) sendUpstreamForAdmission(
 		FailedRequest: req,
 	}
 
-	if req.CurrentStep >= len(req.Steps)-1 {
-		req.ReverseTraveling = false
-		req.Steps = req.Steps.Reverse()
+	if req.CurrentStep == 0 {
+		// this is the source of the traffic of the SegR, create the authenticators
 		err := s.authenticator.ComputeSegmentSetupRequestInitialMAC(ctx, req)
 		if err != nil {
 			return nil, err
 		}
-		req.CurrentStep = 0
-		revPath, err := rawPath.Reverse()
+
+		// and do regular admission
+		req.ReverseTraveling = false
+		rawPath, err := rawPath.Reverse() // revert path so we can now reach the previous sender
 		if err != nil {
-			return nil, serrors.WrapStr("reversing rawPath", err)
+			log.Info("error reverting scion or colibri path", "err", err, "path", rawPath)
 		}
-		return s.admitSegmentReservation(ctx, req, revPath)
+		return s.admitSegmentReservation(ctx, req, rawPath)
 	}
-	// forward to next colibri service upstream
-	client, err := s.operator.ColibriClient(ctx, req.Egress(), rawPath)
+
+	// if this is not the source of the traffic of the SegR (first step), then
+	// forward to next colibri service upstream; note that because it travels in reverse,
+	// the outbound traffic goes through the ingress interface in the request:
+	client, err := s.operator.ColibriClient(ctx, req.Ingress(), rawPath)
 	if err != nil {
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
@@ -1764,17 +1768,6 @@ func (s *Store) sendUpstreamForAdmission(
 	res, err := translate.SetupResponse(pbRes)
 	if err != nil {
 		return nil, serrors.WrapStr("translating response", err)
-	}
-	if !(req.CurrentStep == 0) {
-		// create authenticators before passing the response to the previous node in the path
-		if err := s.authenticator.ComputeSegmentSetupResponseMAC(
-			ctx,
-			res,
-			req.Steps,
-			req.CurrentStep,
-		); err != nil {
-			return failedResponse, s.errWrapStr("computing authenticators for response", err)
-		}
 	}
 
 	// at this point, the reservation has been accepted. Update the request link with it:

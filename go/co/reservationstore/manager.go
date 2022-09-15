@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -42,7 +43,7 @@ type Manager interface {
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
-	ActivateRequest(context.Context, *base.Request, base.PathSteps, slayerspath.Path) error
+	ActivateRequest(context.Context, *base.Request, base.PathSteps, slayerspath.Path, bool) error
 	DeleteExpiredIndices(ctx context.Context) error
 }
 
@@ -121,7 +122,7 @@ func (m *manager) Run(ctx context.Context) {
 				r.Indices.Len(),
 				len(r.Indices.Filter(segment.NotActive())),
 				r.Indices.NewestExp().Format(time.Stamp),
-				r.RawPath.Type(),
+				r.TransportPath.Type(),
 				r.Steps))
 		}
 		if len(rsvs) > 0 {
@@ -248,19 +249,16 @@ func (m *manager) PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	return paths, err
 }
 
-func (m *manager) GetReservationsAtSourceDeleteme(ctx context.Context, dst addr.IA) (
-	[]*segment.Reservation, error) {
-
-	return m.store.GetReservationsAtSourceDeleteme(ctx, dst)
-}
-
 func (m *manager) GetReservationsAtSource(ctx context.Context) (
 	[]*segment.Reservation, error) {
 
 	return m.store.GetReservationsAtSource(ctx)
 }
 
+// SetupRequest expects the steps to always go from src->dst, also for down-path. E.g.
+// a down-path SegR A<-B<-C is transported with a scion path A->B, but the steps are C,B,A .
 func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error {
+	// setup/renew reservation (new temporary index in both cases)
 	err := m.store.InitSegmentReservation(ctx, req)
 	if err != nil {
 		return err
@@ -270,14 +268,26 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	if err = req.Reservation.SetIndexConfirmed(req.Index); err != nil {
 		return err
 	}
-	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq, req.Steps, req.RawPath)
+	// because the store expects the steps[0] to always be the initiator (even for down-path
+	// SegRs), we need to reverse the steps and path if the SegR is of down-path type
+	steps := req.Steps
+	transportPath := req.TransportPath
+	if req.PathType == reservation.DownPath {
+		steps = steps.Reverse()
+		transportPath, err = transportPath.Reverse()
+		if err != nil {
+			log.Info("error reversing scion/colibri path", "err", err, "path", transportPath)
+			panic(err)
+		}
+	}
+	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq, steps, transportPath)
 	if err != nil || !res.Success() {
 		origErr := err
-		if !res.Success() {
+		if res != nil && !res.Success() {
 			origErr = fmt.Errorf(res.(*base.ResponseFailure).Message)
 		}
-		log.Info("failed to confirm the index", "id", req.ID, "idx", req.Index,
-			"err", err, "res", res)
+		log.Info("error confirming index", "id", req.ID, "idx", req.Index,
+			"err", origErr, "res_failure", res != nil && !res.Success())
 		// rollback the index state
 		i, err := base.FindIndex(req.Reservation.Indices, req.Index)
 		if err == nil {
@@ -288,7 +298,12 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	return err
 }
 
-func (m *manager) ActivateRequest(ctx context.Context, req *base.Request, steps base.PathSteps, path slayerspath.Path) error {
+func (m *manager) ActivateRequest(ctx context.Context, req *base.Request, steps base.PathSteps,
+	path slayerspath.Path, reverseTraveling bool) error {
+
+	if reverseTraveling {
+		steps = steps.Reverse()
+	}
 	res, err := m.store.InitActivateSegmentReservation(ctx, req, steps, path)
 	if err != nil {
 		return err

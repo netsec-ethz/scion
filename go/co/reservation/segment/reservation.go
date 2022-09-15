@@ -39,8 +39,8 @@ type Reservation struct {
 	Steps        base.PathSteps           // recovered from the pb messages
 	// TODO(JordiSubira): Remove unnecessary redundant data,
 	// Ingress == Steps[CurrentStep].Ingress
-	CurrentStep int
-	RawPath     slayerspath.Path // only used at source IA
+	CurrentStep   int
+	TransportPath slayerspath.Path // only used at source IA
 }
 
 func NewReservation(asid addr.AS) *Reservation {
@@ -169,7 +169,7 @@ func (r *Reservation) Validate() error {
 		return serrors.New("Wrong interface for dstIA egress",
 			"egress", r.Steps[len(r.Steps)-1].Egress)
 	}
-	if in, eg := base.InEgFromDataplanePath(r.RawPath); in != r.Ingress || eg != r.Egress {
+	if in, eg := base.InEgFromDataplanePath(r.TransportPath); in != r.Ingress || eg != r.Egress {
 		return serrors.New("Inconsistent ingress/egress from dataplane and reservation",
 			"dataplane_in", in, "reservation_in", r.Ingress,
 			"dataplane_eg", eg, "reservation_eg", r.Egress)

@@ -63,6 +63,9 @@ type entry struct {
 	rsv  *seg.Reservation
 }
 
+// PrepareSetupRequest creates a valid setup request with the steps always in the direction of
+// the traffic of the SegR, and the transport path always in the direction of the next
+// colibri service (thus for down-path SegRs the transport will be in the reverse wrt the steps).
 func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 	p snet.Path) *seg.SetupReq {
 
@@ -71,10 +74,18 @@ func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 		log.Info("error in SCION path, cannot convert to steps", "err", err, "path", p)
 		panic(err)
 	}
+	currentStep := 0
 	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
 	if err != nil {
 		log.Info("error in SCION path, cannot get dataplane", "err", err, "path", p)
 	}
+
+	// if the SegR is of down-path type, reverse the steps
+	if e.conf.pathType == reservation.DownPath {
+		steps = steps.Reverse()
+		currentStep = len(steps) - 1
+	}
+
 	id, _ := reservation.NewID(localAS, make([]byte, reservation.IDSuffixSegLen))
 	return &seg.SetupReq{
 		Request:        *base.NewRequest(now, id, 0, len(steps)),
@@ -86,7 +97,8 @@ func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 		PathProps:      e.conf.endProps,
 		AllocTrail:     reservation.AllocationBeads{},
 		Steps:          steps,
-		RawPath:        rawPath,
+		CurrentStep:    currentStep,
+		TransportPath:  rawPath,
 	}
 }
 
@@ -102,7 +114,8 @@ func (e *entry) PrepareRenewalRequest(now, expTime time.Time) *seg.SetupReq {
 		PathProps:      e.rsv.PathEndProps,
 		AllocTrail:     reservation.AllocationBeads{},
 		Steps:          e.rsv.Steps.Copy(),
-		RawPath:        e.rsv.RawPath,
+		CurrentStep:    0,
+		TransportPath:  e.rsv.TransportPath,
 		Reservation:    e.rsv,
 	}
 }
@@ -248,7 +261,9 @@ func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
 	if err := e.rsv.SetIndexActive(req.Index); err != nil {
 		return err
 	}
-	err := k.manager.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.RawPath)
+
+	inReverse := e.rsv.PathType == reservation.DownPath
+	err := k.manager.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.TransportPath, inReverse)
 	if err != nil {
 		// rollback the index state
 		e.rsv.SetIndexInactive()
@@ -278,9 +293,11 @@ func (k *keeper) askNewReservation(ctx context.Context, e *entry) (*seg.Reservat
 			if req.Reservation == nil {
 				panic("logic error, reservation after new request is empty")
 			}
-			return req.Reservation, nil
 		}
-		log.Info("error creating new reservation from best effort path", "path", p)
+		if req.Reservation != nil {
+			return req.Reservation, err
+		}
+		log.Info("error creating new reservation from best effort path", "path", p, "err", err)
 	}
 	return nil, serrors.New("no more best effort paths to create reservation", "dst", e.conf.dst)
 }

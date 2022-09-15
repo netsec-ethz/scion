@@ -194,21 +194,6 @@ func (mr *MockStoreMockRecorder) GetReservationsAtSource(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReservationsAtSource", reflect.TypeOf((*MockStore)(nil).GetReservationsAtSource), arg0)
 }
 
-// GetReservationsAtSourceDeleteme mocks base method.
-func (m *MockStore) GetReservationsAtSourceDeleteme(arg0 context.Context, arg1 addr.IA) ([]*segment.Reservation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetReservationsAtSourceDeleteme", arg0, arg1)
-	ret0, _ := ret[0].([]*segment.Reservation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetReservationsAtSourceDeleteme indicates an expected call of GetReservationsAtSourceDeleteme.
-func (mr *MockStoreMockRecorder) GetReservationsAtSourceDeleteme(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReservationsAtSourceDeleteme", reflect.TypeOf((*MockStore)(nil).GetReservationsAtSourceDeleteme), arg0, arg1)
-}
-
 // InitActivateSegmentReservation mocks base method.
 func (m *MockStore) InitActivateSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path) (reservation.Response, error) {
 	m.ctrl.T.Helper()
@@ -311,6 +296,20 @@ func (m *MockStore) ListStitchableSegments(arg0 context.Context, arg1 addr.IA) (
 func (mr *MockStoreMockRecorder) ListStitchableSegments(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListStitchableSegments", reflect.TypeOf((*MockStore)(nil).ListStitchableSegments), arg0, arg1)
+}
+
+// Ready mocks base method.
+func (m *MockStore) Ready() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ready")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Ready indicates an expected call of Ready.
+func (mr *MockStoreMockRecorder) Ready() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockStore)(nil).Ready))
 }
 
 // ReportE2EReservationsInDB mocks base method.

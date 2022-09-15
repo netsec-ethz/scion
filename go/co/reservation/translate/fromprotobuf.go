@@ -57,7 +57,7 @@ func SetupReq(msg *colpb.SegmentSetupRequest, rawPath slayerspath.Path) (*segmen
 		ReverseTraveling: revTravel,
 		Steps:            PathSteps(msg.Params.Steps),
 		CurrentStep:      int(msg.Params.CurrentStep) + 1,
-		RawPath:          rawPath,
+		TransportPath:    rawPath,
 	}
 	return req, nil
 }

@@ -191,9 +191,11 @@ func TestKeepOneShot(t *testing.T) {
 					require.NoError(t, err)
 					return nil
 				})
-			manager.EXPECT().ActivateRequest(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-				AnyTimes().DoAndReturn(
-				func(_ context.Context, req *base.Request, steps base.PathSteps, path slayerspath.Path) error {
+			manager.EXPECT().ActivateRequest(gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+				func(_ context.Context, req *base.Request, steps base.PathSteps,
+					path slayerspath.Path, inReverse bool) error {
+
 					return nil
 				})
 

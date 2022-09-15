@@ -70,9 +70,6 @@ type Store interface {
 	// -----------------------------------------------------------
 	// as the source of reservations:
 
-	// GetReservationsAtSourceDeleteme is used by a reservation manager or keeper to know all
-	// reservations they must keep updated.
-	GetReservationsAtSourceDeleteme(ctx context.Context, dstIA addr.IA) ([]*sgt.Reservation, error)
 	// GetReservationsAtSource is used by a reservation manager or keeper to know all
 	// reservations they must keep updated.
 	GetReservationsAtSource(ctx context.Context) ([]*sgt.Reservation, error)

@@ -479,7 +479,7 @@ func newTestRequest(t *testing.T, ingress, egress int,
 		SplitCls:       2,
 		PathProps:      reservation.StartLocal | reservation.EndLocal,
 		Steps:          steps,
-		RawPath:        rawPath,
+		TransportPath:  rawPath,
 		CurrentStep:    1,
 	}
 }
@@ -513,13 +513,13 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 				AllocBW:    allocBW,
 			},
 		},
-		Ingress:      ingress,
-		Egress:       egress,
-		PathType:     reservation.UpPath,
-		PathEndProps: reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
-		TrafficSplit: 2,
-		RawPath:      rawPath,
-		Steps:        steps,
+		Ingress:       ingress,
+		Egress:        egress,
+		PathType:      reservation.UpPath,
+		PathEndProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
+		TrafficSplit:  2,
+		TransportPath: rawPath,
+		Steps:         steps,
 	}
 	err = rsv.SetIndexConfirmed(10)
 	require.NoError(t, err)

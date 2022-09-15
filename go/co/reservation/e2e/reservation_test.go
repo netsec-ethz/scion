@@ -119,7 +119,7 @@ func newSegmentReservation(asidPath ...string) *segment.Reservation {
 	if err != nil {
 		panic(err)
 	}
-	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
 	if err != nil {
 		panic(err)
 	}

@@ -87,7 +87,7 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	p := test.NewSnetPath("1-ff00:0:1", 2, 1, "1-ff00:0:2")
 	r.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
-	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
@@ -143,7 +143,7 @@ func testPersistSegmentRsv(ctx context.Context, t *testing.T, newDB func() backe
 	p := test.NewSnetPath("1-ff00:0:1", 11, 1, "1-ff00:0:2")
 	r.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
-	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
@@ -1138,7 +1138,7 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	if err != nil {
 		panic(err)
 	}
-	r.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
 	if err != nil {
 		panic(err)
 	}

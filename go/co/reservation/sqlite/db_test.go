@@ -82,7 +82,7 @@ func TestTransactions(t *testing.T) {
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
 	rsv.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
-	rsv.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	rsv.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	rsv.ID.Suffix[0]++
 	// save the reservation to DB
@@ -135,7 +135,7 @@ func TestTransactionsBusy(t *testing.T) {
 	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
 	rsv.Steps, err = base.StepsFromSnet(p)
 	require.NoError(t, err)
-	rsv.RawPath, err = base.PathFromDataplanePath(p.Dataplane())
+	rsv.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
 	require.NoError(t, err)
 	err = db.PersistSegmentRsv(ctx, rsv)
 	require.NoError(t, err)
@@ -268,11 +268,11 @@ func TestRaceForSuffix(t *testing.T) {
 	rsv1 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{1, 1, 1, 1}},
 		Indices: segment.Indices{segment.Index{}},
-		Steps:   steps, RawPath: rawPath}
+		Steps:   steps, TransportPath: rawPath}
 	rsv2 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{2, 2, 2, 2}},
 		Indices: segment.Indices{segment.Index{}},
-		Steps:   steps, RawPath: rawPath}
+		Steps:   steps, TransportPath: rawPath}
 	lockAllMutexes()
 
 	go fcn(t, &rsv1, &mut1_1, &mut1_2)
