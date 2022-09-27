@@ -696,7 +696,7 @@ func newDeriver(localIA addr.IA, dialer libgrpc.Dialer) *deriver {
 	return &deriver{
 		localIA: localIA,
 		secreter: &cachingSVfetcher{
-			fetcher: &dkfetcher.Fetcher{
+			fetcher: &dkfetcher.FromCS{
 				Dialer: dialer,
 			},
 		},
@@ -763,14 +763,14 @@ type lvl1Fetcher struct {
 	mtx     sync.Mutex
 	localIA addr.IA
 	cache   map[addr.IA][]drkey.Lvl1Key // TODO expired entries should be cleaned up periodically
-	fetcher *dkfetcher.Fetcher
+	fetcher *dkfetcher.FromCS
 }
 
 func newLvl1Fetcher(localIA addr.IA, dialer libgrpc.Dialer) *lvl1Fetcher {
 	return &lvl1Fetcher{
 		localIA: localIA,
 		cache:   map[addr.IA][]drkey.Lvl1Key{},
-		fetcher: &dkfetcher.Fetcher{
+		fetcher: &dkfetcher.FromCS{
 			Dialer: dialer,
 		},
 	}
@@ -816,7 +816,7 @@ type secreter interface {
 type cachingSVfetcher struct {
 	cache   []drkey.SV // TODO expired entries should be cleaned up periodically
 	mtx     sync.Mutex // TODO could use RWMutex, but should be careful to avoid double-fetching SV!
-	fetcher *dkfetcher.Fetcher
+	fetcher *dkfetcher.FromCS
 }
 
 func (f *cachingSVfetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {

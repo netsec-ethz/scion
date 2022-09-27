@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/pkg/daemon/drkey/adapter"
 )
 
 // Reservation is an snet.Path like type that internally handles an e2e reservation.
@@ -109,7 +108,7 @@ func NewReservation(ctx context.Context,
 	rand.Read(setupReq.Id.Suffix) // random suffix
 
 	// 4. compute authenticators
-	err = setupReq.CreateAuthenticators(ctx, adapter.WithDaemon(daemon))
+	err = setupReq.CreateAuthenticators(ctx, daemon)
 	return &Reservation{
 		daemon:      daemon,
 		dstIA:       dstIA,

@@ -191,7 +191,7 @@ func (s server) accept(conn *snet.Conn, buffer []byte) error {
 
 type client struct {
 	Daemon     daemon.Connector
-	KeyFetcher *dkfetcher.Fetcher
+	KeyFetcher *dkfetcher.FromCS
 	Timeout    time.Duration
 	Metrics    snet.SCIONNetworkMetrics
 	Local      *snet.UDPAddr
@@ -222,7 +222,7 @@ func newClient(daemon daemon.Connector, timeout time.Duration, metrics snet.SCIO
 	}
 	return &client{
 		Daemon: daemon,
-		KeyFetcher: &dkfetcher.Fetcher{
+		KeyFetcher: &dkfetcher.FromCS{
 			Dialer: grpcDialer,
 		},
 		Timeout: timeout,

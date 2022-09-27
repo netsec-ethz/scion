@@ -198,7 +198,7 @@ func realMain(ctx context.Context) error {
 		drkeyDB = libdrkey.Lvl2WithMetrics(string(storage.BackendSqlite), drkeyDB)
 		defer drkeyDB.Close()
 
-		drkeyFetcher := &dkfetcher.Fetcher{
+		drkeyFetcher := &dkfetcher.FromCS{
 			Dialer: dialer,
 		}
 		drkeyClientEngine = drkey.NewClientEngine(topo.IA(), drkeyDB, drkeyFetcher)

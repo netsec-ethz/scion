@@ -15,6 +15,7 @@
 package drkey
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -28,6 +29,13 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	pb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
+
+// Fetcher obtains end-host keys.
+type Fetcher interface {
+	DRKeyGetASHostKey(ctx context.Context, meta ASHostMeta) (ASHostKey, error)
+	DRKeyGetHostASKey(ctx context.Context, meta HostASMeta) (HostASKey, error)
+	DRKeyGetHostHostKey(ctx context.Context, meta HostHostMeta) (HostHostKey, error)
+}
 
 // Epoch represents a validity period.
 type Epoch struct {

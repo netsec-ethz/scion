@@ -91,11 +91,11 @@ func TestGetHostHost(t *testing.T) {
 	dialer := mock_grpc.NewMockDialer(ctrl)
 	dialer.EXPECT().Dial(gomock.Any(), gomock.Any()).Return(conn, nil)
 
-	fetcher := &dkfetcher.Fetcher{
+	fetcher := &dkfetcher.FromCS{
 		Dialer: dialer,
 	}
 
 	meta := drkey.HostHostMeta{}
-	_, err = fetcher.HostHostKey(context.Background(), meta)
+	_, err = fetcher.DRKeyGetHostHostKey(context.Background(), meta)
 	require.NoError(t, err)
 }

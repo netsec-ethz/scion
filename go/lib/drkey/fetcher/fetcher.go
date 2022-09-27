@@ -21,19 +21,18 @@ import (
 	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
-	sd_drkey "github.com/scionproto/scion/go/pkg/daemon/drkey"
 	sc_grpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
-// DRKeyFetcher obtains end-host key from the local CS.
-type Fetcher struct {
+// FromCS obtains end-host keys from the local CS.
+type FromCS struct {
 	Dialer sc_grpc.Dialer
 }
 
-var _ sd_drkey.Fetcher = (*Fetcher)(nil)
+var _ drkey.Fetcher = (*FromCS)(nil)
 
-func (f Fetcher) ASHostKey(ctx context.Context,
+func (f FromCS) DRKeyGetASHostKey(ctx context.Context,
 	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
@@ -60,7 +59,7 @@ func (f Fetcher) ASHostKey(ctx context.Context,
 	return key, nil
 }
 
-func (f Fetcher) HostASKey(ctx context.Context,
+func (f FromCS) DRKeyGetHostASKey(ctx context.Context,
 	meta drkey.HostASMeta) (drkey.HostASKey, error) {
 
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
@@ -87,7 +86,7 @@ func (f Fetcher) HostASKey(ctx context.Context,
 	return key, nil
 }
 
-func (f Fetcher) HostHostKey(ctx context.Context,
+func (f FromCS) DRKeyGetHostHostKey(ctx context.Context,
 	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
@@ -114,7 +113,7 @@ func (f Fetcher) HostHostKey(ctx context.Context,
 	return key, nil
 }
 
-func (f *Fetcher) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (f *FromCS) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
@@ -137,7 +136,7 @@ func (f *Fetcher) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1K
 	return key, nil
 }
 
-func (f *Fetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
+func (f *FromCS) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.SV{}, serrors.WrapStr("dialing", err)
