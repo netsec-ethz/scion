@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -79,7 +78,7 @@ func (d *Server) Lvl1(ctx context.Context,
 	if err != nil {
 		return nil, serrors.WrapStr("deriving level 1 key", err)
 	}
-	resp, err := ctrl.KeyToLvl1Resp(lvl1Key)
+	resp, err := drkey.KeyToLvl1Resp(lvl1Key)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing DRKey Lvl1 to protobuf resp", err)
 	}
@@ -141,7 +140,7 @@ func (d *Server) IntraLvl1(ctx context.Context,
 		return nil, serrors.WrapStr("getting AS-AS host key", err)
 	}
 
-	resp, err := ctrl.KeyToASASResp(lvl1Key)
+	resp, err := drkey.KeyToASASResp(lvl1Key)
 	if err != nil {
 		return nil, serrors.WrapStr("encoding AS-AS to Protobuf response", err)
 	}
@@ -156,7 +155,7 @@ func (d *Server) ASHost(ctx context.Context,
 		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	meta, err := ctrl.RequestToASHostMeta(req)
+	meta, err := drkey.RequestToASHostMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing DRKey AS-Host request", err)
 	}
@@ -173,7 +172,7 @@ func (d *Server) ASHost(ctx context.Context,
 		return nil, serrors.WrapStr("deriving AS-Host request", err)
 	}
 
-	resp, err := ctrl.KeyToASHostResp(asHostKey)
+	resp, err := drkey.KeyToASHostResp(asHostKey)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing AS-Host request", err)
 	}
@@ -209,7 +208,7 @@ func (d *Server) HostAS(ctx context.Context,
 		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	meta, err := ctrl.RequestToHostASMeta(req)
+	meta, err := drkey.RequestToHostASMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-AS request", err)
 	}
@@ -224,7 +223,7 @@ func (d *Server) HostAS(ctx context.Context,
 		return nil, serrors.WrapStr("deriving Host-AS request", err)
 	}
 
-	resp, err := ctrl.KeyToHostASResp(key)
+	resp, err := drkey.KeyToHostASResp(key)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-AS request", err)
 	}
@@ -260,7 +259,7 @@ func (d *Server) HostHost(ctx context.Context,
 		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	meta, err := ctrl.RequestToHostHostMeta(req)
+	meta, err := drkey.RequestToHostHostMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-Host request", err)
 	}
@@ -277,7 +276,7 @@ func (d *Server) HostHost(ctx context.Context,
 		return nil, serrors.WrapStr("deriving Host-Host request", err)
 	}
 
-	resp, err := ctrl.KeyToHostHostResp(key)
+	resp, err := drkey.KeyToHostHostResp(key)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-Host request", err)
 	}
@@ -330,7 +329,7 @@ func (d *Server) SV(ctx context.Context,
 		return nil, serrors.New("Cannot retrieve peer information from ctx")
 	}
 
-	meta, err := ctrl.SVRequestToMeta(req)
+	meta, err := drkey.SVRequestToMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing Host-Host request", err)
 	}
@@ -341,7 +340,7 @@ func (d *Server) SV(ctx context.Context,
 	if err != nil {
 		return nil, serrors.WrapStr("getting SV from persistence", err)
 	}
-	resp, err := ctrl.SVtoProtoResp(sv)
+	resp, err := drkey.SVtoProtoResp(sv)
 	if err != nil {
 		return nil, serrors.WrapStr("encoding SV to Protobuf response", err)
 	}

@@ -18,13 +18,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
-func ASHostMetaToProtoRequest(meta drkey.ASHostMeta) (*dkpb.ASHostRequest, error) {
+func ASHostMetaToProtoRequest(meta ASHostMeta) (*dkpb.ASHostRequest, error) {
 	return &dkpb.ASHostRequest{
 		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
@@ -34,14 +33,14 @@ func ASHostMetaToProtoRequest(meta drkey.ASHostMeta) (*dkpb.ASHostRequest, error
 	}, nil
 }
 
-func RequestToASHostMeta(req *dkpb.ASHostRequest) (drkey.ASHostMeta, error) {
+func RequestToASHostMeta(req *dkpb.ASHostRequest) (ASHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.ASHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return ASHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
 	}
-	return drkey.ASHostMeta{
-		Lvl2Meta: drkey.Lvl2Meta{
-			ProtoId:  drkey.Protocol(req.ProtocolId),
+	return ASHostMeta{
+		Lvl2Meta: Lvl2Meta{
+			ProtoId:  Protocol(req.ProtocolId),
 			Validity: req.ValTime.AsTime(),
 			SrcIA:    addr.IA(req.SrcIa),
 			DstIA:    addr.IA(req.DstIa),
@@ -50,7 +49,7 @@ func RequestToASHostMeta(req *dkpb.ASHostRequest) (drkey.ASHostMeta, error) {
 	}, nil
 }
 
-func KeyToASHostResp(drkey drkey.ASHostKey) (*dkpb.ASHostResponse, error) {
+func KeyToASHostResp(drkey ASHostKey) (*dkpb.ASHostResponse, error) {
 	return &dkpb.ASHostResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
@@ -59,24 +58,24 @@ func KeyToASHostResp(drkey drkey.ASHostKey) (*dkpb.ASHostResponse, error) {
 }
 
 func GetASHostKeyFromReply(rep *dkpb.ASHostResponse,
-	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+	meta ASHostMeta) (ASHostKey, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return ASHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return ASHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
 	}
-	epoch := drkey.Epoch{
+	epoch := Epoch{
 		Validity: cppki.Validity{
 			NotBefore: rep.EpochBegin.AsTime(),
 			NotAfter:  rep.EpochEnd.AsTime(),
 		},
 	}
 
-	returningKey := drkey.ASHostKey{
+	returningKey := ASHostKey{
 		ProtoId: meta.ProtoId,
 		SrcIA:   meta.SrcIA,
 		DstIA:   meta.DstIA,
@@ -85,14 +84,14 @@ func GetASHostKeyFromReply(rep *dkpb.ASHostResponse,
 	}
 
 	if len(rep.Key) != 16 {
-		return drkey.ASHostKey{}, serrors.New("key size in reply is not 16 bytes",
+		return ASHostKey{}, serrors.New("key size in reply is not 16 bytes",
 			"len", len(rep.Key))
 	}
 	copy(returningKey.Key[:], rep.Key)
 	return returningKey, nil
 }
 
-func HostASMetaToProtoRequest(meta drkey.HostASMeta) (*dkpb.HostASRequest, error) {
+func HostASMetaToProtoRequest(meta HostASMeta) (*dkpb.HostASRequest, error) {
 	return &dkpb.HostASRequest{
 		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
@@ -102,14 +101,14 @@ func HostASMetaToProtoRequest(meta drkey.HostASMeta) (*dkpb.HostASRequest, error
 	}, nil
 }
 
-func RequestToHostASMeta(req *dkpb.HostASRequest) (drkey.HostASMeta, error) {
+func RequestToHostASMeta(req *dkpb.HostASRequest) (HostASMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.HostASMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return HostASMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
 	}
-	return drkey.HostASMeta{
-		Lvl2Meta: drkey.Lvl2Meta{
-			ProtoId:  drkey.Protocol(req.ProtocolId),
+	return HostASMeta{
+		Lvl2Meta: Lvl2Meta{
+			ProtoId:  Protocol(req.ProtocolId),
 			Validity: req.ValTime.AsTime(),
 			SrcIA:    addr.IA(req.SrcIa),
 			DstIA:    addr.IA(req.DstIa),
@@ -118,7 +117,7 @@ func RequestToHostASMeta(req *dkpb.HostASRequest) (drkey.HostASMeta, error) {
 	}, nil
 }
 
-func KeyToHostASResp(drkey drkey.HostASKey) (*dkpb.HostASResponse, error) {
+func KeyToHostASResp(drkey HostASKey) (*dkpb.HostASResponse, error) {
 	return &dkpb.HostASResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
@@ -127,24 +126,24 @@ func KeyToHostASResp(drkey drkey.HostASKey) (*dkpb.HostASResponse, error) {
 }
 
 func GetHostASKeyFromReply(rep *dkpb.HostASResponse,
-	meta drkey.HostASMeta) (drkey.HostASKey, error) {
+	meta HostASMeta) (HostASKey, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return HostASKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return HostASKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
 	}
-	epoch := drkey.Epoch{
+	epoch := Epoch{
 		Validity: cppki.Validity{
 			NotBefore: rep.EpochBegin.AsTime(),
 			NotAfter:  rep.EpochEnd.AsTime(),
 		},
 	}
 
-	returningKey := drkey.HostASKey{
+	returningKey := HostASKey{
 		ProtoId: meta.ProtoId,
 		SrcIA:   meta.SrcIA,
 		DstIA:   meta.DstIA,
@@ -152,14 +151,14 @@ func GetHostASKeyFromReply(rep *dkpb.HostASResponse,
 		SrcHost: meta.SrcHost,
 	}
 	if len(rep.Key) != 16 {
-		return drkey.HostASKey{}, serrors.New("key size in reply is not 16 bytes",
+		return HostASKey{}, serrors.New("key size in reply is not 16 bytes",
 			"len", len(rep.Key))
 	}
 	copy(returningKey.Key[:], rep.Key)
 	return returningKey, nil
 }
 
-func HostHostMetaToProtoRequest(meta drkey.HostHostMeta) (*dkpb.HostHostRequest, error) {
+func HostHostMetaToProtoRequest(meta HostHostMeta) (*dkpb.HostHostRequest, error) {
 	return &dkpb.HostHostRequest{
 		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
@@ -170,14 +169,14 @@ func HostHostMetaToProtoRequest(meta drkey.HostHostMeta) (*dkpb.HostHostRequest,
 	}, nil
 }
 
-func RequestToHostHostMeta(req *dkpb.HostHostRequest) (drkey.HostHostMeta, error) {
+func RequestToHostHostMeta(req *dkpb.HostHostRequest) (HostHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.HostHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return HostHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
 	}
-	return drkey.HostHostMeta{
-		Lvl2Meta: drkey.Lvl2Meta{
-			ProtoId:  drkey.Protocol(req.ProtocolId),
+	return HostHostMeta{
+		Lvl2Meta: Lvl2Meta{
+			ProtoId:  Protocol(req.ProtocolId),
 			Validity: req.ValTime.AsTime(),
 			SrcIA:    addr.IA(req.SrcIa),
 			DstIA:    addr.IA(req.DstIa),
@@ -187,7 +186,7 @@ func RequestToHostHostMeta(req *dkpb.HostHostRequest) (drkey.HostHostMeta, error
 	}, nil
 }
 
-func KeyToHostHostResp(drkey drkey.HostHostKey) (*dkpb.HostHostResponse, error) {
+func KeyToHostHostResp(drkey HostHostKey) (*dkpb.HostHostResponse, error) {
 	return &dkpb.HostHostResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
@@ -196,24 +195,24 @@ func KeyToHostHostResp(drkey drkey.HostHostKey) (*dkpb.HostHostResponse, error) 
 }
 
 func GetHostHostKeyFromReply(rep *dkpb.HostHostResponse,
-	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+	meta HostHostMeta) (HostHostKey, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return HostHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return HostHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
 	}
-	epoch := drkey.Epoch{
+	epoch := Epoch{
 		Validity: cppki.Validity{
 			NotBefore: rep.EpochBegin.AsTime(),
 			NotAfter:  rep.EpochEnd.AsTime(),
 		},
 	}
 
-	returningKey := drkey.HostHostKey{
+	returningKey := HostHostKey{
 		ProtoId: meta.ProtoId,
 		SrcIA:   meta.SrcIA,
 		DstIA:   meta.DstIA,
@@ -222,7 +221,7 @@ func GetHostHostKeyFromReply(rep *dkpb.HostHostResponse,
 		DstHost: meta.DstHost,
 	}
 	if len(rep.Key) != 16 {
-		return drkey.HostHostKey{}, serrors.New("key size in reply is not 16 bytes",
+		return HostHostKey{}, serrors.New("key size in reply is not 16 bytes",
 			"len", len(rep.Key))
 	}
 	copy(returningKey.Key[:], rep.Key)

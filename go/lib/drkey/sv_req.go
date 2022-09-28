@@ -17,14 +17,13 @@ package drkey
 import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 )
 
 // SVMetaToProtoRequest parses the SVReq to a protobuf SVRequest.
-func SVMetaToProtoRequest(meta drkey.SVMeta) (*dkpb.SVRequest, error) {
+func SVMetaToProtoRequest(meta SVMeta) (*dkpb.SVRequest, error) {
 	return &dkpb.SVRequest{
 		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
@@ -32,35 +31,35 @@ func SVMetaToProtoRequest(meta drkey.SVMeta) (*dkpb.SVRequest, error) {
 }
 
 // SVRequestToMeta parses the SVReq to a protobuf SVRequest.
-func SVRequestToMeta(req *dkpb.SVRequest) (drkey.SVMeta, error) {
+func SVRequestToMeta(req *dkpb.SVRequest) (SVMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.SVMeta{}, serrors.WrapStr("invalid valTime from request", err)
+		return SVMeta{}, serrors.WrapStr("invalid valTime from request", err)
 	}
-	return drkey.SVMeta{
+	return SVMeta{
 		Validity: req.ValTime.AsTime(),
-		ProtoId:  drkey.Protocol(req.ProtocolId),
+		ProtoId:  Protocol(req.ProtocolId),
 	}, nil
 }
 
 // GetSVFromReply extracts the SV from the reply.
-func GetSVFromReply(proto drkey.Protocol, rep *dkpb.SVResponse) (drkey.SV, error) {
+func GetSVFromReply(proto Protocol, rep *dkpb.SVResponse) (SV, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return SV{}, serrors.WrapStr("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.SV{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return SV{}, serrors.WrapStr("invalid EpochEnd from response", err)
 	}
-	epoch := drkey.Epoch{
+	epoch := Epoch{
 		Validity: cppki.Validity{
 			NotBefore: rep.EpochBegin.AsTime(),
 			NotAfter:  rep.EpochEnd.AsTime(),
 		},
 	}
-	returningKey := drkey.SV{
+	returningKey := SV{
 		ProtoId: proto,
 		Epoch:   epoch,
 	}
@@ -69,7 +68,7 @@ func GetSVFromReply(proto drkey.Protocol, rep *dkpb.SVResponse) (drkey.SV, error
 }
 
 // SVtoProtoResp builds a SVResponse provided a SV.
-func SVtoProtoResp(drkey drkey.SV) (*dkpb.SVResponse, error) {
+func SVtoProtoResp(drkey SV) (*dkpb.SVResponse, error) {
 	return &dkpb.SVResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),

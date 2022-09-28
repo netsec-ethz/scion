@@ -29,7 +29,6 @@ import (
 	col "github.com/scionproto/scion/go/lib/colibri"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
-	dkctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -302,7 +301,7 @@ func (c grpcConn) DRKeyGetASHostKey(ctx context.Context,
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 
-	pbReq, err := dkctrl.ASHostMetaToProtoRequest(meta)
+	pbReq, err := drkey.ASHostMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -312,7 +311,7 @@ func (c grpcConn) DRKeyGetASHostKey(ctx context.Context,
 		return drkey.ASHostKey{}, err
 	}
 
-	key, err := dkctrl.GetASHostKeyFromReply(reply, meta)
+	key, err := drkey.GetASHostKeyFromReply(reply, meta)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -324,7 +323,7 @@ func (c grpcConn) DRKeyGetHostASKey(ctx context.Context,
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 
-	req, err := dkctrl.HostASMetaToProtoRequest(meta)
+	req, err := drkey.HostASMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.HostASKey{}, err
 	}
@@ -334,7 +333,7 @@ func (c grpcConn) DRKeyGetHostASKey(ctx context.Context,
 		return drkey.HostASKey{}, err
 	}
 
-	key, err := dkctrl.GetHostASKeyFromReply(reply, meta)
+	key, err := drkey.GetHostASKeyFromReply(reply, meta)
 	if err != nil {
 		return drkey.HostASKey{}, err
 	}
@@ -346,7 +345,7 @@ func (c grpcConn) DRKeyGetHostHostKey(ctx context.Context,
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 
-	pbReq, err := dkctrl.HostHostMetaToProtoRequest(meta)
+	pbReq, err := drkey.HostHostMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}
@@ -356,7 +355,7 @@ func (c grpcConn) DRKeyGetHostHostKey(ctx context.Context,
 		return drkey.HostHostKey{}, err
 	}
 
-	key, err := dkctrl.GetHostHostKeyFromReply(reply, meta)
+	key, err := drkey.GetHostHostKeyFromReply(reply, meta)
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}

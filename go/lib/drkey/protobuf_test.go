@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -42,7 +41,7 @@ func TestLvl1MetaToProtoRequest(t *testing.T) {
 		Validity: now,
 	}
 
-	req, err := ctrl.Lvl1MetaToProtoRequest(lvl1Meta)
+	req, err := drkey.Lvl1MetaToProtoRequest(lvl1Meta)
 	require.NoError(t, err)
 	assert.Equal(t, pbReq, req)
 }
@@ -65,7 +64,7 @@ func TestKeyToLvl1Resp(t *testing.T) {
 		Key:        []byte(k),
 	}
 
-	pbResp, err := ctrl.KeyToLvl1Resp(lvl1Key)
+	pbResp, err := drkey.KeyToLvl1Resp(lvl1Key)
 	require.NoError(t, err)
 	assert.Equal(t, targetResp, pbResp)
 
@@ -95,7 +94,7 @@ func TestGetLvl1KeyFromReply(t *testing.T) {
 	}
 	copy(targetLvl1Key.Key[:], k)
 
-	lvl1Key, err := ctrl.GetLvl1KeyFromReply(lvl1meta, resp)
+	lvl1Key, err := drkey.GetLvl1KeyFromReply(lvl1meta, resp)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl1Key, lvl1Key)
 
@@ -126,7 +125,7 @@ func TestRequestToASHostMeta(t *testing.T) {
 		DstHost: strAddr,
 	}
 
-	lvl2Req, err := ctrl.RequestToASHostMeta(req)
+	lvl2Req, err := drkey.RequestToASHostMeta(req)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl2Req, lvl2Req)
 }
@@ -156,7 +155,7 @@ func TestRequestToHostASMeta(t *testing.T) {
 		SrcHost: strAddr,
 	}
 
-	lvl2Req, err := ctrl.RequestToHostASMeta(req)
+	lvl2Req, err := drkey.RequestToHostASMeta(req)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl2Req, lvl2Req)
 }
@@ -188,7 +187,7 @@ func TestRequestToHostHostMeta(t *testing.T) {
 		DstHost: strAddr,
 	}
 
-	lvl2Req, err := ctrl.RequestToHostHostMeta(req)
+	lvl2Req, err := drkey.RequestToHostHostMeta(req)
 	require.NoError(t, err)
 	assert.Equal(t, targetLvl2Req, lvl2Req)
 }
@@ -214,7 +213,7 @@ func TestKeyToASHostResp(t *testing.T) {
 		Key:        asHostKey.Key[:],
 	}
 
-	resp, err := ctrl.KeyToASHostResp(asHostKey)
+	resp, err := drkey.KeyToASHostResp(asHostKey)
 	require.NoError(t, err)
 	assert.Equal(t, targetResp, resp)
 }
@@ -240,7 +239,7 @@ func TestKeyToHostASResp(t *testing.T) {
 		Key:        key.Key[:],
 	}
 
-	resp, err := ctrl.KeyToHostASResp(key)
+	resp, err := drkey.KeyToHostASResp(key)
 	require.NoError(t, err)
 	assert.Equal(t, targetResp, resp)
 }
@@ -267,7 +266,7 @@ func TestKeyToHostHostResp(t *testing.T) {
 		Key:        key.Key[:],
 	}
 
-	resp, err := ctrl.KeyToHostHostResp(key)
+	resp, err := drkey.KeyToHostHostResp(key)
 	require.NoError(t, err)
 	assert.Equal(t, targetResp, resp)
 }
@@ -283,7 +282,7 @@ func SVMetaToProtoRequest(t *testing.T) {
 		ProtocolId: dkpb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED,
 		ValTime:    valTime,
 	}
-	protoReq, err := ctrl.SVMetaToProtoRequest(svReq)
+	protoReq, err := drkey.SVMetaToProtoRequest(svReq)
 	require.NoError(t, err)
 	require.Equal(t, targetProtoReq, protoReq)
 }
@@ -303,7 +302,7 @@ func TestGetSVFromReply(t *testing.T) {
 		ProtoId: proto,
 	}
 	copy(targetSV.Key[:], k)
-	sv, err := ctrl.GetSVFromReply(proto, resp)
+	sv, err := drkey.GetSVFromReply(proto, resp)
 	require.NoError(t, err)
 	require.Equal(t, targetSV, sv)
 }
@@ -323,7 +322,7 @@ func TestSVtoProtoResp(t *testing.T) {
 		Key:        k,
 	}
 
-	resp, err := ctrl.SVtoProtoResp(sv)
+	resp, err := drkey.SVtoProtoResp(sv)
 	require.NoError(t, err)
 	require.Equal(t, targetResp, resp)
 }

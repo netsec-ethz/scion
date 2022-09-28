@@ -28,8 +28,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	ctrl_drkey "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -351,7 +351,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 func (s *DaemonServer) ASHost(ctx context.Context,
 	req *dkpb.ASHostRequest) (*dkpb.ASHostResponse, error) {
 
-	meta, err := ctrl_drkey.RequestToASHostMeta(req)
+	meta, err := drkey.RequestToASHostMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
 	}
@@ -361,7 +361,7 @@ func (s *DaemonServer) ASHost(ctx context.Context,
 		return nil, serrors.WrapStr("getting AS-Host from client store", err)
 	}
 
-	resp, err := ctrl_drkey.KeyToASHostResp(lvl2Key)
+	resp, err := drkey.KeyToASHostResp(lvl2Key)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing to protobuf AS-Host", err)
 	}
@@ -371,7 +371,7 @@ func (s *DaemonServer) ASHost(ctx context.Context,
 func (s *DaemonServer) HostAS(ctx context.Context,
 	req *dkpb.HostASRequest) (*dkpb.HostASResponse, error) {
 
-	meta, err := ctrl_drkey.RequestToHostASMeta(req)
+	meta, err := drkey.RequestToHostASMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
 	}
@@ -381,7 +381,7 @@ func (s *DaemonServer) HostAS(ctx context.Context,
 		return nil, serrors.WrapStr("getting Host-AS from client store", err)
 	}
 
-	resp, err := ctrl_drkey.KeyToHostASResp(lvl2Key)
+	resp, err := drkey.KeyToHostASResp(lvl2Key)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing to protobuf Host-AS", err)
 	}
@@ -391,7 +391,7 @@ func (s *DaemonServer) HostAS(ctx context.Context,
 func (s *DaemonServer) HostHost(ctx context.Context,
 	req *dkpb.HostHostRequest) (*dkpb.HostHostResponse, error) {
 
-	meta, err := ctrl_drkey.RequestToHostHostMeta(req)
+	meta, err := drkey.RequestToHostHostMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
 	}
@@ -401,7 +401,7 @@ func (s *DaemonServer) HostHost(ctx context.Context,
 		return nil, serrors.WrapStr("getting Host-AS from client store", err)
 	}
 
-	resp, err := ctrl_drkey.KeyToHostHostResp(lvl2Key)
+	resp, err := drkey.KeyToHostHostResp(lvl2Key)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing to protobuf Host-Host", err)
 	}

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -60,7 +59,7 @@ func (f Fetcher) Lvl1(ctx context.Context,
 	meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	logger := log.FromCtx(ctx)
 
-	req, err := ctrl.Lvl1MetaToProtoRequest(meta)
+	req, err := drkey.Lvl1MetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.Lvl1Key{},
 			serrors.WrapStr("parsing lvl1 request to protobuf", err)
@@ -74,7 +73,7 @@ func (f Fetcher) Lvl1(ctx context.Context,
 			return drkey.Lvl1Key{}, err
 		}
 		if err == nil {
-			lvl1Key, err := ctrl.GetLvl1KeyFromReply(meta, rep)
+			lvl1Key, err := drkey.GetLvl1KeyFromReply(meta, rep)
 			if err != nil {
 				return drkey.Lvl1Key{}, serrors.WrapStr("obtaining level 1 key from reply", err)
 			}

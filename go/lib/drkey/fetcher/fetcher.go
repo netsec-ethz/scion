@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	ctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
 	sc_grpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -41,7 +40,7 @@ func (f FromCS) DRKeyGetASHostKey(ctx context.Context,
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := ctrl.ASHostMetaToProtoRequest(meta)
+	protoReq, err := drkey.ASHostMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.ASHostKey{},
 			serrors.WrapStr("parsing AS-HOST request to protobuf", err)
@@ -51,7 +50,7 @@ func (f FromCS) DRKeyGetASHostKey(ctx context.Context,
 		return drkey.ASHostKey{}, serrors.WrapStr("requesting AS-HOST key", err)
 	}
 
-	key, err := ctrl.GetASHostKeyFromReply(rep, meta)
+	key, err := drkey.GetASHostKeyFromReply(rep, meta)
 	if err != nil {
 		return drkey.ASHostKey{}, serrors.WrapStr("obtaining AS-HOST key from reply", err)
 	}
@@ -68,7 +67,7 @@ func (f FromCS) DRKeyGetHostASKey(ctx context.Context,
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := ctrl.HostASMetaToProtoRequest(meta)
+	protoReq, err := drkey.HostASMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.HostASKey{},
 			serrors.WrapStr("parsing HOST-AS request to protobuf", err)
@@ -78,7 +77,7 @@ func (f FromCS) DRKeyGetHostASKey(ctx context.Context,
 		return drkey.HostASKey{}, serrors.WrapStr("requesting HOST-AS key", err)
 	}
 
-	key, err := ctrl.GetHostASKeyFromReply(rep, meta)
+	key, err := drkey.GetHostASKeyFromReply(rep, meta)
 	if err != nil {
 		return drkey.HostASKey{}, serrors.WrapStr("obtaining HOST-AS key from reply", err)
 	}
@@ -95,7 +94,7 @@ func (f FromCS) DRKeyGetHostHostKey(ctx context.Context,
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := ctrl.HostHostMetaToProtoRequest(meta)
+	protoReq, err := drkey.HostHostMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.HostHostKey{},
 			serrors.WrapStr("parsing HOST-AS request to protobuf", err)
@@ -105,7 +104,7 @@ func (f FromCS) DRKeyGetHostHostKey(ctx context.Context,
 		return drkey.HostHostKey{}, serrors.WrapStr("requesting Host-Host key", err)
 	}
 
-	key, err := ctrl.GetHostHostKeyFromReply(rep, meta)
+	key, err := drkey.GetHostHostKeyFromReply(rep, meta)
 	if err != nil {
 		return drkey.HostHostKey{}, serrors.WrapStr("obtaining Host-Host key from reply", err)
 	}
@@ -120,7 +119,7 @@ func (f FromCS) DRKeyGetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := ctrl.IntraLvl1ToProtoRequest(meta)
+	protoReq, err := drkey.IntraLvl1ToProtoRequest(meta)
 	if err != nil {
 		return drkey.Lvl1Key{},
 			serrors.WrapStr("parsing AS-AS request to protobuf", err)
@@ -129,7 +128,7 @@ func (f FromCS) DRKeyGetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("requesting AS-AS key", err)
 	}
-	key, err := ctrl.GetASASKeyFromReply(meta, rep)
+	key, err := drkey.GetASASKeyFromReply(meta, rep)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining AS-AS key from reply", err)
 	}
@@ -143,7 +142,7 @@ func (f FromCS) DRKeyGetSV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, er
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := ctrl.SVMetaToProtoRequest(meta)
+	protoReq, err := drkey.SVMetaToProtoRequest(meta)
 	if err != nil {
 		return drkey.SV{},
 			serrors.WrapStr("parsing SV request to protobuf", err)
@@ -152,7 +151,7 @@ func (f FromCS) DRKeyGetSV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, er
 	if err != nil {
 		return drkey.SV{}, serrors.WrapStr("requesting SV", err)
 	}
-	key, err := ctrl.GetSVFromReply(meta.ProtoId, rep)
+	key, err := drkey.GetSVFromReply(meta.ProtoId, rep)
 	if err != nil {
 		return drkey.SV{}, serrors.WrapStr("obtaining SV from reply", err)
 	}
