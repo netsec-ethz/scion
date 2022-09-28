@@ -113,7 +113,7 @@ func (f FromCS) DRKeyGetHostHostKey(ctx context.Context,
 	return key, nil
 }
 
-func (f *FromCS) DRKeyGetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
+func (f FromCS) DRKeyGetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("dialing", err)
@@ -136,7 +136,7 @@ func (f *FromCS) DRKeyGetLvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drke
 	return key, nil
 }
 
-func (f *FromCS) DRKeyGetSV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
+func (f FromCS) DRKeyGetSV(ctx context.Context, meta drkey.SVMeta) (drkey.SV, error) {
 	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
 	if err != nil {
 		return drkey.SV{}, serrors.WrapStr("dialing", err)
