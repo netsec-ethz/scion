@@ -190,12 +190,12 @@ func (s server) accept(conn *snet.Conn, buffer []byte) error {
 }
 
 type client struct {
-	Daemon     daemon.Connector
-	KeyFetcher *dkfetcher.FromCS
-	Timeout    time.Duration
-	Metrics    snet.SCIONNetworkMetrics
-	Local      *snet.UDPAddr
-	Remote     *snet.UDPAddr
+	Daemon       daemon.Connector
+	DRKeyFetcher *dkfetcher.FromCS
+	Timeout      time.Duration
+	Metrics      snet.SCIONNetworkMetrics
+	Local        *snet.UDPAddr
+	Remote       *snet.UDPAddr
 }
 
 func newClient(daemon daemon.Connector, timeout time.Duration, metrics snet.SCIONNetworkMetrics,
@@ -222,7 +222,7 @@ func newClient(daemon daemon.Connector, timeout time.Duration, metrics snet.SCIO
 	}
 	return &client{
 		Daemon: daemon,
-		KeyFetcher: &dkfetcher.FromCS{
+		DRKeyFetcher: &dkfetcher.FromCS{
 			Dialer: grpcDialer,
 		},
 		Timeout: timeout,
@@ -377,7 +377,7 @@ func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
 	requestBW reservation.BWCls) (reservation.ID, snet.Path, error) {
 
 	now := time.Now()
-	setupReq, err := libcol.NewReservation(ctx, c.KeyFetcher, fullTrip, c.Local.Host.IP,
+	setupReq, err := libcol.NewReservation(ctx, c.DRKeyFetcher, fullTrip, c.Local.Host.IP,
 		c.Remote.Host.IP, requestBW)
 	if err != nil {
 		return reservation.ID{}, nil, err
@@ -386,7 +386,7 @@ func (c client) createRsv(ctx context.Context, fullTrip *libcol.FullTrip,
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
-	err = res.ValidateAuthenticators(ctx, c.KeyFetcher, fullTrip.PathSteps(), c.Local.Host.IP, now)
+	err = res.ValidateAuthenticators(ctx, c.DRKeyFetcher, fullTrip.PathSteps(), c.Local.Host.IP, now)
 	if err != nil {
 		return reservation.ID{}, nil, err
 	}
@@ -405,7 +405,7 @@ func (c client) cleanRsv(ctx context.Context, id *reservation.ID, idx reservatio
 		SrcHost:   c.Local.Host.IP,
 		DstHost:   c.Remote.Host.IP,
 	}
-	err := req.CreateAuthenticators(ctx, c.KeyFetcher, steps)
+	err := req.CreateAuthenticators(ctx, c.DRKeyFetcher, steps)
 	if err != nil {
 		return err
 	}

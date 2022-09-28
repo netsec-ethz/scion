@@ -800,7 +800,7 @@ func (f *lvl1Fetcher) Lvl1Key(ctx context.Context, meta drkey.Lvl1Meta) (drkey.L
 	}
 
 	// get it from local CS
-	lvl1Key, err := f.fetcher.Lvl1Key(ctx, meta)
+	lvl1Key, err := f.fetcher.DRKeyGetLvl1Key(ctx, meta)
 	if err != nil {
 		return drkey.Lvl1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
 	}
@@ -834,7 +834,7 @@ func (f *cachingSVfetcher) SV(ctx context.Context, meta drkey.SVMeta) (drkey.SV,
 		}
 	}
 
-	key, err := f.fetcher.SV(ctx, meta)
+	key, err := f.fetcher.DRKeyGetSV(ctx, meta)
 	if err != nil {
 		return drkey.SV{}, err
 	}
