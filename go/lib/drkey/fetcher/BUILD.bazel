@@ -18,8 +18,8 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["fetching_test.go"],
+    embed = [":go_default_library"],
     deps = [
-        ":go_default_library",
         "//go/lib/drkey:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/pkg/grpc/mock_grpc:go_default_library",
