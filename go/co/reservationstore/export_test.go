@@ -22,7 +22,7 @@ import (
 
 func (s *Store) ComputeMAC(suffix []byte, tok *reservation.Token, srcAS, dstAS addr.AS,
 	ingress, egress uint16) error {
-	return s.computeMAC(suffix, tok, srcAS, dstAS, ingress, egress)
+	return s.addHopFieldToColibriPath(suffix, tok, srcAS, dstAS, ingress, egress)
 }
 
 func (s *Store) SetColibriKey(key []byte) {

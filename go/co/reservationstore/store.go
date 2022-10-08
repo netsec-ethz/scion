@@ -234,7 +234,6 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	}
 
 	newSetup := req.ID.IsEmptySuffix()
-
 	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
 		return s.errWrapStr("cannot obtain segment reservation", err, "id", req.ID.String())
@@ -333,18 +332,26 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		rollbackChanges(res)
 		return serrors.New("error in setup", "response", res)
 	}
+	rsv = req.Reservation
 
 	// TODO(juagargi) deprecate the use of ReverseTraveling and all the complexity that it involves.
-	// if req.PathType == reservation.DownPath {
-	// 	// req.Reservation.TransportPath = req.Reservation.DeriveColibriPathAtDestination()
-	// 	req.Reservation.TransportPath = req.Reservation.DeriveColibriPath()
-	// }
 	if req.PathType != reservation.DownPath {
 		ok, err := s.authenticator.ValidateSegmentSetupResponse(ctx, res, rsv.Steps)
 		if !ok || err != nil {
 			return s.errNew("validation of response failed", "ok", ok, "err", err,
 				"id", req.ID)
 		}
+	}
+
+	// the initiator of the reservation (destination if down path, source otherwise) always
+	// needs the colibri path ready; we must extract it from the returned response:
+	resOk := res.(*segment.SegmentSetupResponseSuccess)
+	idx := rsv.Index(resOk.Token.Idx)
+	idx.Token = &resOk.Token
+	idx.AllocBW = resOk.Token.BWCls
+	if err := s.db.PersistSegmentRsv(ctx, rsv); err != nil {
+		log.Info("error persisting reservation", "err", err)
+		rollbackChanges(resOk)
 	}
 
 	return nil
@@ -649,14 +656,12 @@ func (s *Store) ActivateSegmentReservation(
 			"id", req.ID.String())
 	}
 
-	// deleteme review this
-	if isFirstASInReservation(rsv, currentStep) {
+	if currentStep == 0 { // it is the initiator (also with down path type)
 		_, rawPath, err := pathFromReservation(rsv)
 		if err != nil {
 			log.Info("error obtaining colibri path from reservation", "err", err)
 		} else {
 			// if no errors, use the colibri path
-			// rsv.Steps = steps
 			rsv.TransportPath = rawPath
 		}
 	}
@@ -1229,7 +1234,7 @@ func (s *Store) AdmitE2EReservation(
 	}
 	// here the request was admitted and returning back from the down stream admission
 
-	err = s.computeMAC(rsv.ID.Suffix, token, req.ID.ASID, req.ID.ASID, ingress, egress)
+	err = s.addHopFieldToColibriPath(rsv.ID.Suffix, token, req.ID.ASID, req.ID.ASID, ingress, egress)
 	if err != nil {
 		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
 		return failedResponse, err
@@ -1646,7 +1651,7 @@ func (s *Store) admitSegmentReservation(
 	}
 
 	// update token with new hop field
-	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, rsv.Steps.SrcIA().AS(), rsv.Steps.DstIA().AS(),
+	if err = s.addHopFieldToColibriPath(rsv.ID.Suffix, &res.Token, rsv.Steps.SrcIA().AS(), rsv.Steps.DstIA().AS(),
 		rsv.Ingress, rsv.Egress); err != nil {
 		failedResponse.Message = s.errWrapStr("error computing MAC", err).Error()
 		return updateResponse(failedResponse)
@@ -1665,7 +1670,7 @@ func (s *Store) admitSegmentReservation(
 		return updateResponse(failedResponse)
 	}
 
-	if !(req.CurrentStep == 0) {
+	if req.CurrentStep != 0 {
 		err = s.authenticator.ComputeSegmentSetupResponseMAC(ctx, res, req.Steps, req.CurrentStep)
 	}
 
@@ -1766,12 +1771,8 @@ func (s *Store) sendUpstreamForAdmission(
 	return res, nil
 }
 
-func (s *Store) computeMAC(
-	suffix []byte,
-	tok *reservation.Token,
-	srcAS, dstAS addr.AS,
-	ingress, egress uint16,
-) error {
+func (s *Store) addHopFieldToColibriPath(suffix []byte, tok *reservation.Token, srcAS, dstAS addr.AS,
+	ingress, egress uint16) error {
 
 	hf := tok.AddNewHopField(&reservation.HopField{
 		Ingress: ingress,
@@ -1782,18 +1783,10 @@ func (s *Store) computeMAC(
 }
 
 // computeMAC returns the MAC into buff, which has to be at least 4 bytes long (or runtime panic).
-func computeMAC(
-	buff []byte,
-	key cipher.Block,
-	suffix []byte,
-	tok *reservation.Token,
-	hf *reservation.HopField,
-	srcAS, dstAS addr.AS,
-	isE2E bool,
-) error {
+func computeMAC(buff []byte, key cipher.Block, suffix []byte, tok *reservation.Token,
+	hf *reservation.HopField, srcAS, dstAS addr.AS, isE2E bool) error {
 
 	var input [libcolibri.LengthInputDataRound16]byte
-
 	libcolibri.MACInputStatic(input[:], suffix, uint32(tok.InfoField.ExpirationTick), tok.BWCls,
 		tok.RLC, !isE2E, false, tok.Idx, srcAS, dstAS, hf.Ingress, hf.Egress)
 	return libcolibri.MACStaticFromInput(buff, key, input[:])
@@ -1914,21 +1907,6 @@ func reservationsToLooks(rsvs []*segment.Reservation, localIA addr.IA) []*colibr
 		}
 	}
 	return looks
-}
-
-// isFirstASInReservation indicates that an AS is the first AS in the path of the reservation.
-// For up and core segments this is the first AS in the request as well.
-// For down segments the first AS in the reservation will be the last AS in the request path,
-// as the request travels in reverse until this last AS, and from there a "regular" setup is done.
-func isFirstASInReservation(rsv *segment.Reservation, currentStep int) bool {
-	switch rsv.PathType {
-	case reservation.UpPath, reservation.CorePath:
-		return currentStep == 0
-	case reservation.DownPath:
-		return currentStep == len(rsv.Steps)-1
-	default:
-		panic(fmt.Sprintf("unknown path type %v", rsv.PathType))
-	}
 }
 
 func pathFromReservation(rsv *segment.Reservation) (base.PathSteps, slayerspath.Path, error) {
