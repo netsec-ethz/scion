@@ -335,6 +335,10 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	}
 
 	// TODO(juagargi) deprecate the use of ReverseTraveling and all the complexity that it involves.
+	// if req.PathType == reservation.DownPath {
+	// 	// req.Reservation.TransportPath = req.Reservation.DeriveColibriPathAtDestination()
+	// 	req.Reservation.TransportPath = req.Reservation.DeriveColibriPath()
+	// }
 	if req.PathType != reservation.DownPath {
 		ok, err := s.authenticator.ValidateSegmentSetupResponse(ctx, res, rsv.Steps)
 		if !ok || err != nil {
@@ -645,6 +649,7 @@ func (s *Store) ActivateSegmentReservation(
 			"id", req.ID.String())
 	}
 
+	// deleteme review this
 	if isFirstASInReservation(rsv, currentStep) {
 		_, rawPath, err := pathFromReservation(rsv)
 		if err != nil {
@@ -1175,32 +1180,21 @@ func (s *Store) AdmitE2EReservation(
 			if err != nil {
 				return nil, err
 			}
-
-			if r.PathType == reservation.DownPath {
-				rawPath = r.DeriveColibriPathAtDestination()
-			} else {
-				rawPath = r.DeriveColibriPathAtSource()
-			}
+			rawPath = r.DeriveColibriPath()
 		} else if isStitchPoint {
-			var newRawPath slayerspath.Path
 			req.CurrentSegmentRsvIndex++
 			rNext, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
 			if err != nil {
 				return nil, err
 			}
-			if rNext.PathType == reservation.DownPath {
-				newRawPath = rNext.DeriveColibriPathAtDestination()
-			} else {
-				newRawPath = rNext.DeriveColibriPathAtSource()
-			}
-			rawPath = newRawPath
+			rawPath = rNext.DeriveColibriPath()
 		}
 		ingress = rsv.Steps[rsv.CurrentStep].Ingress
 		egress = rsv.Steps[rsv.CurrentStep].Egress
+		// authenticate request for the destination AS
 		if err := s.authenticator.ComputeE2ESetupRequestTransitMAC(ctx, req); err != nil {
 			return nil, serrors.WrapStr("computing in transit e2e setup request authenticator", err)
 		}
-		// authenticate request for the destination AS
 		client, err := s.operator.ColibriClient(ctx, egress, rawPath)
 		if err != nil {
 			return nil, serrors.WrapStr("while finding a colibri service client", err)
@@ -1323,21 +1317,13 @@ func (s *Store) CleanupE2EReservation(
 			if err != nil {
 				return nil, err
 			}
-			if r.PathType == reservation.DownPath {
-				rawPath = r.DeriveColibriPathAtDestination()
-			} else {
-				rawPath = r.DeriveColibriPathAtSource()
-			}
+			rawPath = r.DeriveColibriPath()
 		} else {
 			r, err := tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[1].ID)
 			if err != nil {
 				return nil, err
 			}
-			if r.PathType == reservation.DownPath {
-				rawPath = r.DeriveColibriPathAtDestination()
-			} else {
-				rawPath = r.DeriveColibriPathAtSource()
-			}
+			rawPath = r.DeriveColibriPath()
 		}
 	}
 
@@ -1662,7 +1648,7 @@ func (s *Store) admitSegmentReservation(
 	// update token with new hop field
 	if err = s.computeMAC(rsv.ID.Suffix, &res.Token, rsv.Steps.SrcIA().AS(), rsv.Steps.DstIA().AS(),
 		rsv.Ingress, rsv.Egress); err != nil {
-		failedResponse.Message = s.errWrapStr("cannot compute MAC", err).Error()
+		failedResponse.Message = s.errWrapStr("error computing MAC", err).Error()
 		return updateResponse(failedResponse)
 	}
 
@@ -1792,9 +1778,7 @@ func (s *Store) computeMAC(
 		Egress:  egress,
 	})
 	isE2E := tok.InfoField.PathType == reservation.E2EPath
-	err := computeMAC(hf.Mac[:], s.colibriKey, suffix, tok, hf, srcAS, dstAS, isE2E)
-
-	return err
+	return computeMAC(hf.Mac[:], s.colibriKey, suffix, tok, hf, srcAS, dstAS, isE2E)
 }
 
 // computeMAC returns the MAC into buff, which has to be at least 4 bytes long (or runtime panic).
@@ -1941,22 +1925,21 @@ func isFirstASInReservation(rsv *segment.Reservation, currentStep int) bool {
 	case reservation.UpPath, reservation.CorePath:
 		return currentStep == 0
 	case reservation.DownPath:
-		return currentStep >= len(rsv.Steps)-1
+		return currentStep == len(rsv.Steps)-1
 	default:
 		panic(fmt.Sprintf("unknown path type %v", rsv.PathType))
 	}
 }
 
 func pathFromReservation(rsv *segment.Reservation) (base.PathSteps, slayerspath.Path, error) {
-	colp := rsv.DeriveColibriPathAtSource()
 	if rsv.ActiveIndex() == nil {
 		return nil, nil, serrors.New("no active index in reservation", "id", rsv.ID)
 	}
 	if !rsv.ActiveIndex().Expiration.After(time.Now()) {
-		return nil, nil, serrors.New("reservations has expired active index", "id", rsv.ID,
+		return nil, nil, serrors.New("reservations has an expired active index", "id", rsv.ID,
 			"expiration", rsv.ActiveIndex().Expiration)
 	}
-	return rsv.Steps, colp, nil
+	return rsv.Steps, rsv.DeriveColibriPath(), nil
 }
 
 // assert performs an assertion on an invariant. An assertion is part of the documentation.

@@ -15,6 +15,7 @@
 package segment
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -53,29 +54,39 @@ func NewReservation(asid addr.AS) *Reservation {
 	}
 }
 
-// DeriveColibriPathAtSource recreates the slayers ColibriPath from the active index in this
-// reservation. If there is no active index, the path is nil.
-func (r *Reservation) DeriveColibriPathAtSource() *colpath.ColibriPath {
+// deriveInfoField returns a colibri info field filled with the values from this reservation.
+// It returns nil if there is no active index.
+func (r *Reservation) deriveInfoField() *colpath.InfoField {
+	index := r.ActiveIndex()
+	if index == nil {
+		return nil
+	}
+	return &colpath.InfoField{
+		C:       true,
+		S:       true,
+		Ver:     uint8(index.Idx),
+		HFCount: uint8(len(index.Token.HopFields)),
+		// the SegR ID and then 8 zeroes:
+		ResIdSuffix: append(append(r.ID.Suffix[:0:0], r.ID.Suffix...),
+			bytes.Repeat([]byte{0}, colpath.LenSuffix-reservation.IDSuffixSegLen)...),
+		ExpTick: uint32(index.Token.ExpirationTick),
+		BwCls:   uint8(index.AllocBW),
+		Rlc:     uint8(index.Token.RLC),
+	}
+}
+
+// deriveColibriPathAtSource creates the ColibriPath from the active index in this reservation.
+// If there is no active index, the path is nil.
+func (r *Reservation) deriveColibriPathAtSource() *colpath.ColibriPath {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
 	}
 
-	// info field
 	p := &colpath.ColibriPath{
-		InfoField: &colpath.InfoField{
-			C:           true,
-			S:           true,
-			Ver:         uint8(index.Idx),
-			HFCount:     uint8(len(index.Token.HopFields)),
-			ResIdSuffix: make([]byte, colpath.LenSuffix),
-			ExpTick:     uint32(index.Token.ExpirationTick),
-			BwCls:       uint8(index.AllocBW),
-			Rlc:         uint8(index.Token.RLC),
-		},
+		InfoField: r.deriveInfoField(),
 		HopFields: make([]*colpath.HopField, len(index.Token.HopFields)),
 	}
-	copy(p.InfoField.ResIdSuffix, r.ID.Suffix)
 	for i, hf := range index.Token.HopFields {
 		p.HopFields[i] = &colpath.HopField{
 			IngressId: hf.Ingress,
@@ -86,50 +97,36 @@ func (r *Reservation) DeriveColibriPathAtSource() *colpath.ColibriPath {
 	return p
 }
 
-func (r *Reservation) DeriveColibriPathAtDestination() *colpath.ColibriPath {
+// deriveColibriPathAtDestination creates the ColibriPath using the values of the active index in
+// this reservation, but with the hop fields in the reverse order. If there is no active index it
+// returns nil.
+func (r *Reservation) deriveColibriPathAtDestination() *colpath.ColibriPath {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
 	}
 
-	// info field
 	p := &colpath.ColibriPath{
-		InfoField: &colpath.InfoField{
-			C:           true,
-			S:           true,
-			Ver:         uint8(index.Idx),
-			HFCount:     uint8(len(index.Token.HopFields)),
-			ResIdSuffix: make([]byte, colpath.LenSuffix),
-			ExpTick:     uint32(index.Token.ExpirationTick),
-			BwCls:       uint8(index.AllocBW),
-			Rlc:         uint8(index.Token.RLC),
-		},
+		InfoField: r.deriveInfoField(),
 		HopFields: make([]*colpath.HopField, len(index.Token.HopFields)),
 	}
-	copy(p.InfoField.ResIdSuffix, r.ID.Suffix)
 	lhf := len(index.Token.HopFields)
-	for i, j := 0, lhf-1; i < lhf; i, j = i+1, j-1 {
+	for i := 0; i < lhf; i++ {
+		hf := index.Token.HopFields[lhf-i-1]
 		p.HopFields[i] = &colpath.HopField{
-			IngressId: index.Token.HopFields[j].Ingress,
-			EgressId:  index.Token.HopFields[j].Egress,
-			Mac:       append([]byte{}, index.Token.HopFields[j].Mac[:]...),
+			IngressId: hf.Ingress,
+			EgressId:  hf.Egress,
+			Mac:       append([]byte{}, hf.Mac[:]...),
 		}
 	}
 	return p
 }
 
-func (r *Reservation) DeriveColibriPath(ptype reservation.PathType) (slayerspath.Path, error) {
-	colp := r.DeriveColibriPathAtSource()
-
+func (r *Reservation) DeriveColibriPath() *colpath.ColibriPath {
 	if r.PathType == reservation.DownPath {
-		colp.InfoField.CurrHF = uint8(len(colp.HopFields) - 1)
-		rawPath, err := colp.Reverse()
-		if err != nil {
-			return nil, err
-		}
-		return rawPath, nil
+		return r.deriveColibriPathAtDestination()
 	}
-	return colp, nil
+	return r.deriveColibriPathAtSource()
 }
 
 // Validate will return an error for invalid values.
