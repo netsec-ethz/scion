@@ -106,7 +106,7 @@ func (pq *PersistentQUIC) Dial(ctx context.Context, dst net.Addr) (net.Conn, err
 			case netErr.Temporary():
 				log.Debug("persistent quic, too many streams", "err", err)
 			case netErr.Timeout():
-				log.Debug("persistent quic, idle time", "err", err)
+				// usual condition, don't log anything
 			}
 		default:
 			return nil, err
