@@ -237,7 +237,7 @@ func (a *StatelessAdmission) srcDem(rsvs []*segment.Reservation, ingress, egress
 	capEg := a.Caps.CapacityEgress(req.Egress())
 	var srcDem uint64
 	for _, r := range rsvs {
-		if r.Ingress == ingress && r.Egress == egress && !r.ID.Equal(&req.ID) {
+		if r.Ingress() == ingress && r.Egress() == egress && !r.ID.Equal(&req.ID) {
 			capReqDem := minBW(capIn, capEg, a.reqDem(*r, req))
 			srcDem += capReqDem
 		}
@@ -269,7 +269,7 @@ func (a *StatelessAdmission) srcAlloc(rsvs []*segment.Reservation, source addr.A
 
 	var sum uint64
 	for _, r := range rsvs {
-		if r.Ingress == ingress && r.Egress == egress {
+		if r.Ingress() == ingress && r.Egress() == egress {
 			if !r.ID.Equal(&req.ID) {
 				sum += r.MaxBlockedBW()
 			}

@@ -264,8 +264,8 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 				prev := previous[seg.ID.String()]
 				if curr != prev {
 					diff := int64(prev - curr)
-					ingressIFs[seg.Ingress] += diff
-					egressIFs[seg.Egress] += diff
+					ingressIFs[seg.Ingress()] += diff
+					egressIFs[seg.Egress()] += diff
 				}
 			}
 			for ifid, diff := range ingressIFs {
@@ -674,9 +674,9 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 		SET ingress = ?, egress = ?, path_type = ?, steps = ?, current_step = ?, rawPath = ?,
 		end_props = ?, traffic_split = ?, src_ia = ?, dst_ia = ?, active_index = ?`
 	_, err = x.ExecContext(
-		ctx, query, rsv.ID.ASID, binary.BigEndian.Uint32(rsv.ID.Suffix), rsv.Ingress, rsv.Egress,
+		ctx, query, rsv.ID.ASID, binary.BigEndian.Uint32(rsv.ID.Suffix), rsv.Ingress(), rsv.Egress(),
 		rsv.PathType, rawSteps, rsv.CurrentStep, rawPath, rsv.PathEndProps, rsv.TrafficSplit, rsv.Steps.SrcIA(),
-		rsv.Steps.DstIA(), activeIndex, rsv.Ingress, rsv.Egress, rsv.PathType, rawSteps, rsv.CurrentStep, rawPath,
+		rsv.Steps.DstIA(), activeIndex, rsv.Ingress(), rsv.Egress(), rsv.PathType, rawSteps, rsv.CurrentStep, rawPath,
 		rsv.PathEndProps, rsv.TrafficSplit, rsv.Steps.SrcIA(), rsv.Steps.DstIA(), activeIndex)
 	if err != nil {
 		return err
@@ -717,7 +717,7 @@ func upsertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 
 		// update interface state
 		blocked := int64(rsv.MaxBlockedBW())
-		return interfacesStateUsedBWUpdate(ctx, x, rsv.Ingress, rsv.Egress, blocked)
+		return interfacesStateUsedBWUpdate(ctx, x, rsv.Ingress(), rsv.Egress(), blocked)
 	}
 	return nil
 }
@@ -786,8 +786,6 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 	rsv := segment.NewReservation(addr.AS(fields.AsID))
 	rsv.ID.Suffix = make([]byte, reservation.IDSuffixSegLen)
 	binary.BigEndian.PutUint32(rsv.ID.Suffix, fields.Suffix)
-	rsv.Ingress = fields.Ingress
-	rsv.Egress = fields.Egress
 	rsv.PathType = reservation.PathType(fields.PathType)
 
 	steps := base.PathStepsFromRaw(fields.Steps)
@@ -797,6 +795,12 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 	}
 	rsv.Steps = steps
 	rsv.CurrentStep = fields.CurrentStep
+	// sanity check
+	if rsv.Ingress() != fields.Ingress || rsv.Egress() != fields.Egress {
+		return nil, serrors.New("error in db: steps do not correspond to ingress/egress",
+			"curr_step", rsv.CurrentStep, "steps", rsv.Steps.String(),
+			"ingress", fields.Ingress, "egress", fields.Egress)
+	}
 	rsv.TransportPath = rawPath
 	rsv.PathEndProps = reservation.PathEndProps(fields.EndProps)
 	rsv.TrafficSplit = reservation.SplitCls(fields.TrafficSplit)
@@ -859,11 +863,11 @@ func deleteStateForRsv(ctx context.Context, x db.Sqler, rsvID *reservation.ID) e
 	case 0:
 	case 1:
 		blocked := -int64(rsvs[0].MaxBlockedBW()) // more free bandwidth
-		err := interfacesStateUsedBWUpdate(ctx, x, rsvs[0].Ingress, rsvs[0].Egress, blocked)
+		err := interfacesStateUsedBWUpdate(ctx, x, rsvs[0].Ingress(), rsvs[0].Egress(), blocked)
 		if err != nil {
 			return err
 		}
-		// err = subtractTransitDem(ctx, x, rsvs[0].Ingress, rsvs[0].Egress, uint64(blocked))
+		// err = subtractTransitDem(ctx, x, rsvs[0].Ingress(), rsvs[0].Egress(), uint64(blocked))
 		// if err != nil {
 		// 	return err
 		// }
@@ -1276,7 +1280,6 @@ func interfacesStateUsedBWUpdate(ctx context.Context, x db.Sqler, ingress, egres
 }
 
 func getTransitDem(ctx context.Context, x db.Sqler, ingress, egress uint16) (uint64, error) {
-
 	query := `SELECT traffic_demand from state_transit_demand
 	WHERE ingress = ? AND egress = ?`
 	var transit uint64

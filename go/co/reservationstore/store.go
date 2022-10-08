@@ -292,8 +292,6 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 	if rsv == nil { // new setup
 		rsv = segment.NewReservation(req.ID.ASID)
 		rsv.ID = req.ID
-		rsv.Ingress = req.Ingress()
-		rsv.Egress = req.Egress()
 		rsv.PathType = req.PathType
 		rsv.PathEndProps = req.PathProps
 		rsv.TrafficSplit = req.SplitCls
@@ -501,13 +499,13 @@ func (s *Store) ConfirmSegmentReservation(
 
 	currentStep := rsv.CurrentStep
 	steps := rsv.Steps
-	egress := rsv.Egress
+	egress := rsv.Egress()
 	// because canonical storage of steps and current step is always in the direction of the
 	// reservation, reverse them if we are traveling in the reverse direction:
 	if rsv.PathType == reservation.DownPath {
 		currentStep = len(rsv.Steps) - 1 - rsv.CurrentStep
 		steps = rsv.Steps.Reverse()
-		egress = rsv.Ingress
+		egress = rsv.Ingress()
 	}
 
 	failedResponse := newFailedMessage(req, currentStep)
@@ -620,13 +618,13 @@ func (s *Store) ActivateSegmentReservation(
 	}
 	currentStep := rsv.CurrentStep
 	steps := rsv.Steps
-	egress := rsv.Egress
+	egress := rsv.Egress()
 	// because canonical storage of steps and current step is always in the direction of the
 	// reservation, reverse them if we are traveling in the reverse direction:
 	if rsv.PathType == reservation.DownPath {
 		currentStep = len(rsv.Steps) - 1 - rsv.CurrentStep
 		steps = rsv.Steps.Reverse()
-		egress = rsv.Ingress
+		egress = rsv.Ingress()
 	}
 
 	failedResponse := newFailedMessage(req, currentStep)
@@ -750,11 +748,11 @@ func (s *Store) CleanupSegmentReservation(
 	}
 	currentStep := rsv.CurrentStep
 	steps := rsv.Steps
-	egress := rsv.Egress
+	egress := rsv.Egress()
 	if rsv.PathType == reservation.DownPath {
 		currentStep = len(rsv.Steps) - 1 - rsv.CurrentStep
 		steps = rsv.Steps.Reverse()
-		egress = rsv.Ingress
+		egress = rsv.Ingress()
 	}
 	failedResponse := newFailedMessage(req, currentStep)
 	if !(currentStep == 0) {
@@ -870,11 +868,11 @@ func (s *Store) TearDownSegmentReservation(
 	}
 	currentStep := rsv.CurrentStep
 	steps := rsv.Steps
-	egress := rsv.Egress
+	egress := rsv.Egress()
 	if rsv.PathType == reservation.DownPath {
 		currentStep = len(rsv.Steps) - 1 - rsv.CurrentStep
 		steps = rsv.Steps.Reverse()
-		egress = rsv.Ingress
+		egress = rsv.Ingress()
 	}
 	failedResponse := newFailedMessage(req, currentStep)
 	if !(currentStep == 0) {
@@ -1174,8 +1172,8 @@ func (s *Store) AdmitE2EReservation(
 				AllocTrail: req.AllocationTrail,
 			}, nil
 		}
-		ingress = rsv.Steps[rsv.CurrentStep].Ingress
-		egress = rsv.Steps[rsv.CurrentStep].Egress
+		ingress = rsv.Ingress()
+		egress = rsv.Egress()
 		// all ASes in the path will create authenticators for the initiator end-host
 		res.Authenticators = make([][]byte, len(rsv.Steps)) // same size as path
 		token = index.Token
@@ -1194,8 +1192,8 @@ func (s *Store) AdmitE2EReservation(
 			}
 			rawPath = rNext.DeriveColibriPath()
 		}
-		ingress = rsv.Steps[rsv.CurrentStep].Ingress
-		egress = rsv.Steps[rsv.CurrentStep].Egress
+		ingress = rsv.Ingress()
+		egress = rsv.Egress()
 		// authenticate request for the destination AS
 		if err := s.authenticator.ComputeE2ESetupRequestTransitMAC(ctx, req); err != nil {
 			return nil, serrors.WrapStr("computing in transit e2e setup request authenticator", err)
@@ -1588,8 +1586,6 @@ func (s *Store) admitSegmentReservation(
 	} else {
 		rsv = segment.NewReservation(req.ID.ASID)
 		rsv.ID = req.ID
-		rsv.Ingress = req.Ingress()
-		rsv.Egress = req.Egress()
 		rsv.PathType = req.PathType
 		rsv.PathEndProps = req.PathProps
 		rsv.TrafficSplit = req.SplitCls
@@ -1652,7 +1648,7 @@ func (s *Store) admitSegmentReservation(
 
 	// update token with new hop field
 	if err = s.addHopFieldToColibriPath(rsv.ID.Suffix, &res.Token, rsv.Steps.SrcIA().AS(), rsv.Steps.DstIA().AS(),
-		rsv.Ingress, rsv.Egress); err != nil {
+		rsv.Ingress(), rsv.Egress()); err != nil {
 		failedResponse.Message = s.errWrapStr("error computing MAC", err).Error()
 		return updateResponse(failedResponse)
 	}
@@ -1862,7 +1858,7 @@ func freeAfterTransfer(ctx context.Context, tx backend.Transaction, rsv *e2e.Res
 	}
 	var total uint64 // all BW that ends up in this AS
 	for _, r := range rsvs {
-		if r.Egress == 0 && r.PathEndProps&reservation.EndTransfer != 0 {
+		if r.Egress() == 0 && r.PathEndProps&reservation.EndTransfer != 0 {
 			total += r.ActiveIndex().AllocBW.ToKbps()
 		}
 	}

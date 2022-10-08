@@ -29,17 +29,13 @@ import (
 
 // Reservation represents a segment reservation.
 type Reservation struct {
-	ID           reservation.ID
-	Indices      Indices                  // existing indices in this reservation
-	activeIndex  int                      // -1 <= activeIndex < len(Indices)
-	Ingress      uint16                   // ingress interface ID: reservation packets enter
-	Egress       uint16                   // egress interface ID: reservation packets leave
-	PathType     reservation.PathType     // the type of path (up,core,down)
-	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
-	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
-	Steps        base.PathSteps           // recovered from the pb messages
-	// TODO(JordiSubira): Remove unnecessary redundant data,
-	// Ingress == Steps[CurrentStep].Ingress
+	ID            reservation.ID
+	Indices       Indices                  // existing indices in this reservation
+	activeIndex   int                      // -1 <= activeIndex < len(Indices)
+	PathType      reservation.PathType     // the type of path (up,core,down)
+	PathEndProps  reservation.PathEndProps // the properties for stitching and start/end
+	TrafficSplit  reservation.SplitCls     // the traffic split between control and data planes
+	Steps         base.PathSteps           // recovered from the pb messages
 	CurrentStep   int
 	TransportPath slayerspath.Path // only used at source IA
 }
@@ -52,6 +48,14 @@ func NewReservation(asid addr.AS) *Reservation {
 		},
 		activeIndex: -1,
 	}
+}
+
+func (r *Reservation) Ingress() uint16 {
+	return r.Steps[r.CurrentStep].Ingress
+}
+
+func (r *Reservation) Egress() uint16 {
+	return r.Steps[r.CurrentStep].Egress
 }
 
 // deriveInfoField returns a colibri info field filled with the values from this reservation.
@@ -166,10 +170,11 @@ func (r *Reservation) Validate() error {
 		return serrors.New("Wrong interface for dstIA egress",
 			"egress", r.Steps[len(r.Steps)-1].Egress)
 	}
-	if in, eg := base.InEgFromDataplanePath(r.TransportPath); in != r.Ingress || eg != r.Egress {
+	if in, eg := base.InEgFromDataplanePath(r.TransportPath); in != r.Ingress() ||
+		eg != r.Egress() {
 		return serrors.New("Inconsistent ingress/egress from dataplane and reservation",
-			"dataplane_in", in, "reservation_in", r.Ingress,
-			"dataplane_eg", eg, "reservation_eg", r.Egress)
+			"dataplane_in", in, "reservation_in", r.Ingress(),
+			"dataplane_eg", eg, "reservation_eg", r.Egress())
 	}
 
 	err := r.PathEndProps.Validate()

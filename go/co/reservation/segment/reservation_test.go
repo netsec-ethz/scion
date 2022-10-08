@@ -91,7 +91,7 @@ func TestReservationValidate(t *testing.T) {
 	require.Error(t, err)
 	// starts in this AS but ingress nonzero
 	r = segmenttest.NewReservation()
-	r.Ingress = 1
+	r.Steps[r.CurrentStep].Ingress = 1
 	err = r.Validate()
 	require.Error(t, err)
 	// Does not start in this AS but ingress empty

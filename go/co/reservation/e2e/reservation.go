@@ -36,6 +36,14 @@ type Reservation struct {
 	Indices             Indices
 }
 
+func (r *Reservation) Ingress() uint16 {
+	return r.Steps[r.CurrentStep].Ingress
+}
+
+func (r *Reservation) Egress() uint16 {
+	return r.Steps[r.CurrentStep].Egress
+}
+
 func (r *Reservation) IsFirstAS() bool {
 	return r.CurrentStep == 0
 }

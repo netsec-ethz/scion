@@ -98,7 +98,6 @@ func WithPath(path ...interface{}) ReservationMod {
 	return func(rsv *segment.Reservation) *segment.Reservation {
 		rsv.Steps = steps
 		rsv.TransportPath = rawPath
-		rsv.Ingress, rsv.Egress = base.InEgFromDataplanePath(rsv.TransportPath)
 		return rsv
 	}
 }
@@ -106,10 +105,10 @@ func WithPath(path ...interface{}) ReservationMod {
 func WithIngressEgress(ig, eg int) ReservationMod {
 	return func(rsv *segment.Reservation) *segment.Reservation {
 		if ig > 0 {
-			rsv.Ingress = uint16(ig)
+			rsv.Steps[rsv.CurrentStep].Ingress = uint16(ig)
 		}
 		if eg > 0 {
-			rsv.Egress = uint16(eg)
+			rsv.Steps[rsv.CurrentStep].Egress = uint16(eg)
 		}
 		return rsv
 	}

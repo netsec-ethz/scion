@@ -124,10 +124,10 @@ func (a *StatefulAdmission) availableBW(ctx context.Context, x backend.ColibriSt
 	}
 	if excludeRsv != nil {
 		blocked := excludeRsv.MaxBlockedBW()
-		if excludeRsv.Ingress == req.Ingress() {
+		if excludeRsv.Ingress() == req.Ingress() {
 			usedIngress -= blocked
 		}
-		if excludeRsv.Egress == req.Egress() {
+		if excludeRsv.Egress() == req.Egress() {
 			usedEgress -= blocked
 		}
 	}
@@ -218,7 +218,7 @@ func (a *StatefulAdmission) linkRatio(ctx context.Context, x backend.ColibriStor
 	if err != nil {
 		return 0, serrors.WrapStr("computing link ratio failed", err)
 	}
-	if rsv != nil && rsv.Ingress == req.Ingress() && rsv.Egress == req.Egress() {
+	if rsv != nil && rsv.Ingress() == req.Ingress() && rsv.Egress() == req.Egress() {
 		// must subtract this reservation's blocked BW from srcAlloc, as it has
 		// the ID of the request
 		srcAlloc -= rsv.MaxBlockedBW()
@@ -408,7 +408,7 @@ func (a *StatefulAdmission) updateSrcAllocWithAdmittedRequest(ctx context.Contex
 	var oldBlocked uint64
 	newToBlock := allocBW
 
-	if rsv != nil && rsv.Ingress == req.Ingress() && rsv.Egress == req.Egress() {
+	if rsv != nil && rsv.Ingress() == req.Ingress() && rsv.Egress() == req.Egress() {
 		blocked := rsv.MaxBlockedBW()
 		if blocked < allocBW {
 			oldBlocked = blocked // from existing reservation with same ID

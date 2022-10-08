@@ -491,8 +491,7 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 		xtest.MustParseHexString(suffix))
 	require.NoError(t, err)
 
-	//only set so that validate does not panic
-	p := test.NewSnetPath("1-ff00:0:1", int(egress), int(ingress), "1-ff00:0:2")
+	p := test.NewSnetPath("1-ff00:0:1", 1, int(ingress), "1-ff00:0:2", int(egress), 1, "1-ff00:0:3")
 	steps, err := base.StepsFromSnet(p)
 	if err != nil {
 		panic(err)
@@ -513,13 +512,12 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 				AllocBW:    allocBW,
 			},
 		},
-		Ingress:       ingress,
-		Egress:        egress,
 		PathType:      reservation.UpPath,
 		PathEndProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
 		TrafficSplit:  2,
 		TransportPath: rawPath,
 		Steps:         steps,
+		CurrentStep:   1,
 	}
 	err = rsv.SetIndexConfirmed(10)
 	require.NoError(t, err)

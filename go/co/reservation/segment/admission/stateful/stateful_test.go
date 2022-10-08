@@ -824,8 +824,7 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 		xtest.MustParseHexString(suffix))
 	require.NoError(t, err)
 
-	//only set so that validate does not panic
-	p := test.NewSnetPath("1-ff00:0:1", int(egress), int(ingress), "1-ff00:0:2")
+	p := test.NewSnetPath("1-ff00:0:1", 1, int(ingress), "1-ff00:0:2", int(egress), 1, "1-ff00:0:3")
 	steps, err := base.StepsFromSnet(p)
 	require.NoError(t, err)
 	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
@@ -845,13 +844,12 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 				AllocBW:    allocBW,
 			},
 		},
-		Ingress:       ingress,
-		Egress:        egress,
 		PathType:      reservation.UpPath,
 		PathEndProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
 		TrafficSplit:  2,
 		TransportPath: rawPath,
 		Steps:         steps,
+		CurrentStep:   1,
 	}
 	err = rsv.SetIndexConfirmed(10)
 	require.NoError(t, err)
@@ -912,8 +910,8 @@ func prepareForMock(rsvs []*segment.Reservation, req *segment.SetupReq, globalCa
 
 		key := sourceIngressEgress{
 			Source:  r.ID.ASID,
-			Ingress: r.Ingress,
-			Egress:  r.Egress,
+			Ingress: r.Ingress(),
+			Egress:  r.Egress(),
 		}
 		state := sourceStateMap[key]
 		state.SrcDem += minBW(r.MaxRequestedBW(), globalCapacity)
@@ -923,29 +921,29 @@ func prepareForMock(rsvs []*segment.Reservation, req *segment.SetupReq, globalCa
 		if inMap[r.ID.ASID] == nil {
 			inMap[r.ID.ASID] = make(map[uint16]uint64)
 		}
-		inMap[r.ID.ASID][r.Ingress] += minBW(r.MaxRequestedBW(), globalCapacity)
+		inMap[r.ID.ASID][r.Ingress()] += minBW(r.MaxRequestedBW(), globalCapacity)
 		if egMap[r.ID.ASID] == nil {
 			egMap[r.ID.ASID] = make(map[uint16]uint64)
 		}
-		egMap[r.ID.ASID][r.Egress] += minBW(r.MaxRequestedBW(), globalCapacity)
+		egMap[r.ID.ASID][r.Egress()] += minBW(r.MaxRequestedBW(), globalCapacity)
 	}
 	// the transitDem and transitAlloc need the scale factors to be computed:
 	for _, r := range rsvs {
-		inScalFctr := float64(minBW(inMap[r.ID.ASID][r.Ingress], globalCapacity)) /
-			float64(inMap[r.ID.ASID][r.Ingress])
-		egScalFctr := float64(minBW(egMap[r.ID.ASID][r.Egress], globalCapacity)) /
-			float64(egMap[r.ID.ASID][r.Egress])
+		inScalFctr := float64(minBW(inMap[r.ID.ASID][r.Ingress()], globalCapacity)) /
+			float64(inMap[r.ID.ASID][r.Ingress()])
+		egScalFctr := float64(minBW(egMap[r.ID.ASID][r.Egress()], globalCapacity)) /
+			float64(egMap[r.ID.ASID][r.Egress()])
 		key := sourceIngressEgress{
 			Source:  r.ID.ASID,
-			Ingress: r.Ingress,
-			Egress:  r.Egress,
+			Ingress: r.Ingress(),
+			Egress:  r.Egress(),
 		}
 		state := sourceStateMap[key]
 
-		if r.Egress == req.Egress() {
-			transitDem[r.Ingress] += uint64(float64(state.SrcDem) *
+		if r.Egress() == req.Egress() {
+			transitDem[r.Ingress()] += uint64(float64(state.SrcDem) *
 				math.Min(inScalFctr, egScalFctr))
-			if r.Ingress == req.Ingress() {
+			if r.Ingress() == req.Ingress() {
 				transitAlloc += r.MaxBlockedBW()
 			}
 		}
@@ -1087,10 +1085,10 @@ func persistRsvFromAdmittedRequest(t *testing.T, db *sqlite.Backend, req segment
 	if rsv == nil {
 		rsv = segment.NewReservation(req.ID.ASID)
 		rsv.ID = req.ID
-		rsv.Ingress = req.Ingress()
-		rsv.Egress = req.Egress()
 		rsv.Steps = req.Steps
 		rsv.TransportPath = req.TransportPath
+		rsv.Steps[rsv.CurrentStep].Ingress = req.Ingress()
+		rsv.Steps[rsv.CurrentStep].Egress = req.Egress()
 		require.NoError(t, err)
 	} else {
 		index := rsv.Index(req.Index)
