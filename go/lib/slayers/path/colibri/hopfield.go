@@ -28,7 +28,7 @@ type HopField struct {
 	// EgressId denotes the egress interface in the direction of the reservation (R=0).
 	EgressId uint16
 	// Mac (4 bytes) denotes the MAC (static or per-packet MAC, depending on the S flag).
-	Mac []byte
+	Mac []byte // TODO(juagargi) this ought to be [4]byte instead, remove Clone() method
 }
 
 func (hf *HopField) DecodeFromBytes(b []byte) error {
@@ -59,4 +59,14 @@ func (hf *HopField) SerializeTo(b []byte) error {
 	binary.BigEndian.PutUint16(b[2:4], hf.EgressId)
 	copy(b[4:8], hf.Mac)
 	return nil
+}
+
+func (hf *HopField) Clone() *HopField {
+	c := &HopField{
+		IngressId: hf.IngressId,
+		EgressId:  hf.EgressId,
+		Mac:       make([]byte, 4),
+	}
+	copy(c.Mac, hf.Mac)
+	return c
 }

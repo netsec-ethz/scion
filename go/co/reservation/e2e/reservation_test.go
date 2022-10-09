@@ -19,7 +19,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/co/reservation/segmenttest"
 	"github.com/scionproto/scion/go/co/reservation/test"
@@ -30,42 +29,42 @@ import (
 
 func TestValidate(t *testing.T) {
 	// alright
-	r := newReservation()
+	r := newReservation(t)
 	err := r.Validate()
 	require.NoError(t, err)
 
 	// no segment reservations
-	r = newReservation()
+	r = newReservation(t)
 	r.SegmentReservations = make([]*segment.Reservation, 0)
 	err = r.Validate()
 	require.Error(t, err)
 
 	// nil segment reservation
-	r = newReservation()
+	r = newReservation(t)
 	r.SegmentReservations[0] = nil
 	err = r.Validate()
 	require.Error(t, err)
 
 	// invalid segment reservation
-	r = newReservation()
+	r = newReservation(t)
 	r.SegmentReservations[0].Steps = nil
 	err = r.Validate()
 	require.Error(t, err)
 
 	// more than 3 segment reservations
-	r = newReservation()
+	r = newReservation(t)
 	r.SegmentReservations = []*segment.Reservation{
-		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
-		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
-		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
-		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation(t, "1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation(t, "1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation(t, "1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation(t, "1-ff00:0:111", "1-ff00:0:110"),
 	}
 	err = r.Validate()
 	require.Error(t, err)
 }
 
 func TestNewIndex(t *testing.T) {
-	r := newReservation()
+	r := newReservation(t)
 	expTime := util.SecsToTime(1)
 	index, err := r.NewIndex(expTime, 1)
 	require.NoError(t, err)
@@ -78,7 +77,7 @@ func TestNewIndex(t *testing.T) {
 }
 
 func TestRemoveIndex(t *testing.T) {
-	r := newReservation()
+	r := newReservation(t)
 	expTime := util.SecsToTime(1)
 	idx, _ := r.NewIndex(expTime, 0)
 	err := r.RemoveIndex(idx)
@@ -87,7 +86,7 @@ func TestRemoveIndex(t *testing.T) {
 }
 
 func TestAllocResv(t *testing.T) {
-	r := newReservation()
+	r := newReservation(t)
 	// 1 index
 	r.NewIndex(util.SecsToTime(1), 5)
 	require.Equal(t, uint64(64), r.AllocResv())
@@ -99,9 +98,9 @@ func TestAllocResv(t *testing.T) {
 	require.Equal(t, uint64(32), r.AllocResv())
 }
 
-func newSegmentReservation(asidPath ...string) *segment.Reservation {
+func newSegmentReservation(t *testing.T, asidPath ...string) *segment.Reservation {
 	if len(asidPath) < 2 {
-		panic("at least source and destination in the path")
+		require.FailNow(t, "at least source and destination in the path")
 	}
 	r := segmenttest.NewReservation()
 	// use the asid to create an ID and a path and use them in the reservation
@@ -113,29 +112,21 @@ func newSegmentReservation(asidPath ...string) *segment.Reservation {
 	}
 	pathComponents[len(pathComponents)-1] = 0
 
-	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	var err error
-	r.Steps, err = base.StepsFromSnet(p)
-	if err != nil {
-		panic(err)
-	}
-	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	r.Steps = test.NewSteps("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	r.TransportPath = test.NewColPathMin(r.Steps)
 	return r
 }
 
-func newReservation() *Reservation {
+func newReservation(t *testing.T) *Reservation {
 	id, err := reservation.NewID(xtest.MustParseAS("ff00:0:111"),
 		xtest.MustParseHexString("beefcafebeefcafebeefcafe"))
 	if err != nil {
-		panic(err)
+		require.FailNow(t, err.Error())
 	}
 	rsv := Reservation{
 		ID: *id,
 		SegmentReservations: []*segment.Reservation{
-			newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+			newSegmentReservation(t, "1-ff00:0:111", "1-ff00:0:110"),
 		},
 	}
 	return &rsv

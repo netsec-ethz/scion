@@ -13,7 +13,7 @@ import (
 	reservation "github.com/scionproto/scion/go/co/reservation"
 	segment "github.com/scionproto/scion/go/co/reservation/segment"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	path "github.com/scionproto/scion/go/lib/slayers/path"
+	colibri "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	snet "github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -41,7 +41,7 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // ActivateRequest mocks base method.
-func (m *MockManager) ActivateRequest(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path, arg4 bool) error {
+func (m *MockManager) ActivateRequest(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 *colibri.ColibriPathMinimal, arg4 bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ActivateRequest", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)

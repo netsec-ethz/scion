@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/co/reservation/test"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -85,19 +84,12 @@ func WithID(as, suffix string) ReservationMod {
 	}
 }
 
+// WithPath is used like WithPath("1-ff00:0:1", 2, 1, "1-ff00:0:2"))
 func WithPath(path ...interface{}) ReservationMod {
-	snetPath := test.NewSnetPath(path...)
-	steps, err := base.StepsFromSnet(snetPath)
-	if err != nil {
-		panic(err)
-	}
-	rawPath, err := base.PathFromDataplanePath(snetPath.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	steps := test.NewSteps(path...)
 	return func(rsv *segment.Reservation) *segment.Reservation {
 		rsv.Steps = steps
-		rsv.TransportPath = rawPath
+		rsv.TransportPath = test.NewColPathMin(steps)
 		return rsv
 	}
 }

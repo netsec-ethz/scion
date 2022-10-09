@@ -333,7 +333,7 @@ func TestLinkRatio(t *testing.T) {
 	}{
 		"empty": {
 			linkRatio: 1.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 5, 5),
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{}
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
@@ -341,7 +341,7 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"same request": {
 			linkRatio: 1.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 5, 5),
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
 					testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
@@ -351,7 +351,7 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"same source": {
 			linkRatio: .5, // prevBW / (0+prevBW + blockedBW) -> 64 / (64 + 64)
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 5, 5),
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
 					testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5), // same ID as request
@@ -362,7 +362,7 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"different sources": {
 			linkRatio: 1. / 3.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 5, 5),
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
 					testNewRsv(t, "ff00:1:2", "00000001", 1, 2, 5, 5, 5),
@@ -373,7 +373,7 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"different egress interface": {
 			linkRatio: 1., // 64 / 64  => srcAlloc(ff00:1:1, 1, 2) = 0 + prevBW = 0 + 64 = 64
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 5, 5),
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
 					testNewRsv(t, "ff00:1:1", "00000001", 1, 3, 5, 5, 5),
@@ -383,7 +383,7 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"smaller prevBW": {
 			linkRatio: 1. / 3.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 3, 3), // 64 Kbps
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 3, 3), // 64 Kbps
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
 					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 Kbps
@@ -393,7 +393,7 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"bigger prevBW": {
 			linkRatio: 2. / 3.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 7, 7), // 256 Kbps
+			req:       testAddAllocTrail(t, newTestRequest(t, 1, 2, 5, 5), 7, 7), // 256 Kbps
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
 					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 Kbps
@@ -461,13 +461,9 @@ func newTestRequest(t *testing.T, ingress, egress int,
 
 	ID, err := reservation.IDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
 	require.NoError(t, err)
-	p := test.NewSnetPathWithHop("1-ff00:1:0", 1, ingress, "1-ff00:1:1", egress, 1, "1-ff00:1:2")
-	steps, err := base.StepsFromSnet(p)
-	require.NoError(t, err)
-	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
-	baseReq := base.NewRequest(util.SecsToTime(1), ID, 0,
-		len(steps))
+
+	steps := test.NewSteps("1-ff00:1:0", 1, ingress, "1-ff00:1:1", egress, 1, "1-ff00:1:2")
+	baseReq := base.NewRequest(util.SecsToTime(1), ID, 0, len(steps))
 
 	return &segment.SetupReq{
 		Request:        *baseReq,
@@ -479,7 +475,7 @@ func newTestRequest(t *testing.T, ingress, egress int,
 		SplitCls:       2,
 		PathProps:      reservation.StartLocal | reservation.EndLocal,
 		Steps:          steps,
-		TransportPath:  rawPath,
+		TransportPath:  test.NewColPathMin(steps),
 		CurrentStep:    1,
 	}
 }
@@ -491,15 +487,7 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 		xtest.MustParseHexString(suffix))
 	require.NoError(t, err)
 
-	p := test.NewSnetPath("1-ff00:0:1", 1, int(ingress), "1-ff00:0:2", int(egress), 1, "1-ff00:0:3")
-	steps, err := base.StepsFromSnet(p)
-	if err != nil {
-		panic(err)
-	}
-	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	steps := test.NewSteps("1-ff00:0:1", 1, int(ingress), "1-ff00:0:2", int(egress), 1, "1-ff00:0:3")
 
 	rsv := &segment.Reservation{
 		ID: *ID,
@@ -515,7 +503,7 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 		PathType:      reservation.UpPath,
 		PathEndProps:  reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
 		TrafficSplit:  2,
-		TransportPath: rawPath,
+		TransportPath: test.NewColPathMin(steps),
 		Steps:         steps,
 		CurrentStep:   1,
 	}
@@ -528,9 +516,9 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint1
 
 // testAddAllocTrail adds an allocation trail to a reservation. The beads parameter represents
 // the trail like: alloc0,max0,alloc1,max1,...
-func testAddAllocTrail(req *segment.SetupReq, beads ...reservation.BWCls) *segment.SetupReq {
+func testAddAllocTrail(t *testing.T, req *segment.SetupReq, beads ...reservation.BWCls) *segment.SetupReq {
 	if len(beads)%2 != 0 {
-		panic("the beads must be even")
+		require.FailNow(t, "the beads must be even")
 	}
 	for i := 0; i < len(beads); i += 2 {
 		beads := reservation.AllocationBead{

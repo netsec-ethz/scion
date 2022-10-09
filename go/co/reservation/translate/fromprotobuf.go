@@ -26,12 +26,13 @@ import (
 	col "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/util"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
-func SetupReq(msg *colpb.SegmentSetupRequest, rawPath slayerspath.Path) (*segment.SetupReq, error) {
+func SetupReq(msg *colpb.SegmentSetupRequest, rawPath *colpath.ColibriPathMinimal,
+) (*segment.SetupReq, error) {
 	if msg == nil || msg.Base == nil || msg.Params == nil {
 		return nil, serrors.New("incomplete message", "msg", msg)
 	}

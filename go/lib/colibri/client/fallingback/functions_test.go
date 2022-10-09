@@ -90,11 +90,11 @@ func TestToNext(t *testing.T) {
 
 func TestSkipInterface(t *testing.T) {
 	stitchables := ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
-		ct.WithUpPaths(rt.NewPath(0, "1-ff00:0:111", 2, 2, "1-ff00:0:112", 0),
-			rt.NewPath(0, "1-ff00:0:111", 2, 1, "1-ff00:0:110", 0),
-			rt.NewPath(0, "1-ff00:0:111", 3, 1, "1-ff00:0:100", 0)),
-		ct.WithDownPaths(rt.NewPath(0, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
-			rt.NewPath(0, "1-ff00:0:100", 2, 1, "1-ff00:0:112", 0)),
+		ct.WithUpPaths(rt.NewSteps(0, "1-ff00:0:111", 2, 2, "1-ff00:0:112", 0),
+			rt.NewSteps(0, "1-ff00:0:111", 2, 1, "1-ff00:0:110", 0),
+			rt.NewSteps(0, "1-ff00:0:111", 3, 1, "1-ff00:0:100", 0)),
+		ct.WithDownPaths(rt.NewSteps(0, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			rt.NewSteps(0, "1-ff00:0:100", 2, 1, "1-ff00:0:112", 0)),
 	)
 	capturedTrips := colibri.CombineAll(stitchables)
 

@@ -22,12 +22,12 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	utilp "github.com/scionproto/scion/go/lib/util/path"
 )
 
 // PathStep encompasses one-hop metadata in COLIBRI
@@ -43,16 +43,11 @@ func (s PathStep) Equal(o PathStep) bool {
 
 const PathStepLen = 2 + 2 + 8
 
-func PathFromDataplanePath(p snet.DataplanePath) (slayerspath.Path, error) {
-	var s slayers.SCION
-	err := p.SetPath(&s)
-	return s.Path, err
-}
-
+// deleteme
 // TODO(juagargi) remove the need for this function: the initial path is not used for anything.
 // Maybe have the client operator find the path to the next hop in the case of a initial reservation.
 func ChoppedPathFromDataplane(dataplanePath snet.DataplanePath) (slayerspath.Path, error) {
-	longPath, err := PathFromDataplanePath(dataplanePath)
+	longPath, err := utilp.SnetToDataplanePath(dataplanePath)
 	if err != nil {
 		return nil, err
 	}
@@ -84,24 +79,19 @@ func ChoppedPathFromDataplane(dataplanePath snet.DataplanePath) (slayerspath.Pat
 	return shortPath, nil
 }
 
-func PathToRaw(p slayerspath.Path) ([]byte, error) {
+func ColPathToRaw(p *colpath.ColibriPathMinimal) ([]byte, error) {
 	if p == nil {
 		return nil, nil
 	}
-	buff := make([]byte, p.Len()+1)
-	buff[0] = byte(p.Type())
-	err := p.SerializeTo(buff[1:])
+	buff := make([]byte, p.Len())
+	err := p.SerializeTo(buff)
 	return buff, err
 }
 
-func PathFromRaw(raw []byte) (slayerspath.Path, error) {
-	rp, err := slayerspath.NewPath(slayerspath.Type(raw[0]))
-	if err == nil && rp != nil {
-		if err := rp.DecodeFromBytes(raw[1:]); err != nil {
-			return nil, err
-		}
-	}
-	return rp, nil
+func ColPathFromRaw(raw []byte) (*colpath.ColibriPathMinimal, error) {
+	p := &colpath.ColibriPathMinimal{}
+	err := p.DecodeFromBytes(raw)
+	return p, err
 }
 
 type PathSteps []PathStep
@@ -200,7 +190,7 @@ func (p PathSteps) String() string {
 // TODO(juagargi) support colibri EER paths
 func (s PathSteps) ValidateEquivalent(path slayerspath.Path, atStep int) error {
 	var in, eg uint16
-	doColibriPath := func(p colibri.ColibriPathFacade) {
+	doColibriPath := func(p colpath.ColibriPathFacade) {
 		infF := p.GetInfoField()
 		if !infF.S {
 			panic("colibri EER paths are not yet supported")
@@ -234,9 +224,9 @@ func (s PathSteps) ValidateEquivalent(path slayerspath.Path, atStep int) error {
 		return nil
 	}
 	switch v := path.(type) {
-	case *colibri.ColibriPathMinimal:
+	case *colpath.ColibriPathMinimal:
 		doColibriPath(v)
-	case *colibri.ColibriPath:
+	case *colpath.ColibriPath:
 		doColibriPath(v)
 	case *scion.Raw:
 		p := &scion.Decoded{}
@@ -312,9 +302,9 @@ func StepsFromInterfaces(ifaces []snet.PathInterface) (PathSteps, error) {
 
 func InEgFromDataplanePath(path slayerspath.Path) (uint16, uint16) {
 	switch v := path.(type) {
-	case *colibri.ColibriPathMinimal:
+	case *colpath.ColibriPathMinimal:
 		return v.CurrHopField.IngressId, v.CurrHopField.EgressId
-	case *colibri.ColibriPath:
+	case *colpath.ColibriPath:
 		curr := v.InfoField.CurrHF
 		return v.HopFields[curr].IngressId, v.HopFields[curr].EgressId
 	case *scion.Raw:

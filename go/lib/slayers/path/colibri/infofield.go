@@ -38,7 +38,7 @@ type InfoField struct {
 	// HFCount denotes the total number of hop fields.
 	HFCount uint8
 	// ResIdSuffix (12 bytes) denotes the reservation ID suffix.
-	ResIdSuffix []byte
+	ResIdSuffix []byte // TODO(juagargi) [12]byte instead, remove Clone() method
 	// ExpTick denotes the expiration tick, where one tick corresponds to 4 seconds.
 	ExpTick uint32
 	// BwCls denotes the bandwidth class of the reservation.
@@ -103,4 +103,11 @@ func (inf *InfoField) SerializeTo(b []byte) error {
 	b[21] = inf.Rlc
 	binary.BigEndian.PutUint16(b[22:24], inf.OrigPayLen)
 	return nil
+}
+
+func (inf *InfoField) Clone() *InfoField {
+	c := *inf
+	c.ResIdSuffix = make([]byte, len(inf.ResIdSuffix))
+	copy(c.ResIdSuffix, inf.ResIdSuffix)
+	return &c
 }

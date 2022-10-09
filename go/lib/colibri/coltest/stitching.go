@@ -484,7 +484,7 @@ func WithTripFromPaths(args ...interface{}) FullTripMod {
 				pathArgs = append(pathArgs,
 					remainingArgs[i], remainingArgs[i+1], remainingArgs[i+2])
 			}
-			*destinationSegment = rt.NewPath(pathArgs...) // will panic if bad args
+			*destinationSegment = rt.NewSteps(pathArgs...) // will panic if bad args
 			remainingArgs = remainingArgs[i:]
 		} else {
 			panic(fmt.Sprintf(`bad argument "%v"; should be Up,Core or Down`, remainingArgs[0]))

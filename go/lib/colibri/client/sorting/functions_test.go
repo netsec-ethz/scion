@@ -48,10 +48,10 @@ func TestByBW(t *testing.T) {
 
 func TestByNumberOfASes(t *testing.T) {
 	stitchables := ct.NewStitchableSegments("1-ff00:0:111", "1-ff00:0:112",
-		ct.WithUpPaths(rt.NewPath(0, "1-ff00:0:111", 1, 2, "1-ff00:0:112", 0),
-			rt.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 0)),
+		ct.WithUpPaths(rt.NewSteps(0, "1-ff00:0:111", 1, 2, "1-ff00:0:112", 0),
+			rt.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 0)),
 
-		ct.WithDownPaths(rt.NewPath(0, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
+		ct.WithDownPaths(rt.NewSteps(0, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0)),
 	)
 
 	trips := colibri.CombineAll(stitchables)

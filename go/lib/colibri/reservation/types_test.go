@@ -475,7 +475,7 @@ func TestAllocationBeadsMinMax(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
-	tok := newToken()
+	tok := newToken(t)
 	err := tok.Validate()
 	require.NoError(t, err)
 	tok.HopFields = []HopField{}
@@ -484,13 +484,13 @@ func TestValidateToken(t *testing.T) {
 }
 
 func TestTokenLen(t *testing.T) {
-	tok := newToken()
+	tok := newToken(t)
 	require.Equal(t, len(newTokenRaw()), tok.Len())
 }
 
 func TestTokenFromRaw(t *testing.T) {
 	referenceRaw := newTokenRaw()
-	reference := newToken()
+	reference := newToken(t)
 	tok, err := TokenFromRaw(referenceRaw)
 	require.NoError(t, err)
 	require.Equal(t, reference, *tok)
@@ -505,7 +505,7 @@ func TestTokenFromRaw(t *testing.T) {
 	require.Len(t, tok.HopFields, len(reference.HopFields)-1)
 }
 func TestTokenRead(t *testing.T) {
-	tok := newToken()
+	tok := newToken(t)
 	rawReference := newTokenRaw()
 	buf := make([]byte, len(rawReference))
 	c, err := tok.Read(buf)
@@ -519,7 +519,7 @@ func TestTokenRead(t *testing.T) {
 }
 
 func TestTokenToRaw(t *testing.T) {
-	tok := newToken()
+	tok := newToken(t)
 	raw := newTokenRaw()
 	require.Equal(t, raw, tok.ToRaw())
 }
@@ -533,7 +533,7 @@ func TestTokenGetFirstNHopFields(t *testing.T) {
 		"empty": {
 			token: Token{
 				InfoField: InfoField{PathType: CorePath},
-				HopFields: []HopField{*newHopField(1, 11, xtest.MustParseHexString("01234567"))},
+				HopFields: []HopField{*newHopField(t, 1, 11, xtest.MustParseHexString("01234567"))},
 			},
 			n:        0,
 			expected: nil,
@@ -542,37 +542,37 @@ func TestTokenGetFirstNHopFields(t *testing.T) {
 			token: Token{
 				InfoField: InfoField{PathType: CorePath},
 				HopFields: []HopField{
-					*newHopField(1, 11, xtest.MustParseHexString("01234567")),
-					*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+					*newHopField(t, 1, 11, xtest.MustParseHexString("01234567")),
+					*newHopField(t, 2, 11, xtest.MustParseHexString("11234567")),
 				},
 			},
 			n:        1,
-			expected: []HopField{*newHopField(2, 11, xtest.MustParseHexString("11234567"))},
+			expected: []HopField{*newHopField(t, 2, 11, xtest.MustParseHexString("11234567"))},
 		},
 		"all": {
 			token: Token{
 				InfoField: InfoField{PathType: CorePath},
 				HopFields: []HopField{
-					*newHopField(1, 11, xtest.MustParseHexString("01234567")),
-					*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+					*newHopField(t, 1, 11, xtest.MustParseHexString("01234567")),
+					*newHopField(t, 2, 11, xtest.MustParseHexString("11234567")),
 				},
 			},
 			n: 2,
 			expected: []HopField{
-				*newHopField(1, 11, xtest.MustParseHexString("01234567")),
-				*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+				*newHopField(t, 1, 11, xtest.MustParseHexString("01234567")),
+				*newHopField(t, 2, 11, xtest.MustParseHexString("11234567")),
 			},
 		},
 		"last_downpath": {
 			token: Token{
 				InfoField: InfoField{PathType: DownPath},
 				HopFields: []HopField{
-					*newHopField(1, 11, xtest.MustParseHexString("01234567")),
-					*newHopField(2, 11, xtest.MustParseHexString("11234567")),
+					*newHopField(t, 1, 11, xtest.MustParseHexString("01234567")),
+					*newHopField(t, 2, 11, xtest.MustParseHexString("11234567")),
 				},
 			},
 			n:        1,
-			expected: []HopField{*newHopField(1, 11, xtest.MustParseHexString("01234567"))},
+			expected: []HopField{*newHopField(t, 1, 11, xtest.MustParseHexString("01234567"))},
 		},
 	}
 	for name, tc := range cases {
@@ -599,24 +599,24 @@ func newInfoFieldRaw() []byte {
 	return xtest.MustParseHexString("16ebdb4f0d042600")
 }
 
-func newHopField(ingress, egress uint16, mac []byte) *HopField {
+func newHopField(t *testing.T, ingress, egress uint16, mac []byte) *HopField {
 	hf := HopField{
 		Ingress: ingress,
 		Egress:  egress,
 	}
 	if len(mac) < len(hf.Mac) {
-		panic(fmt.Errorf("mac is too short: %d", len(mac)))
+		require.FailNow(t, "mac is too short: %d", "len:%d", len(mac))
 	}
 	copy(hf.Mac[:], mac)
 	return &hf
 }
 
-func newToken() Token {
+func newToken(t *testing.T) Token {
 	return Token{
 		InfoField: newInfoField(),
 		HopFields: []HopField{
-			*newHopField(1, 2, xtest.MustParseHexString("badcffee")),
-			*newHopField(1, 2, xtest.MustParseHexString("baadf00d")),
+			*newHopField(t, 1, 2, xtest.MustParseHexString("badcffee")),
+			*newHopField(t, 1, 2, xtest.MustParseHexString("baadf00d")),
 		},
 	}
 }

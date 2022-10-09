@@ -11,7 +11,6 @@ go_library(
     importpath = "github.com/scionproto/scion/go/lib/colibri/coliquic",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/co/reservation:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/daemon:go_default_library",
@@ -31,6 +30,7 @@ go_library(
         "//go/lib/sock/reliable/reconnect:go_default_library",
         "//go/lib/svc:go_default_library",
         "//go/lib/topology:go_default_library",
+        "//go/lib/util/path:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/proto/colibri:go_default_library",
         "//go/pkg/proto/discovery:go_default_library",

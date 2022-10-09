@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -43,7 +43,8 @@ type Manager interface {
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
-	ActivateRequest(context.Context, *base.Request, base.PathSteps, slayerspath.Path, bool) error
+	ActivateRequest(context.Context, *base.Request, base.PathSteps, *colpath.ColibriPathMinimal,
+		bool) error
 	DeleteExpiredIndices(ctx context.Context) error
 }
 
@@ -274,7 +275,7 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	transportPath := req.TransportPath
 	if req.PathType == reservation.DownPath {
 		steps = steps.Reverse()
-		transportPath, err = transportPath.Reverse()
+		transportPath, err = transportPath.ReverseAsColibri()
 		if err != nil {
 			log.Info("error reversing scion/colibri path", "err", err, "path", transportPath)
 			panic(err)
@@ -299,12 +300,12 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 }
 
 func (m *manager) ActivateRequest(ctx context.Context, req *base.Request, steps base.PathSteps,
-	path slayerspath.Path, reverseTraveling bool) error {
+	trasportPath *colpath.ColibriPathMinimal, reverseTraveling bool) error {
 
 	if reverseTraveling {
 		steps = steps.Reverse()
 	}
-	res, err := m.store.InitActivateSegmentReservation(ctx, req, steps, path)
+	res, err := m.store.InitActivateSegmentReservation(ctx, req, steps, trasportPath)
 	if err != nil {
 		return err
 	}

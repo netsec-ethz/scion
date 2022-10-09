@@ -16,7 +16,7 @@ import (
 	addr "github.com/scionproto/scion/go/lib/addr"
 	colibri "github.com/scionproto/scion/go/lib/colibri"
 	reservation0 "github.com/scionproto/scion/go/lib/colibri/reservation"
-	path "github.com/scionproto/scion/go/lib/slayers/path"
+	colibri0 "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
 // MockStore is a mock of Store interface.
@@ -43,7 +43,7 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 }
 
 // ActivateSegmentReservation mocks base method.
-func (m *MockStore) ActivateSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 path.Path) (reservation.Response, error) {
+func (m *MockStore) ActivateSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ActivateSegmentReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(reservation.Response)
@@ -73,7 +73,7 @@ func (mr *MockStoreMockRecorder) AddAdmissionEntry(arg0, arg1 interface{}) *gomo
 }
 
 // AdmitE2EReservation mocks base method.
-func (m *MockStore) AdmitE2EReservation(arg0 context.Context, arg1 *e2e.SetupReq, arg2 path.Path) (e2e.SetupResponse, error) {
+func (m *MockStore) AdmitE2EReservation(arg0 context.Context, arg1 *e2e.SetupReq, arg2 *colibri0.ColibriPathMinimal) (e2e.SetupResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdmitE2EReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(e2e.SetupResponse)
@@ -88,7 +88,7 @@ func (mr *MockStoreMockRecorder) AdmitE2EReservation(arg0, arg1, arg2 interface{
 }
 
 // AdmitSegmentReservation mocks base method.
-func (m *MockStore) AdmitSegmentReservation(arg0 context.Context, arg1 *segment.SetupReq, arg2 path.Path) (segment.SegmentSetupResponse, error) {
+func (m *MockStore) AdmitSegmentReservation(arg0 context.Context, arg1 *segment.SetupReq, arg2 *colibri0.ColibriPathMinimal) (segment.SegmentSetupResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdmitSegmentReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(segment.SegmentSetupResponse)
@@ -103,7 +103,7 @@ func (mr *MockStoreMockRecorder) AdmitSegmentReservation(arg0, arg1, arg2 interf
 }
 
 // CleanupE2EReservation mocks base method.
-func (m *MockStore) CleanupE2EReservation(arg0 context.Context, arg1 *e2e.Request, arg2 path.Path) (reservation.Response, error) {
+func (m *MockStore) CleanupE2EReservation(arg0 context.Context, arg1 *e2e.Request, arg2 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CleanupE2EReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(reservation.Response)
@@ -118,7 +118,7 @@ func (mr *MockStoreMockRecorder) CleanupE2EReservation(arg0, arg1, arg2 interfac
 }
 
 // CleanupSegmentReservation mocks base method.
-func (m *MockStore) CleanupSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 path.Path) (reservation.Response, error) {
+func (m *MockStore) CleanupSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CleanupSegmentReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(reservation.Response)
@@ -133,7 +133,7 @@ func (mr *MockStoreMockRecorder) CleanupSegmentReservation(arg0, arg1, arg2 inte
 }
 
 // ConfirmSegmentReservation mocks base method.
-func (m *MockStore) ConfirmSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 path.Path) (reservation.Response, error) {
+func (m *MockStore) ConfirmSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConfirmSegmentReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(reservation.Response)
@@ -195,7 +195,7 @@ func (mr *MockStoreMockRecorder) GetReservationsAtSource(arg0 interface{}) *gomo
 }
 
 // InitActivateSegmentReservation mocks base method.
-func (m *MockStore) InitActivateSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path) (reservation.Response, error) {
+func (m *MockStore) InitActivateSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitActivateSegmentReservation", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(reservation.Response)
@@ -210,7 +210,7 @@ func (mr *MockStoreMockRecorder) InitActivateSegmentReservation(arg0, arg1, arg2
 }
 
 // InitCleanupSegmentReservation mocks base method.
-func (m *MockStore) InitCleanupSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path) (reservation.Response, error) {
+func (m *MockStore) InitCleanupSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitCleanupSegmentReservation", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(reservation.Response)
@@ -225,7 +225,7 @@ func (mr *MockStoreMockRecorder) InitCleanupSegmentReservation(arg0, arg1, arg2,
 }
 
 // InitConfirmSegmentReservation mocks base method.
-func (m *MockStore) InitConfirmSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path) (reservation.Response, error) {
+func (m *MockStore) InitConfirmSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitConfirmSegmentReservation", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(reservation.Response)
@@ -254,7 +254,7 @@ func (mr *MockStoreMockRecorder) InitSegmentReservation(arg0, arg1 interface{}) 
 }
 
 // InitTearDownSegmentReservation mocks base method.
-func (m *MockStore) InitTearDownSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 path.Path) (reservation.Response, error) {
+func (m *MockStore) InitTearDownSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 reservation.PathSteps, arg3 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InitTearDownSegmentReservation", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(reservation.Response)
@@ -343,7 +343,7 @@ func (mr *MockStoreMockRecorder) ReportSegmentReservationsInDB(arg0 interface{})
 }
 
 // TearDownSegmentReservation mocks base method.
-func (m *MockStore) TearDownSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 path.Path) (reservation.Response, error) {
+func (m *MockStore) TearDownSegmentReservation(arg0 context.Context, arg1 *reservation.Request, arg2 *colibri0.ColibriPathMinimal) (reservation.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TearDownSegmentReservation", arg0, arg1, arg2)
 	ret0, _ := ret[0].(reservation.Response)

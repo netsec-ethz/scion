@@ -46,7 +46,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 		transitReq e2e.Request
 	}{
 		"regular": {
-			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+			steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 			clientReq: libcol.BaseRequest{
 				Id:        *ct.MustParseID("ff00:0:111", "0123456789abcdef01234567"),
@@ -86,7 +86,7 @@ func TestE2EBaseReqInitialMac(t *testing.T) {
 			authIA := tc.steps[1].IA
 			auth := DRKeyAuthenticator{
 				localIA:   authIA,
-				fastKeyer: fakeFastKeyer{localIA: authIA},
+				fastKeyer: fakeFastKeyer{t: t, localIA: authIA},
 			}
 			// second AS, first transit AS -> currentStep == 1
 			ok, err := auth.ValidateE2ERequest(ctx, &tc.transitReq, tc.steps, 1)
@@ -110,7 +110,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 					SrcHost:   net.ParseIP(srcHost()),
 					DstHost:   net.ParseIP(dstHost()),
 				},
-				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				Steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 					1, "1-ff00:0:112", 0),
 				RequestedBW: 11,
 				Segments: []reservation.ID{
@@ -126,7 +126,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 				},
-				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				Steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 					1, "1-ff00:0:112", 0),
 				RequestedBW: 11,
 				SegmentRsvs: []reservation.ID{
@@ -158,7 +158,7 @@ func TestE2ESetupReqInitialMac(t *testing.T) {
 			authIA := tc.clientReq.Steps[1].IA
 			auth := DRKeyAuthenticator{
 				localIA:   authIA,
-				fastKeyer: fakeFastKeyer{localIA: authIA},
+				fastKeyer: fakeFastKeyer{t: t, localIA: authIA},
 			}
 			tc.transitReq.CurrentStep = 1 // second AS, first transit AS
 			ok, err := auth.ValidateE2ESetupRequest(ctx, &tc.transitReq)
@@ -181,7 +181,7 @@ func TestE2ERequestTransitMac(t *testing.T) {
 				SrcHost: net.ParseIP(srcHost()),
 				DstHost: net.ParseIP(dstHost()),
 			},
-			steps: ct.NewPath(
+			steps: ct.NewSteps(
 				0, "1-ff00:0:111", 1,
 				1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0,
@@ -200,7 +200,7 @@ func TestE2ERequestTransitMac(t *testing.T) {
 				authIA := tc.steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
-					fastKeyer: fakeFastKeyer{localIA: authIA},
+					fastKeyer: fakeFastKeyer{t: t, localIA: authIA},
 				}
 				err := auth.ComputeE2ERequestTransitMAC(ctx, &tc.transitReq, tc.steps, step)
 				require.NoError(t, err)
@@ -210,7 +210,7 @@ func TestE2ERequestTransitMac(t *testing.T) {
 			dstIA := tc.steps.DstIA()
 			auth := DRKeyAuthenticator{
 				localIA:   dstIA,
-				slowKeyer: fakeSlowKeyer{localIA: dstIA},
+				slowKeyer: fakeSlowKeyer{t: t, localIA: dstIA},
 			}
 			ok, err := auth.validateE2ERequestAtDestination(
 				ctx,
@@ -236,7 +236,7 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 					SrcHost: net.ParseIP(srcHost()),
 					DstHost: net.ParseIP(dstHost()),
 				},
-				Steps: ct.NewPath(
+				Steps: ct.NewSteps(
 					0, "1-ff00:0:111", 1,
 					1, "1-ff00:0:110", 2,
 					1, "1-ff00:0:112", 0,
@@ -266,7 +266,7 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 				authIA := tc.transitReq.Steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
-					fastKeyer: fakeFastKeyer{localIA: authIA},
+					fastKeyer: fakeFastKeyer{t: t, localIA: authIA},
 				}
 				err := auth.ComputeE2ESetupRequestTransitMAC(ctx, &tc.transitReq)
 				require.NoError(t, err)
@@ -277,7 +277,7 @@ func TestE2ESetupRequestTransitMac(t *testing.T) {
 			dstIA := tc.transitReq.Steps.DstIA()
 			auth := DRKeyAuthenticator{
 				localIA:   dstIA,
-				slowKeyer: fakeSlowKeyer{localIA: dstIA},
+				slowKeyer: fakeSlowKeyer{t: t, localIA: dstIA},
 			}
 			ok, err := auth.validateE2ESetupRequestAtDestination(
 				ctx,
@@ -302,7 +302,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 					Authenticators: make([][]byte, 2),
 				},
 			},
-			steps: ct.NewPath(
+			steps: ct.NewSteps(
 				0, "1-ff00:0:111", 1,
 				1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0,
@@ -323,7 +323,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 				authIA := tc.steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
-					fastKeyer: fakeFastKeyer{localIA: authIA},
+					fastKeyer: fakeFastKeyer{t: t, localIA: authIA},
 				}
 				err := auth.ComputeResponseMAC(ctx, tc.res, tc.steps.SrcIA(), tc.currentStep)
 				require.NoError(t, err)
@@ -333,7 +333,7 @@ func TestComputeAndValidateResponse(t *testing.T) {
 			srcIA := tc.steps.SrcIA()
 			auth := DRKeyAuthenticator{
 				localIA:   srcIA,
-				slowKeyer: fakeSlowKeyer{localIA: srcIA},
+				slowKeyer: fakeSlowKeyer{t: t, localIA: srcIA},
 			}
 			tc.currentStep = 0
 			ok, err := auth.ValidateResponse(ctx, tc.res, tc.steps)
@@ -364,7 +364,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					},
 				},
 			},
-			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+			steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 			lastStepWhichComputes: 2,
 		},
@@ -391,13 +391,13 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 					MinBW:          5,
 					MaxBW:          13,
 					SplitCls:       11,
-					Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+					Steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 						1, "1-ff00:0:112", 2, 1, "1-ff00:0:113", 0),
 
 					PathProps: reservation.StartLocal | reservation.EndTransfer,
 				},
 			},
-			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 2,
+			steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 2,
 				1, "1-ff00:0:113", 0), // note that we don't have drkeys for 113, but that drkey
 			// should not be requested, as it is beyond the failure step.
 			lastStepWhichComputes: 2,
@@ -428,7 +428,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 				authIA := tc.steps[step].IA
 				auth := DRKeyAuthenticator{
 					localIA:   authIA,
-					fastKeyer: fakeFastKeyer{localIA: authIA},
+					fastKeyer: fakeFastKeyer{t: t, localIA: authIA},
 				}
 				err := auth.ComputeSegmentSetupResponseMAC(ctx, tc.res, tc.steps,
 					tc.currentStep)
@@ -439,7 +439,7 @@ func TestComputeAndValidateSegmentSetupResponse(t *testing.T) {
 			srcIA := tc.steps.SrcIA()
 			auth := DRKeyAuthenticator{
 				localIA:   srcIA,
-				slowKeyer: fakeSlowKeyer{localIA: srcIA},
+				slowKeyer: fakeSlowKeyer{t: t, localIA: srcIA},
 			}
 			tc.currentStep = 0
 			ok, err := auth.ValidateSegmentSetupResponse(ctx, tc.res, tc.steps)
@@ -459,7 +459,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 	}{
 		"failure": {
 			timestamp: util.SecsToTime(1),
-			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+			steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 			response: &base.ResponseFailure{
@@ -487,7 +487,7 @@ func TestComputeAndValidateE2EResponseError(t *testing.T) {
 
 				auth := DRKeyAuthenticator{
 					localIA:   step.IA,
-					fastKeyer: fakeFastKeyer{localIA: step.IA},
+					fastKeyer: fakeFastKeyer{t: t, localIA: step.IA},
 				}
 
 				if failure, ok := tc.response.(*base.ResponseFailure); ok {
@@ -541,7 +541,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					Authenticators: make([][]byte, 3), // same size as the path
 				},
 			},
-			steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:   ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 			rsvID:   ct.MustParseID("ff00:0:111", "01234567890123456789abcd"),
 			token: &reservation.Token{
@@ -565,7 +565,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 				Message:    "this is a mock test message",
 				AllocTrail: []reservation.BWCls{13, 5, 13},
 			},
-			steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:   ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 		},
 		"failure_at_transit": {
@@ -579,7 +579,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 				Message:    "this is a mock test message",
 				AllocTrail: []reservation.BWCls{13, 5, 13},
 			},
-			steps:   ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
+			steps:   ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2, 1, "1-ff00:0:112", 0),
 			srcHost: xtest.MustParseIP(t, "10.1.1.1"),
 		},
 	}
@@ -614,7 +614,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 
 				auth := DRKeyAuthenticator{
 					localIA:   step.IA,
-					fastKeyer: fakeFastKeyer{localIA: step.IA},
+					fastKeyer: fakeFastKeyer{t: t, localIA: step.IA},
 				}
 				err := auth.ComputeE2ESetupResponseMAC(ctx, tc.response, tc.currentStep,
 					tc.steps.SrcIA(), addr.HostFromIP(tc.srcHost), tc.rsvID)
@@ -677,12 +677,13 @@ func dstHost() string {
 }
 
 type fakeFastKeyer struct {
+	t       *testing.T
 	localIA addr.IA
 }
 
 func (f fakeFastKeyer) Lvl1Key(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	if meta.SrcIA != f.localIA {
-		panic(fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
+		require.FailNow(f.t, fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
 			meta.SrcIA, f.localIA))
 	}
 	return fakedrkey.Lvl1Key(meta), nil
@@ -690,19 +691,20 @@ func (f fakeFastKeyer) Lvl1Key(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lv
 
 func (f fakeFastKeyer) ASHostKey(_ context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 	if meta.SrcIA != f.localIA {
-		panic(fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
+		require.FailNow(f.t, fmt.Sprintf("cannot derive, SrcIA != localIA, SrcIA=%s, localIA=%s",
 			meta.SrcIA, f.localIA))
 	}
 	return fakedrkey.ASHost(meta), nil
 }
 
 type fakeSlowKeyer struct {
+	t       *testing.T
 	localIA addr.IA
 }
 
 func (f fakeSlowKeyer) Lvl1Key(_ context.Context, meta drkey.Lvl1Meta) (drkey.Lvl1Key, error) {
 	if meta.DstIA != f.localIA {
-		panic(fmt.Sprintf("cannot fetch, DstIA != localIA, DstIA=%s, localIA=%s",
+		require.FailNow(f.t, fmt.Sprintf("cannot fetch, DstIA != localIA, DstIA=%s, localIA=%s",
 			meta.DstIA, f.localIA))
 	}
 	return fakedrkey.Lvl1Key(meta), nil

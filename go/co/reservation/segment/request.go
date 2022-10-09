@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -41,10 +41,10 @@ type SetupReq struct {
 	AllocTrail       reservation.AllocationBeads
 	ReverseTraveling bool // a down rsv traveling to the core to be re-requested
 	// TODO(juagargi) remove Reservation from this type
-	Reservation   *Reservation     // nil if no reservation yet
-	Steps         base.PathSteps   // retrieved from pb request (except at source)
-	CurrentStep   int              // recovered from pb request (except at source)
-	TransportPath slayerspath.Path // recovered from dataplane (except at source)
+	Reservation   *Reservation                // nil if no reservation yet
+	Steps         base.PathSteps              // retrieved from pb request (except at source)
+	CurrentStep   int                         // recovered from pb request (except at source)
+	TransportPath *colibri.ColibriPathMinimal // recovered from dataplane (except at source)
 }
 
 // Validate takes as argument a function that returns the neighboring IA given the

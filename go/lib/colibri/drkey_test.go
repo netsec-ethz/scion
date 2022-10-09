@@ -28,7 +28,7 @@ func TestSerializeBaseRequest(t *testing.T) {
 				SrcHost:   net.ParseIP("10.1.1.1"),
 				DstHost:   net.ParseIP("10.2.2.2"),
 			},
-			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:112", 0),
+			steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:112", 0),
 		},
 		"three_steps": {
 			req: &BaseRequest{
@@ -38,7 +38,7 @@ func TestSerializeBaseRequest(t *testing.T) {
 				SrcHost:   net.ParseIP("10.1.1.1"),
 				DstHost:   net.ParseIP("10.2.2.2"),
 			},
-			steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+			steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 				1, "1-ff00:0:112", 0),
 		},
 	}
@@ -82,7 +82,7 @@ func TestSerializeE2EReservationSetup(t *testing.T) {
 					SrcHost:   net.ParseIP("10.1.1.1"),
 					DstHost:   net.ParseIP("10.2.2.2"),
 				},
-				Steps:       ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:112", 0),
+				Steps:       ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:112", 0),
 				RequestedBW: 0xdd,
 			},
 		},
@@ -95,7 +95,7 @@ func TestSerializeE2EReservationSetup(t *testing.T) {
 					SrcHost:   net.ParseIP("10.1.1.1"),
 					DstHost:   net.ParseIP("10.2.2.2"),
 				},
-				Steps: ct.NewPath(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
+				Steps: ct.NewSteps(0, "1-ff00:0:111", 1, 1, "1-ff00:0:110", 2,
 					1, "1-ff00:0:112", 0),
 				RequestedBW: 0xdd,
 				Segments: []reservation.ID{

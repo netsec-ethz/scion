@@ -27,7 +27,6 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/stats"
 
-	"github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -41,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
+	utilp "github.com/scionproto/scion/go/lib/util/path"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 )
 
@@ -54,7 +54,7 @@ func GetColibriPath(session quic.Session) (*colibri.ColibriPath, error) {
 	netAddr := session.RemoteAddr()
 	addr, _ := netAddr.(*snet.UDPAddr)
 	if addr != nil {
-		cp, err := reservation.PathFromDataplanePath(addr.Path)
+		cp, err := utilp.SnetToDataplanePath(addr.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -378,12 +378,12 @@ func colibriRawPath(addr net.Addr) []byte {
 	if addr == nil || addr.(*snet.UDPAddr) == nil {
 		return nil
 	}
-	p, err := reservation.PathFromDataplanePath(addr.(*snet.UDPAddr).Path)
+	p, err := utilp.SnetToDataplanePath(addr.(*snet.UDPAddr).Path)
 	if err != nil || p == nil || p.Type() != colibri.PathType {
 		return nil
 	}
-	buff, err := reservation.PathToRaw(p)
-	if err != nil {
+	buff := make([]byte, p.Len())
+	if err := p.SerializeTo(buff); err != nil {
 		return nil
 	}
 	return buff

@@ -39,11 +39,8 @@ func AddSegmentReservation(t testing.TB, db backend.DB, ASID string, count int) 
 
 	r := newTestSegmentReservation(t, ASID) // the suffix will be overwritten
 	for i := 0; i < count; i++ {
-		p := test.NewSnetPath("1-"+ASID, i, 1, "1-ff00:0:2")
-		r.Steps, err = base.StepsFromSnet(p)
-		require.NoError(t, err)
-		r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-		require.NoError(t, err)
+		r.Steps = test.NewSteps("1-"+ASID, i, 1, "1-ff00:0:2")
+		r.TransportPath = test.NewColPathMin(r.Steps)
 		err = db.NewSegmentRsv(ctx, r)
 		require.NoError(t, err, "iteration i = %d", i)
 	}

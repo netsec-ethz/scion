@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
@@ -37,7 +36,7 @@ type Reservation struct {
 	TrafficSplit  reservation.SplitCls     // the traffic split between control and data planes
 	Steps         base.PathSteps           // recovered from the pb messages
 	CurrentStep   int
-	TransportPath slayerspath.Path // only used at source IA
+	TransportPath *colpath.ColibriPathMinimal // only used at initiator AS
 }
 
 func NewReservation(asid addr.AS) *Reservation {
@@ -58,35 +57,13 @@ func (r *Reservation) Egress() uint16 {
 	return r.Steps[r.CurrentStep].Egress
 }
 
-// deriveInfoField returns a colibri info field filled with the values from this reservation.
-// It returns nil if there is no active index.
-func (r *Reservation) deriveInfoField() *colpath.InfoField {
+// deriveColibriPathAtSource creates the ColibriPathMinimal from the active index in this
+// reservation. If there is no active index, the path is nil.
+func (r *Reservation) deriveColibriPathAtSource() *colpath.ColibriPathMinimal {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
 	}
-	return &colpath.InfoField{
-		C:       true,
-		S:       true,
-		Ver:     uint8(index.Idx),
-		HFCount: uint8(len(index.Token.HopFields)),
-		// the SegR ID and then 8 zeroes:
-		ResIdSuffix: append(append(r.ID.Suffix[:0:0], r.ID.Suffix...),
-			bytes.Repeat([]byte{0}, colpath.LenSuffix-reservation.IDSuffixSegLen)...),
-		ExpTick: uint32(index.Token.ExpirationTick),
-		BwCls:   uint8(index.AllocBW),
-		Rlc:     uint8(index.Token.RLC),
-	}
-}
-
-// deriveColibriPathAtSource creates the ColibriPath from the active index in this reservation.
-// If there is no active index, the path is nil.
-func (r *Reservation) deriveColibriPathAtSource() *colpath.ColibriPath {
-	index := r.ActiveIndex()
-	if index == nil {
-		return nil
-	}
-
 	p := &colpath.ColibriPath{
 		InfoField: r.deriveInfoField(),
 		HopFields: make([]*colpath.HopField, len(index.Token.HopFields)),
@@ -98,13 +75,17 @@ func (r *Reservation) deriveColibriPathAtSource() *colpath.ColibriPath {
 			Mac:       append([]byte{}, hf.Mac[:]...),
 		}
 	}
-	return p
+	min, err := p.ToMinimal()
+	if err != nil {
+		return nil
+	}
+	return min
 }
 
 // deriveColibriPathAtDestination creates the ColibriPath using the values of the active index in
 // this reservation, but with the hop fields in the reverse order. If there is no active index it
 // returns nil.
-func (r *Reservation) deriveColibriPathAtDestination() *colpath.ColibriPath {
+func (r *Reservation) deriveColibriPathAtDestination() *colpath.ColibriPathMinimal {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
@@ -123,10 +104,18 @@ func (r *Reservation) deriveColibriPathAtDestination() *colpath.ColibriPath {
 			Mac:       append([]byte{}, hf.Mac[:]...),
 		}
 	}
-	return p
+	// because the initiator AS is actually the DstAS, reverse the path
+	if _, err := p.Reverse(); err != nil {
+		return nil
+	}
+	min, err := p.ToMinimal()
+	if err != nil {
+		return nil
+	}
+	return min
 }
 
-func (r *Reservation) DeriveColibriPath() *colpath.ColibriPath {
+func (r *Reservation) DeriveColibriPath() *colpath.ColibriPathMinimal {
 	if r.PathType == reservation.DownPath {
 		return r.deriveColibriPathAtDestination()
 	}
@@ -214,17 +203,6 @@ func (r *Reservation) NewIndex(idx reservation.IndexNumber,
 	}
 	index := NewIndex(idx, expTime, IndexTemporary, minBW, maxBW, allocBW, tok)
 	return r.addIndex(index)
-}
-
-func (r *Reservation) addIndex(index *Index) (reservation.IndexNumber, error) {
-	newIndices := make(Indices, len(r.Indices)+1)
-	copy(newIndices, r.Indices)
-	newIndices[len(newIndices)-1] = *index
-	if err := base.ValidateIndices(newIndices); err != nil {
-		return 0, err
-	}
-	r.Indices = newIndices
-	return index.Idx, nil
 }
 
 // Index finds the Index with that IndexNumber and returns a pointer to it.
@@ -348,4 +326,36 @@ func (r *Reservation) MaxRequestedBW() uint64 {
 		max = reservation.MaxBWCls(max, idx.MaxBW)
 	}
 	return max.ToKbps()
+}
+
+func (r *Reservation) addIndex(index *Index) (reservation.IndexNumber, error) {
+	newIndices := make(Indices, len(r.Indices)+1)
+	copy(newIndices, r.Indices)
+	newIndices[len(newIndices)-1] = *index
+	if err := base.ValidateIndices(newIndices); err != nil {
+		return 0, err
+	}
+	r.Indices = newIndices
+	return index.Idx, nil
+}
+
+// deriveInfoField returns a colibri info field filled with the values from this reservation.
+// It returns nil if there is no active index.
+func (r *Reservation) deriveInfoField() *colpath.InfoField {
+	index := r.ActiveIndex()
+	if index == nil {
+		return nil
+	}
+	return &colpath.InfoField{
+		C:       true,
+		S:       true,
+		Ver:     uint8(index.Idx),
+		HFCount: uint8(len(index.Token.HopFields)),
+		// the SegR ID and then 8 zeroes:
+		ResIdSuffix: append(append(r.ID.Suffix[:0:0], r.ID.Suffix...),
+			bytes.Repeat([]byte{0}, colpath.LenSuffix-reservation.IDSuffixSegLen)...),
+		ExpTick: uint32(index.Token.ExpirationTick),
+		BwCls:   uint8(index.AllocBW),
+		Rlc:     uint8(index.Token.RLC),
+	}
 }

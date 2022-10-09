@@ -22,6 +22,7 @@ import (
 
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
@@ -399,37 +400,65 @@ func TestPathStepsFromSnet(t *testing.T) {
 	}
 }
 
-func TestRawFromSnet(t *testing.T) {
+func TestColPathToRaw(t *testing.T) {
 	cases := map[string]struct {
-		snetPath    snet.Path
-		expected    slayerspath.Path
-		expectedErr bool
+		Path *colpath.ColibriPath
 	}{
-		"colibri_with_raw_path": {
-			snetPath: path.Path{
-				DataplanePath: path.Colibri{
-					Raw: xtest.MustParseHexString("000000000000000080000003" +
-						"0123456789ab0123456789ab000000000d00000000000001" +
-						"0123456700010002012345670001000001234567"),
+		"smallest": {
+			Path: &colpath.ColibriPath{
+				InfoField: &colpath.InfoField{
+					ResIdSuffix: make([]byte, 12),
+					HFCount:     2,
+				},
+				HopFields: []*colpath.HopField{
+					&colpath.HopField{
+						Mac: make([]byte, 4),
+					},
+					&colpath.HopField{
+						Mac: make([]byte, 4),
+					},
 				},
 			},
-			expected: MustParseColibriPath(t, "000000000000000080000003"+
-				"0123456789ab0123456789ab000000000d00000000000001"+
-				"0123456700010002012345670001000001234567"),
+		},
+		"regular": { // is two hop fields
+			Path: &colpath.ColibriPath{
+				InfoField: &colpath.InfoField{
+					ResIdSuffix: make([]byte, 12),
+					HFCount:     2,
+					R:           true,
+					BwCls:       3,
+					OrigPayLen:  1000,
+					Ver:         1,
+					ExpTick:     0xff00ff00,
+				},
+				HopFields: []*colpath.HopField{
+					&colpath.HopField{
+						Mac: make([]byte, 4),
+					},
+					&colpath.HopField{
+						Mac: make([]byte, 4),
+					},
+				},
+			},
 		},
 	}
 	for name, tc := range cases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			raw, err := PathFromDataplanePath(tc.snetPath.Dataplane())
-
-			if tc.expectedErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, raw)
-			}
+			// obtain a minimal from the full path in the test case
+			minimal := &colpath.ColibriPathMinimal{}
+			buff := make([]byte, tc.Path.Len())
+			err := tc.Path.SerializeTo(buff)
+			require.NoError(t, err)
+			err = minimal.DecodeFromBytes(buff)
+			require.NoError(t, err)
+			// test function
+			raw, err := ColPathToRaw(minimal)
+			require.NoError(t, err)
+			minimal = &colpath.ColibriPathMinimal{}
+			err = minimal.DecodeFromBytes(raw)
+			require.NoError(t, err)
 		})
 	}
 }

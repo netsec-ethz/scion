@@ -29,7 +29,6 @@ go_test(
     srcs = ["db_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//go/co/reservation:go_default_library",
         "//go/co/reservation/reservationdbtest:go_default_library",
         "//go/co/reservation/segment:go_default_library",
         "//go/co/reservation/test:go_default_library",

@@ -13,6 +13,8 @@
 // limitations under the License.
 package segment
 
+import colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+
 func (r *Reservation) GetActiveIndexForTesting() int {
 	return r.activeIndex
 }
@@ -22,4 +24,12 @@ func (r *Reservation) SetActiveIndexForTesting(index int) {
 
 func (index *Index) SetStateForTesting(state IndexState) {
 	index.State = state
+}
+
+func (r *Reservation) DeriveColibriPathAtSource() *colpath.ColibriPathMinimal {
+	return r.deriveColibriPathAtSource()
+}
+
+func (r *Reservation) DeriveColibriPathAtDestination() *colpath.ColibriPathMinimal {
+	return r.deriveColibriPathAtDestination()
 }

@@ -84,11 +84,9 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, newDB func() backend.D
 	// at least one index, and change path
 	_, err = r.NewIndex(0, util.SecsToTime(10), 2, 3, 2, 2, reservation.CorePath)
 	require.NoError(t, err)
-	p := test.NewSnetPath("1-ff00:0:1", 2, 1, "1-ff00:0:2")
-	r.Steps, err = base.StepsFromSnet(p)
-	require.NoError(t, err)
-	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
+	r.Steps = test.NewSteps("1-ff00:0:1", 2, 1, "1-ff00:0:2")
+	r.TransportPath = test.NewColPathMin(r.Steps)
+
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000002"), r.ID.Suffix)
@@ -140,11 +138,8 @@ func testPersistSegmentRsv(ctx context.Context, t *testing.T, newDB func() backe
 	// change attributes
 	r.Steps[r.CurrentStep].Ingress = 3
 	r.Steps[r.CurrentStep].Egress = 4
-	p := test.NewSnetPath("1-ff00:0:1", 11, 1, "1-ff00:0:2")
-	r.Steps, err = base.StepsFromSnet(p)
-	require.NoError(t, err)
-	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
+	r.Steps = test.NewSteps("1-ff00:0:1", 11, 1, "1-ff00:0:2")
+	r.TransportPath = test.NewColPathMin(r.Steps)
 	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
@@ -1145,15 +1140,8 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	t.Helper()
 	r := segment.NewReservation(xtest.MustParseAS("ff00:0:1"))
 	//only set so that validate does not panic
-	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	r.Steps, err = base.StepsFromSnet(p)
-	if err != nil {
-		panic(err)
-	}
-	r.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		panic(err)
-	}
+	r.Steps = test.NewSteps("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	r.TransportPath = test.NewColPathMin(r.Steps)
 	r.Steps[r.CurrentStep].Ingress = 0
 	r.Steps[r.CurrentStep].Egress = 1
 	r.TrafficSplit = 3

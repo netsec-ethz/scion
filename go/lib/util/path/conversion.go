@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich, Anapaya Systems
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package util
 
 import (
-	col "github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/slayers"
+	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
-func MustParseID(asid, suffix string) *col.ID {
-	id, err := col.NewID(xtest.MustParseAS(asid), xtest.MustParseHexString(suffix))
-	if err != nil {
-		panic(err)
-	}
-	return id
+func SnetToDataplanePath(p snet.DataplanePath) (slayerspath.Path, error) {
+	var s slayers.SCION
+	err := p.SetPath(&s)
+	return s.Path, err
 }

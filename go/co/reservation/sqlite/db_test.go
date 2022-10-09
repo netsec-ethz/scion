@@ -24,7 +24,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/reservationdbtest"
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/co/reservation/test"
@@ -79,11 +78,9 @@ func TestTransactions(t *testing.T) {
 	rsv := segment.NewReservation(xtest.MustParseAS("ff00:0:111"))
 	_, err = rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
 	require.NoError(t, err)
-	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	rsv.Steps, err = base.StepsFromSnet(p)
-	require.NoError(t, err)
-	rsv.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
+
+	rsv.Steps = test.NewSteps("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	rsv.TransportPath = test.NewColPathMin(rsv.Steps)
 	rsv.ID.Suffix[0]++
 	// save the reservation to DB
 	err = db.PersistSegmentRsv(ctx, rsv)
@@ -132,11 +129,8 @@ func TestTransactionsBusy(t *testing.T) {
 	_, err = rsv.NewIndex(1, util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
 	require.NoError(t, err)
 	// save the reservation to DB
-	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	rsv.Steps, err = base.StepsFromSnet(p)
-	require.NoError(t, err)
-	rsv.TransportPath, err = base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
+	rsv.Steps = test.NewSteps("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	rsv.TransportPath = test.NewColPathMin(rsv.Steps)
 	err = db.PersistSegmentRsv(ctx, rsv)
 	require.NoError(t, err)
 
@@ -259,20 +253,17 @@ func TestRaceForSuffix(t *testing.T) {
 		mut2_2.Lock()
 	}
 
-	p := test.NewSnetPath("1-ff00:0:1", 1, 1, "1-ff00:0:2")
-	steps, err := base.StepsFromSnet(p)
-	require.NoError(t, err)
-	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
-	require.NoError(t, err)
+	steps := test.NewSteps("1-ff00:0:1", 1, 1, "1-ff00:0:2")
+	transportPath := test.NewColPathMin(steps)
 
 	rsv1 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{1, 1, 1, 1}},
 		Indices: segment.Indices{segment.Index{}},
-		Steps:   steps, TransportPath: rawPath}
+		Steps:   steps, TransportPath: transportPath}
 	rsv2 := segment.Reservation{
 		ID:      reservation.ID{ASID: asid, Suffix: []byte{2, 2, 2, 2}},
 		Indices: segment.Indices{segment.Index{}},
-		Steps:   steps, TransportPath: rawPath}
+		Steps:   steps, TransportPath: transportPath}
 	lockAllMutexes()
 
 	go fcn(t, &rsv1, &mut1_1, &mut1_2)

@@ -75,10 +75,6 @@ func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 		panic(err)
 	}
 	currentStep := 0
-	rawPath, err := base.PathFromDataplanePath(p.Dataplane())
-	if err != nil {
-		log.Info("error in SCION path, cannot get dataplane", "err", err, "path", p)
-	}
 
 	// if the SegR is of down-path type, reverse the steps
 	if e.conf.pathType == reservation.DownPath {
@@ -98,7 +94,7 @@ func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 		AllocTrail:     reservation.AllocationBeads{},
 		Steps:          steps,
 		CurrentStep:    currentStep,
-		TransportPath:  rawPath,
+		TransportPath:  nil, // new setups are not transported in colibri paths
 	}
 }
 
