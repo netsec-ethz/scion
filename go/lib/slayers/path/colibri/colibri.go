@@ -148,3 +148,15 @@ func (c *ColibriPath) ToMinimal() (*ColibriPathMinimal, error) {
 	err := c.SerializeTo(min.Raw)
 	return min, err
 }
+
+func (c *ColibriPath) Clone() *ColibriPath {
+	p := &ColibriPath{
+		PacketTimestamp: c.PacketTimestamp,
+		InfoField:       c.InfoField.Clone(),
+		HopFields:       make([]*HopField, len(c.HopFields)),
+	}
+	for i, hf := range c.HopFields {
+		p.HopFields[i] = hf.Clone()
+	}
+	return p
+}

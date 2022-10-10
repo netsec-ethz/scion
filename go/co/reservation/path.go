@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	utilp "github.com/scionproto/scion/go/lib/util/path"
@@ -188,65 +187,24 @@ func (p PathSteps) String() string {
 // This is because the regular scion path type can only be used to contact the
 // colibri service from the previous colibri service.
 // TODO(juagargi) support colibri EER paths
-func (s PathSteps) ValidateEquivalent(path slayerspath.Path, atStep int) error {
-	var in, eg uint16
-	doColibriPath := func(p colpath.ColibriPathFacade) {
-		infF := p.GetInfoField()
-		if !infF.S {
-			panic("colibri EER paths are not yet supported")
-		}
-		hf := p.GetCurrentHopField()
-		in, eg = hf.IngressId, hf.EgressId
-		// if using a SegR in a stitching point, ingress or egress could be 0, depending on
-		// wether the first segment or the second is being validated
-		if infF.S {
-			if infF.CurrHF == 0 { // second segment, ignore ingress (it is us)
-				in = s[atStep].Ingress
-			} else if infF.CurrHF == infF.HFCount-1 { // first segment, ignore egress (it's us)
-				eg = s[atStep].Egress
-			}
-		}
-	}
-	doScionPath := func(p *scion.Decoded) error {
-		// scion path must be 2 hops only
-		if p.Base.NumINF != 1 || p.Base.NumHops > 2 {
-			return serrors.New("steps not compatible with this scion path: must be direct",
-				"inf_count", p.Base.NumINF, "hop_count", p.Base.NumHops,
-				"curr_hop", p.Base.PathMeta.CurrHF)
-		}
-		hf := p.HopFields[p.Base.PathMeta.CurrHF]
-		in, eg = hf.ConsIngress, hf.ConsEgress
-		if !p.InfoFields[0].ConsDir {
-			in = eg
-		}
-		// always ignore egress
-		eg = s[atStep].Egress
+func (s PathSteps) ValidateEquivalent(path *colpath.ColibriPathMinimal, atStep int) error {
+	if path == nil {
 		return nil
 	}
-	switch v := path.(type) {
-	case *colpath.ColibriPathMinimal:
-		doColibriPath(v)
-	case *colpath.ColibriPath:
-		doColibriPath(v)
-	case *scion.Raw:
-		p := &scion.Decoded{}
-		if err := p.DecodeFromBytes(v.Raw); err != nil {
-			return err
+	infF := path.GetInfoField()
+	if !infF.S {
+		panic("colibri EER paths are not yet supported")
+	}
+	hf := path.GetCurrentHopField()
+	in, eg := hf.IngressId, hf.EgressId
+	// if using a SegR in a stitching point, ingress or egress could be 0, depending on
+	// wether the first segment or the second is being validated
+	if infF.S {
+		if infF.CurrHF == 0 { // second segment, ignore ingress (it is us)
+			in = s[atStep].Ingress
+		} else if infF.CurrHF == infF.HFCount-1 { // first segment, ignore egress (it's us)
+			eg = s[atStep].Egress
 		}
-		if err := doScionPath(p); err != nil {
-			return err
-		}
-	case *scion.Decoded:
-		if err := doScionPath(v); err != nil {
-			return err
-		}
-	case empty.Path:
-		if atStep != 0 {
-			return serrors.New("empty path is only allowed at source ASes", "curr_step", atStep)
-		}
-		return nil // ignore all checks
-	default:
-		return serrors.New(fmt.Sprintf("Invalid path type %T!\n", v))
 	}
 	if in != s[atStep].Ingress || eg != s[atStep].Egress {
 		return serrors.New("steps and path are not equivalent",
