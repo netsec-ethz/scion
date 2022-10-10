@@ -22,11 +22,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	utilp "github.com/scionproto/scion/go/lib/util/path"
 )
 
 // PathStep encompasses one-hop metadata in COLIBRI
@@ -41,42 +38,6 @@ func (s PathStep) Equal(o PathStep) bool {
 }
 
 const PathStepLen = 2 + 2 + 8
-
-// deleteme
-// TODO(juagargi) remove the need for this function: the initial path is not used for anything.
-// Maybe have the client operator find the path to the next hop in the case of a initial reservation.
-func ChoppedPathFromDataplane(dataplanePath snet.DataplanePath) (slayerspath.Path, error) {
-	longPath, err := utilp.SnetToDataplanePath(dataplanePath)
-	if err != nil {
-		return nil, err
-	}
-	var p *scion.Decoded
-	switch v := longPath.(type) {
-	case *scion.Raw:
-		p = &scion.Decoded{}
-		if err = p.DecodeFromBytes(v.Raw); err != nil {
-			return nil, err
-		}
-	case *scion.Decoded:
-		p = v
-	default:
-		return nil, serrors.New(fmt.Sprintf("unknown path type %T", longPath))
-	}
-	shortPath := &scion.Decoded{
-		Base: scion.Base{
-			PathMeta: scion.MetaHdr{
-				SegLen:  [3]uint8{1, 0, 0},
-				CurrINF: 0,
-				CurrHF:  0,
-			},
-			NumINF:  1,
-			NumHops: 1,
-		},
-		InfoFields: p.InfoFields[:1],
-		HopFields:  p.HopFields[:1],
-	}
-	return shortPath, nil
-}
 
 func ColPathToRaw(p *colpath.ColibriPathMinimal) ([]byte, error) {
 	if p == nil {
@@ -258,27 +219,6 @@ func StepsFromInterfaces(ifaces []snet.PathInterface) (PathSteps, error) {
 	return steps, nil
 }
 
-func InEgFromDataplanePath(path slayerspath.Path) (uint16, uint16) {
-	switch v := path.(type) {
-	case *colpath.ColibriPathMinimal:
-		return v.CurrHopField.IngressId, v.CurrHopField.EgressId
-	case *colpath.ColibriPath:
-		curr := v.InfoField.CurrHF
-		return v.HopFields[curr].IngressId, v.HopFields[curr].EgressId
-	case *scion.Raw:
-		inf, err := v.GetCurrentInfoField()
-		if err != nil {
-			panic(err)
-		}
-		hf, err := v.GetCurrentHopField()
-		if err != nil {
-			panic(err)
-		}
-		if inf.ConsDir {
-			return hf.ConsIngress, hf.ConsEgress
-		}
-		return hf.ConsEgress, hf.ConsIngress
-	default:
-		panic(fmt.Sprintf("Invalid path type %T!\n", v))
-	}
+func InEgFromColibriPath(path *colpath.ColibriPathMinimal) (uint16, uint16) {
+	return path.CurrHopField.IngressId, path.CurrHopField.EgressId
 }

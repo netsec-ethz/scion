@@ -107,8 +107,8 @@ func (o *ServiceClientOperator) Initialized() bool {
 	return o.initialized
 }
 
-func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *addr.IA) (
-	colpb.ColibriServiceClient, error) {
+func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *addr.IA,
+) (colpb.ColibriServiceClient, error) {
 
 	o.colServicesMutex.Lock()
 	defer o.colServicesMutex.Unlock()
@@ -133,9 +133,8 @@ func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *add
 func (o *ServiceClientOperator) ColibriClient(
 	ctx context.Context,
 	egressID uint16,
-	rawPath slayerspath.Path,
-) (
-	colpb.ColibriServiceClient, error) {
+	transportPath slayerspath.Path,
+) (colpb.ColibriServiceClient, error) {
 
 	// egressID := transp.Steps[transp.CurrentStep].Egress
 	rAddr, ok := o.neighborAddr(egressID)
@@ -145,11 +144,11 @@ func (o *ServiceClientOperator) ColibriClient(
 	}
 	rAddr = rAddr.Copy() // preserve the original data
 
-	buf := make([]byte, rawPath.Len())
-	rawPath.SerializeTo(buf)
+	buf := make([]byte, transportPath.Len())
+	transportPath.SerializeTo(buf)
 
 	// prepare remote address with the new path
-	switch rawPath.Type() {
+	switch transportPath.Type() {
 	case scion.PathType: // don't touch the service path
 		// rAddr.Path = snetpath.SCION{Raw: buf}
 	case colibri.PathType:
