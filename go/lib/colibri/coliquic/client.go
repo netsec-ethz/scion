@@ -28,8 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
@@ -133,7 +132,7 @@ func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *add
 func (o *ServiceClientOperator) ColibriClient(
 	ctx context.Context,
 	egressID uint16,
-	transportPath slayerspath.Path,
+	transportPath *colpath.ColibriPathMinimal,
 ) (colpb.ColibriServiceClient, error) {
 
 	// egressID := transp.Steps[transp.CurrentStep].Egress
@@ -151,7 +150,7 @@ func (o *ServiceClientOperator) ColibriClient(
 	switch transportPath.Type() {
 	case scion.PathType: // don't touch the service path
 		// rAddr.Path = snetpath.SCION{Raw: buf}
-	case colibri.PathType:
+	case colpath.PathType:
 		rAddr.Path = snetpath.Colibri{Raw: buf}
 	default:
 		// Do nothing when e.g. empty path for E2EReservations

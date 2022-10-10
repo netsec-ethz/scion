@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	slayerspath "github.com/scionproto/scion/go/lib/slayers/path"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -194,7 +194,7 @@ func TestKeepOneShot(t *testing.T) {
 			manager.EXPECT().ActivateRequest(gomock.Any(), gomock.Any(), gomock.Any(),
 				gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 				func(_ context.Context, req *base.Request, steps base.PathSteps,
-					path slayerspath.Path, inReverse bool) error {
+					path *colpath.ColibriPathMinimal, inReverse bool) error {
 
 					return nil
 				})
