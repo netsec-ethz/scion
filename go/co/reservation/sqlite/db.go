@@ -789,7 +789,7 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 	rsv.PathType = reservation.PathType(fields.PathType)
 
 	steps := base.PathStepsFromRaw(fields.Steps)
-	rawPath, err := base.ColPathFromRaw(fields.RawPath)
+	transportPath, err := base.ColPathFromRaw(fields.RawPath)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +801,7 @@ func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
 			"curr_step", rsv.CurrentStep, "steps", rsv.Steps.String(),
 			"ingress", fields.Ingress, "egress", fields.Egress)
 	}
-	rsv.TransportPath = rawPath
+	rsv.TransportPath = transportPath
 	rsv.PathEndProps = reservation.PathEndProps(fields.EndProps)
 	rsv.TrafficSplit = reservation.SplitCls(fields.TrafficSplit)
 	rsv.Indices = indices

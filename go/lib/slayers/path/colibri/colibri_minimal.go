@@ -171,6 +171,9 @@ func (c *ColibriPathMinimal) Reverse() (path.Path, error) {
 }
 
 func (c *ColibriPathMinimal) ReverseAsColibri() (*ColibriPathMinimal, error) {
+	if c == nil {
+		return nil, nil
+	}
 	p, err := c.Reverse()
 	var colPath *ColibriPathMinimal
 	if p != nil {

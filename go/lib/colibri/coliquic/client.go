@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -143,29 +142,30 @@ func (o *ServiceClientOperator) ColibriClient(
 	}
 	rAddr = rAddr.Copy() // preserve the original data
 
-	buf := make([]byte, transportPath.Len())
-	transportPath.SerializeTo(buf)
-
-	// prepare remote address with the new path
-	switch transportPath.Type() {
-	case scion.PathType: // don't touch the service path
-		// rAddr.Path = snetpath.SCION{Raw: buf}
-	case colpath.PathType:
+	// deleteme try to send using directly transportPath
+	// if transport is nil, just use a path obtained here (above thru neighborAddr)
+	switch {
+	case transportPath == nil:
+		log.Info("colibri client operator, first segment reservation setup", "egress", egressID)
+	case transportPath.Type() == colpath.PathType:
+		// prepare remote address with the new path
+		buf := make([]byte, transportPath.Len())
+		transportPath.SerializeTo(buf)
 		rAddr.Path = snetpath.Colibri{Raw: buf}
 	default:
-		// Do nothing when e.g. empty path for E2EReservations
-		// E2EReservations must eventually travel through colibri path
-		// In that case they will follow same logic as above
+		// nothing but colibri or nil is accepted
+		return nil, serrors.New("error in client operator: not a valid transport",
+			"path_type", transportPath.Type())
 	}
 	return o.colibriClient(ctx, rAddr)
 }
 
-func (o *ServiceClientOperator) colibriClient(ctx context.Context, addr *snet.UDPAddr) (
+func (o *ServiceClientOperator) colibriClient(ctx context.Context, rAddr *snet.UDPAddr) (
 	colpb.ColibriServiceClient, error) {
 
-	conn, err := o.gRPCDialer.Dial(ctx, addr)
+	conn, err := o.gRPCDialer.Dial(ctx, rAddr)
 	if err != nil {
-		log.Info("error dialing a grpc connection", "addr", addr, "err", err)
+		log.Info("error dialing a grpc connection", "addr", rAddr, "err", err)
 		return nil, err
 	}
 	return colpb.NewColibriServiceClient(conn), nil

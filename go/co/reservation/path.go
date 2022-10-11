@@ -49,6 +49,9 @@ func ColPathToRaw(p *colpath.ColibriPathMinimal) ([]byte, error) {
 }
 
 func ColPathFromRaw(raw []byte) (*colpath.ColibriPathMinimal, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
 	p := &colpath.ColibriPathMinimal{}
 	err := p.DecodeFromBytes(raw)
 	return p, err
