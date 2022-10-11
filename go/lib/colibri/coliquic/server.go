@@ -248,7 +248,7 @@ func UsageFromContext(ctx context.Context) (bool, uint64, error) {
 	if !ok {
 		return false, 0, serrors.New("could not retrieve peer from context")
 	}
-	if raw := colibriRawPath(peer.Addr); raw != nil {
+	if raw := colibriTransportPath(peer.Addr); raw != nil {
 		usage, ok := handler.popUsage(raw)
 		if !ok {
 			return true, 0, serrors.New("could not retrieve this peer from stats handler",
@@ -281,12 +281,12 @@ func (h *statsHandler) HandleRPC(ctx context.Context, st stats.RPCStats) {
 		// not a SCION family address
 		return
 	}
-	peerRaw := colibriRawPath(peer.Addr)
+	peerRaw := colibriTransportPath(peer.Addr)
 	prev := ctx.Value(bandwidthKey{})
 	if prev == nil || prev.(*snet.UDPAddr) == nil {
 		return
 	}
-	prevRaw := colibriRawPath(prev.(*snet.UDPAddr))
+	prevRaw := colibriTransportPath(prev.(*snet.UDPAddr))
 	if prevRaw == nil || !bytes.Equal(peerRaw, prevRaw) {
 		logger.Info("error value from context not matching stats handler",
 			"ctx_value", prev, "peer_addr", peer.Addr)
@@ -328,7 +328,7 @@ func (h *statsHandler) HandleRPC(ctx context.Context, st stats.RPCStats) {
 func (h *statsHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
 	if info.RemoteAddr.(*snet.UDPAddr) != nil {
 		addr := info.RemoteAddr.(*snet.UDPAddr)
-		raw := colibriRawPath(addr)
+		raw := colibriTransportPath(addr)
 		if raw != nil {
 			h.addUsage(raw, 0)
 			// store a pointer to this stats handler in the context so that we can retrieve the
@@ -346,8 +346,8 @@ func (h *statsHandler) HandleConn(ctx context.Context, st stats.ConnStats) {}
 // popUsage returns the usage and the found indicator for a raw path in this statsHandler.
 // if found, it will be removed.
 // The call is intended to be used by one gRPC service call before its end.
-func (h *statsHandler) popUsage(rawPath []byte) (uint64, bool) {
-	key := string(rawPath)
+func (h *statsHandler) popUsage(transportPath []byte) (uint64, bool) {
+	key := string(transportPath)
 	h.m.Lock()
 	defer h.m.Unlock()
 	usage, found := h.usage[key]
@@ -373,8 +373,8 @@ func (ignoreSCMP) Handle(pkt *snet.Packet) error {
 	return nil
 }
 
-// colibriRawPath returns nil if a colibri path cannot be extracted from the address.
-func colibriRawPath(addr net.Addr) []byte {
+// colibriTransportPath returns nil if a colibri path cannot be extracted from the address.
+func colibriTransportPath(addr net.Addr) []byte {
 	if addr == nil || addr.(*snet.UDPAddr) == nil {
 		return nil
 	}

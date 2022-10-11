@@ -31,7 +31,7 @@ import (
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
-func SetupReq(msg *colpb.SegmentSetupRequest, rawPath *colpath.ColibriPathMinimal,
+func SetupReq(msg *colpb.SegmentSetupRequest, transportPath *colpath.ColibriPathMinimal,
 ) (*segment.SetupReq, error) {
 	if msg == nil || msg.Base == nil || msg.Params == nil {
 		return nil, serrors.New("incomplete message", "msg", msg)
@@ -58,7 +58,7 @@ func SetupReq(msg *colpb.SegmentSetupRequest, rawPath *colpath.ColibriPathMinima
 		ReverseTraveling: revTravel,
 		Steps:            PathSteps(msg.Params.Steps),
 		CurrentStep:      int(msg.Params.CurrentStep) + 1,
-		TransportPath:    rawPath,
+		TransportPath:    transportPath,
 	}
 	return req, nil
 }

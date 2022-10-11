@@ -329,20 +329,20 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		if err != nil {
 			return nil, serrors.WrapStr("decoding token in colibri service", err)
 		}
-		path := e2e.DeriveColibriPath(&req.ID, token)
+		colPath := e2e.DeriveColibriPath(&req.ID, token)
 		egressId := ""
-		if len(path.HopFields) > 0 {
-			egressId = fmt.Sprintf("%d", path.HopFields[0].EgressId)
+		if len(colPath.HopFields) > 0 {
+			egressId = fmt.Sprintf("%d", colPath.HopFields[0].EgressId)
 		}
-		rawPath := make([]byte, path.Len())
-		err = path.SerializeTo(rawPath)
+		transportPath := make([]byte, colPath.Len())
+		err = colPath.SerializeTo(transportPath)
 		if err != nil {
 			return nil, serrors.WrapStr("serializing a colibri path in colibri service", err)
 		}
 		// nexthop holds the interface id until the daemon resolves it with the topology
 		pbMsg.Success = &colpb.SetupReservationResponse_Success{
-			RawPath: rawPath,
-			NextHop: egressId,
+			TransportPath: transportPath,
+			NextHop:       egressId,
 		}
 	}
 	return pbMsg, nil

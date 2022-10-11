@@ -235,7 +235,7 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 		Authenticators: sdRes.Base.Authenticators.Macs,
 		ColibriPath: &path.Path{
 			DataplanePath: path.Colibri{
-				Raw: sdRes.Base.Success.RawPath,
+				Raw: sdRes.Base.Success.TransportPath,
 			},
 			NextHop: nextHop,
 		},

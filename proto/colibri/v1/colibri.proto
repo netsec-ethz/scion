@@ -385,7 +385,7 @@ message SetupReservationResponse {
     }
     message Success {
         // the byte-encoded raw path.
-        bytes raw_path = 1;
+        bytes transport_path = 1;
         // the string encoded address of the next hop (the border router to use at the source AS).
         string next_hop = 2;
     }

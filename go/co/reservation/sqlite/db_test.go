@@ -317,7 +317,7 @@ func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuff
 	t.Helper()
 	ctx := context.Background()
 	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path_type, steps,
-		current_step, rawPath, end_props, traffic_split, src_ia, dst_ia, active_index)
+		current_step, transportPath, end_props, traffic_split, src_ia, dst_ia, active_index)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, -1)`
 	for suffix := firstSuffix; suffix <= lastSuffix; suffix++ {
 		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, reservation.CorePath, nil,

@@ -29,7 +29,7 @@ const (
 		path_type	INTEGER NOT NULL,
 		steps BLOB,
 		current_step INTEGER NOT NULL,
-		rawPath BLOB,
+		transportPath BLOB,
 		end_props	INTEGER NOT NULL,
 		traffic_split	INTEGER NOT NULL,
 		src_ia INTEGER,
