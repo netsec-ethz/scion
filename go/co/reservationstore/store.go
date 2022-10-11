@@ -569,6 +569,10 @@ func (s *Store) ConfirmSegmentReservation(
 		pbRes, err := client.ConfirmSegmentIndex(ctx,
 			&colpb.ConfirmSegmentIndexRequest{Base: base})
 		if err != nil {
+			log.Debug("error dialing next colibri service",
+				"egress", egress,
+				"with_transport", transportPath != nil,
+				"err", err)
 			return failedResponse, s.errWrapStr("forwarded request failed", err)
 		}
 		res = translate.Response(pbRes.Base)
@@ -706,6 +710,10 @@ func (s *Store) ActivateSegmentReservation(
 	pbRes, err := client.ActivateSegmentIndex(ctx,
 		&colpb.ActivateSegmentIndexRequest{Base: base})
 	if err != nil {
+		log.Debug("error dialing next colibri service",
+			"egress", egress,
+			"with_transport", transportPath != nil,
+			"err", err)
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
 	res := translate.Response(pbRes.Base)
@@ -824,6 +832,10 @@ func (s *Store) CleanupSegmentReservation(
 	pbRes, err := client.CleanupSegmentIndex(ctx,
 		&colpb.CleanupSegmentIndexRequest{Base: base})
 	if err != nil {
+		log.Debug("error dialing next colibri service",
+			"egress", egress,
+			"with_transport", transportPath != nil,
+			"err", err)
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
 	res := translate.Response(pbRes.Base)
@@ -940,6 +952,10 @@ func (s *Store) TearDownSegmentReservation(
 	pbRes, err := client.TeardownSegment(ctx,
 		&colpb.TeardownSegmentRequest{Base: base})
 	if err != nil {
+		log.Debug("error dialing next colibri service",
+			"egress", egress,
+			"with_transport", transportPath != nil,
+			"err", err)
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
 	res := translate.Response(pbRes.Base)
@@ -1039,7 +1055,6 @@ func (s *Store) AdmitE2EReservation(
 		}
 		assert(len(rsv.SegmentReservations) < 3, "logic error, too many segments in AS. ID: %s, "+
 			"seg. ids: %s", req.ID, req.SegmentRsvs)
-
 	}
 
 	// validate the steps in the request against those stored in the reservation
@@ -1199,7 +1214,10 @@ func (s *Store) AdmitE2EReservation(
 		if err := s.authenticator.ComputeE2ESetupRequestTransitMAC(ctx, req); err != nil {
 			return nil, serrors.WrapStr("computing in transit e2e setup request authenticator", err)
 		}
-		client, err := s.operator.ColibriClient(ctx, egress, transportPath)
+		// deleteme BUG here using a segR to contact the next colSrv when stitch point;
+		// the bug is present also in E2E cleanup, maybe in some other segR RPC as well
+		// client, err := s.operator.ColibriClient(ctx, egress, transportPath)
+		client, err := s.operator.ColibriClient(ctx, egress, nil)
 		if err != nil {
 			return nil, serrors.WrapStr("while finding a colibri service client", err)
 		}
@@ -1212,7 +1230,11 @@ func (s *Store) AdmitE2EReservation(
 		// forward to next colibri service
 		pbRes, err := client.E2ESetup(ctx, pbReq)
 		if err != nil {
-			failedResponse.Message = s.errWrapStr("cannot forward request", err).Error()
+			log.Debug("error dialing next colibri service",
+				"egress", egress,
+				"with_transport", transportPath != nil,
+				"err", err)
+			failedResponse.Message = s.errWrapStr("error forwarding request", err).Error()
 			return failedResponse, nil
 		}
 		downstreamRes, err := translate.E2ESetupResponse(pbRes)
@@ -1379,7 +1401,9 @@ func (s *Store) CleanupE2EReservation(
 		return nil, serrors.WrapStr("computing in transit e2e base request authenticator", err)
 	}
 	// forward to next colibri service
-	client, err := s.operator.ColibriClient(ctx, rsv.Steps[rsv.CurrentStep].Egress, transportPath)
+	// deleteme BUG using transportPath when this is a stitching point. Also present in E2ESetup
+	// client, err := s.operator.ColibriClient(ctx, rsv.Steps[rsv.CurrentStep].Egress, transportPath)
+	client, err := s.operator.ColibriClient(ctx, rsv.Steps[rsv.CurrentStep].Egress, nil)
 	if err != nil {
 		return failedResponse, s.errWrapStr("while finding a colibri service client", err)
 	}
@@ -1391,6 +1415,10 @@ func (s *Store) CleanupE2EReservation(
 	pbRes, err := client.CleanupE2EIndex(ctx,
 		&colpb.CleanupE2EIndexRequest{Base: base})
 	if err != nil {
+		log.Debug("error dialing next colibri service",
+			"egress", rsv.Steps[rsv.CurrentStep].Egress,
+			"with_transport", transportPath != nil,
+			"err", err)
 		return failedResponse, s.errWrapStr("forwarded request failed", err)
 	}
 	res := translate.Response(pbRes.Base)
@@ -1698,6 +1726,10 @@ func (s *Store) getTokenFromDownstreamAdmission(
 	}
 	pbRes, err := client.SegmentSetup(ctx, pbReq)
 	if err != nil {
+		log.Debug("error dialing next colibri service",
+			"egress", req.Egress(),
+			"with_transport", transportPath != nil,
+			"err", err)
 		return nil, serrors.WrapStr("forwarded request failed", err)
 	}
 	return translate.SetupResponse(pbRes)

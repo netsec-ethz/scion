@@ -237,7 +237,7 @@ func (c *ColibriPathMinimal) ToColibriPath() (*ColibriPath, error) {
 func (c *ColibriPathMinimal) Clone() *ColibriPathMinimal {
 	return &ColibriPathMinimal{
 		PacketTimestamp: c.PacketTimestamp,
-		Raw:             make([]byte, 0, len(c.Raw)),
+		Raw:             append([]byte{}, c.Raw...),
 		InfoField:       c.InfoField.Clone(),
 		CurrHopField:    c.CurrHopField.Clone(),
 	}
