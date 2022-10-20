@@ -13,6 +13,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/co/reservation:go_default_library",
+        "//go/co/reservation/conf:go_default_library",
         "//go/co/reservation/e2e:go_default_library",
         "//go/co/reservation/segment:go_default_library",
         "//go/co/reservation/segmenttest:go_default_library",
@@ -28,6 +29,7 @@ go_test(
         "//go/lib/daemon/mock_daemon:go_default_library",
         "//go/lib/drkey:go_default_library",
         "//go/lib/drkey/fake:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/pathpol:go_default_library",
         "//go/lib/slayers/path/colibri:go_default_library",
         "//go/lib/snet:go_default_library",
@@ -68,7 +70,6 @@ go_library(
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathpol:go_default_library",
-        "//go/lib/periodic:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path/colibri:go_default_library",

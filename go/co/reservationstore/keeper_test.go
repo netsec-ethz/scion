@@ -163,11 +163,15 @@ func TestKeepOneShot(t *testing.T) {
 
 			localIA := xtest.MustParseIA("1-ff00:0:1")
 
-			manager := mockManager(ctrl, now, localIA)
+			manager := mockmanager.NewMockServiceProvider(ctrl)
 			entries := matchRsvsWithConfiguration(tc.reservations, tc.config)
 			keeper := keeper{
-				manager: manager,
-				entries: entries,
+				now: func() time.Time {
+					return now
+				},
+				localIA:  localIA,
+				provider: manager,
+				entries:  entries,
 			}
 			manager.EXPECT().PathsTo(gomock.Any(),
 				gomock.Any()).AnyTimes().DoAndReturn(
@@ -521,13 +525,6 @@ func newSequence(t *testing.T, str string) *pathpol.Sequence {
 	seq, err := pathpol.NewSequence(str)
 	xtest.FailOnErr(t, err)
 	return seq
-}
-
-func mockManager(ctrl *gomock.Controller, now time.Time, localIA addr.IA) *mockmanager.MockManager {
-	m := mockmanager.NewMockManager(ctrl)
-	m.EXPECT().LocalIA().AnyTimes().Return(localIA)
-	m.EXPECT().Now().AnyTimes().Return(now)
-	return m
 }
 
 func cloneR(r *seg.Reservation) *seg.Reservation {

@@ -29,24 +29,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 )
-
-// Manager is what a colibri manager requires to expose.
-type Manager interface {
-	periodic.Task
-	Now() time.Time
-	LocalIA() addr.IA
-	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
-	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
-	SetupRequest(ctx context.Context, req *segment.SetupReq) error
-	ActivateRequest(context.Context, *base.Request, base.PathSteps, *colpath.ColibriPathMinimal,
-		bool) error
-	DeleteExpiredIndices(ctx context.Context) error
-}
 
 // manager takes care of the health of the segment reservations.
 type manager struct {
@@ -64,7 +50,7 @@ type manager struct {
 }
 
 func NewColibriManager(ctx context.Context, localIA addr.IA, router snet.Router,
-	store reservationstorage.Store, initial *conf.Reservations) (Manager, error) {
+	store reservationstorage.Store, initial *conf.Reservations) (*manager, error) {
 
 	m := &manager{
 		now:        time.Now,
@@ -74,7 +60,7 @@ func NewColibriManager(ctx context.Context, localIA addr.IA, router snet.Router,
 		router:     router,
 	}
 
-	keeper, err := NewKeeper(ctx, m, initial)
+	keeper, err := NewKeeper(ctx, m, initial, localIA)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +81,7 @@ func (m *manager) Run(ctx context.Context) {
 	}
 	if !m.store.Ready() {
 		log.Info("colibri store not yet ready")
-		m.wakeupTime = m.Now().Add(2 * time.Second)
+		m.wakeupTime = m.now().Add(2 * time.Second)
 		return
 	}
 	wg := sync.WaitGroup{}
@@ -233,14 +219,6 @@ func (m *manager) Run(ctx context.Context) {
 func (m *manager) DeleteExpiredIndices(ctx context.Context) error {
 	_, _, err := m.store.DeleteExpiredIndices(ctx, m.now())
 	return err
-}
-
-func (m *manager) Now() time.Time {
-	return m.now()
-}
-
-func (m *manager) LocalIA() addr.IA {
-	return m.localIA
 }
 
 func (m *manager) PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error) {

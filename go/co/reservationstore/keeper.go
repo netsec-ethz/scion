@@ -22,12 +22,13 @@ import (
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/co/reservation/conf"
-	seg "github.com/scionproto/scion/go/co/reservation/segment"
+	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/serrors"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -48,26 +49,42 @@ const minDuration = 2 * sleepAtMost
 // This value would typically be equal to twice minDuration.
 const newIndexMinDuration = 2 * minDuration
 
+type ServiceProvider interface {
+	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
+	SetupRequest(ctx context.Context, req *segment.SetupReq) error
+	ActivateRequest(
+		context.Context,
+		*base.Request,
+		base.PathSteps,
+		*colpath.ColibriPathMinimal,
+		bool,
+	) error
+	GetReservationsAtSource(ctx context.Context) ([]*segment.Reservation, error)
+	DeleteExpiredIndices(ctx context.Context) error
+}
+
 // keeper looks after the reservations configured in reservations.json
 // It starts by cleaning up those reservations that have expired.
 // The keeper tries to match existing reservations with configured entries.
 // If no match is found, a new reservation will be created.
 type keeper struct {
+	now        func() time.Time
+	localIA    addr.IA
 	sleepUntil time.Time // nothing to do in the keeper until this time
-	manager    Manager
+	provider   ServiceProvider
 	entries    []*entry
 }
 
 type entry struct {
 	conf *configuration
-	rsv  *seg.Reservation
+	rsv  *segment.Reservation
 }
 
 // PrepareSetupRequest creates a valid setup request with the steps always in the direction of
 // the traffic of the SegR, and the transport path always in the direction of the next
 // colibri service (thus for down-path SegRs the transport will be in the reverse wrt the steps).
 func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
-	p snet.Path) *seg.SetupReq {
+	p snet.Path) *segment.SetupReq {
 
 	steps, err := base.StepsFromSnet(p)
 	if err != nil {
@@ -83,7 +100,7 @@ func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 	}
 
 	id, _ := reservation.NewID(localAS, make([]byte, reservation.IDSuffixSegLen))
-	return &seg.SetupReq{
+	return &segment.SetupReq{
 		Request:        *base.NewRequest(now, id, 0, len(steps)),
 		ExpirationTime: expTime,
 		PathType:       e.conf.pathType,
@@ -98,8 +115,8 @@ func (e *entry) PrepareSetupRequest(now, expTime time.Time, localAS addr.AS,
 	}
 }
 
-func (e *entry) PrepareRenewalRequest(now, expTime time.Time) *seg.SetupReq {
-	return &seg.SetupReq{
+func (e *entry) PrepareRenewalRequest(now, expTime time.Time) *segment.SetupReq {
+	return &segment.SetupReq{
 		Request: *base.NewRequest(
 			now, &e.rsv.ID, e.rsv.NextIndexToRenew(), len(e.rsv.Steps)),
 		ExpirationTime: expTime,
@@ -116,8 +133,12 @@ func (e *entry) PrepareRenewalRequest(now, expTime time.Time) *seg.SetupReq {
 	}
 }
 
-func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
-	*keeper, error) {
+func NewKeeper(
+	ctx context.Context,
+	provider ServiceProvider,
+	conf *conf.Reservations,
+	localIA addr.IA,
+) (*keeper, error) {
 
 	// load configuration
 	reqs, err := parseInitial(conf)
@@ -125,11 +146,11 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 		return nil, err
 	}
 	// cleanup expired indices before reading reservations
-	if err := manager.DeleteExpiredIndices(ctx); err != nil {
+	if err := provider.DeleteExpiredIndices(ctx); err != nil {
 		return nil, err
 	}
 	// get existing reservations
-	rsvs, err := manager.GetReservationsAtSource(ctx)
+	rsvs, err := provider.GetReservationsAtSource(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +158,10 @@ func NewKeeper(ctx context.Context, manager Manager, conf *conf.Reservations) (
 
 	log.Debug("colibri keeper", "reservations", len(entries))
 	return &keeper{
+		now:        time.Now,
+		localIA:    localIA,
 		sleepUntil: time.Now().Add(-time.Nanosecond),
-		manager:    manager,
+		provider:   provider,
 		entries:    entries,
 	}, nil
 }
@@ -161,25 +184,25 @@ func (k *keeper) OneShot(ctx context.Context) (time.Time, error) {
 	}
 	wg.Wait()
 	if err := errs.Coalesce(); err != nil {
-		return k.manager.Now().Add(sleepAtLeast), err
+		return k.now().Add(sleepAtLeast), err
 	}
 	// wakeupAtLatest is the maximum to wake up the keeper
-	wakeupAtLatest := k.manager.Now().Add(sleepAtMost)
+	wakeupAtLatest := k.now().Add(sleepAtMost)
 	for _, t := range times {
 		if t.Before(wakeupAtLatest) {
 			wakeupAtLatest = t
 		}
 	}
 	// but the keeper must sleep at least a minimum amount of time
-	if wakeupAtLatest.Sub(k.manager.Now()) < sleepAtLeast {
-		wakeupAtLatest = k.manager.Now().Add(sleepAtLeast)
+	if wakeupAtLatest.Sub(k.now()) < sleepAtLeast {
+		wakeupAtLatest = k.now().Add(sleepAtLeast)
 	}
 	return wakeupAtLatest, nil
 }
 
 // keepReservation will ensure that the reservation exists or a request is created.
 func (k *keeper) keepReservation(ctx context.Context, e *entry) (time.Time, error) {
-	now := k.manager.Now()
+	now := k.now()
 	var err error
 	if e.rsv == nil {
 		e.rsv, err = k.askNewReservation(ctx, e)
@@ -188,7 +211,7 @@ func (k *keeper) keepReservation(ctx context.Context, e *entry) (time.Time, erro
 		}
 	}
 
-	switch compliance(e, k.manager.Now().Add(minDuration)) {
+	switch compliance(e, k.now().Add(minDuration)) {
 	case Compliant:
 	case NeedsIndices:
 		err = k.askNewIndices(ctx, e)
@@ -206,7 +229,7 @@ func (k *keeper) keepReservation(ctx context.Context, e *entry) (time.Time, erro
 // It returns the appropriate entries to manage from the keeper.
 // Those entries without a reservation ID must obtain a new reservation;
 // those with a reservation ID will need index activation, etc.
-func matchRsvsWithConfiguration(rsvs []*seg.Reservation, conf []*configuration) []*entry {
+func matchRsvsWithConfiguration(rsvs []*segment.Reservation, conf []*configuration) []*entry {
 	conf = append(conf[:0:0], conf...)
 	// greedy strategy: for each reservation try to match it with the first compatible configuration
 	entries := make([]*entry, 0)
@@ -232,7 +255,7 @@ func matchRsvsWithConfiguration(rsvs []*seg.Reservation, conf []*configuration) 
 
 // findCompatibleConfiguration finds the first compatible configuration with the reservation.
 // It returns the index of the configuration in the slice, or -1 if no valid one is found.
-func findCompatibleConfiguration(r *seg.Reservation, conf []*configuration) int {
+func findCompatibleConfiguration(r *segment.Reservation, conf []*configuration) int {
 	for i, c := range conf {
 		switch {
 		case r.Steps.DstIA() != c.dst:
@@ -252,14 +275,14 @@ func findCompatibleConfiguration(r *seg.Reservation, conf []*configuration) int 
 }
 
 func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
-	req := base.NewRequest(k.manager.Now(), &e.rsv.ID, e.rsv.NextIndexToActivate().Idx,
+	req := base.NewRequest(k.now(), &e.rsv.ID, e.rsv.NextIndexToActivate().Idx,
 		len(e.rsv.Steps))
 	if err := e.rsv.SetIndexActive(req.Index); err != nil {
 		return err
 	}
 
 	inReverse := e.rsv.PathType == reservation.DownPath
-	err := k.manager.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.TransportPath, inReverse)
+	err := k.provider.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.TransportPath, inReverse)
 	if err != nil {
 		// rollback the index state
 		e.rsv.SetIndexInactive()
@@ -269,22 +292,22 @@ func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
 
 // askNewIndices requests a renewal
 func (k *keeper) askNewIndices(ctx context.Context, e *entry) error {
-	now := k.manager.Now()
+	now := k.now()
 	req := e.PrepareRenewalRequest(now, now.Add(newIndexMinDuration))
-	return k.manager.SetupRequest(ctx, req)
+	return k.provider.SetupRequest(ctx, req)
 }
 
-func (k *keeper) askNewReservation(ctx context.Context, e *entry) (*seg.Reservation, error) {
-	now := k.manager.Now()
-	paths, err := k.manager.PathsTo(ctx, e.conf.dst)
+func (k *keeper) askNewReservation(ctx context.Context, e *entry) (*segment.Reservation, error) {
+	now := k.now()
+	paths, err := k.provider.PathsTo(ctx, e.conf.dst)
 	if err != nil {
 		return nil, err
 	}
 	// try with each possible path
 	paths = e.conf.predicate.Eval(paths)
 	for _, p := range paths {
-		req := e.PrepareSetupRequest(now, now.Add(newIndexMinDuration), k.manager.LocalIA().AS(), p)
-		err := k.manager.SetupRequest(ctx, req)
+		req := e.PrepareSetupRequest(now, now.Add(newIndexMinDuration), k.localIA.AS(), p)
+		err := k.provider.SetupRequest(ctx, req)
 		if err == nil {
 			if req.Reservation == nil {
 				panic("logic error, reservation after new request is empty")
@@ -337,15 +360,15 @@ func (c Compliance) String() string {
 // The function expects a non-nil reservation.
 func compliance(e *entry, until time.Time) Compliance {
 	idxs := e.rsv.Indices.Filter(
-		seg.ByMinBW(e.conf.minBW),
-		seg.ByMaxBW(e.conf.maxBW),
-		seg.NotConfirmed(),
-		seg.ByExpiration(until),
+		segment.ByMinBW(e.conf.minBW),
+		segment.ByMaxBW(e.conf.maxBW),
+		segment.NotConfirmed(),
+		segment.ByExpiration(until),
 	)
 	switch {
 	case len(idxs) == 0:
 		return NeedsIndices
-	case len(idxs.Filter(seg.NotSwitchableFrom(e.rsv.ActiveIndex()))) == 0:
+	case len(idxs.Filter(segment.NotSwitchableFrom(e.rsv.ActiveIndex()))) == 0:
 		return NeedsActivation
 	default:
 		return Compliant
