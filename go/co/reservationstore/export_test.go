@@ -37,7 +37,7 @@ func (s *Store) SetColibriKey(key []byte) {
 
 func NewTestKeeper(
 	ctx context.Context,
-	provider ServiceProvider,
+	provider ServiceFacilitator,
 	conf *conf.Reservations,
 	localIA addr.IA,
 	now func() time.Time,

@@ -163,7 +163,7 @@ func TestKeepOneShot(t *testing.T) {
 
 			localIA := xtest.MustParseIA("1-ff00:0:1")
 
-			manager := mockmanager.NewMockServiceProvider(ctrl)
+			manager := mockmanager.NewMockServiceFacilitator(ctrl)
 			entries := matchRsvsWithConfiguration(tc.reservations, tc.config)
 			keeper := keeper{
 				now: func() time.Time {

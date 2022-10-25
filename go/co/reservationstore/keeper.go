@@ -49,7 +49,9 @@ const minDuration = 2 * sleepAtMost
 // This value would typically be equal to twice minDuration.
 const newIndexMinDuration = 2 * minDuration
 
-type ServiceProvider interface {
+// ServiceFacilitator defines a minimal interface that has to be implemented to be
+// usable by the keeper.
+type ServiceFacilitator interface {
 	PathsTo(ctx context.Context, dst addr.IA) ([]snet.Path, error)
 	SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	ActivateRequest(
@@ -71,7 +73,7 @@ type keeper struct {
 	now        func() time.Time
 	localIA    addr.IA
 	sleepUntil time.Time // nothing to do in the keeper until this time
-	provider   ServiceProvider
+	provider   ServiceFacilitator
 	entries    []*entry
 }
 
@@ -135,7 +137,7 @@ func (e *entry) PrepareRenewalRequest(now, expTime time.Time) *segment.SetupReq 
 
 func NewKeeper(
 	ctx context.Context,
-	provider ServiceProvider,
+	provider ServiceFacilitator,
 	conf *conf.Reservations,
 	localIA addr.IA,
 ) (*keeper, error) {
