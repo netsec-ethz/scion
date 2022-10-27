@@ -4,6 +4,7 @@ proto_library(
     name = "colibri",
     srcs = [
         "colibri.proto",
+        "debug.proto",
     ],
     visibility = ["//visibility:public"],
     deps = [

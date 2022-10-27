@@ -19,6 +19,10 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/colibri";
 package proto.colibri.v1;
 
 
+
+// TODO(juagargi) use timestamps (below) instead of uint32 for timestamp.seconds
+// import "google/protobuf/timestamp.proto";
+
 service ColibriService {
     // Segment RPCs:
 
@@ -42,6 +46,7 @@ service ColibriService {
     // clean up an EER index.
     rpc CleanupE2EIndex(CleanupE2EIndexRequest) returns (CleanupE2EIndexResponse) {}
 
+    // TODO(juaargi) split into inter and intra services
     // Intra AS RPCs:
     // list segment resrvations.
     rpc ListStitchables(ListStitchablesRequest) returns (ListStitchablesResponse) {}
