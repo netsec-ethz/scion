@@ -88,19 +88,23 @@ type ServerStack struct {
 	Resolver         messenger.Resolver
 	QUICListener     net.Listener
 	TCPListener      net.Listener
+	DebugListener    net.Listener
 	serverAddr       *snet.UDPAddr
 	clientNet        *snet.SCIONNetwork
 	serverNet        *snet.SCIONNetwork
 }
 
-func NewServerStack(ctx context.Context, serverAddr *snet.UDPAddr, daemonAddr string) (
+func NewServerStack(ctx context.Context, serverAddr *snet.UDPAddr, debugSvcAddr *net.TCPAddr,
+	daemonAddr string) (
+
 	*ServerStack, error) {
 	s := &ServerStack{}
-	err := s.init(ctx, serverAddr, daemonAddr)
+	err := s.init(ctx, serverAddr, debugSvcAddr, daemonAddr)
 	return s, err
 }
 
-func (s *ServerStack) init(ctx context.Context, serverAddr *snet.UDPAddr, daemonAddr string) error {
+func (s *ServerStack) init(ctx context.Context, serverAddr *snet.UDPAddr, debugSrvAddr *net.TCPAddr,
+	daemonAddr string) error {
 
 	var err error
 	if s.clientNet != nil {
@@ -123,6 +127,12 @@ func (s *ServerStack) init(ctx context.Context, serverAddr *snet.UDPAddr, daemon
 	})
 	if err != nil {
 		return err
+	}
+	if debugSrvAddr != nil {
+		s.DebugListener, err = net.ListenTCP("tcp", debugSrvAddr)
+		if err != nil {
+			return err
+		}
 	}
 
 	client, server, err := s.initQUICSockets(ctx, daemonAddr)

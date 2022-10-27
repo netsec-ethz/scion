@@ -16,9 +16,11 @@ package config
 
 import (
 	"io"
+	"net"
 
 	colconf "github.com/scionproto/scion/go/co/reservation/conf"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/storage"
 )
 
@@ -30,6 +32,7 @@ type ColibriConfig struct {
 	ReservationsFile string                `toml:"reservations"`
 	Capacities       *colconf.Capacities   `toml:"omitempty"`
 	Reservations     *colconf.Reservations `toml:"omitempty"`
+	DebugServerAddr  string                `toml:"debug_server_addr,omitempty"`
 }
 
 func (cfg *ColibriConfig) Validate() error {
@@ -45,6 +48,9 @@ func (cfg *ColibriConfig) Validate() error {
 		if err != nil {
 			return err
 		}
+	}
+	if _, err = net.ResolveTCPAddr("tcp", cfg.DebugServerAddr); err != nil {
+		return serrors.WrapStr("invalid debug server address", err, "addr", cfg.DebugServerAddr)
 	}
 	return nil
 }
@@ -70,6 +76,7 @@ func (cfg *ColibriConfig) ConfigName() string {
 const colibriSample = `
 # COLIBRI service configuration sample
 delta = 0.8
-capacities_file = "capacities.json"
-reservations_file = "reservations.json"
+capacities = "capacities.json"
+reservations = "reservations.json"
+debug_server_addr = "127.0.0.1:44001"
 `

@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
+// TODO(juagargi) Colibri doesn't need the daemon, remove configuration
+
 type Config struct {
 	General env.General   `toml:"general,omitempty"`
 	Logging log.Config    `toml:"log,omitempty"`

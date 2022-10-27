@@ -121,7 +121,18 @@ func setupNetwork(ctx context.Context, cfg *config.Config, topo *topology.Loader
 		Host: topo.ColibriServiceAddress(cfg.General.ID),
 	}
 
-	stack, err := coliquic.NewServerStack(ctx, serverAddr, cfg.Daemon.Address)
+	var err error
+	var debugSvcAddr *net.TCPAddr
+	if cfg.Colibri.DebugServerAddr != "" {
+		debugSvcAddr, err = net.ResolveTCPAddr("tcp", cfg.Colibri.DebugServerAddr)
+		if err != nil {
+			// this should not happen, as the configuration validation ensures a valid TCP address
+			return nil, err
+		}
+		log.Info("debug server will be listening", "address", debugSvcAddr.String())
+	}
+
+	stack, err := coliquic.NewServerStack(ctx, serverAddr, debugSvcAddr, cfg.Daemon.Address)
 	if err != nil {
 		return nil, serrors.WrapStr("initializing server stack", err)
 	}
@@ -175,10 +186,15 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 	colibriService := &colgrpc.ColibriService{
 		Store: colibriStore,
 	}
+	debugService := &colgrpc.DebugService{
+		Store: colibriStore,
+	}
 	colServer := coliquic.NewGrpcServer(libgrpc.UnaryServerInterceptor())
 	tcpColServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	debugServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 	colpb.RegisterColibriServiceServer(colServer, colibriService)
 	colpb.RegisterColibriServiceServer(tcpColServer, colibriService)
+	colpb.RegisterColibriDebugCommandsServer(debugServer, debugService)
 
 	// run inter and intra AS servers
 	g.Go(func() error {
@@ -196,6 +212,16 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 		return tcpColServer.Serve(tcpListener)
 	})
 	cleanup.Add(func() error { tcpColServer.GracefulStop(); return nil })
+
+	if cfgObjs.stack.DebugListener != nil {
+		g.Go(func() error {
+			defer log.HandlePanic()
+			tcpListener := cfgObjs.stack.DebugListener
+			log.Debug("colibri debug commands server listening tcp", "tcp_addr", tcpListener.Addr())
+			return debugServer.Serve(tcpListener)
+		})
+		cleanup.Add(func() error { debugServer.GracefulStop(); return nil })
+	}
 
 	manager, err := colibriManager(ctx, topo, cfgObjs.stack.Router, colibriStore,
 		cfg.Colibri.Reservations)

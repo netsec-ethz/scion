@@ -2,7 +2,10 @@ load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["colibri_service.go"],
+    srcs = [
+        "colibri_service.go",
+        "debug_service.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/co/colibri/grpc",
     visibility = ["//visibility:public"],
     deps = [
