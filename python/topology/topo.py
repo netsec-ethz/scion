@@ -146,8 +146,14 @@ class TopoGenerator(object):
         self._register_sciond(topo_id, as_conf)
 
     def _register_srv_entries(self, topo_id, as_conf):
+        """ registers the addresses of all the services """
         srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs")]
         srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co"))
+        # because each colibri service needs its own ip for the debug server, register as many
+        # addresses as colibri services we registered above.
+        # Note that this only affects the networks, ports, etc, and not the services themselves,
+        # thus the debug service does NOT exist (only entries in network, etc).
+        srvs.append(("colibri_dbg_servers", DEFAULT_COLIBRI_SERVERS, "codbg"))
         for conf_key, def_num, nick in srvs:
             self._register_srv_entry(topo_id, as_conf, conf_key, def_num, nick)
 
@@ -279,8 +285,7 @@ class TopoGenerator(object):
             return 30252
         if nick == "co":
             return 30257
-        print('Invalid nick: %s' % nick)
-        sys.exit(1)
+        raise ValueError('Invalid nick: %s' % nick)
 
     def _srv_count(self, as_conf, conf_key, def_num):
         count = as_conf.get(conf_key, def_num)

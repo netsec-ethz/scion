@@ -29,10 +29,12 @@ from python.topology.common import (
     DISP_CONFIG_NAME,
     colibri_ip_list,
     docker_host,
-    prom_addr,
+    join_host_port,
     prom_addr_dispatcher,
+    replace_port,
     sciond_ip,
     sciond_name,
+    split_host_port,
     translate_features,
     SD_API_PORT,
     SD_CONFIG_NAME,
@@ -86,11 +88,11 @@ class GoGenerator(object):
             },
             'log': self._log_entry(name),
             'metrics': {
-                'prometheus': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT),
+                'prometheus': replace_port(v['internal_addr'], DEFAULT_BR_PROM_PORT),
             },
             'features': translate_features(self.args.features),
             'api': {
-                'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
+                'addr': replace_port(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
             }
         }
         return raw_entry
@@ -164,6 +166,21 @@ class GoGenerator(object):
     def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
         daemon_ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         config_dir = '/share/conf' if self.args.docker else base
+        def co_dbg_ip(co_name):
+            """ finds the IP of the colibri debug service corresponding to this colibri name """
+            parts = co_name.split("-")
+            if parts[0][:2] != "co":
+                raise RuntimeError("expected a name like co1-ff00_0_110-1")
+            parts[0] = parts[0].replace("co", "codbg")
+            codbg_name = "-".join(parts)
+            # find the IP address of the corresponding debug service
+            for subnet in self.args.networks.values():
+                for name, ip in subnet.ip_net.items():
+                    if name == codbg_name:
+                        return ip.ip
+            raise KeyError("the corresponding dbg service to this colibri service was not found")
+        _, port = split_host_port(infra_elem["addr"])
+        debug_svc_addr = join_host_port(str(co_dbg_ip(name)), port)
         raw_entry = {
             'general': {
                 'id': name,
@@ -183,6 +200,7 @@ class GoGenerator(object):
                 'db': {
                     'connection': os.path.join(self.db_dir, '%s.reservation.db' % name),
                 },
+                'debug_server_addr': debug_svc_addr,
             },
         }
         return raw_entry
@@ -348,13 +366,13 @@ class GoGenerator(object):
         }
 
     def _metrics_entry(self, infra_elem, base_port):
-        a = prom_addr(infra_elem['addr'], base_port)
+        a = replace_port(infra_elem['addr'], base_port)
         return {
             'prometheus': a,
         }
 
     def _api_entry(self, infra_elem, base_port):
-        a = prom_addr(infra_elem['addr'], base_port)
+        a = replace_port(infra_elem['addr'], base_port)
         return {
             'addr': a,
         }

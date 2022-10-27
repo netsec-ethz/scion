@@ -93,7 +93,7 @@ class TopoID(ISD_AS):
         return "<TopoID: %s>" % self
 
 
-def prom_addr(addr: str, port: int) -> str:
+def replace_port(addr: str, port: int) -> str:
     ip, _ = split_host_port(addr)
     return join_host_port(ip, port)
 
