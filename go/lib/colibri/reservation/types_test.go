@@ -30,6 +30,31 @@ func TestSegmentIDFromRaw(t *testing.T) {
 	require.Equal(t, xtest.MustParseAS("ffaa:0:1101"), id.ASID)
 	require.Equal(t, xtest.MustParseHexString("facecafe"), id.Suffix)
 	require.True(t, id.IsSegmentID())
+	err = id.Validate()
+	require.NoError(t, err)
+}
+
+func TestIDFromString(t *testing.T) {
+	id, err := IDFromString("ffaa:1:1-01234567")
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseAS("ffaa:1:1"), id.ASID)
+	require.Equal(t, xtest.MustParseHexString("01234567"), id.Suffix)
+	err = id.Validate()
+	require.NoError(t, err)
+
+	id, err = IDFromString("ffaa:1:1-0123456789abcdef01234567")
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseAS("ffaa:1:1"), id.ASID)
+	require.Equal(t, xtest.MustParseHexString("0123456789abcdef01234567"), id.Suffix)
+	err = id.Validate()
+	require.NoError(t, err)
+
+	id, err = IDFromString("ffaa:1:1-0123")
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseAS("ffaa:1:1"), id.ASID)
+	require.Equal(t, xtest.MustParseHexString("0123"), id.Suffix)
+	err = id.Validate()
+	require.Error(t, err) // neither SegR or EER
 }
 
 func TestIDRead(t *testing.T) {

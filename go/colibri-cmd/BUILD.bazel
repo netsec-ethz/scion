@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("//lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_binary(
+    name = "colibri-cmd",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/colibri-cmd",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/co/reservation/translate:go_default_library",
+        "//go/lib/colibri/reservation:go_default_library",
+        "//go/pkg/grpc:go_default_library",
+        "//go/pkg/proto/colibri:go_default_library",
+    ],
+)

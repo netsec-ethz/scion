@@ -76,6 +76,27 @@ func IDFromRaw(raw []byte) (*ID, error) {
 	return IDFromRawBuffers(raw[:6], raw[6:])
 }
 
+// IDFromString expects a string like "ff00:0:1-01234567" (suffix in hex).
+// The function will not validate the ID to be legal. I.e. the suffix could be any length.
+func IDFromString(str string) (*ID, error) {
+	parts := strings.Split(str, "-")
+	if len(parts) != 2 {
+		return nil, serrors.New("bad colibri id", "string", str)
+	}
+	as_, err := addr.ParseAS(parts[0])
+	if err != nil {
+		return nil, serrors.WrapStr("bad colibri id", err, "string", str)
+	}
+	suffix, err := hex.DecodeString(parts[1])
+	if err != nil {
+		return nil, serrors.WrapStr("bad colibri id", err, "string", str)
+	}
+	return &ID{
+		ASID:   as_,
+		Suffix: suffix,
+	}, nil
+}
+
 func (id *ID) SetSegmentSuffix(suffix int) {
 	if id.Suffix == nil {
 		id.Suffix = make([]byte, 4)

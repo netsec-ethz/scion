@@ -188,6 +188,7 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 	}
 	debugService := &colgrpc.DebugService{
 		Store: colibriStore,
+		DB:    db,
 	}
 	colServer := coliquic.NewGrpcServer(libgrpc.UnaryServerInterceptor())
 	tcpColServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())

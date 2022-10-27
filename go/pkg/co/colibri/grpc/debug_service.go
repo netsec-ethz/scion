@@ -16,15 +16,20 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/co/reservationstorage"
+	"github.com/scionproto/scion/go/co/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/log"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
 type DebugService struct {
 	Store reservationstorage.Store
+	DB    backend.DB
 }
 
 var _ colpb.ColibriDebugCommandsServer = (*DebugService)(nil)
@@ -32,8 +37,23 @@ var _ colpb.ColibriDebugCommandsServer = (*DebugService)(nil)
 func (s *DebugService) EchoWithSegr(ctx context.Context, req *colpb.EchoWithSegrRequest,
 ) (*colpb.EchoWithSegrResponse, error) {
 
-	fmt.Println("echoing ...")
-	log.Debug("deleteme echoing ...")
-	res := &colpb.EchoWithSegrResponse{}
+	id := translate.ID(req.Id)
+	log.Info("debug server echo with Segr", "segr", id.String())
+	res := &colpb.EchoWithSegrResponse{
+		Error: true,
+	}
+
+	segR, err := s.DB.GetSegmentRsvFromID(ctx, id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "error retrieving segment: %s", err)
+	}
+	if segR == nil {
+		return nil, status.Errorf(codes.NotFound, "segment not found: %s", id)
+	}
+
+	log.Debug("deleteme do actually perform a call via the Store that traverses the segment", "segr id", segR)
+
+	// success
+	res.Error = false
 	return res, nil
 }

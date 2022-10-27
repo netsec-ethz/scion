@@ -32,5 +32,6 @@ message EchoWithSegrRequest {
 }
 
 message EchoWithSegrResponse {
-
+    bool error = 1;
+    string message = 2;
 }
