@@ -19,7 +19,6 @@ import (
 	"crypto/cipher"
 	"fmt"
 	"math"
-	"net"
 	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
@@ -34,12 +33,10 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/coliquic"
 	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -64,10 +61,8 @@ var _ reservationstorage.Store = (*Store)(nil)
 // NewStore creates a new reservation store.
 func NewStore(
 	topo *topology.Loader,
-	pconn net.PacketConn,
+	operator *coliquic.ServiceClientOperator,
 	tcpDialer libgrpc.Dialer,
-	router snet.Router,
-	resolver messenger.Resolver,
 	db backend.DB,
 	admitter admission.Admitter,
 	masterKey []byte) (
@@ -79,11 +74,6 @@ func NewStore(
 		log.Info("colibri admission capacity", "ifid", ifid,
 			"ingress", cap.CapacityIngress(uint16(ifid)),
 			"egress", cap.CapacityEgress(uint16(ifid)))
-	}
-	// client operator will find/build the right gRPC client used in every RPC
-	operator, err := coliquic.NewServiceClientOperator(topo, pconn, router, resolver)
-	if err != nil {
-		return nil, err
 	}
 	colibriKeyBytes := scrypto.DeriveColibriMacKey(masterKey)
 	colibriKey, err := libcolibri.InitColibriKey(colibriKeyBytes)

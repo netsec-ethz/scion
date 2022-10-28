@@ -39,13 +39,22 @@ import (
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
-type ColibriService struct {
-	Store reservationstorage.Store
+// ColibriServiceDeMuxer demultiplexes RPCs to the debug service or regular colibri service.
+type ColibriServiceDeMuxer struct {
+	Store        reservationstorage.Store
+	DebugService DebugService
 }
 
-var _ colpb.ColibriServiceServer = (*ColibriService)(nil)
+var _ colpb.ColibriDebugServiceServer = (*ColibriServiceDeMuxer)(nil)
+var _ colpb.ColibriServiceServer = (*ColibriServiceDeMuxer)(nil)
 
-func (s *ColibriService) SegmentSetup(ctx context.Context, msg *colpb.SegmentSetupRequest) (
+func (s *ColibriServiceDeMuxer) Traceroute(ctx context.Context, req *colpb.TracerouteRequest,
+) (*colpb.TracerouteResponse, error) {
+
+	return s.DebugService.Traceroute(ctx, req)
+}
+
+func (s *ColibriServiceDeMuxer) SegmentSetup(ctx context.Context, msg *colpb.SegmentSetupRequest) (
 	*colpb.SegmentSetupResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -70,7 +79,7 @@ func (s *ColibriService) SegmentSetup(ctx context.Context, msg *colpb.SegmentSet
 	return pbRes, nil
 }
 
-func (s *ColibriService) ConfirmSegmentIndex(ctx context.Context,
+func (s *ColibriServiceDeMuxer) ConfirmSegmentIndex(ctx context.Context,
 	msg *colpb.ConfirmSegmentIndexRequest) (*colpb.ConfirmSegmentIndexResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -95,7 +104,7 @@ func (s *ColibriService) ConfirmSegmentIndex(ctx context.Context,
 	}, nil
 }
 
-func (s *ColibriService) ActivateSegmentIndex(ctx context.Context,
+func (s *ColibriServiceDeMuxer) ActivateSegmentIndex(ctx context.Context,
 	msg *colpb.ActivateSegmentIndexRequest) (*colpb.ActivateSegmentIndexResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -120,7 +129,7 @@ func (s *ColibriService) ActivateSegmentIndex(ctx context.Context,
 	}, nil
 }
 
-func (s *ColibriService) TeardownSegment(ctx context.Context, msg *colpb.TeardownSegmentRequest) (
+func (s *ColibriServiceDeMuxer) TeardownSegment(ctx context.Context, msg *colpb.TeardownSegmentRequest) (
 	*colpb.TeardownSegmentResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -145,7 +154,7 @@ func (s *ColibriService) TeardownSegment(ctx context.Context, msg *colpb.Teardow
 	}, nil
 }
 
-func (s *ColibriService) CleanupSegmentIndex(ctx context.Context,
+func (s *ColibriServiceDeMuxer) CleanupSegmentIndex(ctx context.Context,
 	msg *colpb.CleanupSegmentIndexRequest) (*colpb.CleanupSegmentIndexResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -170,7 +179,7 @@ func (s *ColibriService) CleanupSegmentIndex(ctx context.Context,
 	}, nil
 }
 
-func (s *ColibriService) ListReservations(ctx context.Context, msg *colpb.ListReservationsRequest) (
+func (s *ColibriServiceDeMuxer) ListReservations(ctx context.Context, msg *colpb.ListReservationsRequest) (
 	*colpb.ListReservationsResponse, error) {
 
 	dstIA := addr.IA(msg.DstIa)
@@ -184,7 +193,7 @@ func (s *ColibriService) ListReservations(ctx context.Context, msg *colpb.ListRe
 	return translate.PBufListResponse(looks), nil
 }
 
-func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupRequest) (
+func (s *ColibriServiceDeMuxer) E2ESetup(ctx context.Context, msg *colpb.E2ESetupRequest) (
 	*colpb.E2ESetupResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -207,7 +216,7 @@ func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupReques
 	return translate.PBufE2ESetupResponse(res), nil
 }
 
-func (s *ColibriService) CleanupE2EIndex(ctx context.Context, msg *colpb.CleanupE2EIndexRequest) (
+func (s *ColibriServiceDeMuxer) CleanupE2EIndex(ctx context.Context, msg *colpb.CleanupE2EIndexRequest) (
 	*colpb.CleanupE2EIndexResponse, error) {
 
 	transportPath, err := colPathFromCtx(ctx)
@@ -232,7 +241,7 @@ func (s *ColibriService) CleanupE2EIndex(ctx context.Context, msg *colpb.Cleanup
 	}, nil
 }
 
-func (s *ColibriService) ListStitchables(ctx context.Context, msg *colpb.ListStitchablesRequest) (
+func (s *ColibriServiceDeMuxer) ListStitchables(ctx context.Context, msg *colpb.ListStitchablesRequest) (
 	*colpb.ListStitchablesResponse, error) {
 
 	if _, err := checkLocalCaller(ctx); err != nil {
@@ -251,7 +260,7 @@ func (s *ColibriService) ListStitchables(ctx context.Context, msg *colpb.ListSti
 }
 
 // SetupReservation serves the intra AS clients, setting up or renewing an E2E reservation.
-func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupReservationRequest) (
+func (s *ColibriServiceDeMuxer) SetupReservation(ctx context.Context, msg *colpb.SetupReservationRequest) (
 	*colpb.SetupReservationResponse, error) {
 
 	_, err := checkLocalCaller(ctx)
@@ -351,7 +360,7 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 }
 
 // CleanupReservation serves the intra AS clients, cleaning an E2E reservation.
-func (s *ColibriService) CleanupReservation(ctx context.Context,
+func (s *ColibriServiceDeMuxer) CleanupReservation(ctx context.Context,
 	msg *colpb.CleanupReservationRequest) (*colpb.CleanupReservationResponse, error) {
 
 	if _, err := checkLocalCaller(ctx); err != nil {
@@ -382,7 +391,7 @@ func (s *ColibriService) CleanupReservation(ctx context.Context,
 	return &colpb.CleanupReservationResponse{}, nil
 }
 
-func (s *ColibriService) AddAdmissionEntry(ctx context.Context,
+func (s *ColibriServiceDeMuxer) AddAdmissionEntry(ctx context.Context,
 	req *colpb.AddAdmissionEntryRequest) (*colpb.AddAdmissionEntryResponse, error) {
 
 	clientAddr, err := checkLocalCaller(ctx)

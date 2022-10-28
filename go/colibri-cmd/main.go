@@ -19,9 +19,11 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/co/reservation/translate"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
@@ -30,7 +32,7 @@ import (
 func main() {
 
 	// TODO(juagargi) make this more amicable and remove panics
-	fmt.Println("hi, for now this CLI only supports echoing given a SegR ID")
+	fmt.Println("hi, for now this CLI only supports traceroutinging given a SegR ID")
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 2 {
@@ -38,7 +40,7 @@ func main() {
 		panic("use just two arguments: debug_svc_addr segment_id")
 	}
 
-	addr, err := net.ResolveTCPAddr("tcp", args[0])
+	cliAddr, err := net.ResolveTCPAddr("tcp", args[0])
 	if err != nil {
 		panic(err)
 	}
@@ -47,25 +49,46 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	req := &colpb.EchoWithSegrRequest{
+	req := &colpb.TracerouteRequest{
 		Id: translate.PBufID(id),
 	}
-
-	fmt.Printf("ID is: %s\n", id.String())
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
 	grpcDialer := grpc.TCPDialer{}
-	conn, err := grpcDialer.Dial(ctx, addr)
+	conn, err := grpcDialer.Dial(ctx, cliAddr)
 	if err != nil {
 		panic(err)
 	}
 	client := colpb.NewColibriDebugCommandsClient(conn)
-	res, err := client.EchoWithSegr(ctx, req)
+	begin := time.Now()
+	fmt.Printf("ID is: %s, times relative to checkpoint: %s\n", id.String(), begin.Format(time.StampMicro))
+	res, err := client.CmdTraceroute(ctx, req)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("error in response? %v, message: %s\n", res.Error, res.Message)
+	if len(res.AsStamp) != len(res.TimeStampFromRequest) || len(res.AsStamp) != len(res.TimeStampAtResponse) {
+		panic("inconsistent response with many sizes")
+	}
+	ias := make([]addr.IA, 0, len(res.AsStamp))
+	ts1 := make([]time.Time, 0, len(res.AsStamp))
+	ts2 := make([]time.Time, 0, len(res.AsStamp))
+	for i := range res.AsStamp {
+		ias = append(ias, addr.IA(res.AsStamp[i]))
+		ts1 = append(ts1, time.UnixMicro(int64(res.TimeStampFromRequest[i])))
+		ts2 = append(ts2, time.UnixMicro(int64(res.TimeStampAtResponse[i])))
+	}
+	output := make([]string, 2*len(ias))
+	for i := range ias {
+		// output[i] = fmt.Sprintf("%s at %s", ias[len(ias)-i-1], ts1[i].Format(time.StampMicro))
+		output[i] = fmt.Sprintf("%s %s", ias[len(ias)-i-1], ts1[i].Sub(begin))
+	}
+	for i := range ias {
+		// output[i+len(ias)] = fmt.Sprintf("%s at %s", ias[i], ts2[i].Format(time.StampMicro))
+		output[i+len(ias)] = fmt.Sprintf("%s %s", ias[i], ts2[i].Sub(begin))
+	}
+
+	fmt.Println(strings.Join(output, "\n"))
 	// reservation.IDFromRaw()
 }

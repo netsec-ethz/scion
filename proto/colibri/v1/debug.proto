@@ -23,15 +23,25 @@ import "proto/colibri/v1/colibri.proto";
 
 
 service ColibriDebugCommands {
-    rpc EchoWithSegr(EchoWithSegrRequest) returns (EchoWithSegrResponse) {}
+    rpc CmdTraceroute(TracerouteRequest) returns (TracerouteResponse) {}
+}
+
+// This is the service that listens for calls from another colibri service. For each call
+// in the service above we should have a corresponding call here, if we need to interact
+// with more than just our local AS colibri service.
+// E.g. traceroute needs a message to walk thru all services, thus it needs an RPC here.
+service ColibriDebugService {
+    rpc Traceroute(TracerouteRequest) returns (TracerouteResponse) {}
 }
 
 
-message EchoWithSegrRequest {
+message TracerouteRequest {
     ReservationID id = 1;
 }
 
-message EchoWithSegrResponse {
-    bool error = 1;
-    string message = 2;
+message TracerouteResponse {
+    ReservationID id = 1;
+    repeated uint64 as_stamp = 2;
+    repeated uint64 time_stamp_from_request = 3;
+    repeated uint64 time_stamp_at_response = 4;
 }

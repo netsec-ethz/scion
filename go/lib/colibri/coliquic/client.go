@@ -134,6 +134,31 @@ func (o *ServiceClientOperator) ColibriClient(
 	transportPath *colpath.ColibriPathMinimal,
 ) (colpb.ColibriServiceClient, error) {
 
+	rAddr, err := o.neighborAddrWithTransport(egressID, transportPath)
+	if err != nil {
+		return nil, err
+	}
+	return o.colibriClient(ctx, rAddr)
+}
+
+func (o *ServiceClientOperator) DebugClient(
+	ctx context.Context,
+	egressID uint16,
+	transportPath *colpath.ColibriPathMinimal,
+) (colpb.ColibriDebugServiceClient, error) {
+
+	rAddr, err := o.neighborAddrWithTransport(egressID, transportPath)
+	if err != nil {
+		return nil, err
+	}
+	return o.debugClient(ctx, rAddr)
+}
+
+func (o *ServiceClientOperator) neighborAddrWithTransport(
+	egressID uint16,
+	transportPath *colpath.ColibriPathMinimal,
+) (*snet.UDPAddr, error) {
+
 	// egressID := transp.Steps[transp.CurrentStep].Egress
 	rAddr, ok := o.neighborAddr(egressID)
 	if !ok {
@@ -157,7 +182,7 @@ func (o *ServiceClientOperator) ColibriClient(
 		return nil, serrors.New("error in client operator: not a valid transport",
 			"path_type", transportPath.Type())
 	}
-	return o.colibriClient(ctx, rAddr)
+	return rAddr, nil
 }
 
 func (o *ServiceClientOperator) colibriClient(ctx context.Context, rAddr *snet.UDPAddr) (
@@ -169,6 +194,17 @@ func (o *ServiceClientOperator) colibriClient(ctx context.Context, rAddr *snet.U
 		return nil, err
 	}
 	return colpb.NewColibriServiceClient(conn), nil
+}
+
+func (o *ServiceClientOperator) debugClient(ctx context.Context, rAddr *snet.UDPAddr) (
+	colpb.ColibriDebugServiceClient, error) {
+
+	conn, err := o.gRPCDialer.Dial(ctx, rAddr)
+	if err != nil {
+		log.Info("error dialing a grpc connection", "addr", rAddr, "err", err)
+		return nil, err
+	}
+	return colpb.NewColibriDebugServiceClient(conn), nil
 }
 
 func (o *ServiceClientOperator) neighborAddr(egressID uint16) (*snet.UDPAddr, bool) {

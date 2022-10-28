@@ -46,6 +46,7 @@ import (
 )
 
 func main() {
+	// deleteme TODO(juagargi) this service seems to panic again when sigterm. WTF? it was fixed?
 	var cfg config.Config
 	application := launcher.Application{
 		TOMLConfig: &cfg,
@@ -176,36 +177,49 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 		Caps:  cfg.Colibri.Capacities,
 		Delta: cfg.Colibri.Delta,
 	}
-	colibriStore, err := reservationstore.NewStore(topo, cfgObjs.stack.ClientPacketConn,
-		cfgObjs.tcpDialer, cfgObjs.stack.Router, cfgObjs.stack.Resolver,
-		db, admitter, cfgObjs.masterKey.Key0)
+	// client manager will find/build the right gRPC client used in every RPC
+	operator, err := coliquic.NewServiceClientOperator(topo, cfgObjs.stack.ClientPacketConn,
+		cfgObjs.stack.Router, cfgObjs.stack.Resolver)
+	if err != nil {
+		return serrors.WrapStr("error creating operator", err)
+	}
+
+	// store handling reservations and reservation dynamics
+	colibriStore, err := reservationstore.NewStore(topo, operator,
+		cfgObjs.tcpDialer, db, admitter, cfgObjs.masterKey.Key0)
 	if err != nil {
 		return serrors.WrapStr("initializing colibri store", err)
 	}
 
-	colibriService := &colgrpc.ColibriService{
-		Store: colibriStore,
-	}
+	// debug service used both from the command line and as part of the colibri debug services
 	debugService := &colgrpc.DebugService{
-		Store: colibriStore,
-		DB:    db,
+		DB:       db,
+		Operator: operator,
+		Topo:     topo,
+		Store:    colibriStore,
 	}
-	colServer := coliquic.NewGrpcServer(libgrpc.UnaryServerInterceptor())
-	tcpColServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
-	debugServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
-	colpb.RegisterColibriServiceServer(colServer, colibriService)
-	colpb.RegisterColibriServiceServer(tcpColServer, colibriService)
-	colpb.RegisterColibriDebugCommandsServer(debugServer, debugService)
 
-	// run inter and intra AS servers
+	// colibri service demuxer
+	colibriService := &colgrpc.ColibriServiceDeMuxer{
+		Store:        colibriStore,
+		DebugService: *debugService,
+	}
+
+	// QUIC (regular API and debug services)
+	quicServer := coliquic.NewGrpcServer(libgrpc.UnaryServerInterceptor())
+	colpb.RegisterColibriServiceServer(quicServer, colibriService)
+	colpb.RegisterColibriDebugServiceServer(quicServer, colibriService)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		lis := cfgObjs.stack.QUICListener
 		log.Debug("colibri grpc server listening quic", "addr", lis.Addr())
-		return colServer.Serve(lis)
+		return quicServer.Serve(lis)
 	})
-	cleanup.Add(func() error { colServer.GracefulStop(); return nil })
+	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
 
+	// TCP regular API
+	tcpColServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	colpb.RegisterColibriServiceServer(tcpColServer, colibriService)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		tcpListener := cfgObjs.stack.TCPListener
@@ -214,14 +228,17 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 	})
 	cleanup.Add(func() error { tcpColServer.GracefulStop(); return nil })
 
+	// COLIBRI _debug_ services CLI interaction (TCP only, typically loopback):
 	if cfgObjs.stack.DebugListener != nil {
+		debugTcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+		colpb.RegisterColibriDebugCommandsServer(debugTcpServer, debugService)
 		g.Go(func() error {
 			defer log.HandlePanic()
 			tcpListener := cfgObjs.stack.DebugListener
-			log.Debug("colibri debug commands server listening tcp", "tcp_addr", tcpListener.Addr())
-			return debugServer.Serve(tcpListener)
+			log.Debug("colibri debug server listening tcp", "tcp_addr", tcpListener.Addr())
+			return debugTcpServer.Serve(tcpListener)
 		})
-		cleanup.Add(func() error { debugServer.GracefulStop(); return nil })
+		cleanup.Add(func() error { debugTcpServer.GracefulStop(); return nil })
 	}
 
 	manager, err := colibriManager(ctx, topo, cfgObjs.stack.Router, colibriStore,

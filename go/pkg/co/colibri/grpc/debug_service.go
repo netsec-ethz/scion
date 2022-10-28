@@ -16,6 +16,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,25 +24,34 @@ import (
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/co/reservationstorage/backend"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/colibri/coliquic"
+	"github.com/scionproto/scion/go/lib/topology"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
 type DebugService struct {
-	Store reservationstorage.Store
-	DB    backend.DB
+	DB       backend.DB
+	Operator *coliquic.ServiceClientOperator
+	Topo     *topology.Loader
+	Store    reservationstorage.Store
 }
 
 var _ colpb.ColibriDebugCommandsServer = (*DebugService)(nil)
+var _ colpb.ColibriDebugServiceServer = (*DebugService)(nil)
 
-func (s *DebugService) EchoWithSegr(ctx context.Context, req *colpb.EchoWithSegrRequest,
-) (*colpb.EchoWithSegrResponse, error) {
+func (s *DebugService) CmdTraceroute(ctx context.Context, req *colpb.TracerouteRequest,
+) (*colpb.TracerouteResponse, error) {
+
+	return s.Traceroute(ctx, req)
+}
+
+func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequest,
+) (*colpb.TracerouteResponse, error) {
 
 	id := translate.ID(req.Id)
-	log.Info("debug server echo with Segr", "segr", id.String())
-	res := &colpb.EchoWithSegrResponse{
-		Error: true,
-	}
+	localIA := s.Topo.IA()
+
+	reqTimeStamp := uint64(time.Now().UnixMicro())
 
 	segR, err := s.DB.GetSegmentRsvFromID(ctx, id)
 	if err != nil {
@@ -51,9 +61,21 @@ func (s *DebugService) EchoWithSegr(ctx context.Context, req *colpb.EchoWithSegr
 		return nil, status.Errorf(codes.NotFound, "segment not found: %s", id)
 	}
 
-	log.Debug("deleteme do actually perform a call via the Store that traverses the segment", "segr id", segR)
+	res := &colpb.TracerouteResponse{}
+	if segR.Egress() != 0 {
+		// not finished yet, forward to next debug service
+		client, err := s.Operator.DebugClient(ctx, segR.Egress(), segR.TransportPath)
+		if err != nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "error using operator: %s", err)
+		}
+		res, err = client.Traceroute(ctx, req)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "error forwarding to next service: %s", err)
+		}
+	}
 
-	// success
-	res.Error = false
+	res.AsStamp = append(res.AsStamp, uint64(localIA))
+	res.TimeStampFromRequest = append(res.TimeStampFromRequest, reqTimeStamp)
+	res.TimeStampAtResponse = append(res.TimeStampAtResponse, uint64(time.Now().UnixMicro()))
 	return res, nil
 }
