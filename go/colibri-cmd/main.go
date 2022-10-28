@@ -50,7 +50,8 @@ func main() {
 		panic(err)
 	}
 	req := &colpb.TracerouteRequest{
-		Id: translate.PBufID(id),
+		Id:         translate.PBufID(id),
+		UseColibri: true,
 	}
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
@@ -63,7 +64,7 @@ func main() {
 	}
 	client := colpb.NewColibriDebugCommandsClient(conn)
 	begin := time.Now()
-	fmt.Printf("ID is: %s, times relative to checkpoint: %s\n", id.String(), begin.Format(time.StampMicro))
+	fmt.Printf("ID is: %s, time at first line relative to checkpoint: %s\n", id.String(), begin.Format(time.StampMicro))
 	res, err := client.CmdTraceroute(ctx, req)
 	if err != nil {
 		panic(err)
@@ -79,14 +80,18 @@ func main() {
 		ts1 = append(ts1, time.UnixMicro(int64(res.TimeStampFromRequest[i])))
 		ts2 = append(ts2, time.UnixMicro(int64(res.TimeStampAtResponse[i])))
 	}
+
+	lastTime := begin
 	output := make([]string, 2*len(ias))
 	for i := range ias {
 		// output[i] = fmt.Sprintf("%s at %s", ias[len(ias)-i-1], ts1[i].Format(time.StampMicro))
-		output[i] = fmt.Sprintf("%s %s", ias[len(ias)-i-1], ts1[i].Sub(begin))
+		output[i] = fmt.Sprintf("%s %s", ias[len(ias)-i-1], ts1[i].Sub(lastTime))
+		lastTime = ts1[i]
 	}
 	for i := range ias {
 		// output[i+len(ias)] = fmt.Sprintf("%s at %s", ias[i], ts2[i].Format(time.StampMicro))
-		output[i+len(ias)] = fmt.Sprintf("%s %s", ias[i], ts2[i].Sub(begin))
+		output[i+len(ias)] = fmt.Sprintf("%s %s", ias[i], ts2[i].Sub(lastTime))
+		lastTime = ts2[i]
 	}
 
 	fmt.Println(strings.Join(output, "\n"))

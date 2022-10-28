@@ -11,6 +11,7 @@ go_library(
     deps = [
         "//go/co/reservation:go_default_library",
         "//go/co/reservation/e2e:go_default_library",
+        "//go/co/reservation/segment:go_default_library",
         "//go/co/reservation/translate:go_default_library",
         "//go/co/reservationstorage:go_default_library",
         "//go/co/reservationstorage/backend:go_default_library",

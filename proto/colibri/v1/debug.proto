@@ -37,6 +37,7 @@ service ColibriDebugService {
 
 message TracerouteRequest {
     ReservationID id = 1;
+    bool use_colibri = 2;
 }
 
 message TracerouteResponse {
