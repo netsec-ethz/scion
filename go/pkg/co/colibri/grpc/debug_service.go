@@ -95,12 +95,20 @@ func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequ
 	}
 
 	res := &colpb.TracerouteResponse{}
-	if segR.Egress() != 0 {
-		// not finished yet, forward to next debug service
+	if segR.Egress() != 0 { // destination not reached yet, forward to next debug service
+		// TODO(juagargi) fix this by allowing a parameter.
+		// XXX(juagargi) hacky: reduce the timeout by 100 ms to be able to answer back in
+		// case of next hop timing out. This will work sometimes, when there had been no hop
+		// that needs more than 100ms to send back the answer.
+		deadline, _ := ctx.Deadline()
+		ctx, cancelF := context.WithDeadline(ctx, deadline.Add(-100*time.Millisecond))
+		defer cancelF()
+
 		client, err := s.Operator.DebugClient(ctx, segR.Egress(), colibriTransport)
 		if err != nil {
 			return errF(status.Errorf(codes.FailedPrecondition, "error using operator: %s", err))
 		}
+
 		res, err = client.Traceroute(ctx, req)
 		if err != nil {
 			return errF(status.Errorf(codes.Internal,
