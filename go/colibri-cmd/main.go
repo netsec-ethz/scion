@@ -69,14 +69,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if len(res.AsStamp) != len(res.TimeStampFromRequest) || len(res.AsStamp) != len(res.TimeStampAtResponse) {
+	if len(res.IaStamp) != len(res.TimeStampFromRequest) || len(res.IaStamp) != len(res.TimeStampAtResponse) {
 		panic("inconsistent response with many sizes")
 	}
-	ias := make([]addr.IA, 0, len(res.AsStamp))
-	ts1 := make([]time.Time, 0, len(res.AsStamp))
-	ts2 := make([]time.Time, 0, len(res.AsStamp))
-	for i := range res.AsStamp {
-		ias = append(ias, addr.IA(res.AsStamp[i]))
+	if res.ErrorFound != nil {
+		fmt.Printf("Error found at IA %s: %s\n", addr.IA(res.ErrorFound.Ia), res.ErrorFound.Message)
+		if len(res.IaStamp) > 0 {
+			fmt.Printf("IAs: %v\n", res.IaStamp)
+		}
+		return
+	}
+	ias := make([]addr.IA, 0, len(res.IaStamp))
+	ts1 := make([]time.Time, 0, len(res.IaStamp))
+	ts2 := make([]time.Time, 0, len(res.IaStamp))
+	for i := range res.IaStamp {
+		ias = append(ias, addr.IA(res.IaStamp[i]))
 		ts1 = append(ts1, time.UnixMicro(int64(res.TimeStampFromRequest[i])))
 		ts2 = append(ts2, time.UnixMicro(int64(res.TimeStampAtResponse[i])))
 	}

@@ -41,8 +41,13 @@ message TracerouteRequest {
 }
 
 message TracerouteResponse {
+    message Error {
+        uint64 ia = 1;
+        string message = 2;
+    }
     ReservationID id = 1;
-    repeated uint64 as_stamp = 2;
+    repeated uint64 ia_stamp = 2;
     repeated uint64 time_stamp_from_request = 3;
     repeated uint64 time_stamp_at_response = 4;
+    Error error_found = 10;
 }

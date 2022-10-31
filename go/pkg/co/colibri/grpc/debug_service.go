@@ -54,9 +54,17 @@ func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequ
 
 	localIA := s.Topo.IA()
 	reqTimeStamp := uint64(time.Now().UnixMicro())
+	errF := func(err error) (*colpb.TracerouteResponse, error) {
+		return &colpb.TracerouteResponse{
+			ErrorFound: &colpb.TracerouteResponse_Error{
+				Ia:      uint64(localIA),
+				Message: err.Error(),
+			},
+		}, nil
+	}
 	segR, err := s.getSegR(ctx, req.Id)
 	if err != nil {
-		return nil, err
+		return errF(err)
 	}
 
 	var colibriTransport *colpath.ColibriPathMinimal
@@ -67,12 +75,12 @@ func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequ
 		} else {
 			colibriTransport, err = colPathFromCtx(ctx)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal,
-					"error retrieving path at transit: %s", err)
+				return errF(status.Errorf(codes.Internal,
+					"error retrieving path at transit: %s", err))
 			}
 		}
 		if colibriTransport == nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "there is no colibri transport")
+			return errF(status.Errorf(codes.FailedPrecondition, "there is no colibri transport"))
 		}
 		// deleteme
 		log.Debug("debug service info about the colibri transport path",
@@ -91,15 +99,17 @@ func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequ
 		// not finished yet, forward to next debug service
 		client, err := s.Operator.DebugClient(ctx, segR.Egress(), colibriTransport)
 		if err != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "error using operator: %s", err)
+			return errF(status.Errorf(codes.FailedPrecondition, "error using operator: %s", err))
 		}
 		res, err = client.Traceroute(ctx, req)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "error forwarding to next service: %s", err)
+			return errF(status.Errorf(codes.Internal,
+				"error forwarding to next (%s, egress_id = %d) service: %s",
+				s.Operator.Neighbor(segR.Egress()), segR.Egress(), err))
 		}
 	}
 
-	res.AsStamp = append(res.AsStamp, uint64(localIA))
+	res.IaStamp = append(res.IaStamp, uint64(localIA))
 	res.TimeStampFromRequest = append(res.TimeStampFromRequest, reqTimeStamp)
 	res.TimeStampAtResponse = append(res.TimeStampAtResponse, uint64(time.Now().UnixMicro()))
 	return res, nil

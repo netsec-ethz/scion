@@ -84,10 +84,11 @@ type TracerouteResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id                   *ReservationID `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	AsStamp              []uint64       `protobuf:"varint,2,rep,packed,name=as_stamp,json=asStamp,proto3" json:"as_stamp,omitempty"`
-	TimeStampFromRequest []uint64       `protobuf:"varint,3,rep,packed,name=time_stamp_from_request,json=timeStampFromRequest,proto3" json:"time_stamp_from_request,omitempty"`
-	TimeStampAtResponse  []uint64       `protobuf:"varint,4,rep,packed,name=time_stamp_at_response,json=timeStampAtResponse,proto3" json:"time_stamp_at_response,omitempty"`
+	Id                   *ReservationID            `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	IaStamp              []uint64                  `protobuf:"varint,2,rep,packed,name=ia_stamp,json=iaStamp,proto3" json:"ia_stamp,omitempty"`
+	TimeStampFromRequest []uint64                  `protobuf:"varint,3,rep,packed,name=time_stamp_from_request,json=timeStampFromRequest,proto3" json:"time_stamp_from_request,omitempty"`
+	TimeStampAtResponse  []uint64                  `protobuf:"varint,4,rep,packed,name=time_stamp_at_response,json=timeStampAtResponse,proto3" json:"time_stamp_at_response,omitempty"`
+	ErrorFound           *TracerouteResponse_Error `protobuf:"bytes,10,opt,name=error_found,json=errorFound,proto3" json:"error_found,omitempty"`
 }
 
 func (x *TracerouteResponse) Reset() {
@@ -129,9 +130,9 @@ func (x *TracerouteResponse) GetId() *ReservationID {
 	return nil
 }
 
-func (x *TracerouteResponse) GetAsStamp() []uint64 {
+func (x *TracerouteResponse) GetIaStamp() []uint64 {
 	if x != nil {
-		return x.AsStamp
+		return x.IaStamp
 	}
 	return nil
 }
@@ -150,6 +151,68 @@ func (x *TracerouteResponse) GetTimeStampAtResponse() []uint64 {
 	return nil
 }
 
+func (x *TracerouteResponse) GetErrorFound() *TracerouteResponse_Error {
+	if x != nil {
+		return x.ErrorFound
+	}
+	return nil
+}
+
+type TracerouteResponse_Error struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Ia      uint64 `protobuf:"varint,1,opt,name=ia,proto3" json:"ia,omitempty"`
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+}
+
+func (x *TracerouteResponse_Error) Reset() {
+	*x = TracerouteResponse_Error{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_proto_colibri_v1_debug_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TracerouteResponse_Error) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TracerouteResponse_Error) ProtoMessage() {}
+
+func (x *TracerouteResponse_Error) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_colibri_v1_debug_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TracerouteResponse_Error.ProtoReflect.Descriptor instead.
+func (*TracerouteResponse_Error) Descriptor() ([]byte, []int) {
+	return file_proto_colibri_v1_debug_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *TracerouteResponse_Error) GetIa() uint64 {
+	if x != nil {
+		return x.Ia
+	}
+	return 0
+}
+
+func (x *TracerouteResponse_Error) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_proto_colibri_v1_debug_proto protoreflect.FileDescriptor
 
 var file_proto_colibri_v1_debug_proto_rawDesc = []byte{
@@ -164,20 +227,28 @@ var file_proto_colibri_v1_debug_proto_rawDesc = []byte{
 	0x69, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e,
 	0x49, 0x44, 0x52, 0x02, 0x69, 0x64, 0x12, 0x1f, 0x0a, 0x0b, 0x75, 0x73, 0x65, 0x5f, 0x63, 0x6f,
 	0x6c, 0x69, 0x62, 0x72, 0x69, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x0a, 0x75, 0x73, 0x65,
-	0x43, 0x6f, 0x6c, 0x69, 0x62, 0x72, 0x69, 0x22, 0xcc, 0x01, 0x0a, 0x12, 0x54, 0x72, 0x61, 0x63,
+	0x43, 0x6f, 0x6c, 0x69, 0x62, 0x72, 0x69, 0x22, 0xcc, 0x02, 0x0a, 0x12, 0x54, 0x72, 0x61, 0x63,
 	0x65, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2f,
 	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x70, 0x72, 0x6f,
 	0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6c, 0x69, 0x62, 0x72, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65,
 	0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x52, 0x02, 0x69, 0x64, 0x12,
-	0x19, 0x0a, 0x08, 0x61, 0x73, 0x5f, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x18, 0x02, 0x20, 0x03, 0x28,
-	0x04, 0x52, 0x07, 0x61, 0x73, 0x53, 0x74, 0x61, 0x6d, 0x70, 0x12, 0x35, 0x0a, 0x17, 0x74, 0x69,
+	0x19, 0x0a, 0x08, 0x69, 0x61, 0x5f, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x18, 0x02, 0x20, 0x03, 0x28,
+	0x04, 0x52, 0x07, 0x69, 0x61, 0x53, 0x74, 0x61, 0x6d, 0x70, 0x12, 0x35, 0x0a, 0x17, 0x74, 0x69,
 	0x6d, 0x65, 0x5f, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x5f, 0x66, 0x72, 0x6f, 0x6d, 0x5f, 0x72, 0x65,
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x03, 0x20, 0x03, 0x28, 0x04, 0x52, 0x14, 0x74, 0x69, 0x6d,
 	0x65, 0x53, 0x74, 0x61, 0x6d, 0x70, 0x46, 0x72, 0x6f, 0x6d, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x12, 0x33, 0x0a, 0x16, 0x74, 0x69, 0x6d, 0x65, 0x5f, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x5f,
 	0x61, 0x74, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x04, 0x20, 0x03, 0x28,
 	0x04, 0x52, 0x13, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x74, 0x61, 0x6d, 0x70, 0x41, 0x74, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x74, 0x0a, 0x14, 0x43, 0x6f, 0x6c, 0x69, 0x62, 0x72,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4b, 0x0a, 0x0b, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x5f,
+	0x66, 0x6f, 0x75, 0x6e, 0x64, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2a, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6c, 0x69, 0x62, 0x72, 0x69, 0x2e, 0x76, 0x31, 0x2e, 0x54,
+	0x72, 0x61, 0x63, 0x65, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x2e, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x0a, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x46, 0x6f,
+	0x75, 0x6e, 0x64, 0x1a, 0x31, 0x0a, 0x05, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x12, 0x0e, 0x0a, 0x02,
+	0x69, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x02, 0x69, 0x61, 0x12, 0x18, 0x0a, 0x07,
+	0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d,
+	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x32, 0x74, 0x0a, 0x14, 0x43, 0x6f, 0x6c, 0x69, 0x62, 0x72,
 	0x69, 0x44, 0x65, 0x62, 0x75, 0x67, 0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x73, 0x12, 0x5c,
 	0x0a, 0x0d, 0x43, 0x6d, 0x64, 0x54, 0x72, 0x61, 0x63, 0x65, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x12,
 	0x23, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6c, 0x69, 0x62, 0x72, 0x69, 0x2e,
@@ -210,24 +281,26 @@ func file_proto_colibri_v1_debug_proto_rawDescGZIP() []byte {
 	return file_proto_colibri_v1_debug_proto_rawDescData
 }
 
-var file_proto_colibri_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_colibri_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_proto_colibri_v1_debug_proto_goTypes = []interface{}{
-	(*TracerouteRequest)(nil),  // 0: proto.colibri.v1.TracerouteRequest
-	(*TracerouteResponse)(nil), // 1: proto.colibri.v1.TracerouteResponse
-	(*ReservationID)(nil),      // 2: proto.colibri.v1.ReservationID
+	(*TracerouteRequest)(nil),        // 0: proto.colibri.v1.TracerouteRequest
+	(*TracerouteResponse)(nil),       // 1: proto.colibri.v1.TracerouteResponse
+	(*TracerouteResponse_Error)(nil), // 2: proto.colibri.v1.TracerouteResponse.Error
+	(*ReservationID)(nil),            // 3: proto.colibri.v1.ReservationID
 }
 var file_proto_colibri_v1_debug_proto_depIdxs = []int32{
-	2, // 0: proto.colibri.v1.TracerouteRequest.id:type_name -> proto.colibri.v1.ReservationID
-	2, // 1: proto.colibri.v1.TracerouteResponse.id:type_name -> proto.colibri.v1.ReservationID
-	0, // 2: proto.colibri.v1.ColibriDebugCommands.CmdTraceroute:input_type -> proto.colibri.v1.TracerouteRequest
-	0, // 3: proto.colibri.v1.ColibriDebugService.Traceroute:input_type -> proto.colibri.v1.TracerouteRequest
-	1, // 4: proto.colibri.v1.ColibriDebugCommands.CmdTraceroute:output_type -> proto.colibri.v1.TracerouteResponse
-	1, // 5: proto.colibri.v1.ColibriDebugService.Traceroute:output_type -> proto.colibri.v1.TracerouteResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: proto.colibri.v1.TracerouteRequest.id:type_name -> proto.colibri.v1.ReservationID
+	3, // 1: proto.colibri.v1.TracerouteResponse.id:type_name -> proto.colibri.v1.ReservationID
+	2, // 2: proto.colibri.v1.TracerouteResponse.error_found:type_name -> proto.colibri.v1.TracerouteResponse.Error
+	0, // 3: proto.colibri.v1.ColibriDebugCommands.CmdTraceroute:input_type -> proto.colibri.v1.TracerouteRequest
+	0, // 4: proto.colibri.v1.ColibriDebugService.Traceroute:input_type -> proto.colibri.v1.TracerouteRequest
+	1, // 5: proto.colibri.v1.ColibriDebugCommands.CmdTraceroute:output_type -> proto.colibri.v1.TracerouteResponse
+	1, // 6: proto.colibri.v1.ColibriDebugService.Traceroute:output_type -> proto.colibri.v1.TracerouteResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_proto_colibri_v1_debug_proto_init() }
@@ -261,6 +334,18 @@ func file_proto_colibri_v1_debug_proto_init() {
 				return nil
 			}
 		}
+		file_proto_colibri_v1_debug_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TracerouteResponse_Error); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -268,7 +353,7 @@ func file_proto_colibri_v1_debug_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_proto_colibri_v1_debug_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
