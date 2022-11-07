@@ -202,10 +202,7 @@ func (o *ServiceClientOperator) initialize(topo TopoLoader) {
 			defer log.HandlePanic()
 			o.periodicResolveNeighbors(topo)
 		}()
-		go func() {
-			defer log.HandlePanic()
-			o.periodicDiscoverServices()
-		}()
+		o.periodicDiscoverServices()
 	}()
 }
 

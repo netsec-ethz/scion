@@ -268,11 +268,12 @@ func TestListenerManySessions(t *testing.T) {
 }
 
 // TestSingleSession checks that only one session is created per path.
-// Mimic the tiny topology, and attempt to connect from 111 to 110 and 112, using
-// both regular SCION and COLIBRI paths.
+// Mimic the tiny topology, and attempt to connect from 111 to 110 and 112
 // This test is a multipart one:
-// - part 1:
-func TestReuseSession(t *testing.T) {
+// - part 1: use one path to go to 110. Expect 1 session.
+// - part 2: use a different one to go to 112. Expect 2 sessions (1 from part 1, one from here).
+// - part 3: use 50 times the same paths to go again to 110. Expect 2 sessions (part 1 and 2).
+func TestSingleSession(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancelF()
 	thisNet := newMockNetwork(t)
@@ -408,10 +409,9 @@ func TestTooManyStreams(t *testing.T) {
 		<-messages
 	}
 	require.NoError(t, waitWithContext(ctx, &wgClients))
-	require.Len(t, dialer.sessions, 1)
+	require.Len(t, dialer.sessions, 1) // active
 	require.Len(t, conns, N)
 	// check that we have used more than one session, but only one is active
-	require.Len(t, dialer.sessions, 1) // active
 	require.Len(t, sessions, N/maxIncomingStreams)
 
 	// check that all connections are still working

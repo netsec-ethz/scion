@@ -80,7 +80,7 @@ func NewStore(
 			"ingress", cap.CapacityIngress(uint16(ifid)),
 			"egress", cap.CapacityEgress(uint16(ifid)))
 	}
-	// client manager will find/build the right gRPC client used in every RPC
+	// client operator will find/build the right gRPC client used in every RPC
 	operator, err := coliquic.NewServiceClientOperator(topo, pconn, router, resolver)
 	if err != nil {
 		return nil, err
