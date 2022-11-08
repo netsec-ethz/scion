@@ -307,12 +307,14 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 
 	var res segment.SegmentSetupResponse
 	if req.PathType == reservation.DownPath {
-		// reverse_traveling must be true if this is a down rsv. and this AS is non core.
-		// It must be false otherwise.
+		if s.isCore {
+			return serrors.New("error initiating down path reservation: this is a core AS")
+		}
+		// reverse_traveling must be true iff this is a down rsv.
 		// The flag indicates the admission to send the request to
 		// the last AS of the path to re-start the request process from there, as the
 		// admission must be computed in the direction of the reservation.
-		req.ReverseTraveling = !s.isCore
+		req.ReverseTraveling = true
 		res, err = s.sendUpstreamForAdmission(ctx, req, transportPath)
 	} else {
 		err = s.authenticator.ComputeSegmentSetupRequestInitialMAC(ctx, req)
@@ -451,8 +453,6 @@ func (s *Store) AdmitSegmentReservation(
 ) (segment.SegmentSetupResponse, error) {
 
 	if req.ReverseTraveling {
-		// amend the currentStep: is always incremented by one but we travel in reverse
-		req.CurrentStep -= 2
 		return s.sendUpstreamForAdmission(ctx, req, transportPath)
 	}
 	if err := s.authenticateSegSetupReq(ctx, req, req.CurrentStep); err != nil {

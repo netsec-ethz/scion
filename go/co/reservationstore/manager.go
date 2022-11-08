@@ -162,7 +162,6 @@ func (m *manager) Run(ctx context.Context) {
 		logger.Debug("Reservation manager starting")
 		defer logger.Debug("Reservation manager finished")
 
-		// wakeupTime, err := m.keeper.OneShotDeleteme(ctx)
 		wakeupTime, err := m.keeper.OneShot(ctx)
 		if err != nil {
 			logger.Info("error while keeping the reservations", "err", err)

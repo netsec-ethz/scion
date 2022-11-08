@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "colibri.go",
+        "conversion.go",
         "empty.go",
         "onehop.go",
         "path.go",

@@ -34,8 +34,8 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
+	utilp "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
-	utilp "github.com/scionproto/scion/go/lib/util/path"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
@@ -59,6 +59,7 @@ func (s *ColibriService) SegmentSetup(ctx context.Context, msg *colpb.SegmentSet
 		// should send a message?
 		return nil, err
 	}
+	req.TakeStep() // a new hop has been traversed, take one more step (modify CurrentStep)
 	res, err := s.Store.AdmitSegmentReservation(ctx, req, transportPath)
 	if err != nil {
 		log.Info("error colibri store returned an error", "err", err)
@@ -191,12 +192,13 @@ func (s *ColibriService) E2ESetup(ctx context.Context, msg *colpb.E2ESetupReques
 		log.Info("error setup segment", "err", err)
 		return nil, err
 	}
-	msg.Params.CurrentStep++ // TODO(juagargi) uniformly increment in store
 	req, err := translate.E2ESetupRequest(msg)
 	if err != nil {
 		log.Info("error translating e2e setup", "err", err)
 		return nil, serrors.WrapStr("translating e2e setup", err)
 	}
+
+	req.CurrentStep++ // a new hop has been traversed, take one more step
 	res, err := s.Store.AdmitE2EReservation(ctx, req, transportPath)
 	if err != nil {
 		log.Info("error admitting e2e", "err", err)

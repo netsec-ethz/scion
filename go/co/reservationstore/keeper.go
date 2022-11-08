@@ -279,15 +279,10 @@ func findCompatibleConfiguration(r *segment.Reservation, conf []*configuration) 
 func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
 	req := base.NewRequest(k.now(), &e.rsv.ID, e.rsv.NextIndexToActivate().Idx,
 		len(e.rsv.Steps))
-	if err := e.rsv.SetIndexActive(req.Index); err != nil {
-		return err
-	}
-
 	inReverse := e.rsv.PathType == reservation.DownPath
 	err := k.provider.ActivateRequest(ctx, req, e.rsv.Steps.Copy(), e.rsv.TransportPath, inReverse)
-	if err != nil {
-		// rollback the index state
-		e.rsv.SetIndexInactive()
+	if err == nil {
+		err = e.rsv.SetIndexActive(req.Index)
 	}
 	return err
 }

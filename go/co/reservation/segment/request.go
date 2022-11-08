@@ -125,6 +125,18 @@ func (r *SetupReq) Egress() uint16 {
 	return r.Steps[r.CurrentStep].Egress
 }
 
+// TakeStep indicates a new hop has been taken (it usually increments CurrentStep, depending on
+// whether this is a down path reservation or not).
+func (r *SetupReq) TakeStep() {
+	var inc int
+	if r.ReverseTraveling {
+		inc = -1
+	} else {
+		inc = +1
+	}
+	r.CurrentStep += inc
+}
+
 func (r *SetupReq) Len() int {
 	// basic_request + steps len + expTime + RLC + pathType + minBW + maxBW + splitCls + pathProps
 	return r.Request.Len() + r.Steps.Size() + 4 + 1 + 1 + 1 + 1 + 1 + 1

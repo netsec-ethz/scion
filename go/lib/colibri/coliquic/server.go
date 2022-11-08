@@ -36,11 +36,11 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
+	utilp "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
-	utilp "github.com/scionproto/scion/go/lib/util/path"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 )
 

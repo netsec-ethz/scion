@@ -317,10 +317,10 @@ func TestColPathToRaw(t *testing.T) {
 					HFCount:     2,
 				},
 				HopFields: []*colpath.HopField{
-					&colpath.HopField{
+					{
 						Mac: make([]byte, 4),
 					},
-					&colpath.HopField{
+					{
 						Mac: make([]byte, 4),
 					},
 				},
@@ -338,10 +338,10 @@ func TestColPathToRaw(t *testing.T) {
 					ExpTick:     0xff00ff00,
 				},
 				HopFields: []*colpath.HopField{
-					&colpath.HopField{
+					{
 						Mac: make([]byte, 4),
 					},
-					&colpath.HopField{
+					{
 						Mac: make([]byte, 4),
 					},
 				},
@@ -357,9 +357,10 @@ func TestColPathToRaw(t *testing.T) {
 			// test function
 			raw, err := ColPathToRaw(minimal)
 			require.NoError(t, err)
-			minimal = &colpath.ColibriPathMinimal{}
-			err = minimal.DecodeFromBytes(raw)
+			newPath := &colpath.ColibriPathMinimal{}
+			err = newPath.DecodeFromBytes(raw)
 			require.NoError(t, err)
+			require.Equal(t, minimal, newPath)
 		})
 	}
 }

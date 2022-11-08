@@ -146,10 +146,7 @@ func (p PathSteps) String() string {
 
 // ValidateEquivalent checks that these steps are compatible with the path.
 // Compatible means the ingress/egress interface of the current step is the same
-// as those of the raw path if the raw path is colibri, or in the case the raw path
-// is of type scion, that the ingress is the same and that the path consists of only 2 hops.
-// This is because the regular scion path type can only be used to contact the
-// colibri service from the previous colibri service.
+// as those of the transport path.
 // TODO(juagargi) support colibri EER paths
 func (s PathSteps) ValidateEquivalent(path *colpath.ColibriPathMinimal, atStep int) error {
 	if path == nil {
@@ -162,7 +159,7 @@ func (s PathSteps) ValidateEquivalent(path *colpath.ColibriPathMinimal, atStep i
 	hf := path.GetCurrentHopField()
 	in, eg := hf.IngressId, hf.EgressId
 	// if using a SegR in a stitching point, ingress or egress could be 0, depending on
-	// wether the first segment or the second is being validated
+	// whether the first segment or the second is being validated
 	if infF.S {
 		if infF.CurrHF == 0 { // second segment, ignore ingress (it is us)
 			in = s[atStep].Ingress

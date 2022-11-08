@@ -57,7 +57,7 @@ func SetupReq(msg *colpb.SegmentSetupRequest, transportPath *colpath.ColibriPath
 		AllocTrail:       allocTrail,
 		ReverseTraveling: revTravel,
 		Steps:            PathSteps(msg.Params.Steps),
-		CurrentStep:      int(msg.Params.CurrentStep) + 1,
+		CurrentStep:      int(msg.Params.CurrentStep),
 		TransportPath:    transportPath,
 	}
 	return req, nil
