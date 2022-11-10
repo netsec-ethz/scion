@@ -57,9 +57,11 @@ func (r *Reservation) Egress() uint16 {
 	return r.Steps[r.CurrentStep].Egress
 }
 
-// deriveColibriPathAtSource creates the ColibriPathMinimal from the active index in this
-// reservation. If there is no active index, the path is nil.
-func (r *Reservation) deriveColibriPathAtSource() *colpath.ColibriPathMinimal {
+// DeriveColibriPathAtSource creates the ColibriPathMinimal from the active index in this
+// reservation. If there is no active index, the path is nil. This function is expected
+// to be called by the src of the reservation. Note that the src is not necesarely the
+// initator, in particular, if the Reservation is a downSegR.
+func (r *Reservation) DeriveColibriPathAtSource() *colpath.ColibriPathMinimal {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
@@ -82,10 +84,11 @@ func (r *Reservation) deriveColibriPathAtSource() *colpath.ColibriPathMinimal {
 	return min
 }
 
-// deriveColibriPathAtDestination creates the ColibriPath using the values of the active index in
+// DeriveColibriPathAtDestination creates the ColibriPath using the values of the active index in
 // this reservation, but with the hop fields in the reverse order. If there is no active index it
-// returns nil.
-func (r *Reservation) deriveColibriPathAtDestination() *colpath.ColibriPathMinimal {
+// returns nil. This function is expected to be called by the dst of the reservation, which will
+// be the initiator of the reservation if the if the Reservation is a downSegR.
+func (r *Reservation) DeriveColibriPathAtDestination() *colpath.ColibriPathMinimal {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
@@ -113,13 +116,6 @@ func (r *Reservation) deriveColibriPathAtDestination() *colpath.ColibriPathMinim
 		return nil
 	}
 	return min
-}
-
-func (r *Reservation) DeriveColibriPath() *colpath.ColibriPathMinimal {
-	if r.PathType == reservation.DownPath {
-		return r.deriveColibriPathAtDestination()
-	}
-	return r.deriveColibriPathAtSource()
 }
 
 // Validate will return an error for invalid values.

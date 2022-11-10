@@ -215,11 +215,9 @@ func TestMaxBlockedBW(t *testing.T) {
 func TestDeriveColibriPathAtSource(t *testing.T) {
 
 	cases := map[string]struct {
-		ReverseDirection bool
-		SegR             *segment.Reservation
+		SegR *segment.Reservation
 	}{
-		"forward": {
-			ReverseDirection: false,
+		"up": {
 			SegR: &segment.Reservation{
 				PathType:    reservation.UpPath,
 				Steps:       test.NewSteps("1-ff00:0:1", 1, 2, "1-ff00:0:2", 3, 4, "1-ff00:0:3"),
@@ -250,11 +248,10 @@ func TestDeriveColibriPathAtSource(t *testing.T) {
 				}},
 			},
 		},
-		"reverse": {
-			ReverseDirection: true,
+		"down": {
 			SegR: &segment.Reservation{
 				PathType:    reservation.DownPath,
-				Steps:       test.NewSteps("1-ff00:0:1", 1, 2, "1-ff00:0:2", 3, 4, "1-ff00:0:3").Reverse(),
+				Steps:       test.NewSteps("1-ff00:0:3", 4, 3, "1-ff00:0:2", 2, 1, "1-ff00:0:1"),
 				CurrentStep: 1,
 				ID:          *test.MustParseID("ff00:0:1", "01234567"),
 				Indices: segment.Indices{segment.Index{
@@ -267,14 +264,14 @@ func TestDeriveColibriPathAtSource(t *testing.T) {
 						HopFields: []reservation.HopField{
 							{
 								Ingress: 0,
-								Egress:  1,
+								Egress:  4,
 							},
 							{
-								Ingress: 2,
-								Egress:  3,
+								Ingress: 3,
+								Egress:  2,
 							},
 							{
-								Ingress: 4,
+								Ingress: 1,
 								Egress:  0,
 							},
 						},
@@ -290,17 +287,14 @@ func TestDeriveColibriPathAtSource(t *testing.T) {
 			colibriKeys := test.InitColibriKeys(t, len(tc.SegR.Steps))
 			srcAS := tc.SegR.Steps.SrcIA().AS()
 			dstAS := tc.SegR.Steps.DstIA().AS()
-			// emulate a reservation that traverses several ASes
-			if tc.ReverseDirection {
-				srcAS, dstAS = dstAS, srcAS
-			}
 			test.TraverseASesAndStampMACs(t, tc.SegR, colibriKeys, srcAS, dstAS)
-			// verify DeriveColibriPath
-			colPath := colibriMinimalToRegular(t, tc.SegR.DeriveColibriPath())
+			colPath := colibriMinimalToRegular(t, tc.SegR.DeriveColibriPathAtSource())
 			test.VerifyMACs(t, colPath, colibriKeys, srcAS, dstAS)
 		})
 	}
 }
+
+//TODO(JordiSubira): Add TestDeriveColibriPathAtDestination
 
 func colibriMinimalToRegular(t *testing.T, min *colpath.ColibriPathMinimal) *colpath.ColibriPath {
 	require.NotNil(t, min)

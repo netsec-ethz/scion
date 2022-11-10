@@ -1199,14 +1199,14 @@ func (s *Store) AdmitE2EReservation(
 			if err != nil {
 				return nil, err
 			}
-			transportPath = r.DeriveColibriPath()
+			transportPath = r.DeriveColibriPathAtSource()
 		} else if isStitchPoint {
 			req.CurrentSegmentRsvIndex++
 			rNext, err := tx.GetSegmentRsvFromID(ctx, &req.SegmentRsvs[req.CurrentSegmentRsvIndex])
 			if err != nil {
 				return nil, err
 			}
-			transportPath = rNext.DeriveColibriPath()
+			transportPath = rNext.DeriveColibriPathAtSource()
 		}
 		ingress = rsv.Ingress()
 		egress = rsv.Egress()
@@ -1343,13 +1343,13 @@ func (s *Store) CleanupE2EReservation(
 			if err != nil {
 				return nil, err
 			}
-			transportPath = r.DeriveColibriPath()
+			transportPath = r.DeriveColibriPathAtSource()
 		} else {
 			r, err := tx.GetSegmentRsvFromID(ctx, &rsv.SegmentReservations[1].ID)
 			if err != nil {
 				return nil, err
 			}
-			transportPath = r.DeriveColibriPath()
+			transportPath = r.DeriveColibriPathAtSource()
 		}
 	}
 
@@ -1949,7 +1949,10 @@ func pathFromReservation(rsv *segment.Reservation,
 		return nil, serrors.New("reservations has an expired active index", "id", rsv.ID,
 			"expiration", rsv.ActiveIndex().Expiration)
 	}
-	return rsv.DeriveColibriPath(), nil
+	if rsv.PathType == reservation.DownPath {
+		return rsv.DeriveColibriPathAtDestination(), nil
+	}
+	return rsv.DeriveColibriPathAtSource(), nil
 }
 
 // assert performs an assertion on an invariant. An assertion is part of the documentation.
