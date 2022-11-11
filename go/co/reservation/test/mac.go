@@ -26,6 +26,7 @@ import (
 	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,8 +59,12 @@ func ComputeMACs(t *testing.T, path *colpath.ColibriPath, colibriKeysPerAS []cip
 			Ingress: path.HopFields[i].IngressId,
 			Egress:  path.HopFields[i].EgressId,
 		}
+		key := colibriKeysPerAS[i]
+		if path.InfoField.R {
+			key = colibriKeysPerAS[N-i-1]
+		}
 		MACs[i] = computeMAC(t,
-			colibriKeysPerAS[i],
+			key,
 			path.InfoField.ResIdSuffix,
 			reservation.Tick(path.InfoField.ExpTick),
 			reservation.IndexNumber(path.InfoField.Ver),
@@ -74,13 +79,15 @@ func ComputeMACs(t *testing.T, path *colpath.ColibriPath, colibriKeysPerAS []cip
 }
 
 // VerifyMACs verifies each one of the hop field MACs, or FailNow otherwise.
+// colibriKeysPerAS follows the order of the ASes in the SegR (not necesarely, the same one
+// as in the HF, for example if the path.InfoField.R == true ).
 func VerifyMACs(t *testing.T, path *colpath.ColibriPath, colibriKeysPerAS []cipher.Block,
 	srcAS, dstAS addr.AS) {
 
 	t.Helper()
 	MACs := ComputeMACs(t, path, colibriKeysPerAS, srcAS, dstAS)
 	for i, MAC := range MACs {
-		require.Equal(t, MAC[:], path.HopFields[i].Mac)
+		assert.Equal(t, MAC[:], path.HopFields[i].Mac)
 	}
 }
 

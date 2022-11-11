@@ -294,7 +294,87 @@ func TestDeriveColibriPathAtSource(t *testing.T) {
 	}
 }
 
-//TODO(JordiSubira): Add TestDeriveColibriPathAtDestination
+func TestDeriveColibriPathAtDestination(t *testing.T) {
+
+	cases := map[string]struct {
+		SegR *segment.Reservation
+	}{
+		"up": {
+			SegR: &segment.Reservation{
+				PathType:    reservation.UpPath,
+				Steps:       test.NewSteps("1-ff00:0:1", 1, 2, "1-ff00:0:2", 3, 4, "1-ff00:0:3"),
+				CurrentStep: 1,
+				ID:          *test.MustParseID("ff00:0:1", "01234567"),
+				Indices: segment.Indices{segment.Index{
+					Token: &reservation.Token{
+						InfoField: reservation.InfoField{
+							Idx:            1,
+							BWCls:          3,
+							ExpirationTick: reservation.TickFromTime(util.SecsToTime(1000)),
+						},
+						HopFields: []reservation.HopField{
+							{
+								Ingress: 0,
+								Egress:  1,
+							},
+							{
+								Ingress: 2,
+								Egress:  3,
+							},
+							{
+								Ingress: 4,
+								Egress:  0,
+							},
+						},
+					},
+				}},
+			},
+		},
+		"down": {
+			SegR: &segment.Reservation{
+				PathType:    reservation.DownPath,
+				Steps:       test.NewSteps("1-ff00:0:3", 4, 3, "1-ff00:0:2", 2, 1, "1-ff00:0:1"),
+				CurrentStep: 1,
+				ID:          *test.MustParseID("ff00:0:1", "01234567"),
+				Indices: segment.Indices{segment.Index{
+					Token: &reservation.Token{
+						InfoField: reservation.InfoField{
+							Idx:            1,
+							BWCls:          3,
+							ExpirationTick: reservation.TickFromTime(util.SecsToTime(1000)),
+						},
+						HopFields: []reservation.HopField{
+							{
+								Ingress: 0,
+								Egress:  4,
+							},
+							{
+								Ingress: 3,
+								Egress:  2,
+							},
+							{
+								Ingress: 1,
+								Egress:  0,
+							},
+						},
+					},
+				}},
+			},
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			colibriKeys := test.InitColibriKeys(t, len(tc.SegR.Steps))
+			srcAS := tc.SegR.Steps.SrcIA().AS()
+			dstAS := tc.SegR.Steps.DstIA().AS()
+			test.TraverseASesAndStampMACs(t, tc.SegR, colibriKeys, srcAS, dstAS)
+			colPath := colibriMinimalToRegular(t, tc.SegR.DeriveColibriPathAtDestination())
+			test.VerifyMACs(t, colPath, colibriKeys, srcAS, dstAS)
+		})
+	}
+}
 
 func colibriMinimalToRegular(t *testing.T, min *colpath.ColibriPathMinimal) *colpath.ColibriPath {
 	require.NotNil(t, min)

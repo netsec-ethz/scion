@@ -249,16 +249,10 @@ func (m *manager) SetupRequest(ctx context.Context, req *segment.SetupReq) error
 	// because the store expects the steps[0] to always be the initiator (even for down-path
 	// SegRs), we need to reverse the steps and path if the SegR is of down-path type
 	steps := req.Steps
-	transportPath := req.TransportPath
 	if req.PathType == reservation.DownPath {
 		steps = steps.Reverse()
-		transportPath, err = transportPath.ReverseAsColibri()
-		if err != nil {
-			log.Info("error reversing scion/colibri path", "err", err, "path", transportPath)
-			panic(err)
-		}
 	}
-	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq, steps, transportPath)
+	res, err := m.store.InitConfirmSegmentReservation(ctx, confirmReq, steps, req.TransportPath)
 	if err != nil || !res.Success() {
 		origErr := err
 		if res != nil && !res.Success() {

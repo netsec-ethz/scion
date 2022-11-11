@@ -62,6 +62,19 @@ func (r *Reservation) Egress() uint16 {
 // to be called by the src of the reservation. Note that the src is not necesarely the
 // initator, in particular, if the Reservation is a downSegR.
 func (r *Reservation) DeriveColibriPathAtSource() *colpath.ColibriPathMinimal {
+	return r.deriveColibriPath(false)
+}
+
+// DeriveColibriPathAtDestination creates the ColibriPath using the values of the active index in
+// this reservation, but with the hop fields in the reverse order. If there is no active index it
+// returns nil. This function is expected to be called by the dst of the reservation, which will
+// be the initiator of the reservation if the if the Reservation is a downSegR.
+func (r *Reservation) DeriveColibriPathAtDestination() *colpath.ColibriPathMinimal {
+	// because the initiator AS is actually the DstAS, reverse the path
+	return r.deriveColibriPath(true)
+}
+
+func (r *Reservation) deriveColibriPath(reverse bool) *colpath.ColibriPathMinimal {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
@@ -77,39 +90,10 @@ func (r *Reservation) DeriveColibriPathAtSource() *colpath.ColibriPathMinimal {
 			Mac:       append([]byte{}, hf.Mac[:]...),
 		}
 	}
-	min, err := p.ToMinimal()
-	if err != nil {
-		return nil
-	}
-	return min
-}
-
-// DeriveColibriPathAtDestination creates the ColibriPath using the values of the active index in
-// this reservation, but with the hop fields in the reverse order. If there is no active index it
-// returns nil. This function is expected to be called by the dst of the reservation, which will
-// be the initiator of the reservation if the if the Reservation is a downSegR.
-func (r *Reservation) DeriveColibriPathAtDestination() *colpath.ColibriPathMinimal {
-	index := r.ActiveIndex()
-	if index == nil {
-		return nil
-	}
-
-	p := &colpath.ColibriPath{
-		InfoField: r.deriveInfoField(),
-		HopFields: make([]*colpath.HopField, len(index.Token.HopFields)),
-	}
-	lhf := len(index.Token.HopFields)
-	for i := 0; i < lhf; i++ {
-		hf := index.Token.HopFields[lhf-i-1]
-		p.HopFields[i] = &colpath.HopField{
-			IngressId: hf.Ingress,
-			EgressId:  hf.Egress,
-			Mac:       append([]byte{}, hf.Mac[:]...),
+	if reverse {
+		if _, err := p.Reverse(); err != nil {
+			return nil
 		}
-	}
-	// because the initiator AS is actually the DstAS, reverse the path
-	if _, err := p.Reverse(); err != nil {
-		return nil
 	}
 	min, err := p.ToMinimal()
 	if err != nil {
