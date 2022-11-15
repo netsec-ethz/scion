@@ -239,6 +239,19 @@ func TestValidateHostHostReq(t *testing.T) {
 			LocalIA:   ia112,
 			assertErr: assert.NoError,
 		},
+		"local dst host": {
+			peerAddr: tcpHost2.TCPAddr(),
+			req: drkey.HostHostMeta{
+				Lvl2Meta: drkey.Lvl2Meta{
+					SrcIA: ia112,
+					DstIA: ia112,
+				},
+				SrcHost: tcpHost1.IP().String(),
+				DstHost: tcpHost2.IP().String(),
+			},
+			LocalIA:   ia112,
+			assertErr: assert.NoError,
+		},
 	}
 	for name, tc := range testCases {
 		name, tc := name, tc

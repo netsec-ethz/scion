@@ -290,26 +290,22 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 	if err != nil {
 		return err
 	}
+	srcHost := addr.HostFromIPStr(meta.SrcHost)
+	dstHost := addr.HostFromIPStr(meta.DstHost)
 
-	if meta.SrcIA.Equal(localIA) {
-		srcHost := addr.HostFromIPStr(meta.SrcHost)
-		if !hostAddr.Equal(srcHost) {
-			return serrors.New("invalid request, src_host != remote host",
-				"src_host", srcHost, "remote_host", hostAddr)
-		}
-		return nil
+	if !((meta.SrcIA.Equal(localIA) && hostAddr.Equal(srcHost)) ||
+		(meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost))) {
+		return serrors.New(
+			"invalid request",
+			"local_isd_as", localIA,
+			"src_isd_as", meta.SrcIA,
+			"dst_isd_as", meta.DstIA,
+			"src_host", srcHost,
+			"dst_host", dstHost,
+			"remote_host", hostAddr,
+		)
 	}
-
-	if meta.DstIA.Equal(localIA) {
-		dstHost := addr.HostFromIPStr(meta.DstHost)
-		if !hostAddr.Equal(dstHost) {
-			return serrors.New("invalid request, dst_host != remote host",
-				"dst_host", dstHost, "remote_host", hostAddr)
-		}
-		return nil
-	}
-	return serrors.New("invalid request, localIA not found in request",
-		"localIA", localIA, "srcIA", meta.SrcIA, "dstIA", meta.DstIA)
+	return nil
 }
 
 func hostAddrFromPeer(peerAddr net.Addr) (addr.HostAddr, error) {
