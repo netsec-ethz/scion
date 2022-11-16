@@ -82,7 +82,7 @@ func main() {
 	ias := make([]addr.IA, 0, len(res.IaStamp))
 	ts1 := make([]time.Time, 0, len(res.IaStamp))
 	ts2 := make([]time.Time, 0, len(res.IaStamp))
-	for i := range res.IaStamp {
+	for i := len(res.IaStamp) - 1; i >= 0; i-- {
 		ias = append(ias, addr.IA(res.IaStamp[i]))
 		ts1 = append(ts1, time.UnixMicro(int64(res.TimeStampFromRequest[i])))
 		ts2 = append(ts2, time.UnixMicro(int64(res.TimeStampAtResponse[i])))
@@ -92,10 +92,10 @@ func main() {
 	output := make([]string, 2*len(ias))
 	for i := range ias {
 		// output[i] = fmt.Sprintf("%s at %s", ias[len(ias)-i-1], ts1[i].Format(time.StampMicro))
-		output[i] = fmt.Sprintf("%s %s", ias[len(ias)-i-1], ts1[i].Sub(lastTime))
+		output[i] = fmt.Sprintf("%s %s", ias[i], ts1[i].Sub(lastTime))
 		lastTime = ts1[i]
 	}
-	for i := range ias {
+	for i := len(ias) - 1; i >= 0; i-- {
 		// output[i+len(ias)] = fmt.Sprintf("%s at %s", ias[i], ts2[i].Format(time.StampMicro))
 		output[i+len(ias)] = fmt.Sprintf("%s %s", ias[i], ts2[i].Sub(lastTime))
 		lastTime = ts2[i]
