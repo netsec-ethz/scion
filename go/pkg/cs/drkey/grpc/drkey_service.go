@@ -293,8 +293,9 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 	srcHost := addr.HostFromIPStr(meta.SrcHost)
 	dstHost := addr.HostFromIPStr(meta.DstHost)
 
-	if !((meta.SrcIA.Equal(localIA) && hostAddr.Equal(srcHost)) ||
-		(meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost))) {
+	isSrc := meta.SrcIA.Equal(localIA) && hostAddr.Equal(srcHost)
+	isDst := meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost)
+	if !(isSrc || isDst) {
 		return serrors.New(
 			"invalid request",
 			"local_isd_as", localIA,
