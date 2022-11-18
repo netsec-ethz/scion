@@ -129,7 +129,7 @@ func (e *entry) PrepareRenewalRequest(now, expTime time.Time) *segment.SetupReq 
 		PathProps:      e.rsv.PathEndProps,
 		AllocTrail:     reservation.AllocationBeads{},
 		Steps:          e.rsv.Steps.Copy(),
-		CurrentStep:    0,
+		CurrentStep:    e.rsv.CurrentStep,
 		TransportPath:  e.rsv.TransportPath,
 		Reservation:    e.rsv,
 	}
@@ -291,7 +291,15 @@ func (k *keeper) activateIndex(ctx context.Context, e *entry) error {
 func (k *keeper) askNewIndices(ctx context.Context, e *entry) error {
 	now := k.now()
 	req := e.PrepareRenewalRequest(now, now.Add(newIndexMinDuration))
-	return k.provider.SetupRequest(ctx, req)
+	err := k.provider.SetupRequest(ctx, req)
+	if err != nil {
+		return err
+	}
+	// otherwise the entry reservation is not updated with the new indices
+	// TODO(JordiSubira): Check whether we are missing else from the updated reservation
+	// after confirming indices.
+	e.rsv.Indices = req.Reservation.Indices
+	return nil
 }
 
 func (k *keeper) askNewReservation(ctx context.Context, e *entry) (*segment.Reservation, error) {
