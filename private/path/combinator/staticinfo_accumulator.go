@@ -59,12 +59,13 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) s
 
 	path := pathInfo{interfaces, asEntries, remoteIF}
 	return snet.PathMetadata{
-		Latency:      collectLatency(path),
-		Bandwidth:    collectBandwidth(path),
-		Geo:          collectGeo(path),
-		LinkType:     collectLinkType(path),
-		InternalHops: collectInternalHops(path),
-		Notes:        collectNotes(path),
+		Latency:         collectLatency(path),
+		Bandwidth:       collectBandwidth(path),
+		CarbonIntensity: collectCarbonIntensity(path),
+		Geo:             collectGeo(path),
+		LinkType:        collectLinkType(path),
+		InternalHops:    collectInternalHops(path),
+		Notes:           collectNotes(path),
 	}
 }
 
@@ -176,6 +177,62 @@ func addHopBandwidth(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
 	}
 	k := makeHopKey(a, b)
 	if vExisting, exists := m[k]; !exists || vExisting > v {
+		m[k] = v
+	}
+}
+
+func collectCarbonIntensity(p pathInfo) []int64 {
+	// This is identical to collecting latencies.
+	// 1)
+	hopCarbonIntensities := make(map[hopKey]uint64)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
+			continue
+		}
+		egIF := snet.PathInterface{
+			IA: asEntry.Local,
+			ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+		}
+		carbonIntensity := staticInfo.CarbonIntensity
+		// Egress to other local interfaces
+		for ifid, v := range carbonIntensity.Intra {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopCarbonIntensity(hopCarbonIntensities, egIF, otherIF, v)
+		}
+		// Local peer to remote peer interface
+		for ifid, v := range carbonIntensity.Inter {
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopCarbonIntensity(hopCarbonIntensities, localIF, p.RemoteIF[localIF], v)
+		}
+	}
+
+	// 2)
+	carbonIntensities := make([]int64, len(p.Interfaces)-1)
+	for i := 0; i+1 < len(p.Interfaces); i++ {
+		vu, ok := hopCarbonIntensities[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+		v := int64(vu)
+		if !ok {
+			v = snet.CarbonIntensityUnset
+		}
+		carbonIntensities[i] = v
+	}
+
+	return carbonIntensities
+}
+
+// addHopCarbonIntensity adds the bandwidth of hop a-b to the map. Handle conflicting entries by
+// chosing the more conservative value (i.e. keep higher value).
+func addHopCarbonIntensity(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
+	// Skip incomplete entries; not strictly necessary, we'd just not look this up
+	if a.ID == 0 || b.ID == 0 {
+		return
+	}
+	if v == 0 {
+		return
+	}
+	k := makeHopKey(a, b)
+	if vExisting, exists := m[k]; !exists || vExisting < v {
 		m[k] = v
 	}
 }

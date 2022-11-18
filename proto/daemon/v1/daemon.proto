@@ -104,6 +104,13 @@ message Path {
     repeated string notes = 11;
     // EpicAuths contains the EPIC authenticators used to calculate the PHVF and LHVF.
     EpicAuths epic_auths = 12;
+    // Carbon intensity lists the carbon intensity of any two consecutive
+    // interfaces.
+    // The unit is grams of CO2 emitted per terabyte traffic sent (or
+    // equivalently, milligrams of CO2 per gigabyte).
+    // Entry i describes the carbon intensity between interface i and i+1.
+    // Consequently, there are N-1 entries for N interfaces.
+    repeated int64 carbon_intensity = 13;
 }
 
 message EpicAuths {

@@ -38,6 +38,11 @@ type InterfaceBandwidths struct {
 	Intra map[common.IFIDType]uint64 `json:"Intra"`
 }
 
+type InterfaceCarbonIntensities struct {
+	Inter uint64                     `json:"Inter"`
+	Intra map[common.IFIDType]uint64 `json:"Intra"`
+}
+
 type InterfaceGeodata struct {
 	Longitude float32 `json:"Longitude"`
 	Latitude  float32 `json:"Latitude"`
@@ -79,12 +84,13 @@ func (l *LinkType) UnmarshalText(text []byte) error {
 
 // StaticInfoCfg is used to parse data from config.json.
 type StaticInfoCfg struct {
-	Latency   map[common.IFIDType]InterfaceLatencies  `json:"Latency"`
-	Bandwidth map[common.IFIDType]InterfaceBandwidths `json:"Bandwidth"`
-	LinkType  map[common.IFIDType]LinkType            `json:"LinkType"`
-	Geo       map[common.IFIDType]InterfaceGeodata    `json:"Geo"`
-	Hops      map[common.IFIDType]InterfaceHops       `json:"Hops"`
-	Note      string                                  `json:"Note"`
+	Latency         map[common.IFIDType]InterfaceLatencies         `json:"Latency"`
+	Bandwidth       map[common.IFIDType]InterfaceBandwidths        `json:"Bandwidth"`
+	CarbonIntensity map[common.IFIDType]InterfaceCarbonIntensities `json:"CarbonIntensity"`
+	LinkType        map[common.IFIDType]LinkType                   `json:"LinkType"`
+	Geo             map[common.IFIDType]InterfaceGeodata           `json:"Geo"`
+	Hops            map[common.IFIDType]InterfaceHops              `json:"Hops"`
+	Note            string                                         `json:"Note"`
 }
 
 // ParseStaticInfoCfg parses data from a config file into a StaticInfoCfg struct.
@@ -120,6 +126,10 @@ func (cfg *StaticInfoCfg) clean() {
 	for _, s := range cfg.Bandwidth {
 		delete(s.Intra, 0)
 	}
+	delete(cfg.CarbonIntensity, 0)
+	for _, s := range cfg.CarbonIntensity {
+		delete(s.Intra, 0)
+	}
 	delete(cfg.LinkType, 0)
 	delete(cfg.Geo, 0)
 	delete(cfg.Hops, 0)
@@ -129,6 +139,7 @@ func (cfg *StaticInfoCfg) clean() {
 
 	symmetrizeLatency(cfg.Latency)
 	symmetrizeBandwidth(cfg.Bandwidth)
+	symmetrizeCarbonIntensity(cfg.CarbonIntensity)
 	symmetrizeHops(cfg.Hops)
 }
 
@@ -178,6 +189,29 @@ func symmetrizeBandwidth(bandwidth map[common.IFIDType]InterfaceBandwidths) {
 	}
 }
 
+// symmetrizeCarbonIntensity makes the Intra carbon intensity values symmetric
+func symmetrizeCarbonIntensity(carbonIntensity map[common.IFIDType]InterfaceCarbonIntensities) {
+	for i, sub := range carbonIntensity {
+		delete(sub.Intra, i) // Remove loopy entry
+		for j, v := range sub.Intra {
+			if _, ok := carbonIntensity[j]; !ok {
+				continue
+			}
+			if carbonIntensity[j].Intra == nil {
+				carbonIntensity[j] = InterfaceCarbonIntensities{
+					Inter: carbonIntensity[j].Inter,
+					Intra: make(map[common.IFIDType]uint64),
+				}
+			}
+			vTransposed, ok := carbonIntensity[j].Intra[i]
+			// Set if not specified or pick more conservative value if both are specified
+			if !ok || v < vTransposed {
+				carbonIntensity[j].Intra[i] = v
+			}
+		}
+	}
+}
+
 // symmetrizeHops makes the Intra hops values symmetric
 func symmetrizeHops(hops map[common.IFIDType]InterfaceHops) {
 	for i, sub := range hops {
@@ -210,12 +244,13 @@ func (cfg StaticInfoCfg) generate(ifType map[common.IFIDType]topology.LinkType,
 	ingress, egress common.IFIDType) *staticinfo.Extension {
 
 	return &staticinfo.Extension{
-		Latency:      cfg.generateLatency(ifType, ingress, egress),
-		Bandwidth:    cfg.generateBandwidth(ifType, ingress, egress),
-		Geo:          cfg.generateGeo(ifType, ingress, egress),
-		LinkType:     cfg.generateLinkType(ifType, egress),
-		InternalHops: cfg.generateInternalHops(ifType, ingress, egress),
-		Note:         cfg.Note,
+		Latency:         cfg.generateLatency(ifType, ingress, egress),
+		Bandwidth:       cfg.generateBandwidth(ifType, ingress, egress),
+		CarbonIntensity: cfg.generateCarbonIntensity(ifType, ingress, egress),
+		Geo:             cfg.generateGeo(ifType, ingress, egress),
+		LinkType:        cfg.generateLinkType(ifType, egress),
+		InternalHops:    cfg.generateInternalHops(ifType, ingress, egress),
+		Note:            cfg.Note,
 	}
 }
 
@@ -263,6 +298,29 @@ func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.L
 		}
 	}
 	return bw
+}
+
+// generateCarbonIntensity creates the BandwidthInfo by extracting the relevant values
+// from the config.
+func (cfg StaticInfoCfg) generateCarbonIntensity(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) staticinfo.CarbonIntensityInfo {
+
+	ci := staticinfo.CarbonIntensityInfo{
+		Intra: make(map[common.IFIDType]uint64),
+		Inter: make(map[common.IFIDType]uint64),
+	}
+	for ifid, v := range cfg.CarbonIntensity[egress].Intra {
+		if includeIntraInfo(ifType, ifid, ingress, egress) {
+			ci.Intra[ifid] = v
+		}
+	}
+	for ifid, v := range cfg.CarbonIntensity {
+		t := ifType[ifid]
+		if ifid == egress || t == topology.Peer {
+			ci.Inter[ifid] = v.Inter
+		}
+	}
+	return ci
 }
 
 // generateLinkType creates the LinkTypeInfo by extracting the relevant values from

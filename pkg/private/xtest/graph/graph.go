@@ -372,6 +372,18 @@ func (g *Graph) Bandwidth(a, b uint16) uint64 {
 	return 1000 * uint64(a*b*11939%10000) // value in 0-10_000_000kbps, 0-10Gbps
 }
 
+// CarbonIntensity returns an arbitrary test carbon intensity value between two
+// interfaces.
+// Analogous to Latency.
+func (g *Graph) CarbonIntensity(a, b uint16) uint64 {
+	sameIA := (g.parents[a] == g.parents[b])
+	if !sameIA && g.links[a] != b {
+		panic("interfaces must be in the same AS or connected by a link")
+	}
+
+	return uint64(a * b * 11939 % 5000) // value in 0-5000 grams of CO2 per terabyte
+}
+
 // GeoCoordinates returns an arbitrary test GeoCoordinate for the interface
 func (g *Graph) GeoCoordinates(ifid uint16) staticinfo.GeoCoordinates {
 	ia, ok := g.parents[ifid]
@@ -633,6 +645,20 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 		}
 	}
 
+	carbonIntensity := staticinfo.CarbonIntensityInfo{}
+	if outIF != 0 {
+		carbonIntensity.Intra = make(map[common.IFIDType]uint64)
+		carbonIntensity.Inter = make(map[common.IFIDType]uint64)
+		for ifid := range as.IFIDs {
+			if ifid != outIF {
+				carbonIntensity.Intra[common.IFIDType(ifid)] = g.CarbonIntensity(ifid, outIF)
+			}
+			if ifid == outIF || g.isPeer[ifid] {
+				carbonIntensity.Inter[common.IFIDType(ifid)] = g.CarbonIntensity(ifid, g.links[ifid])
+			}
+		}
+	}
+
 	geo := make(staticinfo.GeoInfo)
 	for ifid := range as.IFIDs {
 		geo[common.IFIDType(ifid)] = g.GeoCoordinates(ifid)
@@ -657,11 +683,12 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 	}
 
 	return &staticinfo.Extension{
-		Latency:      latency,
-		Bandwidth:    bandwidth,
-		Geo:          geo,
-		LinkType:     linkType,
-		InternalHops: internalHops,
-		Note:         fmt.Sprintf("Note %s", ia),
+		Latency:         latency,
+		Bandwidth:       bandwidth,
+		CarbonIntensity: carbonIntensity,
+		Geo:             geo,
+		LinkType:        linkType,
+		InternalHops:    internalHops,
+		Note:            fmt.Sprintf("Note %s", ia),
 	}
 }

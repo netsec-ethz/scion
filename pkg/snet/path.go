@@ -30,6 +30,10 @@ const (
 	// LatencyUnset is the default value for a Latency entry in PathMetadata for
 	// which no latency was announced.
 	LatencyUnset time.Duration = -1
+
+	// CarbonIntensityUnset is the default value for a carbon intensity entry in
+	// PathMetadata for which no value was announced.
+	CarbonIntensityUnset int64 = -1
 )
 
 // DataplanePath is an abstract representation of a SCION dataplane path.
@@ -119,6 +123,13 @@ type PathMetadata struct {
 	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
 	Bandwidth []uint64
 
+	// CarbonIntensity lists the carbon intensity between any two consecutive
+	// interfaces, in grams of CO2 emitted per terabyte of traffic.
+	// Entry i describes the value between interfaces i and i+1.
+	// A negative value (CarbonIntensityUnset) indicates that the AS did not
+	// announce a value for this hop.
+	CarbonIntensity []int64
+
 	// Geo lists the geographical position of the border routers along the path.
 	// Entry i describes the position of the router for interface i.
 	// A 0-value indicates that the AS did not announce a position for this router.
@@ -148,15 +159,16 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 	}
 
 	return &PathMetadata{
-		Interfaces:   append(pm.Interfaces[:0:0], pm.Interfaces...),
-		MTU:          pm.MTU,
-		Expiry:       pm.Expiry,
-		Latency:      append(pm.Latency[:0:0], pm.Latency...),
-		Bandwidth:    append(pm.Bandwidth[:0:0], pm.Bandwidth...),
-		Geo:          append(pm.Geo[:0:0], pm.Geo...),
-		LinkType:     append(pm.LinkType[:0:0], pm.LinkType...),
-		InternalHops: append(pm.InternalHops[:0:0], pm.InternalHops...),
-		Notes:        append(pm.Notes[:0:0], pm.Notes...),
+		Interfaces:      append(pm.Interfaces[:0:0], pm.Interfaces...),
+		MTU:             pm.MTU,
+		Expiry:          pm.Expiry,
+		Latency:         append(pm.Latency[:0:0], pm.Latency...),
+		Bandwidth:       append(pm.Bandwidth[:0:0], pm.Bandwidth...),
+		CarbonIntensity: append(pm.CarbonIntensity[:0:0], pm.CarbonIntensity...),
+		Geo:             append(pm.Geo[:0:0], pm.Geo...),
+		LinkType:        append(pm.LinkType[:0:0], pm.LinkType...),
+		InternalHops:    append(pm.InternalHops[:0:0], pm.InternalHops...),
+		Notes:           append(pm.Notes[:0:0], pm.Notes...),
 		EpicAuths: EpicAuths{
 			AuthPHVF: append([]byte(nil), pm.EpicAuths.AuthPHVF...),
 			AuthLHVF: append([]byte(nil), pm.EpicAuths.AuthLHVF...),

@@ -121,6 +121,7 @@ func TestStaticinfo(t *testing.T) {
 			checkGeo(t, g, tc.Path, metadata.Geo)
 			checkLinkType(t, g, tc.Path, metadata.LinkType)
 			checkBandwidth(t, g, tc.Path, metadata.Bandwidth)
+			checkCarbonIntensity(t, g, tc.Path, metadata.CarbonIntensity)
 			checkInternalHops(t, g, tc.Path, metadata.InternalHops)
 			checkNotes(t, g, tc.Path, metadata.Notes)
 		})
@@ -155,6 +156,22 @@ func checkBandwidth(t *testing.T, g *graph.Graph,
 		expected = append(expected, g.Bandwidth(uint16(path[i].ID), uint16(path[i+1].ID)))
 	}
 	assert.Equal(t, expected, bandwidth)
+}
+
+func checkCarbonIntensity(t *testing.T, g *graph.Graph,
+	path []snet.PathInterface, carbonIntensity []int64) {
+
+	if len(path) == 0 {
+		assert.Empty(t, carbonIntensity)
+		return
+	}
+
+	expected := []int64{}
+	for i := 0; i < len(path)-1; i++ {
+		v := int64(g.CarbonIntensity(uint16(path[i].ID), uint16(path[i+1].ID)))
+		expected = append(expected, v)
+	}
+	assert.Equal(t, expected, carbonIntensity)
 }
 
 func checkInternalHops(t *testing.T, g *graph.Graph,

@@ -54,6 +54,17 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 				},
 			},
 		},
+		"carbon_intensity": {
+			CarbonIntensity: staticinfo.CarbonIntensityInfo{
+				Intra: map[common.IFIDType]uint64{
+					10: 1, // 1g/TB
+					11: 1000,
+				},
+				Inter: map[common.IFIDType]uint64{
+					11: 550,
+				},
+			},
+		},
 		"link_type": {
 			LinkType: staticinfo.LinkTypeInfo{
 				1: staticinfo.LinkTypeDirect,

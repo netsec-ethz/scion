@@ -60,6 +60,17 @@
       "Inter": 120
     }
   },
+  "CarbonIntensity": {
+    "1": {
+      "Inter": 780,
+      "Intra": {
+        "2": 300
+      }
+    },
+    "2": {
+      "Inter": 400
+    }
+  },
   "Linktype": {
     "1":"direct",
     "2":"opennet",

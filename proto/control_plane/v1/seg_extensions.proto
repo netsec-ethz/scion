@@ -40,6 +40,8 @@ message StaticInfoExtension {
     LatencyInfo latency = 1;
     // Approximate, maximum bandwidth for paths based on this ASEntry.
     BandwidthInfo bandwidth = 2;
+    // Aproximate carbon intensity.
+    CarbonIntensityInfo carbon_intensity = 7;
     // Geographical coordinates describing the location of the routers for
     // relevant interfaces of this AS. The key is the interface identifier.
     map<uint64, GeoCoordinates> geo = 3;
@@ -101,6 +103,15 @@ message BandwidthInfo {
     // - peer links
     // The key is the interface identifier of the local interface associated
     // with the link.
+    map<uint64, uint64> inter = 2;
+}
+
+// CarbonIntensityInfo specifies carbon intensity for the links.
+// The separate intra and inter AS information allows to reconstruct values for
+// all paths (cross-over, shortcut, peering) based on this ASEntry.
+// All values are in grams of CO2 emitted per terabyte of traffic.
+message CarbonIntensityInfo {
+    map<uint64, uint64> intra = 1;
     map<uint64, uint64> inter = 2;
 }
 
