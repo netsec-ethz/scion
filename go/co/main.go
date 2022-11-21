@@ -191,6 +191,11 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 		return serrors.WrapStr("initializing colibri store", err)
 	}
 
+	// colibri service used for regular colibri RPCs
+	colibriService := &colgrpc.ColibriService{
+		Store: colibriStore,
+	}
+
 	// debug service used both from the command line and as part of the colibri debug services
 	debugService := &colgrpc.DebugService{
 		DB:       db,
@@ -199,16 +204,10 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 		Store:    colibriStore,
 	}
 
-	// colibri service demuxer
-	colibriService := &colgrpc.ColibriServiceDeMuxer{
-		Store:        colibriStore,
-		DebugService: *debugService,
-	}
-
 	// QUIC (regular API and debug services)
 	quicServer := coliquic.NewGrpcServer(libgrpc.UnaryServerInterceptor())
 	colpb.RegisterColibriServiceServer(quicServer, colibriService)
-	colpb.RegisterColibriDebugServiceServer(quicServer, colibriService)
+	colpb.RegisterColibriDebugServiceServer(quicServer, debugService)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		lis := cfgObjs.stack.QUICListener
