@@ -231,7 +231,7 @@ func setupColibri(ctx context.Context, g *errgroup.Group, cleanup *app.Cleanup, 
 	// COLIBRI _debug_ services CLI interaction (TCP only, typically loopback):
 	if cfgObjs.stack.DebugListener != nil {
 		debugTcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
-		colpb.RegisterColibriDebugCommandsServer(debugTcpServer, debugService)
+		colpb.RegisterColibriDebugCommandsServiceServer(debugTcpServer, debugService)
 		g.Go(func() error {
 			defer log.HandlePanic()
 			tcpListener := cfgObjs.stack.DebugListener

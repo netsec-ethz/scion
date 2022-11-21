@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	req := &colpb.TracerouteRequest{
+	req := &colpb.CmdTracerouteRequest{
 		Id:         translate.PBufID(id),
 		UseColibri: true,
 	}
@@ -62,9 +62,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	client := colpb.NewColibriDebugCommandsClient(conn)
+	client := colpb.NewColibriDebugCommandsServiceClient(conn)
 	begin := time.Now()
-	fmt.Printf("ID is: %s, time at first line relative to checkpoint: %s\n", id.String(), begin.Format(time.StampMicro))
+	fmt.Printf("ID is: %s, time at first line relative to checkpoint: %s.  Times shown at each "+
+		"step are relative to the previous one\n",
+		id.String(), begin.Format(time.StampMicro))
 	res, err := client.CmdTraceroute(ctx, req)
 	if err != nil {
 		panic(err)

@@ -40,13 +40,14 @@ type DebugService struct {
 	Store    reservationstorage.Store
 }
 
-var _ colpb.ColibriDebugCommandsServer = (*DebugService)(nil)
+var _ colpb.ColibriDebugCommandsServiceServer = (*DebugService)(nil)
 var _ colpb.ColibriDebugServiceServer = (*DebugService)(nil)
 
-func (s *DebugService) CmdTraceroute(ctx context.Context, req *colpb.TracerouteRequest,
-) (*colpb.TracerouteResponse, error) {
+func (s *DebugService) CmdTraceroute(ctx context.Context, req *colpb.CmdTracerouteRequest,
+) (*colpb.CmdTracerouteResponse, error) {
 
-	return s.Traceroute(ctx, req)
+	res, err := s.Traceroute(ctx, (*colpb.TracerouteRequest)(req))
+	return (*colpb.CmdTracerouteResponse)(res), err
 }
 
 func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequest,
@@ -56,7 +57,7 @@ func (s *DebugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequ
 	reqTimeStamp := uint64(time.Now().UnixMicro())
 	errF := func(err error) (*colpb.TracerouteResponse, error) {
 		return &colpb.TracerouteResponse{
-			ErrorFound: &colpb.TracerouteResponse_Error{
+			ErrorFound: &colpb.ErrorInIA{
 				Ia:      uint64(localIA),
 				Message: err.Error(),
 			},

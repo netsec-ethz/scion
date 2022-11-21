@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import random
-import sys
 from collections import defaultdict
 
 # External packages

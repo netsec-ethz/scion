@@ -22,8 +22,9 @@ package proto.colibri.v1;
 import "proto/colibri/v1/colibri.proto";
 
 
-service ColibriDebugCommands {
-    rpc CmdTraceroute(TracerouteRequest) returns (TracerouteResponse) {}
+service ColibriDebugCommandsService {
+    // Start a Traceroute RPC.
+    rpc CmdTraceroute(CmdTracerouteRequest) returns (CmdTracerouteResponse) {}
 }
 
 // This is the service that listens for calls from another colibri service. For each call
@@ -31,23 +32,55 @@ service ColibriDebugCommands {
 // with more than just our local AS colibri service.
 // E.g. traceroute needs a message to walk thru all services, thus it needs an RPC here.
 service ColibriDebugService {
+    // Receives a traceroute request and calls the next AS' Traceroute RPC.
     rpc Traceroute(TracerouteRequest) returns (TracerouteResponse) {}
 }
 
 
-message TracerouteRequest {
+message CmdTracerouteRequest {
+    // the ID of the segR to check. It can also be used as transport (see below).
     ReservationID id = 1;
+    // always use COLIBRI as transport while performing the traceroute.
+    bool use_colibri = 2;
+}
+
+message CmdTracerouteResponse {
+    // requested segR for traceroute.
+    ReservationID id = 1;
+    // sequence of IAs traversed by traceroute.
+    repeated uint64 ia_stamp = 2;
+    // sequence of timestamps when the request was received by AS i.
+    repeated uint64 time_stamp_from_request = 3;
+    // sequence of timestamps when the response was sent by AS i.
+    repeated uint64 time_stamp_at_response = 4;
+    // if an error exists, the complete Error structure.
+    ErrorInIA error_found = 10;
+}
+
+message TracerouteRequest {
+    // the ID of the segR to check. It can also be used as transport (see below).
+    ReservationID id = 1;
+    // always use COLIBRI as transport while performing the traceroute.
     bool use_colibri = 2;
 }
 
 message TracerouteResponse {
-    message Error {
-        uint64 ia = 1;
-        string message = 2;
-    }
+    // requested segR for traceroute.
     ReservationID id = 1;
+    // sequence of IAs traversed by traceroute.
     repeated uint64 ia_stamp = 2;
+    // sequence of timestamps when the request was received by AS i.
     repeated uint64 time_stamp_from_request = 3;
+    // sequence of timestamps when the response was sent by AS i.
     repeated uint64 time_stamp_at_response = 4;
-    Error error_found = 10;
+    // if an error exists, the complete Error structure.
+    ErrorInIA error_found = 10;
+}
+
+
+message ErrorInIA {
+    // where the error originated.
+    uint64 ia = 1;
+    // description of the error.
+    string message = 2;
 }

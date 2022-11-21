@@ -166,6 +166,7 @@ class GoGenerator(object):
     def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
         daemon_ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         config_dir = '/share/conf' if self.args.docker else base
+
         def co_dbg_ip(co_name):
             """ finds the IP of the colibri debug service corresponding to this colibri name """
             parts = co_name.split("-")

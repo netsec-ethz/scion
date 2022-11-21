@@ -83,7 +83,7 @@ func IDFromString(str string) (*ID, error) {
 	if len(parts) != 2 {
 		return nil, serrors.New("bad colibri id", "string", str)
 	}
-	as_, err := addr.ParseAS(parts[0])
+	as, err := addr.ParseAS(parts[0])
 	if err != nil {
 		return nil, serrors.WrapStr("bad colibri id", err, "string", str)
 	}
@@ -92,7 +92,7 @@ func IDFromString(str string) (*ID, error) {
 		return nil, serrors.WrapStr("bad colibri id", err, "string", str)
 	}
 	return &ID{
-		ASID:   as_,
+		ASID:   as,
 		Suffix: suffix,
 	}, nil
 }

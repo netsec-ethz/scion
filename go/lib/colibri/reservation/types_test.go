@@ -35,26 +35,51 @@ func TestSegmentIDFromRaw(t *testing.T) {
 }
 
 func TestIDFromString(t *testing.T) {
-	id, err := IDFromString("ffaa:1:1-01234567")
-	require.NoError(t, err)
-	require.Equal(t, xtest.MustParseAS("ffaa:1:1"), id.ASID)
-	require.Equal(t, xtest.MustParseHexString("01234567"), id.Suffix)
-	err = id.Validate()
-	require.NoError(t, err)
-
-	id, err = IDFromString("ffaa:1:1-0123456789abcdef01234567")
-	require.NoError(t, err)
-	require.Equal(t, xtest.MustParseAS("ffaa:1:1"), id.ASID)
-	require.Equal(t, xtest.MustParseHexString("0123456789abcdef01234567"), id.Suffix)
-	err = id.Validate()
-	require.NoError(t, err)
-
-	id, err = IDFromString("ffaa:1:1-0123")
-	require.NoError(t, err)
-	require.Equal(t, xtest.MustParseAS("ffaa:1:1"), id.ASID)
-	require.Equal(t, xtest.MustParseHexString("0123"), id.Suffix)
-	err = id.Validate()
-	require.Error(t, err) // neither SegR or EER
+	cases := map[string]struct {
+		s             string
+		expected      ID
+		expectedError bool
+	}{
+		"segR": {
+			s: "ffaa:1:1-01234567",
+			expected: ID{
+				ASID:   xtest.MustParseAS("ffaa:1:1"),
+				Suffix: xtest.MustParseHexString("01234567"),
+			},
+		},
+		"eeR": {
+			s: "ffaa:1:1-0123456789abcdef01234567",
+			expected: ID{
+				ASID:   xtest.MustParseAS("ffaa:1:1"),
+				Suffix: xtest.MustParseHexString("0123456789abcdef01234567"),
+			},
+		},
+		"bad_AS": {
+			s:             "xxxx:1:1-0123",
+			expectedError: true,
+		},
+		"bad_suffix": {
+			s:             "ffaa:1:1-01234",
+			expectedError: true,
+		},
+		"bad_format": {
+			s:             "ffaa:1:1-0123-0123",
+			expectedError: true,
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := IDFromString(tc.s)
+			if tc.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, &tc.expected, got)
+			}
+		})
+	}
 }
 
 func TestIDRead(t *testing.T) {
