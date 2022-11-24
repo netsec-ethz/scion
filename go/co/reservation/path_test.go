@@ -257,7 +257,7 @@ func TestPathStepsFromSnet(t *testing.T) {
 			snetPath:    nil,
 			expectedErr: false,
 		},
-		"colibri_with_raw_path": {
+		"colibri_path": {
 			snetPath: path.Path{
 				Meta: snet.PathMetadata{
 					Interfaces: []snet.PathInterface{

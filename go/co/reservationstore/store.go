@@ -304,7 +304,7 @@ func (s *Store) InitSegmentReservation(ctx context.Context, req *segment.SetupRe
 		// The flag indicates the admission to send the request to
 		// the last AS of the path to re-start the request process from there, as the
 		// admission must be computed in the direction of the reservation.
-		req.ReverseTraveling = !s.isCore
+		req.ReverseTraveling = true
 		res, err = s.sendUpstreamForAdmission(ctx, req)
 	} else {
 		err = s.authenticator.ComputeSegmentSetupRequestInitialMAC(ctx, req)
@@ -1527,14 +1527,13 @@ func validateE2ESteps(localIA addr.IA, rsv *e2e.Reservation, reqSteps base.PathS
 	if isStitchPoint && (currInStitched != reqCurrStep) {
 		return serrors.WrapStr("current step inconsistency", prebuiltErr)
 	}
-	if isStitchPoint &&
-		(currInStitched != len(rsv.SegmentReservations[0].Steps)-1 ||
-			rsv.SegmentReservations[1].Steps[0].IA != localIA) {
+	assert(!isStitchPoint ||
+		(currInStitched == len(rsv.SegmentReservations[0].Steps)-1 &&
+			rsv.SegmentReservations[1].Steps[0].IA == localIA),
+		"being a stitch point means being at the last AS of the first segment and "+
+			"fist AS of the second segment. Details: %v", prebuiltErr)
 
-		return serrors.WrapStr("local AS found in wrong position", prebuiltErr)
-	}
-
-	// assert(stitched[currInStitched].IA == localIA, "bad local IA or curr step: %v", prebuiltErr)
+	assert(stitched[currInStitched].IA == localIA, "bad local IA or curr step: %v", prebuiltErr)
 
 	return nil
 }

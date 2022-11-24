@@ -24,7 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// Request is an EER generic request. It contains
+// Request is an EER generic request. It contains the source and destination host addresses
+// (currently IPs) as well as the fields from the base Request: timestamp, ID, index and
+// authenticators.
 // All the fields are immutable (part of the authenticated data).
 type Request struct {
 	base.Request // ID, index, timestamp, and authenticators

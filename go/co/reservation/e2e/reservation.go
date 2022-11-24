@@ -52,6 +52,8 @@ func (r *Reservation) IsLastAS() bool {
 	return r.CurrentStep == len(r.Steps)-1
 }
 
+// IsStitchPoint returns true if the AS represented by ia is a stitch point.
+// The stitching points are present at the end of a segment and beginning of another one.
 func (r *Reservation) IsStitchPoint(ia addr.IA) bool {
 	if len(r.SegmentReservations) != 2 {
 		return false

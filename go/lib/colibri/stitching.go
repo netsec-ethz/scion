@@ -102,16 +102,16 @@ func (t FullTrip) ShortcutSteps() base.PathSteps {
 	}
 
 	// obtain the stitched steps
-	originalSteps := t.PathSteps()
+	steps := t.PathSteps()
 
 	// for every non stitch point IA in the original steps, shortcut it
-	for _, step := range originalSteps {
+	for _, step := range steps {
 		if _, ok := stitchPoints[step.IA]; ok {
 			continue
 		}
-		originalSteps = shortcutSteps(originalSteps, step.IA)
+		steps = shortcutSteps(steps, step.IA)
 	}
-	return originalSteps
+	return steps
 }
 
 func (t FullTrip) ExpirationTime() time.Time {
