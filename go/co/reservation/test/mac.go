@@ -60,9 +60,6 @@ func ComputeMACs(t *testing.T, path *colpath.ColibriPath, colibriKeysPerAS []cip
 			Egress:  path.HopFields[i].EgressId,
 		}
 		key := colibriKeysPerAS[i]
-		if path.InfoField.R {
-			key = colibriKeysPerAS[N-i-1]
-		}
 		MACs[i] = computeMAC(t,
 			key,
 			path.InfoField.ResIdSuffix,
@@ -73,6 +70,7 @@ func ComputeMACs(t *testing.T, path *colpath.ColibriPath, colibriKeysPerAS []cip
 			hf,
 			srcAS,
 			dstAS,
+			path.InfoField.R,
 		)
 	}
 	return MACs
@@ -113,6 +111,7 @@ func TraverseASesAndStampMACs(t *testing.T, r *segment.Reservation, colibriKeysP
 			&index.Token.HopFields[i],
 			srcAS,
 			dstAS,
+			false, // MACs are always computed at admission -> always direction of the traffic
 		)
 	}
 }
@@ -120,7 +119,7 @@ func TraverseASesAndStampMACs(t *testing.T, r *segment.Reservation, colibriKeysP
 // computeMAC returns the hop field MAC as 4 bytes.
 func computeMAC(t *testing.T, key cipher.Block, suffix []byte, expTick reservation.Tick,
 	idx reservation.IndexNumber, bwCls reservation.BWCls, rlc reservation.RLC,
-	hf *reservation.HopField, srcAS, dstAS addr.AS) [4]byte {
+	hf *reservation.HopField, srcAS, dstAS addr.AS, R bool) [4]byte {
 
 	const isE2E = false
 	var input [libcolibri.LengthInputDataRound16]byte
@@ -131,7 +130,7 @@ func computeMAC(t *testing.T, key cipher.Block, suffix []byte, expTick reservati
 		bwCls,
 		rlc,
 		/* C */ !isE2E,
-		/* R */ false,
+		/* R */ R,
 		idx,
 		srcAS,
 		dstAS,

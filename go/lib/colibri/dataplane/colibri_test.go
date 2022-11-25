@@ -170,8 +170,7 @@ func TestStaticHVFVerification(t *testing.T) {
 
 	c.InfoField.C = true
 	// Generate MAC
-	privateKeyBytes := []byte("a_random_key_123")
-	privateKey, err := libcolibri.InitColibriKey(privateKeyBytes)
+	privateKey, err := libcolibri.InitColibriKey([]byte("a_random_key_123"))
 	require.NoError(t, err)
 	var mac [4]byte
 	err = libcolibri.MACStatic(mac[:], privateKey, c.InfoField,
@@ -185,12 +184,21 @@ func TestStaticHVFVerification(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify MAC with wrong key
-	privateKeyBytes = []byte("a_random_key_456")
-	privateKey, err = libcolibri.InitColibriKey(privateKeyBytes)
+	privateKey, err = libcolibri.InitColibriKey([]byte("a_random_key_456"))
 	require.NoError(t, err)
 	err = libcolibri.VerifyMAC(privateKey, c.PacketTimestamp, c.InfoField,
 		c.HopFields[c.InfoField.CurrHF], s)
 	assert.Error(t, err)
+
+	// Verify MAC with a reversed path
+	privateKey, err = libcolibri.InitColibriKey([]byte("a_random_key_123"))
+	require.NoError(t, err)
+	_, err = c.Reverse()
+	assert.NoError(t, err)
+	s.SrcIA, s.DstIA = s.DstIA, s.SrcIA
+	err = libcolibri.VerifyMAC(privateKey, c.PacketTimestamp, c.InfoField,
+		c.HopFields[c.InfoField.CurrHF], s)
+	assert.NoError(t, err)
 }
 
 func TestPacketHVFVerification(t *testing.T) {
@@ -199,8 +207,7 @@ func TestPacketHVFVerification(t *testing.T) {
 
 	c.InfoField.C = false
 	// Generate MAC
-	privateKeyBytes := []byte("a_random_key_123")
-	privateKey, err := libcolibri.InitColibriKey(privateKeyBytes)
+	privateKey, err := libcolibri.InitColibriKey([]byte("a_random_key_123"))
 	require.NoError(t, err)
 	var mac [4]byte
 	err = libcolibri.MACE2E(mac[:], privateKey, c.InfoField, c.PacketTimestamp,
@@ -215,8 +222,7 @@ func TestPacketHVFVerification(t *testing.T) {
 	// assert.NoError(t, err)
 
 	// Verify MAC with wrong key
-	privateKeyBytes = []byte("a_random_key_456")
-	privateKey, err = libcolibri.InitColibriKey(privateKeyBytes)
+	privateKey, err = libcolibri.InitColibriKey([]byte("a_random_key_456"))
 	require.NoError(t, err)
 	err = libcolibri.VerifyMAC(privateKey, c.PacketTimestamp, c.InfoField,
 		c.HopFields[c.InfoField.CurrHF], s)

@@ -70,3 +70,7 @@ func (hf *HopField) Clone() *HopField {
 	copy(c.Mac, hf.Mac)
 	return c
 }
+
+func (hf *HopField) SwapInEg() {
+	hf.IngressId, hf.EgressId = hf.EgressId, hf.IngressId
+}

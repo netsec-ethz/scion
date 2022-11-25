@@ -655,8 +655,12 @@ func (s *Store) ActivateSegmentReservation(
 
 	// TODO(juagargi) this should happen AFTER all valid responses
 	if currentStep == 0 || rsv.CurrentStep == 0 {
-		// this is the initiator or the source of the traffic. Equivalently we can say that this AS
-		// is not a transit AS. So we store the token in the reservation to be used
+		// This is the initiator or the source of the traffic. If down path, two ASes will store
+		// the reservation tokens. In any other case, the initiator is the source of the traffic.
+		// Because down path segments will be used by the initiator in the reverse direction of
+		// the traffic to e.g. renew the segment, we must always store the tokens in the initiator.
+		// Conversely we must also store the token in the source of the traffic, as any EER
+		// that may be created by stitching the segment will need it in the source.
 		var err error
 		rsv.TransportPath, err = pathFromReservation(rsv)
 		if err != nil {
@@ -1984,8 +1988,7 @@ func reservationsToLooks(rsvs []*segment.Reservation, localIA addr.IA) []*colibr
 	return looks
 }
 
-func pathFromReservation(rsv *segment.Reservation,
-) (*colpath.ColibriPathMinimal, error) {
+func pathFromReservation(rsv *segment.Reservation) (*colpath.ColibriPathMinimal, error) {
 	if rsv.ActiveIndex() == nil {
 		return nil, serrors.New("no active index in reservation", "id", rsv.ID)
 	}
@@ -1993,7 +1996,19 @@ func pathFromReservation(rsv *segment.Reservation,
 		return nil, serrors.New("reservations has an expired active index", "id", rsv.ID,
 			"expiration", rsv.ActiveIndex().Expiration)
 	}
-	if rsv.PathType == reservation.DownPath {
+	if rsv.CurrentStep != 0 {
+		// this must be the destination of a down-path segment
+		assert(rsv.CurrentStep == len(rsv.Steps)-1, "path should be derived only at the source "+
+			"of the traffic (any case) or at the initiator (down-path), which must be the "+
+			"destination of the traffic. Details of the reservation: ID: %s, type: %s, "+
+			"current_step: %d, steps: %s",
+			rsv.ID, rsv.PathType, rsv.CurrentStep, rsv.Steps,
+		)
+		assert(rsv.PathType == reservation.DownPath, "path should be derived at the destination "+
+			"only for down-path segments. Details of the reservation: ID: %s, type: %s, "+
+			"current_step: %d, steps: %s",
+			rsv.ID, rsv.PathType, rsv.CurrentStep, rsv.Steps,
+		)
 		return rsv.DeriveColibriPathAtDestination(), nil
 	}
 	return rsv.DeriveColibriPathAtSource(), nil

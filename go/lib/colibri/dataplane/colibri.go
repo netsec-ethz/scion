@@ -200,6 +200,7 @@ func MACInputStatic(buffer []byte, suffix []byte, expTick uint32,
 	buffer[19] = flags
 	if reverseFlag {
 		srcAS = dstAS
+		ingress, egress = egress, ingress
 	}
 	binary.BigEndian.PutUint64(buffer[22:30], uint64(srcAS))
 	binary.BigEndian.PutUint16(buffer[20:22], ingress)

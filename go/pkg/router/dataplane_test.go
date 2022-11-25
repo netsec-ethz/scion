@@ -1219,10 +1219,10 @@ func TestProcessColibriPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
-						1: topology.Child,
+						2: topology.Child,
 					},
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
@@ -1443,17 +1443,17 @@ func TestProcessColibriPkt(t *testing.T) {
 				}
 				return ret
 			},
-			srcInterface: 1,
+			srcInterface: 2,
 			assertFunc:   assert.NoError,
 		},
 		"controlplane_first_AS_outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
-						1: topology.Child,
+						2: topology.Child,
 					},
 					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
 			},
@@ -1720,7 +1720,7 @@ func TestProcessColibriPkt(t *testing.T) {
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				return ret
 			},
-			srcInterface: 1,
+			srcInterface: 2,
 			assertFunc:   assert.NoError,
 		},
 	}
@@ -1773,6 +1773,53 @@ func TestDataPlaneSetColibriKey(t *testing.T) {
 		assert.NoError(t, d.SetColibriKey([]byte("dummy key xxxxxx")))
 		assert.Error(t, d.SetColibriKey([]byte("dummy key xxxxxx")))
 	})
+}
+
+// TestColibriReverseUTFunction ensures that the functions used in this test are consistent with the
+// MAC computation and COLIBRI dataplane protocol when reversing a path.
+// The test is left in place to assert the correct behavior of the rest of the UTs.
+func TestColibriReverseUTFunction(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	keyBytes := []byte("testkey_colibri_")
+	key, err := libcolibri.InitColibriKey(keyBytes)
+	require.NoError(t, err)
+
+	now := time.Now()
+	expTick := uint32(now.Unix()/4) + 3
+	tsRel, err := libcolibri.CreateTsRel(expTick, now)
+	require.NoError(t, err)
+
+	//
+	spkt, cpath := prepColibriBaseMsg(false, false, false, 2, 5, expTick, tsRel,
+		xtest.MustParseIA("1-ff00:0:110"))
+	cpath.HopFields[2].Mac = computeColibriMac(t, key, cpath, spkt, 2,
+		cpath.PacketTimestamp)
+
+	srcInterface := uint16(1)
+
+	dataPlane := router.NewDP(
+		map[uint16]router.BatchConn{
+			uint16(1): mock_router.NewMockBatchConn(ctrl),
+			uint16(2): mock_router.NewMockBatchConn(ctrl),
+		},
+		map[uint16]topology.LinkType{
+			1: topology.Parent,
+			2: topology.Child,
+		},
+		nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, keyBytes)
+
+	var msg *ipv4.Message
+	msg = toMsg(t, spkt, cpath)
+	_, err = dataPlane.ProcessPkt(srcInterface, msg)
+	require.NoError(t, err) // this passes okay
+
+	reverse(t, spkt, cpath)
+	msg = toMsg(t, spkt, cpath)
+	srcInterface = uint16(2)
+	_, err = dataPlane.ProcessPkt(srcInterface, msg)
+	require.NoError(t, err)
 }
 
 func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
@@ -1926,7 +1973,7 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 	}
 	hfFirst := &colibri.HopField{
 		IngressId: 0,
-		EgressId:  1,
+		EgressId:  2,
 		Mac:       []byte{0xff, 0xff, 0xff, 0xff},
 	}
 	cpath.HopFields = append(cpath.HopFields, hfFirst)

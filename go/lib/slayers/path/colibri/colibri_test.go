@@ -15,6 +15,7 @@
 package colibri_test
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
@@ -22,102 +23,66 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-var randSlice = xtest.MustParseHexString("fe31a2e94699ede20df7edaefd8042d866bf3a4c1a7f2be603973f" +
-	"f077c3a6366c7933170974efeeec1dc88ba2bf6f88f86dd34b158cd8c176b4b1cd965ee1e093336a667952eb38e" +
-	"fa8ff1618e9f809499a578e26f23b68cfbb56a5a7cdd7b2c0f974e43c14fbc22ef2f4ea25e2224649304a961d3e" +
-	"2867c3cb8bf92ba7bd0f")
-
 func TestColibriSerializeDecode(t *testing.T) {
-	for i := 2; i < 11; i++ {
-		bufferLength := 8 + colibri.LenInfoField + i*colibri.LenHopField
-		buffer := randSlice[:bufferLength]
-		// Remove the "reserved" flags from the info field
-		buffer[8] = buffer[8] & uint8(0xE0)
-		buffer[9] = 0
-		buffer[30] = buffer[30] & uint8(0xF0)
-		buffer[31] = 0
+	colPath := newColibriPath()
+	// use the colPath colibri path but chop it to hfCount hop fields:
+	for hfCount := 2; hfCount <= int(colPath.InfoField.HFCount); hfCount++ {
+		col := newColibriPath()
 		// Set correct number of hop fields
-		buffer[10] = uint8(i - 1)
-		buffer[11] = uint8(i)
+		col.HopFields = col.HopFields[:hfCount]
+		col.InfoField.HFCount = uint8(hfCount)
 
-		// Test ColibriPath
-		col := &colibri.ColibriPath{}
-		assert.NoError(t, col.DecodeFromBytes(buffer))
-
-		buffer2 := make([]byte, col.Len())
-		assert.NoError(t, col.SerializeTo(buffer2))
-		assert.Equal(t, buffer, buffer2)
+		buff := make([]byte, col.Len())
+		assert.NoError(t, col.SerializeTo(buff))
+		// assert.Equal(t, buffer, buffer2)
+		col2 := &colibri.ColibriPath{}
+		assert.NoError(t, col2.DecodeFromBytes(buff))
 
 		// Test ColibriPathMinimal
 		colMin := &colibri.ColibriPathMinimal{}
 		colMin2 := &colibri.ColibriPathMinimal{}
-		assert.NoError(t, colMin.DecodeFromBytes(buffer))
-		buffer2 = make([]byte, colMin.Len())
-		assert.NoError(t, colMin.SerializeTo(buffer2))
-		assert.NoError(t, colMin2.DecodeFromBytes(buffer2))
+		assert.NoError(t, colMin.DecodeFromBytes(buff))
+		buff = make([]byte, colMin.Len())
+		assert.NoError(t, colMin.SerializeTo(buff))
+		assert.NoError(t, colMin2.DecodeFromBytes(buff))
 		assert.Equal(t, colMin, colMin2)
 	}
 }
 
 func TestColibriReverse(t *testing.T) {
-	for i := 2; i < 11; i++ {
-		bufferLength := 8 + colibri.LenInfoField + i*colibri.LenHopField
-		buffer := randSlice[:bufferLength]
+	colPath := newColibriPath()
+	// use the colPath colibri path but chop it to hfCount hop fields:
+	for hfCount := 2; hfCount <= int(colPath.InfoField.HFCount); hfCount++ {
+		new := newColibriPath()
+		old := newColibriPath()
 		// Set correct number of hop fields
-		buffer[10] = uint8(i - 1)
-		buffer[11] = uint8(i)
+		new.HopFields = new.HopFields[:hfCount]
+		new.InfoField.HFCount = uint8(hfCount)
+		old.HopFields = old.HopFields[:hfCount]
+		old.InfoField.HFCount = uint8(hfCount)
 
-		old := &colibri.ColibriPath{}
-		new := &colibri.ColibriPath{}
-		assert.NoError(t, old.DecodeFromBytes(buffer))
-		assert.NoError(t, new.DecodeFromBytes(buffer))
-
-		rev, err := new.Reverse()
-		new = rev.(*colibri.ColibriPath)
+		_, err := new.Reverse()
 		assert.NoError(t, err)
 
 		assert.Equal(t, old.InfoField.R, !new.InfoField.R)
-		for j := 0; j < i/2+1; j++ {
-			assert.Equal(t, old.HopFields[j], new.HopFields[i-1-j])
+		for j := 0; j < hfCount/2+1; j++ {
+			assert.Equal(t, old.HopFields[j].Mac, new.HopFields[hfCount-j-1].Mac)
+			assert.Equal(t, old.HopFields[j].IngressId, new.HopFields[hfCount-j-1].EgressId)
 		}
 
-		revrev, err2 := rev.Reverse()
-		assert.NoError(t, err2)
-		assert.Equal(t, revrev, old)
+		// reverse again
+		_, err = new.Reverse()
+		assert.NoError(t, err)
+		assert.Equal(t, new, old)
 	}
 }
 
 // TestPathToBytesAndReverse checks that the path can be serialized and reversed. It prints
 // the bytes in hex, to be used as input in other tests that require a valid colibri path.
 func TestPathToBytesAndReverse(t *testing.T) {
-	p := &colibri.ColibriPath{
-		InfoField: &colibri.InfoField{
-			ResIdSuffix: xtest.MustParseHexString("0123456789ab0123456789ab"), // 12 bytes
-			BwCls:       13,
-			HFCount:     3,
-			CurrHF:      0,
-		},
-		HopFields: []*colibri.HopField{
-			{
-				IngressId: 0,
-				EgressId:  1,
-				Mac:       xtest.MustParseHexString("01234567"),
-			},
-			{
-				IngressId: 1,
-				EgressId:  2,
-				Mac:       xtest.MustParseHexString("01234567"),
-			},
-			{
-				IngressId: 1,
-				EgressId:  0,
-				Mac:       xtest.MustParseHexString("01234567"),
-			},
-		},
-	}
+	p := newColibriPath()
 	buff := make([]byte, p.Len())
 	require.NoError(t, p.SerializeTo(buff))
 	t.Log("colibri path", hex.EncodeToString(buff))
@@ -129,4 +94,28 @@ func TestPathToBytesAndReverse(t *testing.T) {
 	buff = make([]byte, p.Len())
 	require.NoError(t, p.SerializeTo(buff))
 	t.Log("reversed colibri path", hex.EncodeToString(buff))
+}
+
+func newColibriPath() *colibri.ColibriPath {
+	p := &colibri.ColibriPath{
+		PacketTimestamp: [8]byte{},
+		InfoField: &colibri.InfoField{
+			Ver:         7,
+			CurrHF:      1,
+			HFCount:     5,
+			ResIdSuffix: make([]byte, 12),
+			BwCls:       19,
+			OrigPayLen:  1342,
+		},
+		HopFields: make([]*colibri.HopField, 5),
+	}
+	for i := range p.HopFields {
+		p.HopFields[i] = &colibri.HopField{
+			IngressId: uint16(2 * i),
+			EgressId:  uint16(2*i + 1),
+			Mac:       make([]byte, 4),
+		}
+		binary.BigEndian.PutUint32(p.HopFields[i].Mac, uint32(i))
+	}
+	return p
 }

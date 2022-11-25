@@ -120,8 +120,16 @@ func (c *ColibriPath) Reverse() (path.Path, error) {
 	c.InfoField.CurrHF = c.InfoField.HFCount - c.InfoField.CurrHF - 1
 
 	hf := len(c.HopFields)
-	for i, j := 0, hf-1; i < j; i, j = i+1, j-1 {
-		c.HopFields[i], c.HopFields[j] = c.HopFields[j], c.HopFields[i]
+	for i := 0; i < hf/2; i++ {
+		// reverse hop fields in the array by swapping left with right
+		c.HopFields[i], c.HopFields[hf-i-1] = c.HopFields[hf-i-1], c.HopFields[i]
+		// swap ingress with egress
+		c.HopFields[i].SwapInEg()
+		c.HopFields[hf-i-1].SwapInEg()
+	}
+	if hf%2 == 1 {
+		// no need to reverse in the array, but do the swap
+		c.HopFields[hf/2].SwapInEg()
 	}
 
 	return c, nil

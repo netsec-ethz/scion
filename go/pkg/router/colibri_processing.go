@@ -88,14 +88,10 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 	}
 	// Correct ingress interface (if we received the packet on the local interface, we do not
 	// need to check the interface in the hop field)
-	if c.ingressID != 0 &&
-		((R && c.ingressID != c.colibriPathMinimal.CurrHopField.EgressId) ||
-			(!R && c.ingressID != c.colibriPathMinimal.CurrHopField.IngressId)) {
-
+	if c.ingressID != 0 && c.ingressID != c.colibriPathMinimal.CurrHopField.IngressId {
 		return processResult{}, serrors.New("invalid ingress identifier",
-			"R", R, "receivedOn", c.ingressID,
-			"HopFieldIngressId", c.colibriPathMinimal.CurrHopField.IngressId,
-			"HopFieldEgressId", c.colibriPathMinimal.CurrHopField.EgressId)
+			"receivedOn", c.ingressID,
+			"HopFieldIngressId", c.colibriPathMinimal.CurrHopField.IngressId)
 	}
 	// Valid packet length
 	if (!R && c.scionLayer.PayloadLen != c.colibriPathMinimal.InfoField.OrigPayLen) ||
@@ -135,12 +131,14 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 	}
 
 	// Check if destined to local AS: egress is 0, dst is local, no more hosts must be equal
-	isLocal := c.egressInterface() == 0
+	isLocal := c.colibriPathMinimal.CurrHopField.EgressId == 0
 	if (isLocal != c.colibriPathMinimal.IsLastHop()) ||
 		(isLocal != c.scionLayer.DstIA.Equal(c.d.localIA)) {
 
-		return processResult{}, serrors.New("inconsistent packet", "egress_id", c.egressInterface(),
-			"is_last_hop", c.colibriPathMinimal.IsLastHop(), "dst", c.scionLayer.DstIA,
+		return processResult{}, serrors.New("inconsistent packet",
+			"egress_id", c.colibriPathMinimal.CurrHopField.EgressId,
+			"is_last_hop", c.colibriPathMinimal.IsLastHop(),
+			"dst", c.scionLayer.DstIA,
 			"(local)", c.d.localIA)
 	}
 	return processResult{}, nil
@@ -155,7 +153,7 @@ func (c *colibriPacketProcessor) cryptographicValidation() (processResult, error
 }
 
 func (c *colibriPacketProcessor) forward() (processResult, error) {
-	egressId := c.egressInterface()
+	egressId := c.colibriPathMinimal.CurrHopField.EgressId
 
 	if c.ingressID == 0 {
 		// Received packet from within AS
@@ -182,14 +180,6 @@ func (c *colibriPacketProcessor) forward() (processResult, error) {
 			}
 			return c.forwardToRemoteEgress(egressId)
 		}
-	}
-}
-
-func (c *colibriPacketProcessor) egressInterface() uint16 {
-	if c.colibriPathMinimal.InfoField.R {
-		return c.colibriPathMinimal.CurrHopField.IngressId
-	} else {
-		return c.colibriPathMinimal.CurrHopField.EgressId
 	}
 }
 
