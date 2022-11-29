@@ -381,7 +381,7 @@ func TestCoreFromPktCounter(t *testing.T) {
 
 func createScionCmnAddrHdr() *slayers.SCION {
 	spkt := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
 			PayloadLen: 120,
 		},

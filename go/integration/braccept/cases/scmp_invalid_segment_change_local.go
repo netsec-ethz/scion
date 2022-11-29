@@ -99,7 +99,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -273,7 +273,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -449,7 +449,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

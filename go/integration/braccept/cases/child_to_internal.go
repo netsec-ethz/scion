@@ -89,7 +89,7 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -198,7 +198,7 @@ func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -318,7 +318,7 @@ func ChildToInternalParent(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

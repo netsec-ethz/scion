@@ -56,7 +56,7 @@ func TestGetDst(t *testing.T) {
 			Pkt: func(t *testing.T) *respool.Packet {
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -78,7 +78,7 @@ func TestGetDst(t *testing.T) {
 			Pkt: func(t *testing.T) *respool.Packet {
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -109,7 +109,7 @@ func TestGetDst(t *testing.T) {
 				require.NoError(t, err)
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -139,7 +139,7 @@ func TestGetDst(t *testing.T) {
 				require.NoError(t, err)
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -171,7 +171,7 @@ func TestGetDst(t *testing.T) {
 				require.NoError(t, err)
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -200,7 +200,7 @@ func TestGetDst(t *testing.T) {
 				require.NoError(t, err)
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -255,7 +255,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -313,7 +313,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -371,7 +371,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -428,7 +428,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -487,7 +487,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -546,7 +546,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -603,7 +603,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -658,7 +658,7 @@ func TestGetDst(t *testing.T) {
 				// Construct packet received by dispatcher.
 				pkt := &respool.Packet{
 					SCION: slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							DstIA: xtest.MustParseIA("1-ff00:0:110"),
 						},
 					},
@@ -857,7 +857,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 			// Prepare original packet
 			pkt := &respool.Packet{
 				SCION: slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						Version:      0,
 						TrafficClass: 0xb8,
 						FlowID:       0xdead,
@@ -903,7 +903,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 			t.Run("check SCION header", func(t *testing.T) {
 				scionL := gpkt.Layer(slayers.LayerTypeSCION).(*slayers.SCION)
 				expected := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						Version:      0,
 						TrafficClass: 0xb8,
 						FlowID:       0xdead,
@@ -962,7 +962,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 
 func newSCIONHdr(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 	scion := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			NextHdr: l4,
 			SrcIA:   xtest.MustParseIA("1-ff00:0:110"),
 			DstIA:   xtest.MustParseIA("1-ff00:0:112"),

@@ -98,7 +98,7 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -261,7 +261,7 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -435,7 +435,7 @@ func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -613,7 +613,7 @@ func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -778,7 +778,7 @@ func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash)
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

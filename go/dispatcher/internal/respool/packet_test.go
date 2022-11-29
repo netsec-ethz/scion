@@ -107,7 +107,7 @@ func TestDecodeBuffer(t *testing.T) {
 
 func scionLayer(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 	scion := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

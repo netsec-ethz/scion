@@ -50,8 +50,8 @@ const (
 	T16Ip AddrType = iota
 )
 
-// SCION is the header of a SCION packet.
-type SCION struct {
+// Header is the header of a Header packet.
+type Header struct {
 	// BaseLayer
 	// Common Header fields
 
@@ -103,7 +103,7 @@ type SCION struct {
 // from the underlaying layer data. Changing the net.Addr object might lead to inconsistent layer
 // information and thus should be treated read-only. Instead, SetDstAddr should be used to update
 // the destination address.
-func (s *SCION) DstAddr() (net.Addr, error) {
+func (s *Header) DstAddr() (net.Addr, error) {
 	return parseAddr(s.DstAddrType, s.DstAddrLen, s.RawDstAddr)
 }
 
@@ -111,14 +111,14 @@ func (s *SCION) DstAddr() (net.Addr, error) {
 // underlaying layer data. Changing the net.Addr object might lead to inconsistent layer information
 // and thus should be treated read-only. Instead, SetDstAddr should be used to update the source
 // address.
-func (s *SCION) SrcAddr() (net.Addr, error) {
+func (s *Header) SrcAddr() (net.Addr, error) {
 	return parseAddr(s.SrcAddrType, s.SrcAddrLen, s.RawSrcAddr)
 }
 
 // SetDstAddr sets the destination address and updates the DstAddrLen/Type fields accordingly.
 // SetDstAddr takes ownership of dst and callers should not write to it after calling SetDstAddr.
 // Changes to dst might leave the layer in an inconsistent state.
-func (s *SCION) SetDstAddr(dst net.Addr) error {
+func (s *Header) SetDstAddr(dst net.Addr) error {
 	var err error
 	s.DstAddrLen, s.DstAddrType, s.RawDstAddr, err = packAddr(dst)
 	return err
@@ -127,7 +127,7 @@ func (s *SCION) SetDstAddr(dst net.Addr) error {
 // SetSrcAddr sets the source address and updates the DstAddrLen/Type fields accordingly.
 // SetSrcAddr takes ownership of src and callers should not write to it after calling SetSrcAddr.
 // Changes to src might leave the layer in an inconsistent state.
-func (s *SCION) SetSrcAddr(src net.Addr) error {
+func (s *Header) SetSrcAddr(src net.Addr) error {
 	var err error
 	s.SrcAddrLen, s.SrcAddrType, s.RawSrcAddr, err = packAddr(src)
 	return err

@@ -80,7 +80,7 @@ func TestSCMPDecodeFromBytes(t *testing.T) {
 func TestSCMPSerializeTo(t *testing.T) {
 	// scion header over which the pseudo checksum header is calculated.
 	scnL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			SrcIA: xtest.MustParseIA("1-ff00:0:1"),
 			DstIA: xtest.MustParseIA("1-ff00:0:4"),
 		},
@@ -513,7 +513,7 @@ func TestSCMP(t *testing.T) {
 
 			t.Run("serialize", func(t *testing.T) {
 				scnL := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						SrcIA: xtest.MustParseIA("1-ff00:0:1"),
 						DstIA: xtest.MustParseIA("1-ff00:0:4"),
 					},

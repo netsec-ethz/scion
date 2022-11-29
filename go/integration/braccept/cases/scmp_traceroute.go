@@ -86,7 +86,7 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -228,7 +228,7 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -376,7 +376,7 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -518,7 +518,7 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -680,7 +680,7 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -824,7 +824,7 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

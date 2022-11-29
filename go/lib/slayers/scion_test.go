@@ -53,7 +53,7 @@ func TestSCIONLayerString(t *testing.T) {
 	ia2, err := addr.ParseIA("1-ff00:0:2")
 	assert.NoError(t, err)
 	sc := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			TrafficClass: 226,
 			FlowID:       12345,
 			NextHdr:      common.L4UDP,
@@ -323,7 +323,7 @@ func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
 func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
 	t.Helper()
 	spkt := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -362,7 +362,7 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv4": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						SrcIA: xtest.MustParseIA("1-ff00:0:110"),
 						DstIA: xtest.MustParseIA("1-ff00:0:112"),
 					},
@@ -380,7 +380,7 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv6": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						SrcIA: xtest.MustParseIA("1-ff00:0:110"),
 						DstIA: xtest.MustParseIA("1-ff00:0:112"),
 					},
@@ -398,7 +398,7 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/SVC": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						SrcIA: xtest.MustParseIA("1-ff00:0:110"),
 						DstIA: xtest.MustParseIA("1-ff00:0:112"),
 					},

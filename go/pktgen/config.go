@@ -88,7 +88,7 @@ func parseUDP(cfg *jsonConfig) *layers.UDP {
 
 func parseSCION(cfg *jsonConfig) *slayers.SCION {
 	return &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: cfg.SCION.TrafficClass,
 			FlowID:       cfg.SCION.FlowID,

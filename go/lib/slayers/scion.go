@@ -71,7 +71,7 @@ func (b *BaseLayer) LayerPayload() []byte { return b.Payload }
 
 type SCION struct {
 	BaseLayer
-	sheader.SCION
+	sheader.Header
 	// PathType specifies the type of path in this SCION header.
 	PathType path.Type
 	// Path is the path contained in the SCION header. It depends on the PathType field.
@@ -87,7 +87,7 @@ func (s *SCION) CanDecode() gopacket.LayerClass {
 }
 
 func (s *SCION) NextLayerType() gopacket.LayerType {
-	return scionNextLayerType(s.SCION.NextHdr)
+	return scionNextLayerType(s.Header.NextHdr)
 }
 
 func (s *SCION) LayerPayload() []byte {

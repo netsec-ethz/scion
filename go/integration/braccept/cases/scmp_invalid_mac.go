@@ -96,7 +96,7 @@ func SCMPBadMAC(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -253,7 +253,7 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

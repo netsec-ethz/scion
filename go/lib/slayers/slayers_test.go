@@ -190,7 +190,7 @@ func TestPaths(t *testing.T) {
 			rawFile: filepath.Join(goldenDir, "empty-udp.bin"),
 			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
 				s := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						Version:      0,
 						TrafficClass: 0xb8,
 						FlowID:       0xdead,
@@ -223,7 +223,7 @@ func TestPaths(t *testing.T) {
 			rawFile: filepath.Join(goldenDir, "scion-udp.bin"),
 			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
 				s := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						Version:      0,
 						TrafficClass: 0xb8,
 						FlowID:       0xdead,
@@ -257,7 +257,7 @@ func TestPaths(t *testing.T) {
 			rawFile: filepath.Join(goldenDir, "colibri-udp.bin"),
 			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
 				s := &slayers.SCION{
-					SCION: sheader.SCION{
+					Header: sheader.Header{
 						Version:      0,
 						TrafficClass: 0xb8,
 						FlowID:       0xdead,

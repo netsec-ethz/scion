@@ -1413,7 +1413,7 @@ func (b *bfdSend) String() string {
 // safe.
 func (b *bfdSend) Send(bfd *layers.BFD) error {
 	scn := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

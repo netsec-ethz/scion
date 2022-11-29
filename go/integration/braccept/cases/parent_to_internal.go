@@ -84,7 +84,7 @@ func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -200,7 +200,7 @@ func ParentToInternalHostMultiSegment(artifactsDir string, mac hash.Hash) runner
 	sp.HopFields[3].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[3], nil)
 
 	scionL := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,

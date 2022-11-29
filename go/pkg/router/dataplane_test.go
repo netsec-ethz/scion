@@ -273,7 +273,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							NextHdr: common.L4BFD,
 						},
 						PathType: empty.PathType,
@@ -463,7 +463,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
-						SCION: sheader.SCION{
+						Header: sheader.Header{
 							NextHdr: common.L4BFD,
 						},
 						PathType: onehop.PathType,
@@ -1847,7 +1847,7 @@ func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
 
 func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 	spkt := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
@@ -1945,7 +1945,7 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 
 	// SCION common/address header
 	spkt := &slayers.SCION{
-		SCION: sheader.SCION{
+		Header: sheader.Header{
 			Version:      0,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
