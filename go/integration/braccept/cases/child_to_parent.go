@@ -102,11 +102,11 @@ func ChildToParent(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {
 		panic(err)

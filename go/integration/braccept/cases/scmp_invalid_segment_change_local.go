@@ -104,11 +104,11 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:2"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -278,11 +278,11 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -454,11 +454,11 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {

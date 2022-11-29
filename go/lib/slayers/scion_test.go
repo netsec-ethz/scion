@@ -97,7 +97,7 @@ func TestSCIONLayerString(t *testing.T) {
 		"empty": {
 			pathType: empty.PathType,
 			path:     empty.Path{},
-			expect:   expectBegin + `PathType=Empty (0) ` + expectMiddle + `Path={}` + expectEnd,
+			expect:   expectBegin + expectMiddle + `PathType=Empty (0) ` + `Path={}` + expectEnd,
 		},
 		"scion": {
 			pathType: scion.PathType,
@@ -128,7 +128,8 @@ func TestSCIONLayerString(t *testing.T) {
 					},
 				},
 			},
-			expect: expectBegin + `PathType=SCION (1) ` + expectMiddle +
+			// expect: expectBegin + `PathType=SCION (1) ` + expectMiddle +
+			expect: expectBegin + expectMiddle + `PathType=SCION (1) ` +
 				`Path={ ` +
 				`PathMeta={` +
 				`CurrInf: 5, ` +
@@ -171,7 +172,7 @@ func TestSCIONLayerString(t *testing.T) {
 					Mac:         [path.MacLen]byte{7, 8, 9, 10, 11, 12},
 				},
 			},
-			expect: expectBegin + `PathType=OneHop (2) ` + expectMiddle +
+			expect: expectBegin + expectMiddle + `PathType=OneHop (2) ` +
 				`Path={ ` +
 				`Info={` +
 				`Peer: false, ` +
@@ -327,7 +328,6 @@ func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      c,
-			PathType:     scion.PathType,
 			DstAddrType:  sheader.T16Ip,
 			DstAddrLen:   sheader.AddrLen16,
 			SrcAddrType:  sheader.T4Ip,
@@ -335,7 +335,8 @@ func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
 			DstIA:        xtest.MustParseIA("1-ff00:0:111"),
 			SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		},
-		Path: &scion.Raw{},
+		PathType: scion.PathType,
+		Path:     &scion.Raw{},
 	}
 	spkt.SetDstAddr(ip6Addr)
 	spkt.SetSrcAddr(ip4Addr)

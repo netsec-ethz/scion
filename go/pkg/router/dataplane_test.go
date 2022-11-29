@@ -274,10 +274,10 @@ func TestDataPlaneRun(t *testing.T) {
 				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
 						SCION: sheader.SCION{
-							NextHdr:  common.L4BFD,
-							PathType: empty.PathType,
+							NextHdr: common.L4BFD,
 						},
-						Path: &empty.Path{},
+						PathType: empty.PathType,
+						Path:     &empty.Path{},
 					}
 					bfdL := &layers.BFD{
 						Version:           1,
@@ -464,9 +464,9 @@ func TestDataPlaneRun(t *testing.T) {
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
 						SCION: sheader.SCION{
-							NextHdr:  common.L4BFD,
-							PathType: onehop.PathType,
+							NextHdr: common.L4BFD,
 						},
+						PathType: onehop.PathType,
 						Path: &onehop.Path{
 							FirstHop: path.HopField{ConsEgress: fromIfID},
 						},
@@ -1852,12 +1852,12 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 			SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 			PayloadLen:   18,
 		},
-		Path: &scion.Raw{},
+		PathType: scion.PathType,
+		Path:     &scion.Raw{},
 	}
 
 	dpath := &scion.Decoded{
@@ -1950,11 +1950,11 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     colibri.PathType,
 			DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 			SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		},
-		Path: &colibri.ColibriPath{},
+		PathType: colibri.PathType,
+		Path:     &colibri.ColibriPath{},
 	}
 	src := &net.IPAddr{IP: net.ParseIP("12.0.0.4").To4()}
 	_ = spkt.SetSrcAddr(src)

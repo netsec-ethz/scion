@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path"
 )
 
 // AddrLen indicates the length of a host address in the SCION header. The four possible lengths are
@@ -77,8 +76,6 @@ type SCION struct {
 	// PayloadLen is the length of the payload in bytes. The payload includes extension headers and
 	// the L4 payload. This field is 16 bits long, supporting a maximum payload size of 64KB.
 	PayloadLen uint16
-	// PathType specifies the type of path in this SCION header.
-	PathType path.Type
 	// DstAddrType (2 bit) is the type of the destination address.
 	DstAddrType AddrType
 	// DstAddrLen (2 bit) is the length of the destination address. Supported address length are 4B

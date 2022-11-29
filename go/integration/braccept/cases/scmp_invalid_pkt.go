@@ -90,11 +90,11 @@ func SCMPBadPktLen(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -243,11 +243,11 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -402,11 +402,11 @@ func NoSCMPReplyForSCMPError(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4SCMP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {

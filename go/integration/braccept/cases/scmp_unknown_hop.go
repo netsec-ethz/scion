@@ -102,11 +102,11 @@ func SCMPUnknownHop(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -259,11 +259,11 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:f1"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1")}
 	dstA := &net.IPAddr{IP: net.ParseIP("174.16.16.1")}

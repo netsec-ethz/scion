@@ -100,11 +100,11 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4BFD,
-			PathType:     onehop.PathType,
 			DstIA:        localIA,
 			SrcIA:        remoteIA,
 		},
-		Path: ohp,
+		PathType: onehop.PathType,
+		Path:     ohp,
 	}
 	err := scionL.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 13, 3}})
 	if err != nil {
@@ -198,11 +198,11 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4BFD,
-			PathType:     empty.PathType,
 			SrcIA:        localIA,
 			DstIA:        localIA,
 		},
-		Path: &empty.Path{},
+		PathType: empty.PathType,
+		Path:     &empty.Path{},
 	}
 	err := scionL.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 13}})
 	if err != nil {

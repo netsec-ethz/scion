@@ -89,11 +89,11 @@ func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.3.1")}); err != nil {
 		panic(err)
@@ -205,11 +205,11 @@ func ParentToInternalHostMultiSegment(artifactsDir string, mac hash.Hash) runner
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("2-ff00:0:42"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.3.1")}); err != nil {
 		panic(err)

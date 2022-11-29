@@ -112,10 +112,10 @@ func scionLayer(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      l4,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:110"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:112"),
 		},
+		PathType: scion.PathType,
 		Path: &scion.Decoded{
 			Base: scion.Base{
 				PathMeta: scion.MetaHdr{

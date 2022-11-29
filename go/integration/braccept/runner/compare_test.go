@@ -91,11 +91,11 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			PathType:     scion.PathType,
 			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 			DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		},
-		Path: sp,
+		PathType: scion.PathType,
+		Path:     sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP(diff)}); err != nil {
 		assert.NoError(t, err)

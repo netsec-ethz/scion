@@ -197,7 +197,6 @@ func TestPaths(t *testing.T) {
 						HdrLen:       12,
 						PayloadLen:   1032,
 						NextHdr:      common.L4UDP,
-						PathType:     empty.PathType,
 						DstAddrType:  sheader.T16Ip,
 						DstAddrLen:   sheader.AddrLen16,
 						SrcAddrType:  sheader.T4Ip,
@@ -205,7 +204,8 @@ func TestPaths(t *testing.T) {
 						DstIA:        xtest.MustParseIA("1-ff00:0:111"),
 						SrcIA:        xtest.MustParseIA("1-ff00:0:111"),
 					},
-					Path: empty.Path{},
+					PathType: empty.PathType,
+					Path:     empty.Path{},
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
@@ -230,7 +230,6 @@ func TestPaths(t *testing.T) {
 						HdrLen:       29,
 						PayloadLen:   1032,
 						NextHdr:      common.L4UDP,
-						PathType:     scion.PathType,
 						DstAddrType:  sheader.T16Ip,
 						DstAddrLen:   sheader.AddrLen16,
 						SrcAddrType:  sheader.T4Ip,
@@ -238,7 +237,8 @@ func TestPaths(t *testing.T) {
 						DstIA:        xtest.MustParseIA("1-ff00:0:111"),
 						SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 					},
-					Path: &scion.Raw{},
+					PathType: scion.PathType,
+					Path:     &scion.Raw{},
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
@@ -264,7 +264,6 @@ func TestPaths(t *testing.T) {
 						HdrLen:       28,
 						PayloadLen:   1032,
 						NextHdr:      common.L4UDP,
-						PathType:     colibri.PathType,
 						DstAddrType:  sheader.T16Ip,
 						DstAddrLen:   sheader.AddrLen16,
 						SrcAddrType:  sheader.T4Ip,
@@ -272,7 +271,8 @@ func TestPaths(t *testing.T) {
 						DstIA:        xtest.MustParseIA("1-ff00:0:111"),
 						SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 					},
-					Path: &colibri.ColibriPathMinimal{},
+					PathType: colibri.PathType,
+					Path:     &colibri.ColibriPathMinimal{},
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
