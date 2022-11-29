@@ -17,6 +17,7 @@ package scion
 import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // Raw is a raw representation of the SCION (data-plane) path type. It is designed to parse as
@@ -38,6 +39,10 @@ func (s *Raw) DecodeFromBytes(data []byte) error {
 	}
 	s.Raw = data[:pathLen]
 	return nil
+}
+
+func (s *Raw) BuildFromHeader(b []byte, sc *scion.Header) error {
+	return s.DecodeFromBytes(b)
 }
 
 // SerializeTo writes the path to a slice. The slice must be big enough to hold the entire data,

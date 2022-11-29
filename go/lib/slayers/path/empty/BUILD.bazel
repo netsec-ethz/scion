@@ -8,5 +8,6 @@ go_library(
     deps = [
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path:go_default_library",
+        "//go/lib/slayers/scion:go_default_library",
     ],
 )

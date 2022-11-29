@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // PathLen is the length of a serialized one hop path in bytes.
@@ -59,6 +60,10 @@ func (o *Path) DecodeFromBytes(data []byte) error {
 	}
 	offset += path.HopLen
 	return o.SecondHop.DecodeFromBytes(data[offset : offset+path.HopLen])
+}
+
+func (o *Path) BuildFromHeader(b []byte, sc *sheader.Header) error {
+	return o.DecodeFromBytes(b)
 }
 
 func (o *Path) SerializeTo(b []byte) error {

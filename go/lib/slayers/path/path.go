@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // PathType is uint8 so 256 values max.
@@ -45,6 +46,9 @@ type Path interface {
 	SerializeTo(b []byte) error
 	// DecodesFromBytes decodes the path from the provided buffer.
 	DecodeFromBytes(b []byte) error
+	// BuildFromHeader reconstructs the path from the provider buffer and the parent SCION header.
+	// It behaves similarly to DecodeFromBytes but can use information from the SCION header.
+	BuildFromHeader(b []byte, sh *scion.Header) error
 	// Reverse reverses a path such that it can be used in the reversed direction.
 	//
 	// XXX(shitz): This method should possibly be moved to a higher-level path manipulation package.
@@ -117,6 +121,10 @@ func (p *rawPath) SerializeTo(b []byte) error {
 func (p *rawPath) DecodeFromBytes(b []byte) error {
 	p.raw = b
 	return nil
+}
+
+func (p *rawPath) BuildFromHeader(b []byte, sc *scion.Header) error {
+	return p.DecodeFromBytes(b)
 }
 
 func (p *rawPath) Reverse() (Path, error) {

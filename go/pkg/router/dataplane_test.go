@@ -1187,6 +1187,7 @@ func TestProcessPkt(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
 			input, want := tc.mockMsg(false), tc.mockMsg(true)
+			fmt.Println("deleteme " + name)
 			result, err := dp.ProcessPkt(tc.srcInterface, input)
 			tc.assertFunc(t, err)
 			if err != nil {

@@ -17,6 +17,7 @@ package empty
 import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // PathLen is the length of a serialized empty path in bytes.
@@ -43,6 +44,10 @@ func (o Path) DecodeFromBytes(r []byte) error {
 		return serrors.New("decoding an empty path", "len", len(r))
 	}
 	return nil
+}
+
+func (o Path) BuildFromHeader(b []byte, sc *scion.Header) error {
+	return o.DecodeFromBytes(b)
 }
 
 func (o Path) SerializeTo(b []byte) error {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // MetaLen is the length of the PathMetaHeader.
@@ -67,6 +68,10 @@ func (s *Base) DecodeFromBytes(data []byte) error {
 		s.NumHops += int(s.PathMeta.SegLen[i])
 	}
 	return nil
+}
+
+func (s *Base) BuildFromHeader(b []byte, sc *scion.Header) error {
+	return s.DecodeFromBytes(b)
 }
 
 // IncPath increases the currHF index and currINF index if appropriate.

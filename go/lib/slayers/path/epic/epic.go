@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 const (
@@ -90,6 +91,10 @@ func (p *Path) DecodeFromBytes(b []byte) error {
 	copy(p.LHVF, b[(PktIDLen+HVFLen):MetadataLen])
 	p.ScionPath = &scion.Raw{}
 	return p.ScionPath.DecodeFromBytes(b[MetadataLen:])
+}
+
+func (p *Path) BuildFromHeader(b []byte, sc *sheader.Header) error {
+	return p.DecodeFromBytes(b)
 }
 
 // Reverse reverses the EPIC path. In particular, this means that the SCION path type subheader

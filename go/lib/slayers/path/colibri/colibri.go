@@ -17,6 +17,7 @@ package colibri
 import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 type ColibriPathFacade interface {
@@ -74,6 +75,10 @@ func (c *ColibriPath) DecodeFromBytes(b []byte) error {
 		}
 	}
 	return nil
+}
+
+func (cp *ColibriPath) BuildFromHeader(b []byte, sc *scion.Header) error {
+	return cp.DecodeFromBytes(b)
 }
 
 func (c *ColibriPath) SerializeTo(b []byte) error {

@@ -180,7 +180,7 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		return err
 	}
 
-	err = s.Path.DecodeFromBytes(data[offset : offset+pathLen])
+	err = s.Path.BuildFromHeader(data[offset:offset+pathLen], &s.Header)
 	if err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ package colibri
 import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 const PathType path.Type = 4
@@ -92,6 +93,10 @@ func (c *ColibriPathMinimal) DecodeFromBytes(b []byte) error {
 	}
 	c.Raw = b[:c.Len()]
 	return nil
+}
+
+func (c *ColibriPathMinimal) BuildFromHeader(b []byte, sc *scion.Header) error {
+	return c.DecodeFromBytes(b)
 }
 
 // SerializeToInternal serializes the COLIBRI timestamp and info field to the Raw buffer. No hop
