@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -85,14 +86,16 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:3"),
+		},
+		Path: sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP(diff)}); err != nil {
 		assert.NoError(t, err)

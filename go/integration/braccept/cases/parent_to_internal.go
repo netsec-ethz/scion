@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -83,14 +84,16 @@ func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:1"),
+		},
+		Path: sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.3.1")}); err != nil {
 		panic(err)
@@ -197,14 +200,16 @@ func ParentToInternalHostMultiSegment(artifactsDir string, mac hash.Hash) runner
 	sp.HopFields[3].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[3], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("2-ff00:0:42"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("2-ff00:0:42"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:1"),
+		},
+		Path: sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.3.1")}); err != nil {
 		panic(err)

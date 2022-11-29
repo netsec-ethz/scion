@@ -22,8 +22,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // Colibri is a fully specified address for COLIBRI. It requires a source (IA only if SegR),
@@ -49,10 +49,10 @@ func (c *Colibri) String() string {
 
 // Endpoint represents one sender or receiver as seen in the SCiON address header.
 type Endpoint struct {
-	IA       addr.IA          // IA address
-	host     []byte           // host address
-	hostType slayers.AddrType // {0, 1, 2, 3}
-	hostLen  slayers.AddrLen  // host address length, {0, 1, 2, 3} (4, 8, 12, or 16 bytes).
+	IA       addr.IA        // IA address
+	host     []byte         // host address
+	hostType scion.AddrType // {0, 1, 2, 3}
+	hostLen  scion.AddrLen  // host address length, {0, 1, 2, 3} (4, 8, 12, or 16 bytes).
 }
 
 func NewEndpointWithAddr(ia addr.IA, hostAddr net.Addr) *Endpoint {
@@ -61,8 +61,8 @@ func NewEndpointWithAddr(ia addr.IA, hostAddr net.Addr) *Endpoint {
 		return &Endpoint{
 			IA:       ia,
 			host:     addr.PackWithPad(2),
-			hostType: slayers.T4Svc,
-			hostLen:  slayers.AddrLen4,
+			hostType: scion.T4Svc,
+			hostLen:  scion.AddrLen4,
 		}
 	case *net.UDPAddr:
 		return NewEndpointWithIP(ia, addr.IP)
@@ -79,12 +79,12 @@ func NewEndpointWithAddr(ia addr.IA, hostAddr net.Addr) *Endpoint {
 
 func NewEndpointWithIP(ia addr.IA, ip net.IP) *Endpoint {
 	var host []byte
-	var hostType slayers.AddrType
-	var hostLen slayers.AddrLen
+	var hostType scion.AddrType
+	var hostLen scion.AddrLen
 	if ip4 := ip.To4(); ip4 != nil {
-		host, hostType, hostLen = ip4, slayers.T4Ip, slayers.AddrLen4
+		host, hostType, hostLen = ip4, scion.T4Ip, scion.AddrLen4
 	} else {
-		host, hostType, hostLen = ip.To16(), slayers.T16Ip, slayers.AddrLen16
+		host, hostType, hostLen = ip.To16(), scion.T16Ip, scion.AddrLen16
 	}
 
 	return &Endpoint{
@@ -95,8 +95,8 @@ func NewEndpointWithIP(ia addr.IA, ip net.IP) *Endpoint {
 	}
 }
 
-func NewEndpointWithRaw(ia addr.IA, host []byte, hostType slayers.AddrType,
-	hostLen slayers.AddrLen) *Endpoint {
+func NewEndpointWithRaw(ia addr.IA, host []byte, hostType scion.AddrType,
+	hostLen scion.AddrLen) *Endpoint {
 
 	return &Endpoint{
 		IA:       ia,
@@ -114,14 +114,14 @@ func (ep Endpoint) Addr() (addr.IA, net.Addr, error) {
 }
 
 func (ep Endpoint) Raw() (
-	ia addr.IA, host []byte, hostType slayers.AddrType, hostLen slayers.AddrLen) {
+	ia addr.IA, host []byte, hostType scion.AddrType, hostLen scion.AddrLen) {
 
 	return ep.IA, ep.host, ep.hostType, ep.hostLen
 }
 
 func (ep Endpoint) String() string {
 	var host string
-	if ep.hostType == slayers.T4Svc {
+	if ep.hostType == scion.T4Svc {
 		h, err := parseAddr(ep.hostType, ep.hostLen, ep.host)
 		if err != nil {
 			host = err.Error()
@@ -138,18 +138,18 @@ func (ep Endpoint) String() string {
 // from net.Addr. The accepted types are IPv4, IPv6 and addr.HostSVC.
 // The type of net.Addr returned will always be net.IPAddr or addr.HostSVC.
 // parseAddr was copied from slayers.
-func parseAddr(addrType slayers.AddrType, addrLen slayers.AddrLen, raw []byte) (net.Addr, error) {
+func parseAddr(addrType scion.AddrType, addrLen scion.AddrLen, raw []byte) (net.Addr, error) {
 	switch addrLen {
-	case slayers.AddrLen4:
+	case scion.AddrLen4:
 		switch addrType {
-		case slayers.T4Ip:
+		case scion.T4Ip:
 			return &net.IPAddr{IP: net.IP(raw)}, nil
-		case slayers.T4Svc:
+		case scion.T4Svc:
 			return addr.HostSVC(binary.BigEndian.Uint16(raw[:addr.HostLenSVC])), nil
 		}
-	case slayers.AddrLen16:
+	case scion.AddrLen16:
 		switch addrType {
-		case slayers.T16Ip:
+		case scion.T16Ip:
 			return &net.IPAddr{IP: net.IP(raw)}, nil
 		}
 	}

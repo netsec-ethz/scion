@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/slayers"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -79,8 +80,10 @@ func TestSCMPDecodeFromBytes(t *testing.T) {
 func TestSCMPSerializeTo(t *testing.T) {
 	// scion header over which the pseudo checksum header is calculated.
 	scnL := &slayers.SCION{
-		SrcIA: xtest.MustParseIA("1-ff00:0:1"),
-		DstIA: xtest.MustParseIA("1-ff00:0:4"),
+		SCION: sheader.SCION{
+			SrcIA: xtest.MustParseIA("1-ff00:0:1"),
+			DstIA: xtest.MustParseIA("1-ff00:0:4"),
+		},
 	}
 	err := scnL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")})
 	require.NoError(t, err)
@@ -510,8 +513,10 @@ func TestSCMP(t *testing.T) {
 
 			t.Run("serialize", func(t *testing.T) {
 				scnL := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:1"),
-					DstIA: xtest.MustParseIA("1-ff00:0:4"),
+					SCION: sheader.SCION{
+						SrcIA: xtest.MustParseIA("1-ff00:0:1"),
+						DstIA: xtest.MustParseIA("1-ff00:0:4"),
+					},
 				}
 				err := scnL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")})
 				assert.NoError(t, err)

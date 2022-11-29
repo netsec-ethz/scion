@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -85,14 +86,16 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4SCMP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:2"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.4.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -225,14 +228,16 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4SCMP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -371,14 +376,16 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4SCMP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:2"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.4.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -511,14 +518,16 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4SCMP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -671,14 +680,16 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4SCMP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		},
+		Path: sp,
 	}
 
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.8.1").To4()}
@@ -813,14 +824,16 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4SCMP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("192.168.0.51").To4()}
 	if err := scionL.SetSrcAddr(srcA); err != nil {

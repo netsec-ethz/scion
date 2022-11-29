@@ -38,18 +38,110 @@ import (
 	"google.golang.org/grpc/peer"
 
 	"github.com/scionproto/scion/go/co/reservation/test"
+	"github.com/scionproto/scion/go/lib/addr"
 	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	sgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 	mock_col "github.com/scionproto/scion/go/pkg/proto/colibri/mock_colibri"
 )
+
+func TestDeletemeServer(t *testing.T) {
+	if 4 != 5 {
+		return
+	}
+
+	ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelF()
+
+	local := &snet.UDPAddr{
+		IA:   xtest.MustParseIA("1-ff00:0:110"),
+		Host: xtest.MustParseUDPAddr(t, "127.0.0.1:12345"),
+	}
+
+	dispatcher := reliable.NewDispatcher(reliable.DefaultDispPath)
+	sciond, err := daemon.Service{
+		Address: "127.0.0.22:30255",
+	}.Connect(ctx)
+	require.NoError(t, err)
+
+	scionNet := &snet.SCIONNetwork{
+		LocalIA: local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcher,
+			SCMPHandler: &snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{
+					Connector: sciond,
+				},
+			},
+		},
+	}
+	server, err := scionNet.Listen(ctx, "udp", local.Host, addr.SvcNone)
+	require.NoError(t, err)
+
+	_, err = server.Read(nil)
+	require.NoError(t, err)
+}
+
+func TestDeletemeClient(t *testing.T) {
+	if 4 != 5 {
+		return
+	}
+
+	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancelF()
+
+	local := &snet.UDPAddr{
+		IA:   xtest.MustParseIA("1-ff00:0:111"),
+		Host: xtest.MustParseUDPAddr(t, "127.0.0.1:0"),
+	}
+	remote := &snet.UDPAddr{
+		IA:   xtest.MustParseIA("1-ff00:0:110"),
+		Host: xtest.MustParseUDPAddr(t, "127.0.0.1:12345"),
+	}
+
+	sciond, err := daemon.Service{
+		Address: "127.0.0.38:30255",
+	}.Connect(ctx)
+	require.NoError(t, err)
+
+	pathquerier := daemon.Querier{
+		Connector: sciond,
+		IA:        local.IA,
+	}
+	pathsToDst, err := pathquerier.Query(ctx, remote.IA)
+	require.NoError(t, err)
+	require.Greater(t, len(pathsToDst), 0)
+
+	remote.Path = pathsToDst[0].Dataplane()
+	remote.NextHop = pathsToDst[0].UnderlayNextHop()
+
+	dispatcher := reliable.NewDispatcher(reliable.DefaultDispPath)
+	scionNet := &snet.SCIONNetwork{
+		LocalIA: local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcher,
+			SCMPHandler: &snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{
+					Connector: sciond,
+				},
+			},
+		},
+	}
+	client, err := scionNet.Listen(ctx, "udp", local.Host, addr.SvcNone)
+	require.NoError(t, err)
+
+	_, err = client.WriteTo([]byte("hello"), remote)
+	require.NoError(t, err)
+}
 
 // TestQUICMultipleConnections tests that a single QUIC listener is able to receive packets
 // destined to it, as well as destined to another host but captured by the network.

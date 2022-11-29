@@ -45,6 +45,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/topology"
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
 	"github.com/scionproto/scion/go/lib/util"
@@ -272,9 +273,11 @@ func TestDataPlaneRun(t *testing.T) {
 
 				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
-						NextHdr:  common.L4BFD,
-						PathType: empty.PathType,
-						Path:     &empty.Path{},
+						SCION: sheader.SCION{
+							NextHdr:  common.L4BFD,
+							PathType: empty.PathType,
+						},
+						Path: &empty.Path{},
 					}
 					bfdL := &layers.BFD{
 						Version:           1,
@@ -460,8 +463,10 @@ func TestDataPlaneRun(t *testing.T) {
 
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
-						NextHdr:  common.L4BFD,
-						PathType: onehop.PathType,
+						SCION: sheader.SCION{
+							NextHdr:  common.L4BFD,
+							PathType: onehop.PathType,
+						},
 						Path: &onehop.Path{
 							FirstHop: path.HopField{ConsEgress: fromIfID},
 						},
@@ -1842,15 +1847,17 @@ func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
 
 func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 	spkt := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
-		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
-		Path:         &scion.Raw{},
-		PayloadLen:   18,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			DstIA:        xtest.MustParseIA("4-ff00:0:411"),
+			SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+			PayloadLen:   18,
+		},
+		Path: &scion.Raw{},
 	}
 
 	dpath := &scion.Decoded{
@@ -1938,14 +1945,16 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 
 	// SCION common/address header
 	spkt := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     colibri.PathType,
-		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
-		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
-		Path:         &colibri.ColibriPath{},
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     colibri.PathType,
+			DstIA:        xtest.MustParseIA("4-ff00:0:411"),
+			SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+		},
+		Path: &colibri.ColibriPath{},
 	}
 	src := &net.IPAddr{IP: net.ParseIP("12.0.0.4").To4()}
 	_ = spkt.SetSrcAddr(src)

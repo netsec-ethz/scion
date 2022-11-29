@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 func bfdNormalizePacket(pkt gopacket.Packet) {
@@ -94,14 +95,16 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	ohp.FirstHop.Mac = path.MAC(mac, ohp.Info, ohp.FirstHop, nil)
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
-		PathType:     onehop.PathType,
-		Path:         ohp,
-		DstIA:        localIA,
-		SrcIA:        remoteIA,
+		SCION: scion.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4BFD,
+			PathType:     onehop.PathType,
+			DstIA:        localIA,
+			SrcIA:        remoteIA,
+		},
+		Path: ohp,
 	}
 	err := scionL.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 13, 3}})
 	if err != nil {
@@ -190,14 +193,16 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	udp.SetNetworkLayerForChecksum(ip)
 	localIA, _ := addr.ParseIA("1-ff00:0:1")
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
-		PathType:     empty.PathType,
-		Path:         &empty.Path{},
-		SrcIA:        localIA,
-		DstIA:        localIA,
+		SCION: scion.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4BFD,
+			PathType:     empty.PathType,
+			SrcIA:        localIA,
+			DstIA:        localIA,
+		},
+		Path: &empty.Path{},
 	}
 	err := scionL.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 13}})
 	if err != nil {

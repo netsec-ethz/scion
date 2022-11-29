@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 type jsonConfig struct {
@@ -87,9 +88,11 @@ func parseUDP(cfg *jsonConfig) *layers.UDP {
 
 func parseSCION(cfg *jsonConfig) *slayers.SCION {
 	return &slayers.SCION{
-		Version:      0,
-		TrafficClass: cfg.SCION.TrafficClass,
-		FlowID:       cfg.SCION.FlowID,
-		NextHdr:      common.L4UDP,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: cfg.SCION.TrafficClass,
+			FlowID:       cfg.SCION.FlowID,
+			NextHdr:      common.L4UDP,
+		},
 	}
 }

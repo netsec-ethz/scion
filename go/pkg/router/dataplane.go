@@ -49,6 +49,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
@@ -1412,12 +1413,14 @@ func (b *bfdSend) String() string {
 // safe.
 func (b *bfdSend) Send(bfd *layers.BFD) error {
 	scn := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
-		SrcIA:        b.srcIA,
-		DstIA:        b.dstIA,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4BFD,
+			SrcIA:        b.srcIA,
+			DstIA:        b.dstIA,
+		},
 	}
 
 	if err := scn.SetSrcAddr(&net.IPAddr{IP: b.srcAddr.IP}); err != nil {

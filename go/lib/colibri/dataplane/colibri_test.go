@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -232,18 +233,20 @@ func TestPacketHVFVerification(t *testing.T) {
 
 func createScionCmnAddrHdr() *slayers.SCION {
 	spkt := &slayers.SCION{
-		SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
-		PayloadLen: 120,
+		SCION: sheader.SCION{
+			SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
+			PayloadLen: 120,
+		},
 	}
 	ip4AddrSrc := &net.IPAddr{IP: net.ParseIP("10.0.0.100")}
 	ip4AddrDst := &net.IPAddr{IP: net.ParseIP("1.2.3.4")}
 	spkt.SetSrcAddr(ip4AddrSrc)
 	spkt.SetDstAddr(ip4AddrDst)
 
-	spkt.DstAddrType = slayers.T4Svc
-	spkt.DstAddrLen = slayers.AddrLen4
-	spkt.SrcAddrType = slayers.T4Svc
-	spkt.SrcAddrLen = slayers.AddrLen4
+	spkt.DstAddrType = sheader.T4Svc
+	spkt.DstAddrLen = sheader.AddrLen4
+	spkt.SrcAddrType = sheader.T4Svc
+	spkt.SrcAddrLen = sheader.AddrLen4
 	return spkt
 }
 

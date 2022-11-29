@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -189,20 +190,22 @@ func TestPaths(t *testing.T) {
 			rawFile: filepath.Join(goldenDir, "empty-udp.bin"),
 			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
 				s := &slayers.SCION{
-					Version:      0,
-					TrafficClass: 0xb8,
-					FlowID:       0xdead,
-					HdrLen:       12,
-					PayloadLen:   1032,
-					NextHdr:      common.L4UDP,
-					PathType:     empty.PathType,
-					DstAddrType:  slayers.T16Ip,
-					DstAddrLen:   slayers.AddrLen16,
-					SrcAddrType:  slayers.T4Ip,
-					SrcAddrLen:   slayers.AddrLen4,
-					DstIA:        xtest.MustParseIA("1-ff00:0:111"),
-					SrcIA:        xtest.MustParseIA("1-ff00:0:111"),
-					Path:         empty.Path{},
+					SCION: sheader.SCION{
+						Version:      0,
+						TrafficClass: 0xb8,
+						FlowID:       0xdead,
+						HdrLen:       12,
+						PayloadLen:   1032,
+						NextHdr:      common.L4UDP,
+						PathType:     empty.PathType,
+						DstAddrType:  sheader.T16Ip,
+						DstAddrLen:   sheader.AddrLen16,
+						SrcAddrType:  sheader.T4Ip,
+						SrcAddrLen:   sheader.AddrLen4,
+						DstIA:        xtest.MustParseIA("1-ff00:0:111"),
+						SrcIA:        xtest.MustParseIA("1-ff00:0:111"),
+					},
+					Path: empty.Path{},
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
@@ -220,20 +223,22 @@ func TestPaths(t *testing.T) {
 			rawFile: filepath.Join(goldenDir, "scion-udp.bin"),
 			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
 				s := &slayers.SCION{
-					Version:      0,
-					TrafficClass: 0xb8,
-					FlowID:       0xdead,
-					HdrLen:       29,
-					PayloadLen:   1032,
-					NextHdr:      common.L4UDP,
-					PathType:     scion.PathType,
-					DstAddrType:  slayers.T16Ip,
-					DstAddrLen:   slayers.AddrLen16,
-					SrcAddrType:  slayers.T4Ip,
-					SrcAddrLen:   slayers.AddrLen4,
-					DstIA:        xtest.MustParseIA("1-ff00:0:111"),
-					SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
-					Path:         &scion.Raw{},
+					SCION: sheader.SCION{
+						Version:      0,
+						TrafficClass: 0xb8,
+						FlowID:       0xdead,
+						HdrLen:       29,
+						PayloadLen:   1032,
+						NextHdr:      common.L4UDP,
+						PathType:     scion.PathType,
+						DstAddrType:  sheader.T16Ip,
+						DstAddrLen:   sheader.AddrLen16,
+						SrcAddrType:  sheader.T4Ip,
+						SrcAddrLen:   sheader.AddrLen4,
+						DstIA:        xtest.MustParseIA("1-ff00:0:111"),
+						SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+					},
+					Path: &scion.Raw{},
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
@@ -252,20 +257,22 @@ func TestPaths(t *testing.T) {
 			rawFile: filepath.Join(goldenDir, "colibri-udp.bin"),
 			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
 				s := &slayers.SCION{
-					Version:      0,
-					TrafficClass: 0xb8,
-					FlowID:       0xdead,
-					HdrLen:       28,
-					PayloadLen:   1032,
-					NextHdr:      common.L4UDP,
-					PathType:     colibri.PathType,
-					DstAddrType:  slayers.T16Ip,
-					DstAddrLen:   slayers.AddrLen16,
-					SrcAddrType:  slayers.T4Ip,
-					SrcAddrLen:   slayers.AddrLen4,
-					DstIA:        xtest.MustParseIA("1-ff00:0:111"),
-					SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
-					Path:         &colibri.ColibriPathMinimal{},
+					SCION: sheader.SCION{
+						Version:      0,
+						TrafficClass: 0xb8,
+						FlowID:       0xdead,
+						HdrLen:       28,
+						PayloadLen:   1032,
+						NextHdr:      common.L4UDP,
+						PathType:     colibri.PathType,
+						DstAddrType:  sheader.T16Ip,
+						DstAddrLen:   sheader.AddrLen16,
+						SrcAddrType:  sheader.T4Ip,
+						SrcAddrLen:   sheader.AddrLen4,
+						DstIA:        xtest.MustParseIA("1-ff00:0:111"),
+						SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+					},
+					Path: &colibri.ColibriPathMinimal{},
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))

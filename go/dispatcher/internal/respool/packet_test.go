@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -106,13 +107,15 @@ func TestDecodeBuffer(t *testing.T) {
 
 func scionLayer(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 	scion := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      l4,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:110"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:112"),
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      l4,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:110"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:112"),
+		},
 		Path: &scion.Decoded{
 			Base: scion.Base{
 				PathMeta: scion.MetaHdr{

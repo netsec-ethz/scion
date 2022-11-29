@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -98,14 +99,16 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:2"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -270,14 +273,16 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
@@ -444,14 +449,16 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
-		Path:         sp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     scion.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:3"),
+		},
+		Path: sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {

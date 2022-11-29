@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
+	sheader "github.com/scionproto/scion/go/lib/slayers/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -70,14 +71,16 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 	ohp.FirstHop.Mac = path.MAC(mac, ohp.Info, ohp.FirstHop, nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     onehop.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
-		Path:         ohp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     onehop.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:1"),
+		},
+		Path: ohp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {
 		panic(err)
@@ -165,14 +168,16 @@ func OutgoingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 	ohp.FirstHop.Mac = path.MAC(mac, ohp.Info, ohp.FirstHop, nil)
 
 	scionL := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
-		PathType:     onehop.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
-		Path:         ohp,
+		SCION: sheader.SCION{
+			Version:      0,
+			TrafficClass: 0xb8,
+			FlowID:       0xdead,
+			NextHdr:      common.L4UDP,
+			PathType:     onehop.PathType,
+			SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
+			DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		},
+		Path: ohp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("192.168.0.71")}); err != nil {
 		panic(err)

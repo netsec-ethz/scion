@@ -24,7 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
-	sc_header "github.com/scionproto/scion/go/lib/slayers"
+	sc_header "github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // keyType represents the different types of keys (host->AS, AS->host, host->host).
