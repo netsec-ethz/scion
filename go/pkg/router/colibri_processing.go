@@ -16,15 +16,19 @@ package router
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
 type colibriPacketProcessor struct {
@@ -42,7 +46,7 @@ type colibriPacketProcessor struct {
 	buffer gopacket.SerializeBuffer
 
 	// colibriPathMinimal is the optimized representation of the colibri path type.
-	colibriPathMinimal *colibri.ColibriPathMinimal
+	colibriPathMinimal *colpath.ColibriPathMinimal
 }
 
 func (c *colibriPacketProcessor) process() (processResult, error) {
@@ -69,7 +73,7 @@ func (c *colibriPacketProcessor) process() (processResult, error) {
 
 func (c *colibriPacketProcessor) getPath() (processResult, error) {
 	var ok bool
-	c.colibriPathMinimal, ok = c.scionLayer.Path.(*colibri.ColibriPathMinimal)
+	c.colibriPathMinimal, ok = c.scionLayer.Path.(*colpath.ColibriPathMinimal)
 	if !ok {
 		return processResult{}, serrors.New("getting minimal colibri path information failed")
 	}
@@ -81,6 +85,39 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 	R := c.colibriPathMinimal.InfoField.R
 	S := c.colibriPathMinimal.InfoField.S
 	C := c.colibriPathMinimal.InfoField.C
+
+	src := caddr.NewEndpointWithRaw(
+		c.scionLayer.SrcIA,
+		c.scionLayer.RawSrcAddr,
+		c.scionLayer.SrcAddrType,
+		c.scionLayer.SrcAddrLen)
+	dst := caddr.NewEndpointWithRaw(
+		c.scionLayer.DstIA,
+		c.scionLayer.RawDstAddr,
+		c.scionLayer.DstAddrType,
+		c.scionLayer.DstAddrLen)
+
+	buff := make([]byte, c.colibriPathMinimal.Len())
+	if err := c.colibriPathMinimal.SerializeTo(buff); err != nil {
+		panic(err)
+	}
+	full := &colpath.ColibriPath{}
+	if err := full.DecodeFromBytes(buff); err != nil {
+		panic(err)
+	}
+	str := ""
+	for i, hf := range full.HopFields {
+		str += fmt.Sprintf("[%d] in: %d, eg: %d, MAC: %s\n", i, hf.IngressId, hf.EgressId, hex.EncodeToString(hf.Mac))
+	}
+
+	log.Debug("                       deleteme colibri packet",
+		"C", C, "S", S, "R", R,
+		"SRC", src.String(),
+		"DST", dst.String(),
+		"# hops", c.colibriPathMinimal.InfoField.HFCount,
+		"curr_hop", c.colibriPathMinimal.InfoField.CurrHF,
+	)
+	print("hop fields: %s\n", str)
 
 	// Consistency of flags: S implies C
 	if S && !C {
@@ -94,7 +131,7 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 			"HopFieldIngressId", c.colibriPathMinimal.CurrHopField.IngressId)
 	}
 	// Valid packet length
-	if (!R && c.scionLayer.PayloadLen != c.colibriPathMinimal.InfoField.OrigPayLen) ||
+	if (!R && !C && c.scionLayer.PayloadLen != c.colibriPathMinimal.InfoField.OrigPayLen) ||
 		(int(c.scionLayer.PayloadLen) != len(c.scionLayer.Payload)) {
 
 		return processResult{}, serrors.New("packet length validation failed",

@@ -15,7 +15,10 @@
 package path
 
 import (
+	"fmt"
+
 	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/slayers"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -41,6 +44,12 @@ func (p Colibri) SetPath(s *slayers.SCION) error {
 	// s.SrcAddrLen = p.Src.HostLen
 
 	s.DstIA, s.RawDstAddr, s.DstAddrType, s.DstAddrLen = p.Dst.Raw()
+
+	log.Debug("deleteme snet colibri path",
+		"SRC", s.SrcIA,
+		"DST", p.Dst.String(),
+		"pointer", fmt.Sprintf("%p", &p.Dst),
+	)
 
 	return nil
 }

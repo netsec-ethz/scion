@@ -17,6 +17,7 @@ package reservationstore
 import (
 	"context"
 	"crypto/cipher"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"time"
@@ -662,7 +663,7 @@ func (s *Store) ActivateSegmentReservation(
 		// Conversely we must also store the token in the source of the traffic, as any EER
 		// that may be created by stitching the segment will need it in the source.
 		var err error
-		rsv.TransportPath, err = pathFromReservation(rsv)
+		rsv.TransportPath, err = pathFromSegmentRsv(rsv)
 		if err != nil {
 			failedResponse.Message = s.errWrapStr("error obtaining colibri path from reservation",
 				err).Error()
@@ -1719,6 +1720,8 @@ func (s *Store) admitSegmentReservation(
 	}
 
 	// update token with new hop field
+	fmt.Printf("******************************deleteme **** %s\n", rsv.ID)
+	fmt.Printf("existing hop fields: %d\n", len(res.Token.HopFields))
 	if err = s.addHopFieldToColibriPath(rsv.ID.Suffix, &res.Token,
 		rsv.Steps.SrcIA().AS(), rsv.Steps.DstIA().AS(), rsv.Ingress(), rsv.Egress()); err != nil {
 
@@ -1858,7 +1861,10 @@ func (s *Store) addHopFieldToColibriPath(suffix []byte, tok *reservation.Token, 
 		Egress:  egress,
 	})
 	isE2E := tok.InfoField.PathType == reservation.E2EPath
-	return computeMAC(hf.Mac[:], s.colibriKey, suffix, tok, hf, srcAS, dstAS, isE2E)
+	err := computeMAC(hf.Mac[:], s.colibriKey, suffix, tok, hf, srcAS, dstAS, isE2E)
+	// deleteme
+	fmt.Printf("in: %d, eg: %d, MAC: %s\n", hf.Ingress, hf.Egress, hex.EncodeToString(hf.Mac[:]))
+	return err
 }
 
 // computeMAC returns the MAC into buff, which has to be at least 4 bytes long (or runtime panic).
@@ -1988,7 +1994,7 @@ func reservationsToLooks(rsvs []*segment.Reservation, localIA addr.IA) []*colibr
 	return looks
 }
 
-func pathFromReservation(rsv *segment.Reservation) (*colpath.ColibriPathMinimal, error) {
+func pathFromSegmentRsv(rsv *segment.Reservation) (*colpath.ColibriPathMinimal, error) {
 	if rsv.ActiveIndex() == nil {
 		return nil, serrors.New("no active index in reservation", "id", rsv.ID)
 	}

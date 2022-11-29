@@ -15,6 +15,7 @@
 package segment
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -91,7 +92,7 @@ func (r *Reservation) deriveColibriPath(reverse bool) *colpath.ColibriPathMinima
 		return nil
 	}
 	p := &colpath.ColibriPath{
-		InfoField: r.deriveInfoField(),
+		InfoField: r.deriveInfoField(reverse),
 		HopFields: make([]*colpath.HopField, len(index.Token.HopFields)),
 	}
 	for i, hf := range index.Token.HopFields {
@@ -102,21 +103,38 @@ func (r *Reservation) deriveColibriPath(reverse bool) *colpath.ColibriPathMinima
 		}
 	}
 	if reverse {
+		// The hop fields were stacked in the reverse direction of the traffic.
+		// If reverse is true, the function was called from the destination of the traffic.
+		// E.g. for the tiny topology, a down-path initiated in 111 to 110 can be derived at
+		// 111 as destination. But the hop fields are reversed, so before calling any action
+		// on the path, we reconstruct the path 110->111 as seen from 110 by just converting
+		// the stack with 111 at the bottom (beginning of the array) to a list with 110 at
+		// beginning. This is equivalent to just reverse the array.
+		hfc := len(p.HopFields)
+		for i := 0; i < hfc/2; i++ {
+			// reverse order (do not touch the ingress and egress interfaces)
+			p.HopFields[i], p.HopFields[hfc-i-1] = p.HopFields[hfc-i-1], p.HopFields[i]
+		}
 		if _, err := p.Reverse(); err != nil {
 			return nil
 		}
 	}
-	// // deleteme
-	// fmt.Println("--------------------------------------------", r.ID.String())
-	// for i, hf := range p.HopFields {
-	// 	fmt.Printf("[%d] in:%d eg:%d\n", i, hf.IngressId, hf.EgressId)
-	// }
-	// fmt.Println("--------------------------------------------")
-	// // deleteme until here
+	// deleteme
+	fmt.Println("--------------------------------------------", r.ID.String())
+	fmt.Printf("Curr HF = %d, # Hop Fields = %d\n", p.InfoField.CurrHF, p.InfoField.HFCount)
+	for i, hf := range p.HopFields {
+		fmt.Printf("[%d] in:%d eg:%d MAC: %s\n", i, hf.IngressId, hf.EgressId, hex.EncodeToString(hf.Mac))
+	}
+	fmt.Println("--------------------------------------------")
+	// deleteme until here
 	min, err := p.ToMinimal()
 	if err != nil {
 		return nil
 	}
+	// deleteme:
+	buff := make([]byte, min.Len())
+	min.SerializeTo(buff)
+	fmt.Printf("%s -> %s\n", r.ID, hex.EncodeToString(buff))
 	return min
 }
 
@@ -339,20 +357,25 @@ func (r *Reservation) addIndex(index *Index) (reservation.IndexNumber, error) {
 
 // deriveInfoField returns a colibri info field filled with the values from this reservation.
 // It returns nil if there is no active index.
-func (r *Reservation) deriveInfoField() *colpath.InfoField {
+func (r *Reservation) deriveInfoField(reverse bool) *colpath.InfoField {
 	index := r.ActiveIndex()
 	if index == nil {
 		return nil
 	}
 	var zeroBytes = [colpath.LenSuffix - reservation.IDSuffixSegLen]byte{}
 	hfCount := uint8(len(index.Token.HopFields))
+	currHF := uint8(0)
+	if reverse {
+		// Always derive path at trip start. If going to be reversed, prepare to be the first hop.
+		currHF = hfCount - 1
+	}
 	return &colpath.InfoField{
 		C:       true,
 		S:       true,
 		R:       false,
 		Ver:     uint8(index.Idx),
-		CurrHF:  0, // always derive path at trip start
 		HFCount: hfCount,
+		CurrHF:  currHF,
 		// the SegR ID and then 8 zeroes:
 		ResIdSuffix: append(append(zeroBytes[:0:0], r.ID.Suffix...), zeroBytes[:]...),
 		ExpTick:     uint32(index.Token.ExpirationTick),

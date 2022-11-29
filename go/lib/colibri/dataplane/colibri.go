@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
@@ -167,6 +168,10 @@ func VerifyMAC(privateKey cipher.Block, ts colibri.Timestamp, inf *colibri.InfoF
 	}
 
 	if subtle.ConstantTimeCompare(mac[:4], currHop.Mac[:4]) != 1 {
+		log.Debug("deleteme colibri mac verification failed",
+			"calculated", hex.EncodeToString(mac[:4]),
+			"packet", hex.EncodeToString(currHop.Mac[:4]),
+		)
 		return serrors.New("colibri mac verification failed",
 			"calculated", hex.EncodeToString(mac[:4]),
 			"packet", hex.EncodeToString(currHop.Mac[:4]))
@@ -231,11 +236,21 @@ func MACStaticFromInput(buffer []byte, key cipher.Block, input []byte) error {
 func MACStatic(buffer []byte, privateKey cipher.Block, inf *colibri.InfoField,
 	currHop *colibri.HopField, srcAS, dstAS addr.AS) error {
 
+	// deleteme:
+	// when replying to a packet that came with R=1, srcAS is going to be wrong. E.g.
+	// tiny topo, up-path segment 113->110, first request travels from 113 to 111 with R=1 and all
+	// is good in that direction, but the ACKs will be returned with R=0 and source=111 instead of 110
+
 	var input [LengthInputDataRound16]byte
 	MACInputStatic(input[:], inf.ResIdSuffix, inf.ExpTick, reservation.BWCls(inf.BwCls),
 		reservation.RLC(inf.Rlc), inf.C, inf.R, reservation.IndexNumber(inf.Ver), srcAS, dstAS,
 		currHop.IngressId, currHop.EgressId)
-	return MACStaticFromInput(buffer, privateKey, input[:])
+	err := MACStaticFromInput(buffer, privateKey, input[:])
+	fmt.Printf("deleteme in MACStatic, currhop: %d, R = %v, src: %s, dst: %s, "+
+		"ingress: %d, egress:%d, MAC: %s\n",
+		inf.CurrHF, inf.R, srcAS, dstAS,
+		currHop.IngressId, currHop.EgressId, hex.EncodeToString(buffer))
+	return err
 }
 
 // MACSigma calculates the "sigma" authenticator, and

@@ -43,7 +43,7 @@ func (c *Colibri) String() string {
 		Suffix: c.Path.InfoField.ResIdSuffix,
 	}
 	inf := c.Path.InfoField
-	return fmt.Sprintf("%s -> %s [ID: %s,Idx: %d] (#HFs:%d,CurrHF:%d,S:%vC:%vR%v)",
+	return fmt.Sprintf("%s -> %s [ID: %s,Idx: %d] (#HFs:%d,CurrHF:%d,S:%v C:%v R:%v)",
 		c.Src, c.Dst, ID, inf.Ver, inf.HFCount, inf.CurrHF, inf.S, inf.C, inf.R)
 }
 
