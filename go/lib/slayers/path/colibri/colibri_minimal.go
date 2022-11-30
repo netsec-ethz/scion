@@ -171,6 +171,26 @@ func (c *ColibriPathMinimal) SerializeTo(b []byte) error {
 	return nil
 }
 
+// ToBytes is a serialized representation of the path, including the Src and Dst fields.
+// It encodes the length of the Src field in one byte, then the Src field itself.
+// The same goes for the Dst field. After this, the path is serialized.
+func (c ColibriPathMinimal) ToBytes() ([]byte, error) {
+	sLen := int(c.Src.Len())
+	dLen := int(c.Dst.Len())
+	buff := make([]byte, sLen+dLen+c.Len())
+	c.Src.SerializeTo(buff)
+	c.Dst.SerializeTo(buff[sLen:])
+	return buff, c.SerializeTo(buff[sLen+dLen:])
+}
+
+func (c *ColibriPathMinimal) FromBytes(buff []byte) error {
+	c.Src = caddr.NewEndpointFromSerialized(buff)
+	sLen := int(c.Src.Len())
+	c.Dst = caddr.NewEndpointFromSerialized(buff[sLen:])
+	dLen := int(c.Dst.Len())
+	return c.DecodeFromBytes(buff[sLen+dLen:])
+}
+
 // Reverse reverses the path: the R-flag is toggled and the order of the Hop Fields is inverted.
 // The currHF field is updated to still point to the current hop field.
 // This is reflected in the underlying Raw buffer, as well as the updated Info and Hop Field.

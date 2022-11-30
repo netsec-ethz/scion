@@ -169,8 +169,12 @@ func TestTransactionsBusy(t *testing.T) {
 		require.NoError(t, err)
 		afterTx1Modifies.Done()
 
+		t.Logf("TX1: about to commit at %s",
+			time.Now().Format(time.StampMicro))
 		err = tx1.Commit()
 		require.NoError(t, err)
+		t.Logf("TX1: finished at %s",
+			time.Now().Format(time.StampMicro))
 	}()
 
 	go func() { // TX2
@@ -197,7 +201,11 @@ func TestTransactionsBusy(t *testing.T) {
 		err = tx2.PersistSegmentRsv(ctx, rsv2)
 		require.NoError(t, err)
 
+		t.Logf("TX2: about to commit at %s",
+			time.Now().Format(time.StampMicro))
 		err = tx2.Commit()
+		t.Logf("TX2: finished at %s",
+			time.Now().Format(time.StampMicro))
 		require.NoError(t, err)
 	}()
 

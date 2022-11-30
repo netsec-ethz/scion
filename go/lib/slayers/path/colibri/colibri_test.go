@@ -96,6 +96,21 @@ func TestPathToBytesAndReverse(t *testing.T) {
 	t.Log("reversed colibri path", hex.EncodeToString(buff))
 }
 
+func TestSerializeToBytes(t *testing.T) {
+	p := newColibriPath()
+	min, err := p.ToMinimal()
+	require.NoError(t, err)
+
+	buff, err := min.ToBytes()
+	require.NoError(t, err)
+	require.Equal(t, min.Len()+int(min.Src.Len())+int(min.Dst.Len()), len(buff))
+
+	got := &colibri.ColibriPathMinimal{}
+	err = got.FromBytes(buff)
+	require.NoError(t, err)
+	require.Equal(t, min, got)
+}
+
 func newColibriPath() *colibri.ColibriPath {
 	p := &colibri.ColibriPath{
 		PacketTimestamp: [8]byte{},

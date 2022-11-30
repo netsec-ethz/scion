@@ -43,9 +43,7 @@ func ColPathToRaw(p *colpath.ColibriPathMinimal) ([]byte, error) {
 	if p == nil {
 		return nil, nil
 	}
-	buff := make([]byte, p.Len())
-	err := p.SerializeTo(buff)
-	return buff, err
+	return (*p).ToBytes()
 }
 
 func ColPathFromRaw(raw []byte) (*colpath.ColibriPathMinimal, error) {
@@ -53,8 +51,7 @@ func ColPathFromRaw(raw []byte) (*colpath.ColibriPathMinimal, error) {
 		return nil, nil
 	}
 	p := &colpath.ColibriPathMinimal{}
-	err := p.DecodeFromBytes(raw)
-	return p, err
+	return p, p.FromBytes(raw)
 }
 
 type PathSteps []PathStep

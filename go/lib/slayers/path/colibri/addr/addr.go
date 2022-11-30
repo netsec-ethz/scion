@@ -90,9 +90,12 @@ func (ep Endpoint) Addr() (addr.IA, net.Addr, error) {
 	return ep.IA, addr, err
 }
 
-func (ep Endpoint) Raw() (
+func (ep *Endpoint) Raw() (
 	ia addr.IA, host []byte, hostType scion.AddrType, hostLen scion.AddrLen) {
 
+	if ep == nil {
+		return 0, nil, 0, 0
+	}
 	return ep.IA, ep.host, ep.hostType, ep.hostLen
 }
 
@@ -109,6 +112,45 @@ func (ep Endpoint) String() string {
 		host = (net.IP(ep.host)).String()
 	}
 	return fmt.Sprintf("%s,%s", ep.IA, host)
+}
+
+func (ep *Endpoint) Len() uint8 {
+	if ep == nil {
+		return 1
+	}
+	// length itself + IA, host len and type + host address
+	return 1 + 10 + 4*(uint8(ep.hostLen)+1) //  14, 18, 22 or 26 bytes
+}
+
+// SerializeTo serializes the Endpoint to an array of bytes. Format:
+// length_in_bytes 				IA	host_len  	host_type  	host_addr
+// Examples:
+// (empty):      0
+// (IPv4):		14	ff00:0001:0110	0			T4Ip		0x7f000001
+func (ep *Endpoint) SerializeTo(buff []byte) {
+	buff[0] = ep.Len() - 1
+	if ep == nil {
+		return
+	}
+	binary.BigEndian.PutUint64(buff[1:], uint64(ep.IA))
+	buff[9] = byte(ep.hostLen)
+	buff[10] = byte(ep.hostType)
+	copy(buff[11:], ep.host)
+}
+
+func NewEndpointFromSerialized(buff []byte) *Endpoint {
+	if buff[0] == 0 {
+		return nil
+	}
+	// we could assert that the types are valid (in range) but YOLO (actually there is no
+	// unsanitized input here, all comes from the SCION header).
+	ep := &Endpoint{}
+	ep.IA = addr.IA(binary.BigEndian.Uint64(buff[1:]))
+	ep.hostLen = scion.AddrLen(buff[9])
+	ep.hostType = scion.AddrType(buff[10])
+	ep.host = make([]byte, (ep.hostLen+1)*4)
+	copy(ep.host, buff[11:11+len(ep.host)])
+	return ep
 }
 
 // parseAddr takes a host address, type and length and returns the abstract representation derived

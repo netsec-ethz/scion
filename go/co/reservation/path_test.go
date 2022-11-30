@@ -20,7 +20,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -344,6 +346,31 @@ func TestColPathToRaw(t *testing.T) {
 				},
 			},
 		},
+		"withSrcDst": {
+			Path: &colpath.ColibriPath{
+				InfoField: &colpath.InfoField{
+					ResIdSuffix: make([]byte, 12),
+					HFCount:     2,
+					R:           true,
+					BwCls:       3,
+					OrigPayLen:  1000,
+					Ver:         1,
+					ExpTick:     0xff00ff00,
+				},
+				HopFields: []*colpath.HopField{
+					{
+						Mac: make([]byte, 4),
+					},
+					{
+						Mac: make([]byte, 4),
+					},
+				},
+				Src: caddr.NewEndpointWithAddr(xtest.MustParseIA("1-ff00:0:115"),
+					xtest.MustParseIPAddr(t, "", "1.2.3.4")),
+				Dst: caddr.NewEndpointWithAddr(xtest.MustParseIA("1-ff00:0:115"),
+					addr.SvcCOL.Base()),
+			},
+		},
 	}
 	for name, tc := range cases {
 		name, tc := name, tc
@@ -354,8 +381,7 @@ func TestColPathToRaw(t *testing.T) {
 			// test function
 			raw, err := ColPathToRaw(minimal)
 			require.NoError(t, err)
-			newPath := &colpath.ColibriPathMinimal{}
-			err = newPath.DecodeFromBytes(raw)
+			newPath, err := ColPathFromRaw(raw)
 			require.NoError(t, err)
 			require.Equal(t, minimal, newPath)
 		})
