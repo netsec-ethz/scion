@@ -20,8 +20,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/colibri/addr"
-	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
@@ -173,14 +171,14 @@ func TestPathStepsValidateEquivalent(t *testing.T) {
 			Egress:  0,
 		},
 	}
-	col_ACD_at_1 := &colibri.ColibriPath{ // A->C->D    at C
-		InfoField: &colibri.InfoField{
+	col_ACD_at_1 := &colpath.ColibriPath{ // A->C->D    at C
+		InfoField: &colpath.InfoField{
 			ResIdSuffix: xtest.MustParseHexString("0123456789abcdef01234567"),
 			HFCount:     3,
 			CurrHF:      1,
 			S:           true,
 		},
-		HopFields: []*colibri.HopField{
+		HopFields: []*colpath.HopField{
 			{
 				IngressId: 0,
 				EgressId:  7,
@@ -272,9 +270,7 @@ func TestPathStepsFromSnet(t *testing.T) {
 					},
 				},
 				DataplanePath: path.Colibri{
-					Colibri: addr.Colibri{
-						Path: colpath.ColibriPathMinimal{},
-					},
+					ColibriPathMinimal: colpath.ColibriPathMinimal{},
 				},
 			},
 			expected: PathSteps{

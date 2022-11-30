@@ -15,8 +15,13 @@
 package colibri
 
 import (
+	"fmt"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
@@ -49,6 +54,28 @@ type ColibriPathMinimal struct {
 	// Raw contains the raw bytes of the COLIBRI path type header. It is set during the execution
 	// of DecodeFromBytes.
 	Raw []byte
+
+	// Source address taken  from the SCION layer
+	Src *caddr.Endpoint
+	// Destination address taken  from the SCION layer
+	Dst *caddr.Endpoint
+}
+
+func (c *ColibriPathMinimal) String() string {
+	if c == nil {
+		return "(nil)"
+	}
+	var as addr.AS
+	if c.Src != nil {
+		as = c.Src.IA.AS()
+	}
+	ID := reservation.ID{
+		ASID:   as,
+		Suffix: c.InfoField.ResIdSuffix,
+	}
+	inf := c.InfoField
+	return fmt.Sprintf("%s -> %s [ID: %s,Idx: %d] (#HFs:%d,CurrHF:%d,S:%v C:%v R:%v)",
+		c.Src, c.Dst, ID, inf.Ver, inf.HFCount, inf.CurrHF, inf.S, inf.C, inf.R)
 }
 
 func (c *ColibriPathMinimal) GetInfoField() *InfoField {
@@ -96,6 +123,8 @@ func (c *ColibriPathMinimal) DecodeFromBytes(b []byte) error {
 }
 
 func (c *ColibriPathMinimal) BuildFromHeader(b []byte, sc *scion.Header) error {
+	c.Src = caddr.NewEndpointWithRaw(sc.SrcIA, sc.RawSrcAddr, sc.SrcAddrType, sc.SrcAddrLen)
+	c.Dst = caddr.NewEndpointWithRaw(sc.DstIA, sc.RawDstAddr, sc.DstAddrType, sc.DstAddrLen)
 	return c.DecodeFromBytes(b)
 }
 

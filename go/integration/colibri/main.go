@@ -316,8 +316,7 @@ func (c client) run() int {
 	// use the reservation
 	c.Remote.Path = p.Dataplane()
 	c.Remote.NextHop = p.UnderlayNextHop()
-	log.Debug("sending message to server",
-		"steps", steps)
+	log.Debug("sending message to server", "steps", steps)
 	_, err = conn.WriteTo([]byte("colibri test colibri path"), c.Remote)
 	if err != nil {
 		integration.LogFatal("writing data with colibri", "err", err)

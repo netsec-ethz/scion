@@ -20,32 +20,9 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
-
-// Colibri is a fully specified address for COLIBRI. It requires a source (IA only if SegR),
-// a destination (also IA only if SegR), and a COLIBRI path.
-type Colibri struct {
-	Path colpath.ColibriPathMinimal
-	Src  Endpoint
-	Dst  Endpoint
-}
-
-func (c *Colibri) String() string {
-	if c == nil {
-		return "(nil)"
-	}
-	ID := reservation.ID{
-		ASID:   c.Src.IA.AS(),
-		Suffix: c.Path.InfoField.ResIdSuffix,
-	}
-	inf := c.Path.InfoField
-	return fmt.Sprintf("%s -> %s [ID: %s,Idx: %d] (#HFs:%d,CurrHF:%d,S:%v C:%v R:%v)",
-		c.Src, c.Dst, ID, inf.Ver, inf.HFCount, inf.CurrHF, inf.S, inf.C, inf.R)
-}
 
 // Endpoint represents one sender or receiver as seen in the SCiON address header.
 type Endpoint struct {
@@ -156,10 +133,3 @@ func parseAddr(addrType scion.AddrType, addrLen scion.AddrLen, raw []byte) (net.
 	return nil, serrors.New("unsupported address type/length combination",
 		"type", addrType, "len", addrLen)
 }
-
-// // assert asserts. deleteme
-// func assert(cond bool, params ...interface{}) {
-// 	if !cond {
-// 		panic("bad assert")
-// 	}
-// }

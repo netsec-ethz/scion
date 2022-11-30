@@ -14,7 +14,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/colibri/addr:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers:go_default_library",

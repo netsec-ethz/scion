@@ -30,7 +30,6 @@ import (
 	ct "github.com/scionproto/scion/go/co/reservation/test"
 	"github.com/scionproto/scion/go/lib/addr"
 	libcol "github.com/scionproto/scion/go/lib/colibri"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/daemon/mock_daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -638,9 +637,7 @@ func TestComputeAndValidateE2ESetupResponse(t *testing.T) {
 					Authenticators: res.Authenticators,
 					ColibriPath: path.Path{
 						DataplanePath: path.Colibri{
-							Colibri: caddr.Colibri{
-								Path: *colibriPath,
-							},
+							ColibriPathMinimal: *colibriPath,
 						},
 					},
 				}

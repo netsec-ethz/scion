@@ -15,27 +15,28 @@
 package path
 
 import (
-	"fmt"
-
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Colibri represents a Colibri path in the data plane. For now, only static MACs are supported.
 type Colibri struct {
-	caddr.Colibri
+	colibri.ColibriPathMinimal
 }
 
 var _ snet.DataplanePath = Colibri{}
 
 func (p Colibri) SetPath(s *slayers.SCION) error {
-	p.Path.InfoField.OrigPayLen = s.PayloadLen
-	s.Path, s.PathType = &p.Path, colpath.PathType
+	p.ColibriPathMinimal.InfoField.OrigPayLen = s.PayloadLen
+	s.Path, s.PathType = &p.ColibriPathMinimal, colpath.PathType
 
-	s.SrcIA = p.Src.IA
+	if p.Src != nil {
+		s.SrcIA = p.Src.IA
+	}
+
 	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
 	// correctly. For now, we need to keep the IP address of the original sender, which is
 	// each one of the colibri services that contact the next colibri service.
@@ -43,12 +44,12 @@ func (p Colibri) SetPath(s *slayers.SCION) error {
 	// s.SrcAddrType = p.Src.HostType
 	// s.SrcAddrLen = p.Src.HostLen
 
-	s.DstIA, s.RawDstAddr, s.DstAddrType, s.DstAddrLen = p.Dst.Raw()
+	if p.Dst != nil {
+		s.DstIA, s.RawDstAddr, s.DstAddrType, s.DstAddrLen = p.Dst.Raw()
+	}
 
 	log.Debug("deleteme snet colibri path",
-		"SRC", s.SrcIA,
-		"DST", p.Dst.String(),
-		"pointer", fmt.Sprintf("%p", &p.Dst),
+		"path", p.ColibriPathMinimal.String(),
 	)
 
 	return nil

@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
 	col "github.com/scionproto/scion/go/lib/colibri"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -238,7 +237,7 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	if err != nil {
 		return nil, serrors.WrapStr("parsing next hop", err)
 	}
-	colPath := &colpath.ColibriPathMinimal{}
+	colPath := colpath.ColibriPathMinimal{}
 	if err := colPath.DecodeFromBytes(sdRes.Base.Success.TransportPath); err != nil {
 		return nil, serrors.WrapStr("error decoding colibri path", err)
 	}
@@ -246,11 +245,7 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 		Authenticators: sdRes.Base.Authenticators.Macs,
 		ColibriPath: &path.Path{
 			DataplanePath: path.Colibri{
-				Colibri: caddr.Colibri{
-					Path: *colPath,
-					Src:  *caddr.NewEndpointWithIP(req.Steps.SrcIA(), req.SrcHost),
-					Dst:  *caddr.NewEndpointWithIP(req.Steps.DstIA(), req.DstHost),
-				},
+				ColibriPathMinimal: colPath,
 			},
 			NextHop: nextHop,
 		},

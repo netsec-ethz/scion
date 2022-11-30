@@ -237,7 +237,7 @@ func serializeResponse(res *E2EResponse, steps base.PathSteps, timestamp time.Ti
 			"path_type", common.TypeOf(res.ColibriPath.Dataplane()))
 	}
 
-	colibriPath, err := colPath.Path.ToColibriPath()
+	colibriPath, err := colPath.ToColibriPath()
 	if err != nil {
 		return nil, serrors.WrapStr("received invalid colibri path", err)
 	}

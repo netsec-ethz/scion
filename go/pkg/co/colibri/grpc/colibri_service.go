@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -55,11 +54,7 @@ func (s *ColibriService) SegmentSetup(ctx context.Context, msg *colpb.SegmentSet
 		log.Info("error setup segment", "err", err)
 		return nil, err
 	}
-	var transportPath *colpath.ColibriPathMinimal
-	if transport != nil {
-		transportPath = &transport.Path
-	}
-	req, err := translate.SetupReq(msg, transportPath)
+	req, err := translate.SetupReq(msg, transport)
 	if err != nil {
 		log.Info("error unmarshalling", "err", err)
 		// should send a message?
@@ -444,7 +439,7 @@ func checkLocalCaller(ctx context.Context) (*net.TCPAddr, error) {
 // reach the service or nil if the transport path was not colibri.
 // Beware that the destination field of the colibri address is empty, due to the technical
 // limitation of not being able to recover all fields from the scion address layer.
-func colAddrFromCtx(ctx context.Context) (*caddr.Colibri, error) {
+func colAddrFromCtx(ctx context.Context) (*colpath.ColibriPathMinimal, error) {
 	logger := log.FromCtx(ctx)
 	gPeer, ok := peer.FromContext(ctx)
 	if !ok {
@@ -476,12 +471,5 @@ func colAddrFromCtx(ctx context.Context) (*caddr.Colibri, error) {
 
 	// The path in the peer address is already the one from here to the peer.
 	// Because we want it in the other direction, we need to reverse it.
-	colPath, err = colPath.Clone().ReverseAsColibri()
-	if err != nil {
-		return nil, serrors.WrapStr("reversing path", err)
-	}
-	return &caddr.Colibri{
-		Path: *colPath,
-		Src:  *caddr.NewEndpointWithAddr(peer.IA, peer.Host),
-	}, nil
+	return colPath.Clone().ReverseAsColibri()
 }

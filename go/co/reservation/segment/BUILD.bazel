@@ -13,7 +13,6 @@ go_library(
     deps = [
         "//go/co/reservation:go_default_library",
         "//go/lib/addr:go_default_library",
-        "//go/lib/colibri/addr:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path/colibri:go_default_library",

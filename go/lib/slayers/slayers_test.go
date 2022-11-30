@@ -276,7 +276,7 @@ func TestPaths(t *testing.T) {
 				}
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
-				require.NoError(t, s.Path.DecodeFromBytes(rawColibriPath))
+				require.NoError(t, s.Path.BuildFromHeader(rawColibriPath, &s.Header))
 
 				u := &slayers.UDP{
 					SrcPort:  1280,

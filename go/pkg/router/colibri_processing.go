@@ -23,7 +23,6 @@ import (
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -86,17 +85,6 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 	S := c.colibriPathMinimal.InfoField.S
 	C := c.colibriPathMinimal.InfoField.C
 
-	src := caddr.NewEndpointWithRaw(
-		c.scionLayer.SrcIA,
-		c.scionLayer.RawSrcAddr,
-		c.scionLayer.SrcAddrType,
-		c.scionLayer.SrcAddrLen)
-	dst := caddr.NewEndpointWithRaw(
-		c.scionLayer.DstIA,
-		c.scionLayer.RawDstAddr,
-		c.scionLayer.DstAddrType,
-		c.scionLayer.DstAddrLen)
-
 	buff := make([]byte, c.colibriPathMinimal.Len())
 	if err := c.colibriPathMinimal.SerializeTo(buff); err != nil {
 		panic(err)
@@ -111,11 +99,7 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 	}
 
 	log.Debug("                       deleteme colibri packet",
-		"C", C, "S", S, "R", R,
-		"SRC", src.String(),
-		"DST", dst.String(),
-		"# hops", c.colibriPathMinimal.InfoField.HFCount,
-		"curr_hop", c.colibriPathMinimal.InfoField.CurrHF,
+		"path", c.colibriPathMinimal.String(),
 	)
 	print("hop fields: %s\n", str)
 

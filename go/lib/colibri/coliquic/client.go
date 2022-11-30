@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	libcol "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -134,7 +133,7 @@ func (o *ServiceClientOperator) ColibriClientForIA(ctx context.Context, dst *add
 func (o *ServiceClientOperator) ColibriClient(
 	ctx context.Context,
 	egressID uint16,
-	transport *caddr.Colibri,
+	transport *colpath.ColibriPathMinimal,
 ) (colpb.ColibriServiceClient, error) {
 
 	rAddr, err := o.neighborAddrWithTransport(egressID, transport)
@@ -147,7 +146,7 @@ func (o *ServiceClientOperator) ColibriClient(
 func (o *ServiceClientOperator) DebugClient(
 	ctx context.Context,
 	egressID uint16,
-	colAddr *caddr.Colibri,
+	colAddr *colpath.ColibriPathMinimal,
 ) (colpb.ColibriDebugServiceClient, error) {
 
 	rAddr, err := o.neighborAddrWithTransport(egressID, colAddr)
@@ -160,7 +159,7 @@ func (o *ServiceClientOperator) DebugClient(
 // deleteme replace neighborAddrWithTransport with calls to this function:
 func (o *ServiceClientOperator) neighborAddrWithTransport(
 	egressID uint16,
-	transport *caddr.Colibri,
+	transport *colpath.ColibriPathMinimal,
 ) (*snet.UDPAddr, error) {
 
 	rAddr, ok := o.neighborAddr(egressID)
@@ -175,26 +174,19 @@ func (o *ServiceClientOperator) neighborAddrWithTransport(
 	switch {
 	case transport == nil:
 		log.Info("colibri client operator, first segment reservation setup", "egress", egressID)
-	case transport.Path.Type() == colpath.PathType:
-		if libcol.Tick(transport.Path.InfoField.ExpTick).ToTime().Before(time.Now()) {
+	case transport.Type() == colpath.PathType:
+		if libcol.Tick(transport.InfoField.ExpTick).ToTime().Before(time.Now()) {
 			// If the active index we have is expired, don't use it
 			break
 		}
-		// prepare remote address with the new colibri path
-		colPath := *transport
-		if transport.Path.InfoField.C {
-			colPath.Dst = *caddr.NewEndpointWithAddr(
-				transport.Dst.IA,
-				addr.SvcCOL.Base(),
-			)
-		}
+		// prepare remote address with the new path
 		rAddr.Path = snetpath.Colibri{
-			Colibri: colPath,
+			ColibriPathMinimal: *transport,
 		}
 	default:
 		// nothing but colibri or nil is accepted
 		return nil, serrors.New("error in client operator: not a valid transport",
-			"path_type", transport.Path.Type())
+			"path_type", transport.Type())
 	}
 	return rAddr, nil
 }

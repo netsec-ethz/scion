@@ -20,7 +20,6 @@ import (
 
 	base "github.com/scionproto/scion/go/co/reservation"
 	"github.com/scionproto/scion/go/lib/addr"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
@@ -138,15 +137,8 @@ func (r *SetupReq) TakeStep() {
 	r.CurrentStep += inc
 }
 
-func (r *SetupReq) Transport() *caddr.Colibri {
-	if r.TransportPath == nil || len(r.Steps) == 0 {
-		return nil
-	}
-	return &caddr.Colibri{
-		Path: *r.TransportPath,
-		Src:  *caddr.NewEndpointWithAddr(r.Steps.SrcIA(), addr.SvcCOL.Base()),
-		Dst:  *caddr.NewEndpointWithAddr(r.Steps.DstIA(), addr.SvcCOL.Base()),
-	}
+func (r *SetupReq) Transport() *colibri.ColibriPathMinimal {
+	return r.TransportPath
 }
 
 func (r *SetupReq) Len() int {

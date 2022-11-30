@@ -39,10 +39,10 @@ import (
 
 	"github.com/scionproto/scion/go/co/reservation/test"
 	"github.com/scionproto/scion/go/lib/addr"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -295,7 +295,7 @@ func TestColibriGRPC(t *testing.T) {
 			require.True(t, ok)
 			require.Greater(t, usage, uint64(0))
 			return &colpb.SegmentSetupResponse{SuccessFailure: &colpb.SegmentSetupResponse_Token{
-				Token: p.Addr.(*snet.UDPAddr).Path.(path.Colibri).Path.Raw,
+				Token: p.Addr.(*snet.UDPAddr).Path.(path.Colibri).Raw,
 			}}, nil
 		})
 
@@ -345,7 +345,7 @@ func TestColibriGRPC(t *testing.T) {
 	gRPCClient := colpb.NewColibriServiceClient(conn)
 	res, err := gRPCClient.SegmentSetup(ctx, &colpb.SegmentSetupRequest{})
 	require.NoError(t, err)
-	require.Equal(t, clientAddr.(*snet.UDPAddr).Path.(path.Colibri).Path.Raw, res.GetToken())
+	require.Equal(t, clientAddr.(*snet.UDPAddr).Path.(path.Colibri).Raw, res.GetToken())
 	require.True(t, testInterceptorCalled)
 
 	gRPCServer.GracefulStop()
@@ -460,13 +460,17 @@ func mockColibriAddress(t *testing.T, ia, host string) net.Addr {
 	minimal, err := newTestColibriPath().ToMinimal()
 	require.NoError(t, err)
 	require.NotNil(t, minimal)
+	// Because the colibri address will be used to dial to a destination without really
+	// using the snet/packet infrastructure, we have to manually set the layer interaction,
+	// as if built by snet/packet by calling BuildFromHeader:
+	minimal.Src = caddr.NewEndpointWithAddr(xtest.MustParseIA(ia), &net.IPAddr{})
+	minimal.Dst = caddr.NewEndpointWithAddr(0, &net.IPAddr{})
+
 	return &snet.UDPAddr{
 		IA:   xtest.MustParseIA(ia),
 		Host: xtest.MustParseUDPAddr(t, host),
 		Path: path.Colibri{
-			Colibri: caddr.Colibri{
-				Path: *minimal,
-			},
+			ColibriPathMinimal: *minimal,
 		},
 	}
 }

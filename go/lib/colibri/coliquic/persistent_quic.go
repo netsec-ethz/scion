@@ -224,7 +224,7 @@ func snetAddrToString(addr *snet.UDPAddr) (string, error) {
 		}
 		return addrPathToString(addr, onehop.PathType, buff[:]), nil
 	case path.Colibri:
-		return addrPathToString(addr, colibri.PathType, p.Path.Raw), nil
+		return addrPathToString(addr, colibri.PathType, p.Raw), nil
 	case snet.RawPath:
 		return addrPathToString(addr, p.PathType, p.Raw), nil
 	case snet.RawReplyPath:

@@ -27,11 +27,11 @@ import (
 	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/co/reservationstorage"
 	"github.com/scionproto/scion/go/lib/addr"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -285,13 +285,10 @@ func (m *manager) ActivateRequest(ctx context.Context, req *base.Request, steps 
 	if reverseTraveling {
 		steps = steps.Reverse()
 	}
-	var transport *caddr.Colibri
+	transport := transportPath
 	if transportPath != nil {
-		transport = &caddr.Colibri{
-			Path: *transportPath,
-			Src:  *caddr.NewEndpointWithAddr(steps.SrcIA(), addr.SvcCOL.Base()),
-			Dst:  *caddr.NewEndpointWithAddr(steps.DstIA(), addr.SvcCOL.Base()),
-		}
+		transport.Src = caddr.NewEndpointWithAddr(steps.SrcIA(), addr.SvcCOL.Base())
+		transport.Dst = caddr.NewEndpointWithAddr(steps.DstIA(), addr.SvcCOL.Base())
 	}
 	res, err := m.store.InitActivateSegmentReservation(ctx, req, steps, transport)
 	if err != nil {

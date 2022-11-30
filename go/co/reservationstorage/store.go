@@ -23,8 +23,8 @@ import (
 	sgt "github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri"
-	caddr "github.com/scionproto/scion/go/lib/colibri/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
 // Store is the interface to interact with the reservation store.
@@ -40,32 +40,32 @@ type Store interface {
 	ConfirmSegmentReservation(
 		ctx context.Context,
 		req *base.Request,
-		transport *caddr.Colibri,
+		transport *colpath.ColibriPathMinimal,
 	) (base.Response, error)
 	ActivateSegmentReservation(
 		ctx context.Context,
 		req *base.Request,
-		transport *caddr.Colibri,
+		transport *colpath.ColibriPathMinimal,
 	) (base.Response, error)
 	CleanupSegmentReservation(
 		ctx context.Context,
 		req *base.Request,
-		transport *caddr.Colibri,
+		transport *colpath.ColibriPathMinimal,
 	) (base.Response, error)
 	TearDownSegmentReservation(
 		ctx context.Context,
 		req *base.Request,
-		transport *caddr.Colibri,
+		transport *colpath.ColibriPathMinimal,
 	) (base.Response, error)
 	AdmitE2EReservation(
 		ctx context.Context,
 		req *e2e.SetupReq,
-		transport *caddr.Colibri,
+		transport *colpath.ColibriPathMinimal,
 	) (e2e.SetupResponse, error)
 	CleanupE2EReservation(
 		ctx context.Context,
 		req *e2e.Request,
-		transport *caddr.Colibri,
+		transport *colpath.ColibriPathMinimal,
 	) (base.Response, error)
 
 	// DeleteExpiredIndices returns the number of indices deleted, and the time for the
@@ -85,19 +85,19 @@ type Store interface {
 	InitSegmentReservation(ctx context.Context, req *sgt.SetupReq) error
 	// InitConfirmSegmentReservation initiates a confirm request.
 	InitConfirmSegmentReservation(ctx context.Context, req *base.Request,
-		steps base.PathSteps, transport *caddr.Colibri) (
+		steps base.PathSteps, transport *colpath.ColibriPathMinimal) (
 		base.Response, error)
 
 	InitActivateSegmentReservation(ctx context.Context, req *base.Request,
-		steps base.PathSteps, transport *caddr.Colibri) (
+		steps base.PathSteps, transport *colpath.ColibriPathMinimal) (
 		base.Response, error)
 
 	InitCleanupSegmentReservation(ctx context.Context, req *base.Request,
-		steps base.PathSteps, transport *caddr.Colibri) (
+		steps base.PathSteps, transport *colpath.ColibriPathMinimal) (
 		base.Response, error)
 
 	InitTearDownSegmentReservation(ctx context.Context, req *base.Request,
-		steps base.PathSteps, transport *caddr.Colibri) (
+		steps base.PathSteps, transport *colpath.ColibriPathMinimal) (
 		base.Response, error)
 
 	// -----------------------------------------------------------
