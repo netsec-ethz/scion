@@ -79,12 +79,12 @@ func (r *Reservation) String() string {
 }
 
 // Validate will return an error for invalid values.
-// It doesn not check for valid path properties and correct end/start AS ID when stiching.
+// It does not check for valid path properties and correct end/start AS ID when stitching.
 func (r *Reservation) Validate() error {
 	if err := base.ValidateIndices(r.Indices); err != nil {
 		return err
 	}
-	if len(r.SegmentReservations) < 1 || len(r.SegmentReservations) > 3 {
+	if len(r.SegmentReservations) < 1 || len(r.SegmentReservations) > 2 {
 		return serrors.New("wrong number of segment reservations referenced in E2E reservation",
 			"number", len(r.SegmentReservations))
 	}
