@@ -1520,13 +1520,10 @@ func validateE2ESteps(localIA addr.IA, rsv *e2e.Reservation, reqSteps base.PathS
 			}
 		}
 	}
-
-	if currInStitched >= len(stitched) {
+	if !localASFound {
 		return serrors.WrapStr("local AS not found", prebuiltErr)
 	}
-	if isStitchPoint && (currInStitched != reqCurrStep) {
-		return serrors.WrapStr("current step inconsistency", prebuiltErr)
-	}
+
 	assert(!isStitchPoint ||
 		(currInStitched == len(rsv.SegmentReservations[0].Steps)-1 &&
 			rsv.SegmentReservations[1].Steps[0].IA == localIA),
