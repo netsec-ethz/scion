@@ -89,7 +89,15 @@ func (s *debugService) CmdTraceroute(ctx context.Context, req *colpb.CmdTracerou
 	}
 
 	if rsv.TransportPath != nil {
-		log.Debug("deleteme raw colibri path", "transport", hex.EncodeToString(rsv.TransportPath.Raw))
+		log.Debug("deleteme raw colibri path",
+			"transport", rsv.TransportPath,
+			"serialized", hex.EncodeToString(rsv.TransportPath.Raw),
+		)
+	}
+	if rsv.TransportPath.Src == nil || rsv.TransportPath.Dst == nil {
+		// this should be an assertion instead of a check
+		return errF(status.Errorf(codes.Internal,
+			"reservation transport with empty SRC or DST: %s", rsv.TransportPath.String()))
 	}
 
 	res, err := s.Traceroute(ctx, (*colpb.TracerouteRequest)(req))
@@ -269,11 +277,8 @@ func (s *debugService) Traceroute(ctx context.Context, req *colpb.TracerouteRequ
 	// reversion of them if the segment is a down-path one, as we use it in the reverse direction.
 	// The same applies to source and destination IAs, that also come from the steps.
 	egress := rsv.Egress()
-	srcIA := rsv.Steps.SrcIA()
-	dstIA := rsv.Steps.DstIA()
 	if rsv.PathType == libcol.DownPath {
 		egress = rsv.Ingress()
-		srcIA, dstIA = dstIA, srcIA
 	}
 	initiator := (rsv.CurrentStep == 0 && rsv.PathType != libcol.DownPath) ||
 		rsv.CurrentStep == len(rsv.Steps)-1 && rsv.PathType == libcol.DownPath

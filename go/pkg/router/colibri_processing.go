@@ -101,7 +101,7 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 	log.Debug("                       deleteme colibri packet",
 		"path", c.colibriPathMinimal.String(),
 	)
-	print("hop fields: %s\n", str)
+	fmt.Printf("deleteme hop fields:\n%s\n", str)
 
 	// Consistency of flags: S implies C
 	if S && !C {
@@ -176,6 +176,7 @@ func (c *colibriPacketProcessor) cryptographicValidation() (processResult, error
 func (c *colibriPacketProcessor) forward() (processResult, error) {
 	egressId := c.colibriPathMinimal.CurrHopField.EgressId
 
+	log.Debug("deleteme colibri packet will be forwarded", "path", c.colibriPathMinimal.String())
 	if c.ingressID == 0 {
 		// Received packet from within AS
 		if conn, ok := c.canForwardLocally(egressId); ok {

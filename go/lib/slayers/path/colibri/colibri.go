@@ -165,6 +165,8 @@ func (c *ColibriPath) Reverse() (path.Path, error) {
 		c.HopFields[hf/2].SwapInEg()
 	}
 
+	c.Src, c.Dst = c.Dst, c.Src
+
 	return c, nil
 }
 
@@ -185,6 +187,8 @@ func (c *ColibriPath) ToMinimal() (*ColibriPathMinimal, error) {
 		InfoField:       c.InfoField.Clone(),
 		CurrHopField:    c.GetCurrentHopField().Clone(),
 		Raw:             make([]byte, c.Len()),
+		Src:             c.Src,
+		Dst:             c.Dst,
 	}
 	err := c.SerializeTo(min.Raw)
 	return min, err

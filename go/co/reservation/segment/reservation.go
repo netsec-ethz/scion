@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 )
 
 // Reservation represents a segment reservation.
@@ -94,7 +95,9 @@ func (r *Reservation) deriveColibriPath(reverse bool) *colpath.ColibriPathMinima
 			Mac:       append([]byte{}, hf.Mac[:]...),
 		}
 	}
+	steps := r.Steps
 	if reverse {
+		steps = steps.Reverse()
 		// The hop fields were stacked in the reverse direction of the traffic.
 		// If reverse is true, the function was called from the destination of the traffic.
 		// E.g. for the tiny topology, a down-path initiated in 111 to 110 can be derived at
@@ -111,6 +114,8 @@ func (r *Reservation) deriveColibriPath(reverse bool) *colpath.ColibriPathMinima
 			return nil
 		}
 	}
+	p.Src = caddr.NewEndpointWithAddr(steps.SrcIA(), addr.SvcCOL.Base())
+	p.Dst = caddr.NewEndpointWithAddr(steps.DstIA(), addr.SvcCOL.Base())
 	// deleteme
 	fmt.Println("--------------------------------------------", r.ID.String())
 	fmt.Printf("Curr HF = %d, # Hop Fields = %d\n", p.InfoField.CurrHF, p.InfoField.HFCount)

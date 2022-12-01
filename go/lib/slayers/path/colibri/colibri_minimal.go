@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
@@ -199,6 +200,7 @@ func (c *ColibriPathMinimal) Reverse() (path.Path, error) {
 	// path first. If this becomes a performance bottleneck, the implementation should be changed to
 	// work directly on the ColibriPathMinimal.Raw buffer.
 
+	log.Debug("deleteme reversing colibri path", "original", c)
 	if c == nil {
 		return nil, serrors.New("colibri path must not be nil")
 	}
@@ -211,17 +213,12 @@ func (c *ColibriPathMinimal) Reverse() (path.Path, error) {
 		return nil, err
 	}
 
-	reversed, err := colibriPath.Reverse()
+	_, err = colibriPath.Reverse()
 	if err != nil {
 		return nil, err
 	}
-
-	if err := reversed.SerializeTo(c.Raw); err != nil {
-		return nil, err
-	}
-
-	err = c.DecodeFromBytes(c.Raw)
-	return c, err
+	log.Debug("deleteme colibri path is reversed", "reversed", colibriPath)
+	return colibriPath.ToMinimal()
 }
 
 func (c *ColibriPathMinimal) ReverseAsColibri() (*ColibriPathMinimal, error) {
@@ -285,6 +282,8 @@ func (c *ColibriPathMinimal) ToColibriPath() (*ColibriPath, error) {
 	if err := colibriPath.DecodeFromBytes(c.Raw); err != nil {
 		return nil, err
 	}
+	colibriPath.Src = c.Src
+	colibriPath.Dst = c.Dst
 	return colibriPath, nil
 }
 
