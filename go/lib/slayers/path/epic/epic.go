@@ -78,6 +78,10 @@ func (p *Path) SerializeTo(b []byte) error {
 	return p.ScionPath.SerializeTo(b[MetadataLen:])
 }
 
+func (p *Path) SyncWithScionHeader(scion *sheader.Header) error {
+	return nil
+}
+
 // DecodeFromBytes deserializes the buffer b into the Path. On failure, an error is returned,
 // otherwise SerializeTo will return nil.
 func (p *Path) DecodeFromBytes(b []byte) error {

@@ -172,6 +172,37 @@ func (c *ColibriPathMinimal) SerializeTo(b []byte) error {
 	return nil
 }
 
+func (c *ColibriPathMinimal) SyncWithScionHeader(scion *scion.Header) error {
+	log.Debug("deleteme colibri path sync",
+		"path", c.String(),
+	)
+
+	if !c.InfoField.R && !c.InfoField.C {
+		// Update the size for the replier to use it in the MAC verification (EER non reply only).
+		// Use the actual size right before putting the packet in the wire.
+		c.InfoField.OrigPayLen = scion.PayloadLen
+	}
+
+	// Update the SCION layer fields (SRC and DST) that must be affected by this colibri path.
+	if c.Src == nil { // deleteme
+		panic("src is nil")
+	}
+	if c.Dst == nil { // deleteme
+		panic("src is nil")
+	}
+
+	scion.SrcIA, scion.RawSrcAddr, scion.SrcAddrType, scion.SrcAddrLen = c.Dst.Raw()
+	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
+	// correctly. For now, we need to keep the IP address of the original sender, which is
+	// each one of the colibri services that contact the next colibri service.
+	// scion.RawSrcAddr = p.Src.Host
+	// scion.SrcAddrType = p.Src.HostType
+	// scion.SrcAddrLen = p.Src.HostLen
+	scion.DstIA, scion.RawDstAddr, scion.DstAddrType, scion.DstAddrLen = c.Dst.Raw()
+
+	return nil
+}
+
 // ToBytes is a serialized representation of the path, including the Src and Dst fields.
 // It encodes the length of the Src field in one byte, then the Src field itself.
 // The same goes for the Dst field. After this, the path is serialized.

@@ -44,11 +44,20 @@ func (t Type) String() string {
 type Path interface {
 	// SerializeTo serializes the path into the provided buffer.
 	SerializeTo(b []byte) error
+	// SyncWithScionHeader may update fields in the SCION header or in the path.
+	// It is always called before the path is serialized, when setting all the layers of the packet.
+	// Its purpose is to allow trespassing the layer boundary to sync values in the SCION and path
+	// layers that depend on each other. E.g. COLIBRI with the OrigPayLen.
+	// This call expects all fields of the SCION header to be correct.
+	// TODO(juagargi): deprecate SetPath in DataplanePath.
+	SyncWithScionHeader(scion *scion.Header) error
+
 	// DecodesFromBytes decodes the path from the provided buffer.
 	DecodeFromBytes(b []byte) error
 	// BuildFromHeader reconstructs the path from the provider buffer and the parent SCION header.
 	// It behaves similarly to DecodeFromBytes but can use information from the SCION header.
 	BuildFromHeader(b []byte, sh *scion.Header) error
+
 	// Reverse reverses a path such that it can be used in the reversed direction.
 	//
 	// XXX(shitz): This method should possibly be moved to a higher-level path manipulation package.
@@ -115,6 +124,10 @@ type rawPath struct {
 
 func (p *rawPath) SerializeTo(b []byte) error {
 	copy(b, p.raw)
+	return nil
+}
+
+func (p *rawPath) SyncWithScionHeader(scion *scion.Header) error {
 	return nil
 }
 

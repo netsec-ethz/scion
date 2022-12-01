@@ -54,6 +54,10 @@ func (o Path) SerializeTo(b []byte) error {
 	return nil
 }
 
+func (o Path) SyncWithScionHeader(scion *scion.Header) error {
+	return nil
+}
+
 func (o Path) Reverse() (path.Path, error) {
 	return o, nil
 }

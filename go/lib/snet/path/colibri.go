@@ -18,7 +18,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
-	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -30,25 +29,25 @@ type Colibri struct {
 var _ snet.DataplanePath = Colibri{}
 
 func (p Colibri) SetPath(s *slayers.SCION) error {
-	p.ColibriPathMinimal.InfoField.OrigPayLen = s.PayloadLen
-	s.Path, s.PathType = &p.ColibriPathMinimal, colpath.PathType
+	// p.ColibriPathMinimal.InfoField.OrigPayLen = s.PayloadLen
+	s.Path, s.PathType = &p.ColibriPathMinimal, colibri.PathType
 
-	if p.Src != nil {
-		s.SrcIA = p.Src.IA
-	}
+	// if p.Src != nil {
+	// 	s.SrcIA = p.Src.IA
+	// }
 
-	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
-	// correctly. For now, we need to keep the IP address of the original sender, which is
-	// each one of the colibri services that contact the next colibri service.
-	// s.RawSrcAddr = p.Src.Host
-	// s.SrcAddrType = p.Src.HostType
-	// s.SrcAddrLen = p.Src.HostLen
+	// // TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
+	// // correctly. For now, we need to keep the IP address of the original sender, which is
+	// // each one of the colibri services that contact the next colibri service.
+	// // s.RawSrcAddr = p.Src.Host
+	// // s.SrcAddrType = p.Src.HostType
+	// // s.SrcAddrLen = p.Src.HostLen
 
-	if p.Dst != nil {
-		s.DstIA, s.RawDstAddr, s.DstAddrType, s.DstAddrLen = p.Dst.Raw()
-	}
+	// if p.Dst != nil {
+	// 	s.DstIA, s.RawDstAddr, s.DstAddrType, s.DstAddrLen = p.Dst.Raw()
+	// }
 
-	log.Debug("deleteme snet colibri path",
+	log.Debug("deleteme snet/path.Colibri.SetPath",
 		"path", p.ColibriPathMinimal.String(),
 	)
 

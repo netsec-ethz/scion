@@ -83,6 +83,10 @@ func (o *Path) SerializeTo(b []byte) error {
 	return o.SecondHop.SerializeTo(b[offset : offset+path.HopLen])
 }
 
+func (o *Path) SyncWithScionHeader(scion *sheader.Header) error {
+	return nil
+}
+
 // ToSCIONDecoded converts the one hop path in to a normal SCION path in the
 // decoded format.
 func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {

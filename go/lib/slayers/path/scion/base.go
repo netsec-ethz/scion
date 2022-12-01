@@ -49,6 +49,10 @@ type Base struct {
 	NumHops int
 }
 
+func (s *Base) SyncWithScionHeader(scion *scion.Header) error {
+	return nil
+}
+
 func (s *Base) DecodeFromBytes(data []byte) error {
 	// PathMeta takes care of bounds check.
 	err := s.PathMeta.DecodeFromBytes(data)

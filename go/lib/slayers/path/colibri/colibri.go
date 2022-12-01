@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
@@ -70,6 +71,63 @@ func (c *ColibriPath) GetCurrentHopField() *HopField {
 	return c.HopFields[c.InfoField.CurrHF]
 }
 
+func (c *ColibriPath) SerializeTo(b []byte) error {
+	if c == nil {
+		return serrors.New("colibri path must not be nil")
+	}
+	if c.InfoField == nil {
+		return serrors.New("the info field must not be nil")
+	}
+	if len(b) < c.Len() {
+		return serrors.New("buffer for ColibriPath too short", "is:", len(b),
+			"needs:", c.Len())
+	}
+
+	copy(b[:8], c.PacketTimestamp[:])
+	if err := c.InfoField.SerializeTo(b[8 : 8+LenInfoField]); err != nil {
+		return err
+	}
+	for i, hf := range c.HopFields {
+		start := 8 + LenInfoField + i*LenHopField
+		end := start + LenHopField
+		if err := hf.SerializeTo(b[start:end]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *ColibriPath) SyncWithScionHeader(scion *scion.Header) error {
+	log.Debug("deleteme colibri path sync",
+		"path", c.String(),
+	)
+
+	if !c.InfoField.R && !c.InfoField.C {
+		// Update the size for the replier to use it in the MAC verification (EER non reply only).
+		// Use the actual size right before putting the packet in the wire.
+		c.InfoField.OrigPayLen = scion.PayloadLen
+	}
+
+	// Update the SCION layer fields (SRC and DST) that must be affected by this colibri path.
+	if c.Src == nil { // deleteme
+		panic("src is nil")
+	}
+	if c.Dst == nil { // deleteme
+		panic("src is nil")
+	}
+
+	scion.SrcIA, scion.RawSrcAddr, scion.SrcAddrType, scion.SrcAddrLen = c.Src.Raw()
+	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
+	// correctly. For now, we need to keep the IP address of the original sender, which is
+	// each one of the colibri services that contact the next colibri service.
+	// scion.RawSrcAddr = p.Src.Host
+	// scion.SrcAddrType = p.Src.HostType
+	// scion.SrcAddrLen = p.Src.HostLen
+	scion.DstIA, scion.RawDstAddr, scion.DstAddrType, scion.DstAddrLen = c.Dst.Raw()
+
+	return nil
+}
+
 func (c *ColibriPath) DecodeFromBytes(b []byte) error {
 	if c == nil {
 		return serrors.New("colibri path must not be nil")
@@ -107,32 +165,6 @@ func (cp *ColibriPath) BuildFromHeader(b []byte, sc *scion.Header) error {
 	cp.Src = caddr.NewEndpointWithRaw(sc.SrcIA, sc.RawSrcAddr, sc.SrcAddrType, sc.SrcAddrLen)
 	cp.Dst = caddr.NewEndpointWithRaw(sc.DstIA, sc.RawDstAddr, sc.DstAddrType, sc.DstAddrLen)
 	return cp.DecodeFromBytes(b)
-}
-
-func (c *ColibriPath) SerializeTo(b []byte) error {
-	if c == nil {
-		return serrors.New("colibri path must not be nil")
-	}
-	if c.InfoField == nil {
-		return serrors.New("the info field must not be nil")
-	}
-	if len(b) < c.Len() {
-		return serrors.New("buffer for ColibriPath too short", "is:", len(b),
-			"needs:", c.Len())
-	}
-
-	copy(b[:8], c.PacketTimestamp[:])
-	if err := c.InfoField.SerializeTo(b[8 : 8+LenInfoField]); err != nil {
-		return err
-	}
-	for i, hf := range c.HopFields {
-		start := 8 + LenInfoField + i*LenHopField
-		end := start + LenHopField
-		if err := hf.SerializeTo(b[start:end]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Reverse the path: toggle the R-flag, invert the order of the hop fields, and adapt the CurrHF.

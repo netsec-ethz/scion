@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
@@ -1951,8 +1952,8 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 			TrafficClass: 0xb8,
 			FlowID:       0xdead,
 			NextHdr:      common.L4UDP,
-			DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 			SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+			DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		},
 		PathType: colibri.PathType,
 		Path:     &colibri.ColibriPath{},
@@ -2001,6 +2002,10 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 		Mac:       []byte{0xff, 0xff, 0xff, 0xff},
 	}
 	cpath.HopFields = append(cpath.HopFields, hfLast)
+	cpath.Src = caddr.NewEndpointWithRaw(spkt.SrcIA, spkt.RawSrcAddr, spkt.SrcAddrType,
+		spkt.SrcAddrLen)
+	cpath.Dst = caddr.NewEndpointWithRaw(spkt.DstIA, spkt.RawDstAddr, spkt.DstAddrType,
+		spkt.DstAddrLen)
 
 	// XXX(mawyss): The tests need to be adapted to support one single dispatcher serving
 	// multiple ASes. See https://github.com/netsec-ethz/scion/pull/116.
@@ -2014,9 +2019,9 @@ func prepColibriBaseMsg(c, r, s bool, currHF, hfCount uint8, expTick,
 // reverse reverses t scion packet with a colibri path. It changes the src and dst addresses,
 // because when we see a reversed packet, its src and dst addresses are swapped.
 func reverse(t *testing.T, spkt *slayers.SCION, path path.Path) {
+	spkt.DstIA, spkt.SrcIA = spkt.SrcIA, spkt.DstIA
 	spkt.DstAddrType, spkt.SrcAddrType = spkt.SrcAddrType, spkt.DstAddrType
 	spkt.DstAddrLen, spkt.SrcAddrLen = spkt.SrcAddrLen, spkt.DstAddrLen
-	spkt.DstIA, spkt.SrcIA = spkt.SrcIA, spkt.DstIA
 	spkt.RawDstAddr, spkt.RawSrcAddr = spkt.RawSrcAddr, spkt.RawDstAddr
 
 	_, err := path.Reverse()

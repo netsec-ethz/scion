@@ -127,6 +127,9 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	offset := CmnHdrLen + s.AddrHdrLen()
 
 	// Serialize path header.
+	if err := s.Path.SyncWithScionHeader(&s.Header); err != nil {
+		return err
+	}
 	return s.Path.SerializeTo(buf[offset:])
 }
 
