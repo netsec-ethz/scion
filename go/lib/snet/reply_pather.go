@@ -24,12 +24,12 @@ import (
 type DefaultReplyPather struct{}
 
 // ReplyPath takes a RawPath and reverses it to a suitable dataplane reply path.
-func (DefaultReplyPather) ReplyPath(rpath RawPath) (DataplanePath, error) {
+func (DefaultReplyPather) ReplyPath(rpath *RawPath) (DataplanePath, error) {
 	p, err := path.NewPath(rpath.PathType)
 	if err != nil {
 		return nil, serrors.WrapStr("creating path", err, "type", rpath.PathType)
 	}
-	if err := p.DecodeFromBytes(rpath.Raw); err != nil {
+	if err := p.BuildFromHeader(rpath.Raw, rpath.ScionHeader); err != nil {
 		return nil, serrors.WrapStr("decoding path", err)
 	}
 	reversed, err := p.Reverse()
@@ -48,6 +48,11 @@ type RawReplyPath struct {
 }
 
 func (p RawReplyPath) SetPath(s *slayers.SCION) error {
+	// deleteme: this is a bug:
+	// Some reply paths must have agency (take control) here and not assume all paths need just
+	// setting the path and type, E.g. the reply of a colibri path requires the ColibriPathMinimal
+	// to run its SetPath method to correctly set the SRC and DST fields in the SCION layer.
+
 	s.Path, s.PathType = p.Path, p.Path.Type()
 	return nil
 }

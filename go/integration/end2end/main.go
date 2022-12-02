@@ -214,7 +214,7 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		Payload: raw,
 	}
 	// reverse path
-	rpath, ok := p.Path.(snet.RawPath)
+	rpath, ok := p.Path.(*snet.RawPath)
 	if !ok {
 		return serrors.New("unecpected path", "type", common.TypeOf(p.Path))
 	}

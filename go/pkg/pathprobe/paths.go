@@ -264,7 +264,7 @@ func (r reply) Error() string {
 type scmpHandler struct{}
 
 func (h *scmpHandler) Handle(pkt *snet.Packet) error {
-	path, ok := pkt.Path.(snet.RawPath)
+	path, ok := pkt.Path.(*snet.RawPath)
 	if !ok {
 		return serrors.New("not an snet.RawPath")
 	}

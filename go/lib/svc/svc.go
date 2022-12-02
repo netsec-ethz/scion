@@ -199,7 +199,7 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 }
 
 func (h *BaseHandler) reversePath(path snet.DataplanePath) (snet.DataplanePath, error) {
-	rpath, ok := path.(snet.RawPath)
+	rpath, ok := path.(*snet.RawPath)
 	if !ok {
 		return nil, serrors.New("unexpected path", "type", common.TypeOf(path))
 	}

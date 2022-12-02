@@ -217,7 +217,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			actual := snet.Packet{Bytes: tc.Bytes}
 			assert.NoError(t, actual.Decode())
 
-			r, ok := actual.Path.(snet.RawPath)
+			r, ok := actual.Path.(*snet.RawPath)
 			require.True(t, ok)
 			rp, err := convertRawPath(r)
 			require.NoError(t, err)
@@ -232,7 +232,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 	}
 }
 
-func convertRawPath(r snet.RawPath) (snet.DataplanePath, error) {
+func convertRawPath(r *snet.RawPath) (snet.DataplanePath, error) {
 	switch r.PathType {
 	case scion.PathType:
 		return snetpath.SCION{Raw: r.Raw}, nil

@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/scion"
 )
 
 // Payload is the payload of the message, use the different payload type to
@@ -326,8 +327,9 @@ func toLayers(scmpPld SCMPPayload,
 // Packets that are received on the SCIONPacketConn contain a struct of this
 // type in the Path field.
 type RawPath struct {
-	PathType path.Type
-	Raw      []byte
+	ScionHeader *scion.Header
+	PathType    path.Type
+	Raw         []byte
 }
 
 // SetPath is a dummy method to implement the DataplanePath interface.
@@ -385,8 +387,9 @@ func (p *Packet) Decode() error {
 	p.Destination = SCIONAddress{IA: scionLayer.DstIA, Host: dstHost}
 	p.Source = SCIONAddress{IA: scionLayer.SrcIA, Host: srcHost}
 
-	rpath := RawPath{
-		PathType: scionLayer.Path.Type(),
+	rpath := &RawPath{
+		ScionHeader: &scionLayer.Header,
+		PathType:    scionLayer.Path.Type(),
 	}
 	if l := scionLayer.Path.Len(); l != 0 {
 		rpath.Raw = make([]byte, l)

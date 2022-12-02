@@ -142,7 +142,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						DstPort: clientXAddress.PublicPort,
 						Payload: []byte{1, 2, 3, 4},
 					},
-					Path: snet.RawPath{},
+					Path: &snet.RawPath{},
 				},
 			},
 		},
@@ -185,7 +185,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						DstPort: clientYAddress.PublicPort,
 						Payload: []byte{5, 6, 7, 8},
 					},
-					Path: snet.RawPath{},
+					Path: &snet.RawPath{},
 				},
 			},
 		},
@@ -250,7 +250,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							},
 						}),
 					},
-					Path: snet.RawPath{},
+					Path: &snet.RawPath{},
 				},
 			},
 		},
@@ -331,7 +331,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 							},
 						}),
 					},
-					Path: snet.RawPath{},
+					Path: &snet.RawPath{},
 				},
 			},
 		},
@@ -374,7 +374,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						SeqNumber:  0xcafe,
 						Payload:    []byte("hello?"),
 					},
-					Path: snet.RawPath{},
+					Path: &snet.RawPath{},
 				},
 			},
 		},
@@ -409,7 +409,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 						Host: clientXAddress.PublicAddress,
 					},
 					Payload: snet.SCMPTracerouteReply{Identifier: 0xdeaf, Sequence: 0xcafd},
-					Path:    snet.RawPath{},
+					Path:    &snet.RawPath{},
 				},
 			},
 		},
@@ -476,6 +476,7 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	err = conn.Close()
 	require.NoError(t, err, "unable to close conn")
 
+	tc.ExpectedPacket.Path.(*snet.RawPath).ScionHeader = rcvPkt.PacketInfo.Path.(*snet.RawPath).ScionHeader
 	assert.Equal(t, tc.ExpectedPacket.PacketInfo, rcvPkt.PacketInfo)
 }
 

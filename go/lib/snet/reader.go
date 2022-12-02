@@ -27,7 +27,7 @@ import (
 type ReplyPather interface {
 	// ReplyPath takes the RawPath of an incoming packet and creates a path
 	// that can be used in a reply.
-	ReplyPath(RawPath) (DataplanePath, error)
+	ReplyPath(*RawPath) (DataplanePath, error)
 }
 
 type scionConnReader struct {
@@ -77,7 +77,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		return 0, nil, err
 	}
 
-	rpath, ok := pkt.Path.(RawPath)
+	rpath, ok := pkt.Path.(*RawPath)
 	if !ok {
 		return 0, nil, serrors.New("unexpected path", "type", common.TypeOf(pkt.Path))
 	}

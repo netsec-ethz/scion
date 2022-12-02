@@ -176,7 +176,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 		return nil, serrors.Wrap(errDecode, err)
 	}
 
-	rpath, ok := replyPacket.Path.(snet.RawPath)
+	rpath, ok := replyPacket.Path.(*snet.RawPath)
 	if !ok {
 		return nil, serrors.New("unexpected path", "type", common.TypeOf(replyPacket.Path))
 	}
