@@ -15,6 +15,7 @@
 package e2e
 
 import (
+	"net"
 	"time"
 
 	base "github.com/scionproto/scion/go/co/reservation"
@@ -41,7 +42,7 @@ func (r *SetupResponseSuccess) ToRaw(step int, rsvID *reservation.ID) ([]byte, e
 	if err != nil {
 		return nil, serrors.WrapStr("loading token", err)
 	}
-	colPath := DeriveColibriPath(rsvID, tok)
+	colPath := DeriveColibriPath(rsvID, 0, net.IPv4(0, 0, 0, 0), 0, net.IPv4(0, 0, 0, 0), tok)
 	colPath.InfoField.HFCount = uint8(len(colPath.HopFields))
 
 	// marker + authenticated response + path

@@ -17,20 +17,20 @@ package path
 import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Colibri represents a Colibri path in the data plane. For now, only static MACs are supported.
 type Colibri struct {
-	colibri.ColibriPathMinimal
+	colpath.ColibriPathMinimal
 }
 
 var _ snet.DataplanePath = Colibri{}
 
 func (p Colibri) SetPath(s *slayers.SCION) error {
 	// p.ColibriPathMinimal.InfoField.OrigPayLen = s.PayloadLen
-	s.Path, s.PathType = &p.ColibriPathMinimal, colibri.PathType
+	s.Path, s.PathType = &p.ColibriPathMinimal, colpath.PathType
 
 	// if p.Src != nil {
 	// 	s.SrcIA = p.Src.IA

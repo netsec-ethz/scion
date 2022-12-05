@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/serrors"
-	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -237,15 +236,15 @@ func (c grpcConn) ColibriSetupRsv(ctx context.Context, req *col.E2EReservationSe
 	if err != nil {
 		return nil, serrors.WrapStr("parsing next hop", err)
 	}
-	colPath := colpath.ColibriPathMinimal{}
-	if err := colPath.DecodeFromBytes(sdRes.Base.Success.TransportPath); err != nil {
+	colPath, err := base.ColPathFromRaw(sdRes.Base.Success.TransportPath)
+	if err != nil {
 		return nil, serrors.WrapStr("error decoding colibri path", err)
 	}
 	return &col.E2EResponse{
 		Authenticators: sdRes.Base.Authenticators.Macs,
 		ColibriPath: &path.Path{
 			DataplanePath: path.Colibri{
-				ColibriPathMinimal: colPath,
+				ColibriPathMinimal: *colPath,
 			},
 			NextHop: nextHop,
 		},

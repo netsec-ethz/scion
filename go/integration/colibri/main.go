@@ -172,6 +172,8 @@ func (s server) accept(conn *snet.Conn, buffer []byte) error {
 	if !ok {
 		return serrors.New("not a scion address", "addr", from)
 	}
+	log.Debug("deleteme", "type", fmt.Sprintf("%T", fromScion.Path),
+		"path", fromScion.Path)
 
 	data := buffer[:n]
 	if !strings.HasPrefix(string(data), "colibri test") {

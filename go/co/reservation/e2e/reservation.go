@@ -16,6 +16,7 @@ package e2e
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
+	caddr "github.com/scionproto/scion/go/lib/slayers/path/colibri/addr"
 )
 
 // Reservation represents an E2E reservation.
@@ -186,7 +188,9 @@ func (r *Reservation) GetLastSegmentPathSteps() []base.PathStep {
 }
 
 // DeriveColibriPath builds a valid colibi path based on the arguments.
-func DeriveColibriPath(id *reservation.ID, tok *reservation.Token) *colpath.ColibriPath {
+func DeriveColibriPath(id *reservation.ID, srcIA addr.IA, srcHost net.IP,
+	dstIA addr.IA, dstHost net.IP, tok *reservation.Token) *colpath.ColibriPath {
+
 	p := &colpath.ColibriPath{
 		InfoField: &colpath.InfoField{
 			C:           false,
@@ -200,6 +204,8 @@ func DeriveColibriPath(id *reservation.ID, tok *reservation.Token) *colpath.Coli
 			Rlc:         uint8(tok.RLC),
 		},
 		HopFields: make([]*colpath.HopField, len(tok.HopFields)),
+		Src:       caddr.NewEndpointWithIP(srcIA, srcHost),
+		Dst:       caddr.NewEndpointWithIP(dstIA, dstHost),
 	}
 	copy(p.InfoField.ResIdSuffix, id.Suffix)
 	for i, hf := range tok.HopFields {

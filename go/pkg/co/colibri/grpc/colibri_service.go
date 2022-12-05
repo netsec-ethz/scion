@@ -333,13 +333,17 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		if err != nil {
 			return nil, serrors.WrapStr("decoding token in colibri service", err)
 		}
-		colPath := e2e.DeriveColibriPath(&req.ID, token)
+		colPath := e2e.DeriveColibriPath(&req.ID, req.Steps.SrcIA(), req.SrcHost,
+			req.Steps.DstIA(), req.DstHost, token)
 		egressId := ""
 		if len(colPath.HopFields) > 0 {
 			egressId = fmt.Sprintf("%d", colPath.HopFields[0].EgressId)
 		}
-		transportPath := make([]byte, colPath.Len())
-		err = colPath.SerializeTo(transportPath)
+		min, err := colPath.ToMinimal()
+		if err != nil {
+			return nil, serrors.WrapStr("minimizing a colibri path in colibri service", err)
+		}
+		transportPath, err := base.ColPathToRaw(min)
 		if err != nil {
 			return nil, serrors.WrapStr("serializing a colibri path in colibri service", err)
 		}
