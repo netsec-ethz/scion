@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
@@ -58,6 +59,8 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			}
 
 		}
+		log.Debug("deleteme writing with snet", "path", a.Path, "dst", dst, "ip", a.Host.IP,
+			"host_type", fmt.Sprintf("%T", a.Host))
 	case *SVCAddr:
 		dst, port, path = SCIONAddress{IA: a.IA, Host: a.SVC}, 0, a.Path
 		nextHop = a.NextHop

@@ -100,6 +100,13 @@ func (s *SCION) NetworkFlow() gopacket.Flow {
 }
 
 func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
+	// allow to modify values in the SCION header or path:
+	// log.Debug("deleteme pre-sync", "path", s.Path)
+	if err := s.Path.SyncWithScionHeader(&s.Header); err != nil {
+		return err
+	}
+	// log.Debug("deleteme post-sync", "path", s.Path)
+
 	scnLen := CmnHdrLen + s.AddrHdrLen() + s.Path.Len()
 	buf, err := b.PrependBytes(scnLen)
 	if err != nil {
@@ -127,9 +134,6 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	offset := CmnHdrLen + s.AddrHdrLen()
 
 	// Serialize path header.
-	if err := s.Path.SyncWithScionHeader(&s.Header); err != nil {
-		return err
-	}
 	return s.Path.SerializeTo(buf[offset:])
 }
 
@@ -277,6 +281,9 @@ func (s *SCION) SerializeAddrHdr(buf []byte) error {
 	dstAddrBytes := addrBytes(s.DstAddrLen)
 	srcAddrBytes := addrBytes(s.SrcAddrLen)
 	offset := 0
+
+	// log.Debug("deleteme address header", "dstIA", s.DstIA)
+
 	binary.BigEndian.PutUint64(buf[offset:], uint64(s.DstIA))
 	offset += addr.IABytes
 	binary.BigEndian.PutUint64(buf[offset:], uint64(s.SrcIA))

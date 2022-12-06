@@ -98,7 +98,7 @@ func (c *colibriPacketProcessor) basicValidation() (processResult, error) {
 		str += fmt.Sprintf("[%d] in: %d, eg: %d, MAC: %s\n", i, hf.IngressId, hf.EgressId, hex.EncodeToString(hf.Mac))
 	}
 
-	log.Debug("                       deleteme colibri packet",
+	log.Debug("-------- deleteme colibri packet",
 		"path", c.colibriPathMinimal.String(),
 	)
 	fmt.Printf("deleteme hop fields:\n%s\n", str)
@@ -176,7 +176,13 @@ func (c *colibriPacketProcessor) cryptographicValidation() (processResult, error
 func (c *colibriPacketProcessor) forward() (processResult, error) {
 	egressId := c.colibriPathMinimal.CurrHopField.EgressId
 
-	log.Debug("deleteme colibri packet will be forwarded", "path", c.colibriPathMinimal.String())
+	_, deletemeCanForwardLocally := c.canForwardLocally(egressId)
+
+	log.Debug("deleteme colibri packet will be forwarded", "path", c.colibriPathMinimal.String(),
+		"internal_ingress", c.ingressID,
+		"egress", egressId,
+		"canForwardLocally?", deletemeCanForwardLocally,
+	)
 	if c.ingressID == 0 {
 		// Received packet from within AS
 		if conn, ok := c.canForwardLocally(egressId); ok {
@@ -254,6 +260,7 @@ func (c *colibriPacketProcessor) forwardToColibriSvc() (processResult, error) {
 	if !ok {
 		return processResult{}, serrors.New("no colibri service registered at border router")
 	}
+	log.Debug("deleteme forwarding to SvcCOL", "address", a)
 
 	// XXX(mawyss): This is a temporary solution to allow the dispatcher to forward Colibri
 	// control packets to the right destination (https://github.com/netsec-ethz/scion/pull/116).

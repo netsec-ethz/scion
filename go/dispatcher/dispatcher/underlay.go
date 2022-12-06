@@ -70,12 +70,12 @@ func (dp *NetToRingDataplane) Run() error {
 			).Inc()
 			continue
 		}
-		// deleteme use the pkt.UnderlayLocal to redirect the packet to the appropriate service
-		// if colibri and C=1
-		log.Debug("                         deleteme local dispatcher",
-			"listening", dp.UnderlayConn.LocalAddr().String(),
-			"local", pkt.UnderlayLocal,
-			"remote", pkt.UnderlayRemote)
+		// // deleteme use the pkt.UnderlayLocal to redirect the packet to the appropriate service
+		// // if colibri and C=1
+		// log.Debug("                         deleteme local dispatcher",
+		// 	"listening", dp.UnderlayConn.LocalAddr().String(),
+		// 	"local", pkt.UnderlayLocal,
+		// 	"remote", pkt.UnderlayRemote)
 		metrics.M.NetReadPkts(metrics.IncomingPacket{Result: metrics.PacketResultOk}).Inc()
 		dst.Send(dp, pkt)
 	}
@@ -113,6 +113,7 @@ func getDstUDP(pkt *respool.Packet) (Destination, error) {
 		if colPath.InfoField.C {
 			dstIA = addr.IA(binary.BigEndian.Uint64(colPath.PacketTimestamp[:]))
 		}
+		log.Debug("deleteme colibri packet", "DstIA", dstIA, "path", pkt.SCION.Path)
 	}
 
 	switch d := dst.(type) {

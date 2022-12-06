@@ -120,13 +120,16 @@ func (c *ColibriPathMinimal) DecodeFromBytes(b []byte) error {
 		return err
 	}
 	c.Raw = b[:c.Len()]
+	// log.Debug("deleteme decoded colibri path", "path", c)
 	return nil
 }
 
 func (c *ColibriPathMinimal) BuildFromHeader(b []byte, sc *scion.Header) error {
 	c.Src = caddr.NewEndpointWithRaw(sc.SrcIA, sc.RawSrcAddr, sc.SrcAddrType, sc.SrcAddrLen)
 	c.Dst = caddr.NewEndpointWithRaw(sc.DstIA, sc.RawDstAddr, sc.DstAddrType, sc.DstAddrLen)
-	return c.DecodeFromBytes(b)
+	err := c.DecodeFromBytes(b)
+	// log.Debug("deleteme building from header", "path", c)
+	return err
 }
 
 // SerializeToInternal serializes the COLIBRI timestamp and info field to the Raw buffer. No hop
@@ -173,9 +176,8 @@ func (c *ColibriPathMinimal) SerializeTo(b []byte) error {
 }
 
 func (c *ColibriPathMinimal) SyncWithScionHeader(scion *scion.Header) error {
-	log.Debug("deleteme colibri path sync",
-		"path", c.String(),
-	)
+
+	// log.Debug("deleteme before colibri path sync", "path", c.String())
 
 	if !c.InfoField.R && !c.InfoField.C {
 		// Update the size for the replier to use it in the MAC verification (EER non reply only).
@@ -191,7 +193,7 @@ func (c *ColibriPathMinimal) SyncWithScionHeader(scion *scion.Header) error {
 		panic("src is nil")
 	}
 
-	scion.SrcIA, scion.RawSrcAddr, scion.SrcAddrType, scion.SrcAddrLen = c.Dst.Raw()
+	scion.SrcIA, scion.RawSrcAddr, scion.SrcAddrType, scion.SrcAddrLen = c.Src.Raw()
 	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
 	// correctly. For now, we need to keep the IP address of the original sender, which is
 	// each one of the colibri services that contact the next colibri service.
@@ -199,6 +201,8 @@ func (c *ColibriPathMinimal) SyncWithScionHeader(scion *scion.Header) error {
 	// scion.SrcAddrType = p.Src.HostType
 	// scion.SrcAddrLen = p.Src.HostLen
 	scion.DstIA, scion.RawDstAddr, scion.DstAddrType, scion.DstAddrLen = c.Dst.Raw()
+
+	// log.Debug("deleteme after colibri path sync", "path", c.String())
 
 	return nil
 }
@@ -231,7 +235,7 @@ func (c *ColibriPathMinimal) Reverse() (path.Path, error) {
 	// path first. If this becomes a performance bottleneck, the implementation should be changed to
 	// work directly on the ColibriPathMinimal.Raw buffer.
 
-	log.Debug("deleteme reversing colibri path", "original", c)
+	// log.Debug("deleteme reversing colibri path", "original", c)
 	if c == nil {
 		return nil, serrors.New("colibri path must not be nil")
 	}

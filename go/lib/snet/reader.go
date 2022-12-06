@@ -15,11 +15,14 @@
 package snet
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -45,8 +48,7 @@ type scionConnReader struct {
 // If a message is too long to fit in the supplied buffer, excess bytes may be
 // discarded.
 func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, a, err := c.read(b)
-	return n, a, err
+	return c.read(b)
 }
 
 // Read reads data into b from a connection with a fixed remote address. If the
@@ -60,7 +62,7 @@ func (c *scionConnReader) Read(b []byte) (int, error) {
 
 // read returns the number of bytes read, the address that sent the bytes and
 // an error (if one occurred).
-func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
+func (c *scionConnReader) read(b []byte) (int, net.Addr, error) {
 	if c.base.scionNet == nil {
 		return 0, nil, serrors.New("SCION network not initialized")
 	}
@@ -92,19 +94,36 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	}
 	n := copy(b, udp.Payload)
 
-	// Extract remote address.
-	// Copy the address data to prevent races. See
-	// https://github.com/scionproto/scion/issues/1659.
-	remote := &UDPAddr{
-		IA: pkt.Source.IA,
-		Host: CopyUDPAddr(&net.UDPAddr{
-			IP:   pkt.Source.Host.IP(),
-			Port: int(udp.SrcPort),
-		}),
-		Path:    replyPath,
-		NextHop: CopyUDPAddr(&lastHop),
+	var remoteAddr net.Addr
+	switch pkt.Source.Host.Type() {
+	case addr.HostTypeSVC:
+		remoteAddr = &SVCAddr{
+			IA:      pkt.Source.IA,
+			SVC:     pkt.Source.Host.(addr.HostSVC),
+			Path:    replyPath,
+			NextHop: CopyUDPAddr(&lastHop),
+		}
+	case addr.HostTypeIPv4:
+		fallthrough
+	case addr.HostTypeIPv6:
+		// Extract remote address.
+		// Copy the address data to prevent races. See
+		// https://github.com/scionproto/scion/issues/1659.
+		remoteAddr = &UDPAddr{
+			IA: pkt.Source.IA,
+			Host: CopyUDPAddr(&net.UDPAddr{
+				IP:   pkt.Source.Host.IP(),
+				Port: int(udp.SrcPort),
+			}),
+			Path:    replyPath,
+			NextHop: CopyUDPAddr(&lastHop),
+		}
+	default:
+		return 0, nil, serrors.New("invalid type of host in packet",
+			"type", fmt.Sprintf("%T", pkt.Source.Host))
 	}
-	return n, remote, nil
+	log.Debug("deleteme reading with snet", "n", n, "remote", remoteAddr)
+	return n, remoteAddr, nil
 }
 
 func (c *scionConnReader) SetReadDeadline(t time.Time) error {

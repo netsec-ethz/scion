@@ -669,6 +669,7 @@ func (s *Store) ActivateSegmentReservation(
 			return failedResponse, nil
 		}
 	}
+	log.Debug("deleteme storing reservation", "path", rsv.TransportPath)
 	if err = tx.PersistSegmentRsv(ctx, rsv); err != nil {
 		return failedResponse, s.errWrapStr("cannot persist segment reservation", err,
 			"id", req.ID.String())

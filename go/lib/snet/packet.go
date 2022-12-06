@@ -15,6 +15,7 @@
 package snet
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/google/gopacket"
@@ -630,6 +631,6 @@ func hostAddrToNetAddr(a addr.HostAddr) (net.Addr, error) {
 	case addr.HostIPv4, addr.HostIPv6:
 		return &net.IPAddr{IP: aImpl.IP()}, nil
 	default:
-		return nil, serrors.New("address not supported", "a", a)
+		return nil, serrors.New("address not supported", "a", a, "type", fmt.Sprintf("%T", a))
 	}
 }
