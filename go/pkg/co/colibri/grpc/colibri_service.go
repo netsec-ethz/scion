@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"google.golang.org/grpc/peer"
@@ -333,12 +334,12 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		if err != nil {
 			return nil, serrors.WrapStr("decoding token in colibri service", err)
 		}
+
 		colPath := e2e.DeriveColibriPath(&req.ID, req.Steps.SrcIA(), req.SrcHost,
 			req.Steps.DstIA(), req.DstHost, token)
-		egressId := ""
-		if len(colPath.HopFields) > 0 {
-			egressId = fmt.Sprintf("%d", colPath.HopFields[0].EgressId)
-		}
+
+		egressId := strconv.Itoa(int(colPath.HopFields[0].EgressId))
+
 		min, err := colPath.ToMinimal()
 		if err != nil {
 			return nil, serrors.WrapStr("minimizing a colibri path in colibri service", err)
@@ -347,10 +348,11 @@ func (s *ColibriService) SetupReservation(ctx context.Context, msg *colpb.SetupR
 		if err != nil {
 			return nil, serrors.WrapStr("serializing a colibri path in colibri service", err)
 		}
-		// nexthop holds the interface id until the daemon resolves it with the topology
+
 		pbMsg.Success = &colpb.SetupReservationResponse_Success{
 			TransportPath: transportPath,
-			NextHop:       egressId,
+			// NextHop holds the interface id until the daemon resolves it with the topology
+			NextHop: egressId,
 		}
 	}
 	return pbMsg, nil
