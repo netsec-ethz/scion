@@ -138,6 +138,15 @@ func (ep *Endpoint) SerializeTo(buff []byte) {
 	copy(buff[11:], ep.host)
 }
 
+func (ep *Endpoint) Clone() *Endpoint {
+	return &Endpoint{
+		IA:       ep.IA,
+		host:     append(ep.host[:0:0], ep.host...),
+		hostType: ep.hostType,
+		hostLen:  ep.hostLen,
+	}
+}
+
 func NewEndpointFromSerialized(buff []byte) *Endpoint {
 	if buff[0] == 0 {
 		return nil

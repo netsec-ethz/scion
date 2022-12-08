@@ -193,14 +193,18 @@ func (c *ColibriPathMinimal) SyncWithScionHeader(scion *scion.Header) error {
 		panic("src is nil")
 	}
 
-	scion.SrcIA, scion.RawSrcAddr, scion.SrcAddrType, scion.SrcAddrLen = c.Src.Raw()
+	// deleteme: we should be able to also set the Src and Dst hosts. But it doesn't work.
+
+	// scion.SrcIA, scion.RawSrcAddr, scion.SrcAddrType, scion.SrcAddrLen = c.Src.Raw()
+	scion.SrcIA = c.Src.IA
 	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
 	// correctly. For now, we need to keep the IP address of the original sender, which is
 	// each one of the colibri services that contact the next colibri service.
 	// scion.RawSrcAddr = p.Src.Host
 	// scion.SrcAddrType = p.Src.HostType
 	// scion.SrcAddrLen = p.Src.HostLen
-	scion.DstIA, scion.RawDstAddr, scion.DstAddrType, scion.DstAddrLen = c.Dst.Raw()
+	// scion.DstIA, scion.RawDstAddr, scion.DstAddrType, scion.DstAddrLen = c.Dst.Raw()
+	scion.DstIA = c.Dst.IA
 
 	// log.Debug("deleteme after colibri path sync", "path", c.String())
 
@@ -328,5 +332,7 @@ func (c *ColibriPathMinimal) Clone() *ColibriPathMinimal {
 		Raw:             append([]byte{}, c.Raw...),
 		InfoField:       c.InfoField.Clone(),
 		CurrHopField:    c.CurrHopField.Clone(),
+		Src:             c.Src.Clone(),
+		Dst:             c.Dst.Clone(),
 	}
 }
