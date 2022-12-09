@@ -295,7 +295,6 @@ func TestDeriveColibriPathAtSource(t *testing.T) {
 }
 
 func TestDeriveColibriPathAtDestination(t *testing.T) {
-
 	cases := map[string]struct {
 		SegR *segment.Reservation
 	}{
@@ -303,7 +302,7 @@ func TestDeriveColibriPathAtDestination(t *testing.T) {
 			SegR: &segment.Reservation{
 				PathType: reservation.DownPath,
 				// steps always in the direction of the traffic
-				Steps:       test.NewSteps("1-ff00:0:3", 4, 3, "1-ff00:0:2", 2, 1, "1-ff00:0:1"),
+				Steps:       test.NewSteps("1-ff00:0:1", 1, 2, "1-ff00:0:2", 3, 4, "1-ff00:0:3"),
 				CurrentStep: 1,
 				ID:          *test.MustParseID("ff00:0:1", "01234567"),
 				Indices: segment.Indices{segment.Index{
@@ -316,14 +315,14 @@ func TestDeriveColibriPathAtDestination(t *testing.T) {
 						HopFields: []reservation.HopField{
 							{
 								Ingress: 0,
-								Egress:  4,
+								Egress:  1,
 							},
 							{
-								Ingress: 3,
-								Egress:  2,
+								Ingress: 2,
+								Egress:  3,
 							},
 							{
-								Ingress: 1,
+								Ingress: 4,
 								Egress:  0,
 							},
 						},
@@ -376,11 +375,6 @@ func TestDeriveColibriPathAtDestination(t *testing.T) {
 			colPath := colibriMinimalToRegular(t, tc.SegR.DeriveColibriPathAtDestination())
 			// Because the SCION layer reverses the src and dst ASes, simulate it here:
 			srcAS, dstAS = dstAS, srcAS
-			// also reverse the order of the keys per AS, so that they are picked up correctly
-			for i := 0; i < len(colibriKeys)/2; i++ {
-				colibriKeys[i], colibriKeys[len(colibriKeys)-i-1] =
-					colibriKeys[len(colibriKeys)-i-1], colibriKeys[i]
-			}
 			test.VerifyMACs(t, colPath, colibriKeys, srcAS, dstAS)
 		})
 	}

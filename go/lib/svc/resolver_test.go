@@ -157,7 +157,7 @@ func TestRoundTripper(t *testing.T) {
 							panic(err)
 						}
 						pkt.Payload = snet.UDPPayload{Payload: raw}
-						pkt.Path = snet.RawPath{}
+						pkt.Path = &snet.RawPath{}
 						return nil
 					},
 				)

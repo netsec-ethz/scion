@@ -1322,6 +1322,7 @@ func TestProcessColibriPkt(t *testing.T) {
 				dst := &net.IPAddr{IP: net.ParseIP("10.0.0.3").To4()}
 				spkt.SetDstAddr(dst)
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				cpath.Dst.IA = spkt.DstIA
 
 				cpath.HopFields[4].Mac = computeColibriMac(t, key, cpath, spkt, 4,
 					cpath.PacketTimestamp)
@@ -1438,7 +1439,10 @@ func TestProcessColibriPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"))
 				dst := &net.IPAddr{IP: net.ParseIP("10.0.0.3").To4()}
 				spkt.SetSrcAddr(dst)
+				cpath.Src = caddr.NewEndpointWithAddr(spkt.DstIA, dst)
+
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
+				cpath.Src.IA = spkt.SrcIA
 				cpath.HopFields[0].Mac = computeColibriMac(t, key, cpath, spkt, 0,
 					cpath.PacketTimestamp)
 				reverse(t, spkt, cpath)

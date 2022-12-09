@@ -233,7 +233,7 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
-					Path:    snet.RawPath{},
+					Path:    &snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
@@ -250,7 +250,7 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{SrcPort: 42, DstPort: 73},
-					Path:    snet.RawPath{},
+					Path:    &snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
@@ -267,7 +267,7 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
-					Path:    snet.RawPath{},
+					Path:    &snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
@@ -284,7 +284,7 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
-					Path:    snet.RawPath{},
+					Path:    &snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
@@ -334,7 +334,7 @@ func TestDefaultHandler(t *testing.T) {
 		packet := &snet.Packet{
 			PacketInfo: snet.PacketInfo{
 				Payload: snet.UDPPayload{},
-				Path:    snet.RawPath{},
+				Path:    &snet.RawPath{},
 			},
 		}
 		expectedPacket := &snet.Packet{

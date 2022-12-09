@@ -100,13 +100,6 @@ func (s *SCION) NetworkFlow() gopacket.Flow {
 }
 
 func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
-	// allow to modify values in the SCION header or path:
-	// log.Debug("deleteme pre-sync", "path", s.Path)
-	if err := s.Path.SyncWithScionHeader(&s.Header); err != nil {
-		return err
-	}
-	// log.Debug("deleteme post-sync", "path", s.Path)
-
 	scnLen := CmnHdrLen + s.AddrHdrLen() + s.Path.Len()
 	buf, err := b.PrependBytes(scnLen)
 	if err != nil {
@@ -116,6 +109,14 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 		s.HdrLen = uint8(scnLen / LineLen)
 		s.PayloadLen = uint16(len(b.Bytes()) - scnLen)
 	}
+
+	// allow to modify values in the SCION header or in the path:
+	// log.Debug("deleteme pre-sync", "path", s.Path)
+	if err := s.Path.SyncWithScionHeader(&s.Header); err != nil {
+		return err
+	}
+	// log.Debug("deleteme post-sync", "path", s.Path)
+
 	// Serialize common header.
 	firstLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass)<<20 | s.FlowID&0xFFFFF
 	binary.BigEndian.PutUint32(buf[:4], firstLine)
