@@ -90,13 +90,12 @@ func (ep Endpoint) Addr() (addr.IA, net.Addr, error) {
 	return ep.IA, addr, err
 }
 
-func (ep *Endpoint) Raw() (
-	ia addr.IA, host []byte, hostType scion.AddrType, hostLen scion.AddrLen) {
+func (ep *Endpoint) HostAsRaw() (host []byte, hostType scion.AddrType, hostLen scion.AddrLen) {
 
 	if ep == nil {
-		return 0, nil, 0, 0
+		return nil, 0, 0
 	}
-	return ep.IA, ep.host, ep.hostType, ep.hostLen
+	return ep.host, ep.hostType, ep.hostLen
 }
 
 func (ep Endpoint) String() string {
