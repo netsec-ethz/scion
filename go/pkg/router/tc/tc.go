@@ -45,7 +45,7 @@ const (
 )
 
 // Number of packets to schedule in a single scheduling round.
-const outputBatchCnt = 8
+const outputBatchCnt = 2
 
 // Queues describes the queues (one for each traffic class) for a certain router interface.
 // The 'mapping' translates traffic classes to their respective queue. The 'nonempty' channel is
