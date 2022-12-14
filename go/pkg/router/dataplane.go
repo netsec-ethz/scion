@@ -27,7 +27,6 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/google/gopacket"
@@ -56,6 +55,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/router/bfd"
 	"github.com/scionproto/scion/go/pkg/router/control"
+	"github.com/scionproto/scion/go/pkg/router/tc"
 )
 
 const (
@@ -93,7 +93,7 @@ type BatchConn interface {
 //
 // XXX(lukedirtwalker): this is still in development and not feature complete.
 // Currently, only the following features are supported:
-//  - initializing connections; MUST be done prior to calling Run
+//   - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType
@@ -110,6 +110,8 @@ type DataPlane struct {
 	running           bool
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
+	TC                bool
+	queueMap          map[BatchConn]*tc.Queues
 }
 
 var (
@@ -315,6 +317,7 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 		dstIA:   dst.IA,
 		ifID:    ifID,
 		mac:     d.macFactory(),
+		d:       d,
 	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
@@ -467,6 +470,7 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 		dstIA:   d.localIA,
 		ifID:    0,
 		mac:     d.macFactory(),
+		d:       d,
 	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
@@ -526,34 +530,56 @@ func (d *DataPlane) Run(ctx context.Context) error {
 				if result.OutConn == nil { // e.g. BFD case no message is forwarded
 					continue
 				}
-
-				// Write to OutConn; drop the packet if this would block.
-				// Use WriteBatch because it's the only available function that
-				// supports MSG_DONTWAIT.
-				writeMsgs[0].Buffers[0] = result.OutPkt
-				writeMsgs[0].Addr = nil
-				if result.OutAddr != nil { // don't assign directly to net.Addr, typed nil!
-					writeMsgs[0].Addr = result.OutAddr
-				}
-
-				_, err = result.OutConn.WriteBatch(writeMsgs, syscall.MSG_DONTWAIT)
-				if err != nil {
-					var errno syscall.Errno
-					if !errors.As(err, &errno) ||
-						!(errno == syscall.EAGAIN || errno == syscall.EWOULDBLOCK) {
-						log.Debug("Error writing packet", "err", err)
-						// error metric
-					}
-					inputCounters.DroppedPacketsTotal.Inc()
+				if !d.enqueue(&result) {
 					continue
 				}
-				// ok metric
-				outputCounters := d.forwardingMetrics[result.EgressID]
-				outputCounters.OutputPacketsTotal.Inc()
-				outputCounters.OutputBytesTotal.Add(float64(len(result.OutPkt)))
 			}
 		}
 	}
+
+	write := func(egressID uint16, rd BatchConn) {
+		defer log.HandlePanic()
+
+		myQueues, ok := d.queueMap[rd]
+		if !ok {
+			panic("Error getting queues for scheduling")
+		}
+		if d.TC {
+			myQueues.SetScheduler(tc.SchedStrictPriority)
+		} else {
+			myQueues.SetScheduler(tc.SchedOthersOnly)
+		}
+
+		for d.running {
+			myQueues.WaitUntilNonempty()
+			ms, err := myQueues.Schedule()
+			if err != nil {
+				log.Debug("Error scheduling packet", "err", err)
+			}
+
+			if len(ms) > 0 {
+				for _, m := range ms {
+					addr := m.Addr.(*net.UDPAddr)
+					_, err = rd.WriteTo(m.Buffers[0], addr)
+					if err != nil {
+						log.Debug("Error writing packet", "err", err)
+						continue
+					}
+
+					// ok metric
+					outputCounters := d.forwardingMetrics[egressID]
+					outputCounters.OutputPacketsTotal.Inc()
+					outputCounters.OutputBytesTotal.Add(float64(len(m.Buffers[0])))
+				}
+				myQueues.ReturnBuffers(ms)
+			}
+		}
+	}
+
+	for _, v := range d.external {
+		d.addQueues(v)
+	}
+	d.addQueues(d.internal)
 
 	for k, v := range d.bfdSessions {
 		go func(ifID uint16, c bfdSession) {
@@ -566,9 +592,18 @@ func (d *DataPlane) Run(ctx context.Context) error {
 	for ifID, v := range d.external {
 		go func(i uint16, c BatchConn) {
 			defer log.HandlePanic()
+			write(i, c)
+		}(ifID, v)
+		go func(i uint16, c BatchConn) {
+			defer log.HandlePanic()
 			read(i, c)
 		}(ifID, v)
 	}
+
+	go func(c BatchConn) {
+		defer log.HandlePanic()
+		write(0, c)
+	}(d.internal)
 	go func(c BatchConn) {
 		defer log.HandlePanic()
 		read(0, c)
@@ -578,6 +613,37 @@ func (d *DataPlane) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+// addQueues creates new packet queues for the given connection.
+func (d *DataPlane) addQueues(conn BatchConn) {
+	if d.queueMap == nil {
+		d.queueMap = make(map[BatchConn]*tc.Queues)
+	}
+	if _, ok := d.queueMap[conn]; !ok {
+		d.queueMap[conn] = tc.NewQueues(d.TC, bufSize)
+	}
+}
+
+// enqueue puts the processed packet into the queue of the correct router interface.
+func (d *DataPlane) enqueue(result *processResult) bool {
+	otherConnectionQueues, ok := d.queueMap[result.OutConn]
+	if !ok {
+		log.Debug("Error finding queues for scheduling")
+		return false
+	}
+	var cls tc.TrafficClass
+	if d.TC {
+		cls = result.Class
+	} else {
+		cls = tc.ClsOthers
+	}
+	err := otherConnectionQueues.Enqueue(cls, result.OutPkt, result.OutAddr)
+	if err != nil {
+		log.Debug("Enqueue failed", "err", err)
+		return false
+	}
+	return true
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
@@ -601,6 +667,7 @@ type processResult struct {
 	OutConn  BatchConn
 	OutAddr  *net.UDPAddr
 	OutPkt   []byte
+	Class    tc.TrafficClass
 }
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
@@ -773,6 +840,12 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		}
 	}
 
+	// Prioritize EPIC packets at the last two hops:
+	result.Class = tc.ClsOthers
+	if isPenultimate || isLast {
+		result.Class = tc.ClsEpic
+	}
+
 	return result, nil
 }
 
@@ -785,7 +858,9 @@ func (p *scionPacketProcessor) processCOLIBRI() (processResult, error) {
 		scionLayer: p.scionLayer,
 		buffer:     p.buffer,
 	}
-	return c.process()
+	r, err := c.process()
+	r.Class = tc.ClsColibri
+	return r, err
 }
 
 // scionPacketProcessor processes packets. It contains pre-allocated per-packet
@@ -1312,8 +1387,10 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		// OHP should always be directed to the correct BR.
 		if c, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
-			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c, OutPkt: p.rawPkt},
-				nil
+			/* return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c,
+			OutPkt: p.rawPkt}, nil */
+			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c,
+				OutPkt: p.rawPkt, Class: tc.ClsOhpEmpty}, nil
 		}
 		// TODO parameter problem invalid interface
 		return processResult{}, serrors.WithCtx(cannotRoute, "type", "ohp",
@@ -1349,7 +1426,9 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err != nil {
 		return processResult{}, err
 	}
-	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+	/* return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil */
+	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt,
+		Class: tc.ClsOhpEmpty}, nil
 }
 
 func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
@@ -1402,6 +1481,7 @@ type bfdSend struct {
 	srcIA, dstIA     addr.IA
 	mac              hash.Hash
 	ifID             uint16
+	d                *DataPlane
 }
 
 func (b *bfdSend) String() string {
@@ -1456,8 +1536,21 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.conn.WriteTo(buffer.Bytes(), b.dstAddr)
-	return err
+	//_, err = b.conn.WriteTo(buffer.Bytes(), b.dstAddr)
+	//return err
+
+	r := &processResult{
+		OutAddr:  b.dstAddr,
+		OutPkt:   buffer.Bytes(),
+		OutConn:  b.conn,
+		EgressID: b.ifID,
+		Class:    tc.ClsOhpEmpty,
+	}
+	if !b.d.enqueue(r) {
+		return serrors.New("Bfd enqueue failed")
+	}
+	return nil
+
 }
 
 func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
