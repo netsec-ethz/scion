@@ -1387,8 +1387,6 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		// OHP should always be directed to the correct BR.
 		if c, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
-			/* return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c,
-			OutPkt: p.rawPkt}, nil */
 			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c,
 				OutPkt: p.rawPkt, Class: tc.ClsOhpEmpty}, nil
 		}
@@ -1426,7 +1424,6 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err != nil {
 		return processResult{}, err
 	}
-	/* return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil */
 	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt,
 		Class: tc.ClsOhpEmpty}, nil
 }
@@ -1536,8 +1533,6 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	if err != nil {
 		return err
 	}
-	//_, err = b.conn.WriteTo(buffer.Bytes(), b.dstAddr)
-	//return err
 
 	r := &processResult{
 		OutAddr:  b.dstAddr,
