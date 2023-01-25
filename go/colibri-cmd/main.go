@@ -20,9 +20,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/app"
-	"github.com/spf13/cobra"
 )
 
 type RootFlags struct {

@@ -20,13 +20,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	sgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
-	"github.com/spf13/cobra"
 )
 
 type traceRouteFlags struct {
@@ -39,7 +40,7 @@ func newTraceroute(parent *cobra.Command) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "traceroute [flags] segR_ID",
 		Short: "Traceroute a segment reservation",
-		Example: fmt.Sprintf("  %s traceroute -dbgsrv 127.0.0.11:31032 ff00:0:113-00000002",
+		Example: fmt.Sprintf("  %s traceroute --dbgsrv 127.0.0.11:31032 ff00:0:113-00000002",
 			parent.CommandPath()),
 		Long: "'traceroute' will request the segment reservation identified by ID, " +
 			"and send a message to the next AS that appears in it. At every AS the " +

@@ -25,8 +25,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/sockctrl"
 	"golang.org/x/net/ipv6"
+
+	"github.com/scionproto/scion/go/lib/sockctrl"
 )
 
 type connUDPIPv6 struct {
@@ -85,7 +86,6 @@ func (c *connUDPIPv6) GetDstAddress(msgs []syscall.SocketControlMessage) (net.IP
 			if err := binary.Read(bytes.NewReader(msg.Data), binary.BigEndian, info); err != nil {
 				return nil, err
 			}
-			// info.Addr : destination address (in IP packet)
 			dstAddr = info.Addr[:]
 		}
 	}

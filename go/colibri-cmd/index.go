@@ -20,13 +20,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
 	sgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
-	"github.com/spf13/cobra"
 )
 
 type indexFlags struct {
