@@ -26,6 +26,9 @@ service ColibriDebugCommandsService {
     // Starts a Traceroute RPC.
     rpc CmdTraceroute(CmdTracerouteRequest) returns (CmdTracerouteResponse) {}
 
+    // Lists existing indices.
+    rpc CmdIndexList(CmdIndexListRequest) returns (CmdIndexListResponse) {}
+
     // Initiates a new index and confirmation requests.
     rpc CmdIndexNew(CmdIndexNewRequest) returns (CmdIndexNewResponse) {}
 
@@ -68,6 +71,24 @@ message CmdTracerouteResponse {
 }
 
 
+
+message CmdIndexListRequest {
+    // the ID of the segR.
+    ReservationID id = 1;
+}
+message CmdIndexListResponse {
+    message Index {
+        uint32 idx = 1;
+        uint32 expiration = 2;
+        uint32 state = 3;
+        uint32 minBW = 10;
+        uint32 maxBW = 11;
+        uint32 allocBW = 12;
+    }
+    // if an error exists, the complete Error structure.
+    ErrorInIA error_found = 1;
+    repeated Index indices = 2;
+}
 
 message CmdIndexNewRequest {
     // the ID of the segR.

@@ -22,10 +22,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/co/reservation/segment"
 	"github.com/scionproto/scion/go/co/reservation/translate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 	sgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
@@ -42,26 +44,43 @@ func newIndex() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "index ",
 		Short: "Manipulate segment reservation indices",
-		Long:  "'index' allows the manipulation of segment reservation indices.",
-		Args:  cobra.NoArgs,
+		Long: "Use this command against the initiator of a SegR to manipulate indices " +
+			"of the reservation.",
+		Args: cobra.NoArgs,
 	}
 
 	cmd.AddCommand(
-		newIndexCreate(&flags),
-		newIndexActivate(&flags),
-		newIndexCleanup(&flags),
+		indexListCmd(&flags),
+		indexCreateCmd(&flags),
+		indexActivateCmd(&flags),
+		indexCleanupCmd(&flags),
 	)
 
 	return cmd
 }
 
-func newIndexCreate(flags *indexFlags) *cobra.Command {
+func indexListCmd(flags *indexFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list segR_ID",
+		Short: "List existing indices for the SegR",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return indexList(cmd, flags, args)
+		},
+	}
+
+	addRootFlags(cmd, &flags.RootFlags)
+
+	return cmd
+}
+
+func indexCreateCmd(flags *indexFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new segR_ID",
 		Short: "Create and confirm a new index",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return indexCreateCmd(cmd, flags, args)
+			return indexCreate(cmd, flags, args)
 		},
 	}
 
@@ -71,13 +90,13 @@ func newIndexCreate(flags *indexFlags) *cobra.Command {
 	return cmd
 }
 
-func newIndexActivate(flags *indexFlags) *cobra.Command {
+func indexActivateCmd(flags *indexFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activate segR_ID index_number",
 		Short: "Activate an existing index",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return indexActivateCmd(cmd, flags, args)
+			return indexActivate(cmd, flags, args)
 		},
 	}
 
@@ -86,13 +105,13 @@ func newIndexActivate(flags *indexFlags) *cobra.Command {
 	return cmd
 }
 
-func newIndexCleanup(flags *indexFlags) *cobra.Command {
+func indexCleanupCmd(flags *indexFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cleanup segR_ID index_number",
 		Short: "Cleanup an existing index",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return indexCleanupCmd(cmd, flags, args)
+			return indexCleanup(cmd, flags, args)
 		},
 	}
 
@@ -101,7 +120,56 @@ func newIndexCleanup(flags *indexFlags) *cobra.Command {
 	return cmd
 }
 
-func indexCreateCmd(cmd *cobra.Command, flags *indexFlags, args []string) error {
+func indexList(cmd *cobra.Command, flags *indexFlags, args []string) error {
+	cliAddr, err := flags.DebugServer()
+	if err != nil {
+		return err
+	}
+	id, err := reservation.IDFromString(args[0])
+	if err != nil {
+		return serrors.WrapStr("parsing the ID of the segment reservation", err)
+	}
+	cmd.SilenceUsage = true
+
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+
+	grpcDialer := sgrpc.TCPDialer{}
+	conn, err := grpcDialer.Dial(ctx, cliAddr)
+	if err != nil {
+		return serrors.WrapStr("dialing to the local debug service", err)
+	}
+	client := colpb.NewColibriDebugCommandsServiceClient(conn)
+
+	// Request to list indices.
+	req := &colpb.CmdIndexListRequest{
+		Id: translate.PBufID(id),
+	}
+	res, err := client.CmdIndexList(ctx, req)
+	if err != nil {
+		return err
+	}
+	if res.ErrorFound != nil {
+		return serrors.New(
+			fmt.Sprintf("at IA %s: %s\n", addr.IA(res.ErrorFound.Ia), res.ErrorFound.Message))
+	}
+
+	// Print out the list of indices.
+	for _, idx := range res.Indices {
+		fmt.Printf("%2v: %9s exp: %30s min: %dKbps, max: %dKbps, alloc: %dKbps\n",
+			reservation.IndexNumber(idx.Idx),
+			segment.IndexState(idx.State),
+			util.SecsToTime(idx.Expiration),
+			reservation.BWCls(idx.MinBW).ToKbps(),
+			reservation.BWCls(idx.MaxBW).ToKbps(),
+			reservation.BWCls(idx.AllocBW).ToKbps(),
+		)
+	}
+
+	return nil
+}
+
+func indexCreate(cmd *cobra.Command, flags *indexFlags, args []string) error {
 	cliAddr, err := flags.DebugServer()
 	if err != nil {
 		return err
@@ -146,7 +214,6 @@ func indexCreateCmd(cmd *cobra.Command, flags *indexFlags, args []string) error 
 func activateIdx(ctx context.Context, client colpb.ColibriDebugCommandsServiceClient,
 	segID *colpb.ReservationID, idx uint32) error {
 
-	// new index
 	req := &colpb.CmdIndexActivateRequest{
 		Id:    segID,
 		Index: idx,
@@ -163,11 +230,11 @@ func activateIdx(ctx context.Context, client colpb.ColibriDebugCommandsServiceCl
 	return nil
 }
 
-func indexActivateCmd(cmd *cobra.Command, flags *indexFlags, args []string) error {
+func indexActivate(cmd *cobra.Command, flags *indexFlags, args []string) error {
 	return requestWithIndex(cmd, flags, args, activateIdx)
 }
 
-func indexCleanupCmd(cmd *cobra.Command, flags *indexFlags, args []string) error {
+func indexCleanup(cmd *cobra.Command, flags *indexFlags, args []string) error {
 	cleanupFcn := func(ctx context.Context, client colpb.ColibriDebugCommandsServiceClient,
 		segID *colpb.ReservationID, idx uint32) error {
 

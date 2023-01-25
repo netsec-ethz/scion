@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 	colpb "github.com/scionproto/scion/go/pkg/proto/colibri"
 )
 
@@ -109,6 +110,38 @@ func (s *debugService) CmdTraceroute(ctx context.Context, req *colpb.CmdTracerou
 
 	res, err := s.Traceroute(ctx, (*colpb.TracerouteRequest)(req))
 	return (*colpb.CmdTracerouteResponse)(res), err
+}
+
+func (s *debugService) CmdIndexList(ctx context.Context, req *colpb.CmdIndexListRequest,
+) (*colpb.CmdIndexListResponse, error) {
+	localIA := s.Topo.IA()
+	errF := func(err error) (*colpb.CmdIndexListResponse, error) {
+		return &colpb.CmdIndexListResponse{
+			ErrorFound: &colpb.ErrorInIA{
+				Ia:      uint64(localIA),
+				Message: err.Error(),
+			},
+		}, nil
+	}
+
+	rsv, err := s.getSegR(ctx, req.Id)
+	if err != nil {
+		return errF(err)
+	}
+
+	res := &colpb.CmdIndexListResponse{}
+	for _, idx := range rsv.Indices {
+		in := &colpb.CmdIndexListResponse_Index{
+			Idx:        uint32(idx.Idx),
+			State:      uint32(idx.State),
+			Expiration: util.TimeToSecs(idx.Expiration),
+			MinBW:      uint32(idx.MinBW),
+			MaxBW:      uint32(idx.MaxBW),
+			AllocBW:    uint32(idx.AllocBW),
+		}
+		res.Indices = append(res.Indices, in)
+	}
+	return res, nil
 }
 
 func (s *debugService) CmdIndexNew(ctx context.Context, req *colpb.CmdIndexNewRequest,

@@ -32,6 +32,18 @@ const (
 	IndexActive
 )
 
+func (s IndexState) String() string {
+	switch s {
+	case IndexTemporary:
+		return "temporary"
+	case IndexPending:
+		return "pending"
+	case IndexActive:
+		return "active"
+	}
+	return "unknown"
+}
+
 // Index is a segment reservation index.
 type Index struct {
 	Idx        reservation.IndexNumber
