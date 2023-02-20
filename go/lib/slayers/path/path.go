@@ -44,8 +44,8 @@ func (t Type) String() string {
 type Path interface {
 	// SerializeTo serializes the path into the provided buffer.
 	SerializeTo(b []byte) error
-	// SyncWithScionHeader may update fields in the SCION header or in the path.
-	// It is always called before the path is serialized, when setting all the layers of the packet.
+	// SyncWithScionHeader may update fields in the SCION header or in the path. It is intended
+	// to be called before the path is serialized, when setting all the layers of the packet.
 	// Its purpose is to allow trespassing the layer boundary to sync values in the SCION and path
 	// layers that depend on each other. E.g. COLIBRI with the OrigPayLen.
 	// This call expects all fields of the SCION header to be correct.
