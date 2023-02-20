@@ -189,7 +189,7 @@ func (r *Reservation) GetLastSegmentPathSteps() []base.PathStep {
 	return steps
 }
 
-// DeriveColibriPath builds a valid colibi path based on the arguments.
+// DeriveColibriPath builds a valid colibri path based on the arguments.
 func DeriveColibriPath(id *reservation.ID, srcIA addr.IA, srcHost net.IP,
 	dstIA addr.IA, dstHost net.IP, tok *reservation.Token) *colpath.ColibriPath {
 
