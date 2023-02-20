@@ -117,10 +117,10 @@ func (c *ColibriPath) SyncWithScionHeader(scion *scion.Header) error {
 	}
 
 	scion.SrcIA = c.Src.IA
-	// TODO(juagargi) a problem in the dispatcher prevents the ACK packets from being dispatched
+	// TODO(juagargi) a limitation in the dispatcher prevents the ACK packets from being dispatched
 	// correctly. For now, we need to keep the IP address of the original sender, which is
 	// each one of the colibri services that contact the next colibri service.
-	// The problem: when the ACK packet is created and sent, if the destination address is
+	// The issue: when the ACK packet is created and sent, if the destination address is
 	// a service, the dispatcher on the receiver of the ACK side won't be able to find the correct
 	// socket (the client one), as it is registered as a no service. It will instead dispatch
 	// the packet to the colibri service listener, which is not expecting this ACK.
