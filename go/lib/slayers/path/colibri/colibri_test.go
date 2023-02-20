@@ -82,6 +82,7 @@ func TestColibriReverse(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, old.InfoField.R, !new.InfoField.R)
+		assert.Equal(t, new.InfoField.CurrHF, new.InfoField.HFCount-old.InfoField.CurrHF-1)
 		for j := 0; j < hfCount/2+1; j++ {
 			assert.Equal(t, old.HopFields[j].Mac, new.HopFields[hfCount-j-1].Mac)
 			assert.Equal(t, old.HopFields[j].IngressId, new.HopFields[hfCount-j-1].EgressId)
