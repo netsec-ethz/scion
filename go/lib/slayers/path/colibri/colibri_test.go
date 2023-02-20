@@ -25,27 +25,42 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 )
 
-func TestColibriSerializeDecode(t *testing.T) {
-	colPath := newColibriPath()
+func TestColibriFullSerializeDecode(t *testing.T) {
 	// use the colPath colibri path but chop it to hfCount hop fields:
+	colPath := newColibriPath()
 	for hfCount := 2; hfCount <= int(colPath.InfoField.HFCount); hfCount++ {
 		col := newColibriPath()
 		// Set correct number of hop fields
 		col.HopFields = col.HopFields[:hfCount]
 		col.InfoField.HFCount = uint8(hfCount)
-
+		// Serialize and decode afterwards.
 		buff := make([]byte, col.Len())
 		assert.NoError(t, col.SerializeTo(buff))
-		// assert.Equal(t, buffer, buffer2)
 		col2 := &colibri.ColibriPath{}
 		assert.NoError(t, col2.DecodeFromBytes(buff))
+		assert.Equal(t, col, col2)
+	}
+}
 
-		// Test ColibriPathMinimal
+func TestColibriMinimalSerializeDecode(t *testing.T) {
+	// use the colPath colibri path but chop it to hfCount hop fields:
+	colPath := newColibriPath()
+	for hfCount := 2; hfCount <= int(colPath.InfoField.HFCount); hfCount++ {
+		col := newColibriPath()
+		// Set correct number of hop fields
+		col.HopFields = col.HopFields[:hfCount]
+		col.InfoField.HFCount = uint8(hfCount)
+		// Serialize original full colibri path.
+		buff := make([]byte, col.Len())
+		assert.NoError(t, col.SerializeTo(buff))
+		// Decode minimal path from bytes.
 		colMin := &colibri.ColibriPathMinimal{}
-		colMin2 := &colibri.ColibriPathMinimal{}
 		assert.NoError(t, colMin.DecodeFromBytes(buff))
+		// Serialize again.
 		buff = make([]byte, colMin.Len())
 		assert.NoError(t, colMin.SerializeTo(buff))
+		// Decode.
+		colMin2 := &colibri.ColibriPathMinimal{}
 		assert.NoError(t, colMin2.DecodeFromBytes(buff))
 		assert.Equal(t, colMin, colMin2)
 	}
