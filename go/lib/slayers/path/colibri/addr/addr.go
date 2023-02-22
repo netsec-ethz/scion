@@ -91,7 +91,6 @@ func (ep Endpoint) Addr() (addr.IA, net.Addr, error) {
 }
 
 func (ep *Endpoint) HostAsRaw() (host []byte, hostType scion.AddrType, hostLen scion.AddrLen) {
-
 	if ep == nil {
 		return nil, 0, 0
 	}
@@ -113,19 +112,22 @@ func (ep Endpoint) String() string {
 	return fmt.Sprintf("%s,%s", ep.IA, host)
 }
 
+// Len returns the length in bytes of this Endpoint.
 func (ep *Endpoint) Len() uint8 {
 	if ep == nil {
-		return 1
+		return 1 // the serialized version will have just one byte, set to zero.
 	}
 	// length itself + IA, host len and type + host address
 	return 1 + 10 + 4*(uint8(ep.hostLen)+1) //  14, 18, 22 or 26 bytes
 }
 
 // SerializeTo serializes the Endpoint to an array of bytes. Format:
-// length_in_bytes 				IA	host_len  	host_type  	host_addr
+// length_in_bytes 	IA				host_len  	host_type  	host_addr
+// If the Endpoint is nil, it occupies 1 byte.
+//
 // Examples:
-// (empty):      0
-// (IPv4):		14	ff00:0001:0110	0			T4Ip		0x7f000001
+// (nil):        1	N/A				N/A			N/A			N/A
+// (IPv4):		15	ff00:0001:0110	0			T4Ip		0x7f000001
 func (ep *Endpoint) SerializeTo(buff []byte) {
 	buff[0] = ep.Len() - 1
 	if ep == nil {
