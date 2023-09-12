@@ -66,3 +66,21 @@ func CompareAk(a []byte, b []byte) bool {
 	}
 	return binary.BigEndian.Uint64(a[0:8]) == binary.BigEndian.Uint64(b[0:8]) && binary.BigEndian.Uint64(a[8:16]) == binary.BigEndian.Uint64(b[8:16])
 }
+
+// Compares two 4 byte arrays
+// Returns true if equal, false otherwise
+// 825 ns
+func CompareVk(a, b []byte) bool {
+	if len(a) != 4 || len(b) != 4 {
+		return false
+	}
+	return binary.BigEndian.Uint32(a) == binary.BigEndian.Uint32(b)
+}
+
+// 1.202 microseconds
+func CompareVk1(a, b []byte) bool {
+	if len(a) != 4 || len(b) != 4 {
+		return false
+	}
+	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3]
+}

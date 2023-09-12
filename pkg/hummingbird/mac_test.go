@@ -90,3 +90,27 @@ func TestIntCompare(t *testing.T) {
 func CompareInt(a, b, c, d uint64) bool {
 	return a == b && c == d
 }
+
+func TestCompareVk(t *testing.T) {
+	a := []byte{1, 2, 3, 4}
+	b := []byte{1, 2, 3, 4}
+	c := []byte{2, 2, 3, 4}
+	d := []byte{1, 2, 3, 6}
+
+	require.True(t, hummingbird.CompareVk(a, b))
+	require.False(t, hummingbird.CompareVk(a, c))
+	require.False(t, hummingbird.CompareVk(a, d))
+}
+
+func TestMeasureCompareVk(t *testing.T) {
+	a := []byte{1, 2, 3, 4}
+	b := []byte{1, 2, 4, 4}
+	res := true
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		res = hummingbird.CompareVk(a, b)
+	}
+	elapsed := time.Since(start)
+	fmt.Print(elapsed)
+	require.False(t, res)
+}
