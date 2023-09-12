@@ -41,6 +41,7 @@ type Dataplane interface {
 	AddDRKeySecret(protocolID int32, sv SecretValue) error
 	UpdateFabridPolicies(ipRangePolicies map[uint32][]*PolicyIPRange,
 		interfacePolicies map[uint64]uint32) error
+	SetHbirdKey(ia addr.IA, index int, key []byte) error
 }
 
 // BFD is the configuration for the BFD sessions.
@@ -131,6 +132,10 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 		if err := dp.SetKey(cfg.IA, 0, key0); err != nil {
 			return err
 		}
+		keySv := DeriveHbirdSecretValue(cfg.MasterKeys.Key0)
+		if err := dp.SetHbirdKey(cfg.IA, 0, keySv); err != nil {
+			return err
+		}
 	}
 
 	// Add internal interfaces
@@ -164,6 +169,17 @@ func DeriveHFMacKey(k []byte) []byte {
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
 	return pbkdf2.Key(k, hfMacSalt, 1000, 16, sha256.New)
+}
+
+// DeriveHbirdSecretValue derives hummingbird AS secret value from the given key
+func DeriveHbirdSecretValue(k []byte) []byte {
+	if len(k) == 0 {
+		panic("empty key")
+	}
+	hbirdSalt := []byte("Derive hbird sv")
+	// This uses 16B keys with 1000 hash iterations, which is the same as the
+	// defaults used by pycrypto.
+	return pbkdf2.Key(k, hbirdSalt, 1000, 16, sha256.New)
 }
 
 func confExternalInterfaces(dp Dataplane, cfg *Config) error {

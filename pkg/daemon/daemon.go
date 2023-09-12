@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/internal/metrics"
 	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/hummingbird"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -90,6 +91,11 @@ type Connector interface {
 	DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 	// FabridKeys requests FABRID DRKeys for all provided ASes and the path validation key
 	FabridKeys(ctx context.Context, meta drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error)
+
+	StoreFlyovers(ctx context.Context, flyovers []*hummingbird.Flyover) error
+	ListFlyovers(ctx context.Context) ([]*hummingbird.Flyover, error)
+	GetReservations(ctx context.Context, src, dst addr.IA, minBW uint16, refresh bool,
+	) ([]*hummingbird.Reservation, error)
 	// Close shuts down the connection to the daemon.
 	Close() error
 }

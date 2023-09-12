@@ -114,12 +114,24 @@ func realMain(ctx context.Context) error {
 	})
 	defer pathDB.Close()
 	defer revCache.Close()
+
+	hbirdDB, err := storage.NewHummingbirdStorage(globalCfg.HbirdDB)
+	if err != nil {
+		return serrors.WrapStr("initializing hummingbird storage", err)
+	}
+	defer hbirdDB.Close()
+
 	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
 		300*time.Second, 295*time.Second)
 	defer cleaner.Stop()
 	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
+	defer cleaner.Stop()
+
+	// Hummingbird DB has its cleaner started already in the New method. Use that one.
+	hbirdCleaner := hbirdDB.GetCleaner()
+	defer hbirdCleaner.Stop()
 
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
@@ -289,6 +301,7 @@ func realMain(ctx context.Context) error {
 			Engine:      engine,
 			RevCache:    revCache,
 			DRKeyClient: drkeyClientEngine,
+			FlyoverDB:   hbirdDB,
 		},
 	))
 

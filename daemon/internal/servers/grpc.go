@@ -42,6 +42,7 @@ import (
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/hummingbirddb"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
@@ -64,6 +65,7 @@ type DaemonServer struct {
 	ASInspector trust.Inspector
 	DRKeyClient *drkey_daemon.ClientEngine
 	Dialer      libgrpc.Dialer
+	FlyoverDB   hummingbirddb.DB
 	Metrics     Metrics
 
 	foregroundPathDedupe singleflight.Group

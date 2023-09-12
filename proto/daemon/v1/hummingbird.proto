@@ -1,0 +1,81 @@
+// Copyright 2023 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/pkg/proto/daemon";
+
+package proto.daemon.v1;
+
+
+message StoreFlyoversRequest {
+    repeated Flyover flyovers = 1;
+}
+
+message StoreFlyoversResponse {} // empty
+
+message ListFlyoversRequest {} // empty
+
+message ListFlyoversResponse {
+    repeated Flyover flyovers = 1;
+}
+
+message GetReservationsRequest {
+    // ISD-AS of the source of the path request.
+    uint64 source_isd_as = 1;
+    // ISD-AS of the destination of the path request.
+    uint64 destination_isd_as = 2;
+    // Choose to fetch fresh paths for this request instead
+    // of having the server reply from its cache.
+    bool refresh = 3;
+    // The minimum bandwidth for the obtained reservations, 16 bits.
+    uint32 min_bandwidth = 4;
+}
+
+message GetReservationsResponse {
+    repeated Reservation reservations = 1;
+}
+
+message Flyover {
+    // The AS ID in ISD-AS form (64 bits).
+    uint64 ia = 1;
+    // Ingress ID. 16 bits.
+    uint32 ingress = 2;
+    // Egress ID. 16 bits.
+    uint32 egress = 3;
+
+    // Bandwidth. 16 bits.
+    uint32 bw = 4;
+    // The unix timestamp when the reservation starts.
+    uint32 start_time = 5;
+    // Duration in seconds. 16 bits.
+    uint32 duration = 6;
+
+    // Reservation ID, unique per AS.
+    uint32 res_id = 7;
+    // This Ak is the derived key for this flyover, that is used to derive the per-host key.
+    // It is 16 bytes long.
+    bytes ak = 8;
+}
+
+message Reservation {
+    // The raw Hummingbird path.
+    bytes raw = 1;
+    // The hop-sequence of flyovers. There are no crossovers in this sequence,
+    // i.e. for each xover in the hummingbird path, only one hop is present.
+    // Hops in the path without corresponding flyover have a nil entry.
+    repeated Flyover flyovers = 2;
+    // Ratio # flyovers / # hops.
+    double ratio = 3;
+}

@@ -4,6 +4,7 @@ proto_library(
     name = "daemon",
     srcs = [
         "daemon.proto",
+        "hummingbird.proto",
         "daemon_fabrid.proto",
     ],
     visibility = ["//visibility:public"],

@@ -1,0 +1,12 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["db.go"],
+    importpath = "github.com/scionproto/scion/private/hummingbirddb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/hummingbird:go_default_library",
+    ],
+)

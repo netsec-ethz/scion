@@ -13,6 +13,7 @@ import (
 	addr "github.com/scionproto/scion/pkg/addr"
 	daemon "github.com/scionproto/scion/pkg/daemon"
 	drkey "github.com/scionproto/scion/pkg/drkey"
+	hummingbird "github.com/scionproto/scion/pkg/hummingbird"
 	path_mgmt "github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/pkg/snet"
 )
@@ -114,6 +115,36 @@ func (mr *MockConnectorMockRecorder) DRKeyGetHostHostKey(arg0, arg1 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetHostHostKey", reflect.TypeOf((*MockConnector)(nil).DRKeyGetHostHostKey), arg0, arg1)
 }
 
+// FabridKeys mocks base method.
+func (m *MockConnector) FabridKeys(arg0 context.Context, arg1 drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FabridKeys", arg0, arg1)
+	ret0, _ := ret[0].(drkey.FabridKeysResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FabridKeys indicates an expected call of FabridKeys.
+func (mr *MockConnectorMockRecorder) FabridKeys(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FabridKeys", reflect.TypeOf((*MockConnector)(nil).FabridKeys), arg0, arg1)
+}
+
+// GetReservations mocks base method.
+func (m *MockConnector) GetReservations(arg0 context.Context, arg1, arg2 addr.IA, arg3 uint16, arg4 bool) ([]*hummingbird.Reservation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReservations", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].([]*hummingbird.Reservation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReservations indicates an expected call of GetReservations.
+func (mr *MockConnectorMockRecorder) GetReservations(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReservations", reflect.TypeOf((*MockConnector)(nil).GetReservations), arg0, arg1, arg2, arg3, arg4)
+}
+
 // Interfaces mocks base method.
 func (m *MockConnector) Interfaces(arg0 context.Context) (map[uint16]netip.AddrPort, error) {
 	m.ctrl.T.Helper()
@@ -127,6 +158,21 @@ func (m *MockConnector) Interfaces(arg0 context.Context) (map[uint16]netip.AddrP
 func (mr *MockConnectorMockRecorder) Interfaces(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Interfaces", reflect.TypeOf((*MockConnector)(nil).Interfaces), arg0)
+}
+
+// ListFlyovers mocks base method.
+func (m *MockConnector) ListFlyovers(arg0 context.Context) ([]*hummingbird.Flyover, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListFlyovers", arg0)
+	ret0, _ := ret[0].([]*hummingbird.Flyover)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListFlyovers indicates an expected call of ListFlyovers.
+func (mr *MockConnectorMockRecorder) ListFlyovers(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListFlyovers", reflect.TypeOf((*MockConnector)(nil).ListFlyovers), arg0)
 }
 
 // LocalIA mocks base method.
@@ -202,4 +248,18 @@ func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []addr.SVC) (map[addr
 func (mr *MockConnectorMockRecorder) SVCInfo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SVCInfo", reflect.TypeOf((*MockConnector)(nil).SVCInfo), arg0, arg1)
+}
+
+// StoreFlyovers mocks base method.
+func (m *MockConnector) StoreFlyovers(arg0 context.Context, arg1 []*hummingbird.Flyover) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreFlyovers", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreFlyovers indicates an expected call of StoreFlyovers.
+func (mr *MockConnectorMockRecorder) StoreFlyovers(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFlyovers", reflect.TypeOf((*MockConnector)(nil).StoreFlyovers), arg0, arg1)
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/env"
+	"github.com/scionproto/scion/private/hummingbirddb"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/trust"
 	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
@@ -115,6 +116,7 @@ type ServerConfig struct {
 	Topology    servers.Topology
 	DRKeyClient *drkey.ClientEngine
 	Dialer      libgrpc.Dialer
+	FlyoverDB   hummingbirddb.DB
 }
 
 // NewServer constructs a daemon API server.
@@ -131,6 +133,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		RevCache:    cfg.RevCache,
 		DRKeyClient: cfg.DRKeyClient,
 		Dialer:      cfg.Dialer,
+		FlyoverDB:   cfg.FlyoverDB,
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{

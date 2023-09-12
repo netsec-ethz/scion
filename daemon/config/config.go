@@ -46,6 +46,7 @@ type Config struct {
 	Tracing       env.Tracing        `toml:"tracing,omitempty"`
 	TrustDB       storage.DBConfig   `toml:"trust_db,omitempty"`
 	PathDB        storage.DBConfig   `toml:"path_db,omitempty"`
+	HbirdDB       storage.DBConfig   `toml:"hbird_db,omitempty"`
 	SD            SDConfig           `toml:"sd,omitempty"`
 	TrustEngine   trustengine.Config `toml:"trustengine,omitempty"`
 	DRKeyLevel2DB storage.DBConfig   `toml:"drkey_level2_db,omitempty"`
@@ -61,6 +62,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Tracing,
 		cfg.TrustDB.WithDefault(fmt.Sprintf(storage.DefaultTrustDBPath, "sd")),
 		cfg.PathDB.WithDefault(fmt.Sprintf(storage.DefaultPathDBPath, "sd")),
+		cfg.HbirdDB.WithDefault(fmt.Sprintf(storage.DefaultHbirdDBPath, "sd")),
 		&cfg.SD,
 		&cfg.TrustEngine,
 	)
@@ -75,6 +77,7 @@ func (cfg *Config) Validate() error {
 		&cfg.API,
 		&cfg.TrustDB,
 		&cfg.PathDB,
+		&cfg.HbirdDB,
 		&cfg.SD,
 		&cfg.TrustEngine,
 		&cfg.DRKeyLevel2DB,
@@ -102,6 +105,13 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 				fmt.Sprintf(storage.DefaultPathDBPath, "sd"),
 			),
 			"path_db",
+		),
+		config.OverrideName(
+			config.FormatData(
+				&cfg.HbirdDB,
+				fmt.Sprintf(storage.DefaultHbirdDBPath, "sd"),
+			),
+			"hbird_db",
 		),
 		&cfg.SD,
 		&cfg.TrustEngine,

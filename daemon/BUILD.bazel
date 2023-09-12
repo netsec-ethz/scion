@@ -17,6 +17,7 @@ go_library(
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//private/env:go_default_library",
+        "//private/hummingbirddb:go_default_library",
         "//private/revcache:go_default_library",
         "//private/trust:go_default_library",
         "//private/trust/grpc:go_default_library",

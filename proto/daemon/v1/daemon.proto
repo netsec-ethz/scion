@@ -23,6 +23,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "proto/drkey/v1/drkey.proto";
 import "proto/daemon/v1/daemon_fabrid.proto";
+import "proto/daemon/v1/hummingbird.proto";
 
 service DaemonService {
     // Return a set of paths to the requested destination.
@@ -47,6 +48,14 @@ service DaemonService {
     rpc DRKeyHostHost (DRKeyHostHostRequest) returns (DRKeyHostHostResponse) {}
     // FabridKeys returns the DRKeys for FABRID
     rpc FabridKeys (proto.daemon.v1.FabridKeysRequest) returns (proto.daemon.v1.FabridKeysResponse) {}
+
+    // StoreFlyovers stores the flyovers in the DB.
+    rpc StoreFlyovers(StoreFlyoversRequest) returns (StoreFlyoversResponse) {}
+    // ListFlyovers lists all stored flyovers in this DB.
+    rpc ListFlyovers(ListFlyoversRequest) returns (ListFlyoversResponse) {}
+    // GetReservations finds paths from source to destination, and then tries to assign flyovers to
+    // as many hops as possible.
+	rpc GetReservations(GetReservationsRequest) returns (GetReservationsResponse) {}
 }
 
 message PathsRequest {

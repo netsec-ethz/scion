@@ -184,6 +184,9 @@ class GoGenerator(object):
             'path_db': {
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
+            'hbird_db': {
+                'connection': os.path.join(self.db_dir, '%s.hbird.db' % name),
+            },
             'sd': {
                 'address': socket_address_str(ip, SD_API_PORT),
             },
@@ -223,6 +226,9 @@ class GoGenerator(object):
             },
             'path_db': {
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
+            },
+            'hbird_db': {
+                'connection': os.path.join(self.db_dir, '%s.hbird.db' % name),
             },
             'sd': {
                 'address': socket_address_str(ip, SD_API_PORT),

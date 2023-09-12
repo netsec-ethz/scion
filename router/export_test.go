@@ -53,7 +53,7 @@ func NewDP(
 	svc map[addr.SVC][]*net.UDPAddr,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) *DataPlane {
+	key []byte, sv []byte) *DataPlane {
 
 	dp := &DataPlane{
 		localIA:             local,
@@ -69,6 +69,9 @@ func NewDP(
 		Metrics:             metrics,
 	}
 	if err := dp.SetKey(key); err != nil {
+		panic(err)
+	}
+	if err := dp.SetHbirdKey(sv); err != nil {
 		panic(err)
 	}
 	dp.initMetrics()
@@ -99,4 +102,18 @@ func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
 func DecodeLayers(data []byte, base gopacket.DecodingLayer,
 	opts ...gopacket.DecodingLayer) (gopacket.DecodingLayer, error) {
 	return decodeLayers(data, base, opts...)
+}
+
+type BenchmarkPacketProcessor struct {
+	p *scionPacketProcessor
+}
+
+func (d *DataPlane) NewBenchmarkPP() BenchmarkPacketProcessor {
+	return BenchmarkPacketProcessor{newPacketProcessor(d)}
+}
+
+func (p BenchmarkPacketProcessor) ProcessPkt(ifID uint16, m *ipv4.Message) error {
+	_, err := p.p.processPkt(m.Buffers[0], nil, ifID)
+	return err
+
 }
