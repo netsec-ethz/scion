@@ -1,0 +1,24 @@
+load("//tools/lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "mac.go"
+    ],
+    importpath = "github.com/scionproto/scion/pkg/hummingbird",
+    visibility = ["//visibility:public"],
+    deps = [
+
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "mac_test.go"
+    ],
+    deps = [
+        ":go_default_library",
+        "//pkg/hummingbird:go_default_library"
+    ],
+)
