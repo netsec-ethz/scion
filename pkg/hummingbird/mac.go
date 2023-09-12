@@ -1,10 +1,8 @@
 package hummingbird
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/subtle"
 	"encoding/binary"
 
 	"github.com/dchest/cmac"
@@ -60,20 +58,11 @@ func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTi
 	return mac.Sum(buffer[:0]), nil
 }
 
-// 1.55 microseconds for 1000 calls
+// Compares two 16 byte arrays.
+// Returns true if equal, false otherwise
 func CompareAk(a []byte, b []byte) bool {
 	if len(a) != 16 || len(b) != 16 {
 		return false
 	}
 	return binary.BigEndian.Uint64(a[0:8]) == binary.BigEndian.Uint64(b[0:8]) && binary.BigEndian.Uint64(a[8:16]) == binary.BigEndian.Uint64(b[8:16])
-}
-
-// 3.679 microseconds for 1000 calls
-func CompareAk1(a []byte, b []byte) bool {
-	return bytes.Equal(a, b)
-}
-
-// 11.441 microseconds for 1000 calls
-func CompareAk2(a []byte, b []byte) int {
-	return subtle.ConstantTimeCompare(a, b)
 }
