@@ -1,7 +1,9 @@
 package hummingbird_test
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/hummingbird"
@@ -42,4 +44,49 @@ func TestFlyOverMac(t *testing.T) {
 	require.Equal(t, mac, expected)
 	require.NoError(t, err)
 	//fmt.Print(mac)
+}
+
+func TestCompareAk(t *testing.T) {
+	a := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	b := []byte{142, 19, 145, 151, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	c := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 218}
+	d := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+
+	require.True(t, hummingbird.CompareAk(a, d))
+	require.False(t, hummingbird.CompareAk(a, b))
+	require.False(t, hummingbird.CompareAk(a, c))
+}
+
+func TestMeasureCompareAk(t *testing.T) {
+	a := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	b := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 218}
+	res := true
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		res = hummingbird.CompareAk(a, b)
+	}
+	elapsed := time.Since(start)
+	fmt.Print(elapsed)
+	require.False(t, res)
+}
+
+// 480 ns
+func TestIntCompare(t *testing.T) {
+	var a uint64 = 128732
+	var b uint64 = 1287323
+	var c uint64 = 672964
+	var d uint64 = 672964
+	res := true
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		res = CompareInt(a, b, c, d)
+	}
+	elapsed := time.Since(start)
+	fmt.Print(elapsed)
+	require.False(t, res)
+}
+
+// lower bound for 16 bytes comparison
+func CompareInt(a, b, c, d uint64) bool {
+	return a == b && c == d
 }
