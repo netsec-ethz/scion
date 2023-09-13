@@ -6,10 +6,10 @@ import (
 	"encoding/binary"
 
 	"github.com/dchest/cmac"
-	"github.com/scionproto/scion/pkg/addr"
 )
 
 const BufferSize = 16
+const Mask byte = 240
 
 func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
 
@@ -36,16 +36,15 @@ func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byt
 	return buffer, nil
 }
 
-func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
-
-	if len(buffer) < 144 {
-		buffer = make([]byte, 144)
+func FullMac(ak []byte, dstIA uint64, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
+	if len(buffer) < 18 {
+		buffer = make([]byte, 18)
 	}
 
-	binary.BigEndian.PutUint64(buffer[0:64], uint64(dstIA))
-	binary.BigEndian.PutUint16(buffer[64:80], pktlen)
-	binary.BigEndian.PutUint32(buffer[80:112], baseTime)
-	binary.BigEndian.PutUint32(buffer[112:144], highResTime)
+	binary.BigEndian.PutUint64(buffer[0:8], dstIA)
+	binary.BigEndian.PutUint16(buffer[8:10], pktlen)
+	binary.BigEndian.PutUint32(buffer[10:14], baseTime)
+	binary.BigEndian.PutUint32(buffer[14:18], highResTime)
 
 	block, err := aes.NewCipher(ak)
 	if err != nil {
@@ -54,6 +53,9 @@ func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTi
 	mac, err := cmac.New(block)
 	if err != nil {
 		return []byte{}, err
+	}
+	if _, err := mac.Write(buffer[0:18]); err != nil {
+		panic(err)
 	}
 	return mac.Sum(buffer[:0]), nil
 }
@@ -67,9 +69,11 @@ func CompareAk(a []byte, b []byte) bool {
 	return binary.BigEndian.Uint64(a[0:8]) == binary.BigEndian.Uint64(b[0:8]) && binary.BigEndian.Uint64(a[8:16]) == binary.BigEndian.Uint64(b[8:16])
 }
 
+// around 800 ns
+
 // Compares two 4 byte arrays
 // Returns true if equal, false otherwise
-// 825 ns
+// expects 4 bytes of padding to also be identical
 func CompareVk(a, b []byte) bool {
 	if len(a) != 4 || len(b) != 4 {
 		return false
@@ -77,10 +81,13 @@ func CompareVk(a, b []byte) bool {
 	return binary.BigEndian.Uint32(a) == binary.BigEndian.Uint32(b)
 }
 
-// 1.202 microseconds
-func CompareVk1(a, b []byte) bool {
+// around 1.2 microseconds
+
+// Compare two 4 byte arrays, ignores last 4 bits
+// Returns true if equal, false otherwise
+func CompareVkPadded(a, b []byte) bool {
 	if len(a) != 4 || len(b) != 4 {
 		return false
 	}
-	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3]
+	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3]&Mask == b[3]&Mask
 }
