@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ func TestDeriveAuthKey(t *testing.T) {
 
 func TestFlyOverMac(t *testing.T) {
 	ak := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
-	var dstIA uint64 = 326
+	var dstIA addr.IA = 326
 	var pktlen uint16 = 23
 	var baseTs uint32 = 1234
 	var highResTs uint32 = 4321

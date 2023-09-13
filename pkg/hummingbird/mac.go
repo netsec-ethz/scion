@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 
 	"github.com/dchest/cmac"
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 const BufferSize = 16
@@ -36,12 +37,12 @@ func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byt
 	return buffer, nil
 }
 
-func FullMac(ak []byte, dstIA uint64, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
+func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
 	if len(buffer) < 18 {
 		buffer = make([]byte, 18)
 	}
 
-	binary.BigEndian.PutUint64(buffer[0:8], dstIA)
+	binary.BigEndian.PutUint64(buffer[0:8], uint64(dstIA))
 	binary.BigEndian.PutUint16(buffer[8:10], pktlen)
 	binary.BigEndian.PutUint32(buffer[10:14], baseTime)
 	binary.BigEndian.PutUint32(buffer[14:18], highResTime)
