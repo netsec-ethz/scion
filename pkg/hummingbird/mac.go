@@ -14,31 +14,9 @@ const Mask byte = 240
 
 var ZeroBlock [aes.BlockSize]byte
 
-func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
-	if len(buffer) < BufferSize {
-		buffer = make([]byte, BufferSize)
-	}
-
-	//prepare input
-	copy(buffer[0:4], resID_bw)
-	binary.BigEndian.PutUint16(buffer[4:6], in)
-	binary.BigEndian.PutUint16(buffer[6:8], eg)
-	copy(buffer[8:12], times)
-	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
-
-	block, err := aes.NewCipher(sv)
-	if err != nil {
-		return nil, err
-	}
-	mode := cipher.NewCBCEncrypter(block, ZeroBlock[:])
-	mode.CryptBlocks(buffer, buffer) //TODO: put into separate variable?
-
-	return buffer, nil
-}
-
 // Derive authentication key A_k
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
-func DeriveAuthKey1(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
 	}
@@ -51,7 +29,7 @@ func DeriveAuthKey1(block cipher.Block, resID_bw []byte, in uint16, eg uint16, t
 	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
 
 	mode := cipher.NewCBCEncrypter(block, ZeroBlock[:])
-	mode.CryptBlocks(buffer, buffer) //TODO: put into separate variable?
+	mode.CryptBlocks(buffer, buffer)
 
 	return buffer, nil
 }
@@ -91,9 +69,10 @@ func CompareAk(a []byte, b []byte) bool {
 
 // around 800 ns
 
-// Compares two 4 byte arrays
-// Returns true if equal, false otherwise
-// expects 4 bytes of padding to also be identical
+// Compares two 4 byte arrays.
+// Always returns false if at least one input is of a different length.
+// Returns true if equal, false otherwise.
+// Expects 4 bits of padding to also be identical.
 func CompareVk(a, b []byte) bool {
 	if len(a) != 4 || len(b) != 4 {
 		return false
@@ -103,8 +82,9 @@ func CompareVk(a, b []byte) bool {
 
 // around 1.2 microseconds
 
-// Compare two 4 byte arrays, ignores last 4 bits
-// Returns true if equal, false otherwise
+// Compare two 4 byte arrays, ignores last 4 bits.
+// Always returns false if at least one input is of a different length.
+// Returns true if equal, false otherwise.
 func CompareVkPadded(a, b []byte) bool {
 	if len(a) != 4 || len(b) != 4 {
 		return false
