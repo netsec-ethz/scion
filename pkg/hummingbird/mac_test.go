@@ -1,6 +1,7 @@
 package hummingbird_test
 
 import (
+	"crypto/aes"
 	"fmt"
 	"testing"
 	"time"
@@ -23,10 +24,85 @@ func TestDeriveAuthKey(t *testing.T) {
 	//TODO: check 32 bytes buffer key result
 
 	key, err := hummingbird.DeriveAuthKey(sv, resID_bw, in, eg, startend, buffer)
-
 	require.Equal(t, expected, key)
 	require.NoError(t, err)
 
+	key, err = hummingbird.DeriveAuthKey(sv, resID_bw, in, eg, startend, buffer)
+	require.Equal(t, expected, key)
+	require.NoError(t, err)
+
+}
+
+func TestDeriveAuthKey1(t *testing.T) {
+	sv := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	resID_bw := []byte{0, 1, 2, 3}
+	buffer := make([]byte, 16)
+	var in uint16 = 2
+	var eg uint16 = 5
+	startend := []byte{0, 1, 2, 3}
+	expected := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	//8e 13 91 77 4c 02 e4 12 86 6f 74 2d c8 ac 71 db   a9 5a eb 01 10 5e b2 6d a2 7a 83 66 43 81 99 4f
+	//TODO: check 32 bytes buffer key result
+	block, err := aes.NewCipher(sv)
+	if err != nil {
+		require.Fail(t, err.Error())
+	}
+
+	key, err := hummingbird.DeriveAuthKey1(block, resID_bw, in, eg, startend, buffer)
+	require.Equal(t, expected, key)
+	require.NoError(t, err)
+
+	key, err = hummingbird.DeriveAuthKey1(block, resID_bw, in, eg, startend, buffer)
+	require.Equal(t, expected, key)
+	require.NoError(t, err)
+}
+
+func TestMeasureDeriveAuthKey(t *testing.T) {
+	//ca 500 microseconds
+	sv := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	resID_bw := []byte{0, 1, 2, 3}
+	buffer := make([]byte, 16)
+	var in uint16 = 2
+	var eg uint16 = 5
+	startend := []byte{0, 1, 2, 3}
+	expected := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+
+	var key []byte
+	var err error
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		key, err = hummingbird.DeriveAuthKey(sv, resID_bw, in, eg, startend, buffer)
+	}
+	elapsed := time.Since(start)
+	require.Equal(t, expected, key)
+	require.NoError(t, err)
+	fmt.Print(elapsed)
+}
+
+func TestMeasureDeriveAuthKey1(t *testing.T) {
+	sv := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	//ca 200 microseconds
+	resID_bw := []byte{0, 1, 2, 3}
+	buffer := make([]byte, 16)
+	var in uint16 = 2
+	var eg uint16 = 5
+	startend := []byte{0, 1, 2, 3}
+	expected := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+
+	block, err := aes.NewCipher(sv)
+	if err != nil {
+		require.Fail(t, err.Error())
+	}
+
+	var key []byte
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		key, err = hummingbird.DeriveAuthKey1(block, resID_bw, in, eg, startend, buffer)
+	}
+	elapsed := time.Since(start)
+	require.Equal(t, expected, key)
+	require.NoError(t, err)
+	fmt.Print(elapsed)
 }
 
 // verified with https://artjomb.github.io/cryptojs-extension/
@@ -41,13 +117,31 @@ func TestFlyOverMac(t *testing.T) {
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 	//expected with 0, 23, 1234, 4321: 726f7d9e 17e3cbe1 d47a32eb d8a5e26e
 	mac, err := hummingbird.FullMac(ak, dstIA, pktlen, baseTs, highResTs, buffer)
-	fmt.Print(mac)
 	require.Equal(t, expected, mac)
 	require.NoError(t, err)
+}
 
-	//in: 000000000000000017000004d2000010e1
-	//key: 8e 13 91 77 4c 02 e4 12 86 6f 74 2d c8 ac 71 db
-	// works for that, but not once we add dstIA...
+func TestMeasureFlyoverMac(t *testing.T) {
+	// ca 800 microseconds
+	ak := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var baseTs uint32 = 1234
+	var highResTs uint32 = 4321
+	buffer := make([]byte, 18)
+	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
+
+	var mac []byte
+	var err error
+
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		mac, err = hummingbird.FullMac(ak, dstIA, pktlen, baseTs, highResTs, buffer)
+	}
+	elapsed := time.Since(start)
+	fmt.Print(elapsed)
+	require.Equal(t, expected, mac)
+	require.NoError(t, err)
 }
 
 func TestCompareAk(t *testing.T) {

@@ -12,8 +12,9 @@ import (
 const BufferSize = 16
 const Mask byte = 240
 
-func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+var ZeroBlock [aes.BlockSize]byte
 
+func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
 	}
@@ -23,15 +24,33 @@ func DeriveAuthKey(sv []byte, resID_bw []byte, in uint16, eg uint16, times []byt
 	binary.BigEndian.PutUint16(buffer[4:6], in)
 	binary.BigEndian.PutUint16(buffer[6:8], eg)
 	copy(buffer[8:12], times)
-	binary.BigEndian.PutUint16(buffer[12:16], 0) //padding
+	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
 
 	block, err := aes.NewCipher(sv)
 	if err != nil {
 		return nil, err
 	}
-	var ZeroBlock [aes.BlockSize]byte //TODO: experiment where to best declare this
 	mode := cipher.NewCBCEncrypter(block, ZeroBlock[:])
+	mode.CryptBlocks(buffer, buffer) //TODO: put into separate variable?
 
+	return buffer, nil
+}
+
+// Derive authentication key A_k
+// block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
+func DeriveAuthKey1(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+	if len(buffer) < BufferSize {
+		buffer = make([]byte, BufferSize)
+	}
+
+	//prepare input
+	copy(buffer[0:4], resID_bw)
+	binary.BigEndian.PutUint16(buffer[4:6], in)
+	binary.BigEndian.PutUint16(buffer[6:8], eg)
+	copy(buffer[8:12], times)
+	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
+
+	mode := cipher.NewCBCEncrypter(block, ZeroBlock[:])
 	mode.CryptBlocks(buffer, buffer) //TODO: put into separate variable?
 
 	return buffer, nil
