@@ -17,6 +17,8 @@ var ZeroBlock [aes.BlockSize]byte
 // Derive authentication key A_k
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
 func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+
+	// around 200 microseconds for 1000 iterations
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
 	}
@@ -32,6 +34,27 @@ func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, ti
 	mode.CryptBlocks(buffer, buffer)
 
 	return buffer, nil
+}
+
+// Derive authentication key A_k
+// block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
+func DeriveAuthKeySelfmade(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+
+	//around 30 microseconds
+	if len(buffer) < BufferSize {
+		buffer = make([]byte, BufferSize)
+	}
+	//prepare input
+	copy(buffer[0:4], resID_bw)
+	binary.BigEndian.PutUint16(buffer[4:6], in)
+	binary.BigEndian.PutUint16(buffer[6:8], eg)
+	copy(buffer[8:12], times)
+	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
+
+	// should xor input with iv, but we use iv = 0 => identity
+	// iv makes no sense to use as we encrypt only one block
+	block.Encrypt(buffer[0:16], buffer[0:16])
+	return buffer[0:16], nil
 }
 
 func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {

@@ -27,18 +27,18 @@ func TestDeriveAuthKey(t *testing.T) {
 		require.Fail(t, err.Error())
 	}
 
-	key, err := hummingbird.DeriveAuthKey(block, resID_bw, in, eg, startend, buffer)
+	key, err := hummingbird.DeriveAuthKeySelfmade(block, resID_bw, in, eg, startend, buffer)
 	require.Equal(t, expected, key)
 	require.NoError(t, err)
 
-	key, err = hummingbird.DeriveAuthKey(block, resID_bw, in, eg, startend, buffer)
+	key, err = hummingbird.DeriveAuthKeySelfmade(block, resID_bw, in, eg, startend, buffer)
 	require.Equal(t, expected, key)
 	require.NoError(t, err)
 }
 
 func TestMeasureDeriveAuthKey(t *testing.T) {
 	sv := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
-	//ca 200 microseconds
+	//ca 200 microseconds for cbc library function
 	// If we perform aes.NewCipher in the function, time is 500 microseconds instead
 	resID_bw := []byte{0, 1, 2, 3}
 	buffer := make([]byte, 16)
@@ -55,7 +55,7 @@ func TestMeasureDeriveAuthKey(t *testing.T) {
 	var key []byte
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		key, err = hummingbird.DeriveAuthKey(block, resID_bw, in, eg, startend, buffer)
+		key, err = hummingbird.DeriveAuthKeySelfmade(block, resID_bw, in, eg, startend, buffer)
 	}
 	elapsed := time.Since(start)
 	require.Equal(t, expected, key)
