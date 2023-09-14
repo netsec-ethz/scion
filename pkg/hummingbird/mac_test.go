@@ -74,7 +74,7 @@ func TestFlyOverMac(t *testing.T) {
 	buffer := make([]byte, 18)
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 	//expected with 0, 23, 1234, 4321: 726f7d9e 17e3cbe1 d47a32eb d8a5e26e
-	mac, err := hummingbird.FullMac(ak, dstIA, pktlen, baseTs, highResTs, buffer)
+	mac, err := hummingbird.FullMacSelfmade(ak, dstIA, pktlen, baseTs, highResTs, buffer)
 	require.Equal(t, expected, mac)
 	require.NoError(t, err)
 }
@@ -86,7 +86,7 @@ func TestMeasureFlyoverMac(t *testing.T) {
 	var pktlen uint16 = 23
 	var baseTs uint32 = 1234
 	var highResTs uint32 = 4321
-	buffer := make([]byte, 18)
+	buffer := make([]byte, 34)
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 
 	var mac []byte
@@ -94,7 +94,7 @@ func TestMeasureFlyoverMac(t *testing.T) {
 
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		mac, err = hummingbird.FullMac(ak, dstIA, pktlen, baseTs, highResTs, buffer)
+		mac, err = hummingbird.FullMacSelfmade(ak, dstIA, pktlen, baseTs, highResTs, buffer)
 	}
 	elapsed := time.Since(start)
 	fmt.Print(elapsed)
