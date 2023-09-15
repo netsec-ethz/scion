@@ -10,7 +10,6 @@ import (
 )
 
 const BufferSize = 16
-const Mask byte = 240
 
 var ZeroBlock [aes.BlockSize]byte
 
@@ -18,7 +17,6 @@ var ZeroBlock [aes.BlockSize]byte
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
 func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
 
-	// around 200 microseconds for 1000 iterations
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
 	}
@@ -41,7 +39,6 @@ func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, ti
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
 func DeriveAuthKeySelfmade(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
 
-	//around 30 microseconds
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
 	}
@@ -53,7 +50,6 @@ func DeriveAuthKeySelfmade(block cipher.Block, resID_bw []byte, in uint16, eg ui
 	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
 
 	// should xor input with iv, but we use iv = 0 => identity
-	// iv makes no sense to use as we encrypt only one block
 	block.Encrypt(buffer[0:16], buffer[0:16])
 	return buffer[0:16], nil
 }
@@ -115,6 +111,8 @@ func xor(a, b []byte) {
 	binary.BigEndian.PutUint64(a[8:16], binary.BigEndian.Uint64(a[8:16])^binary.BigEndian.Uint64(b[8:16]))
 }
 
+// Computes flyover mac Vk
+// Rewrites cmac algorithm instead of calling cmac library in order to not do a make() call
 func FlyoverMacSelfmade(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
@@ -155,6 +153,10 @@ func FlyoverMacSelfmade(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32
 	return buffer[0:16], nil
 }
 
+// Computes flyover mac vk
+// Needs a xkbuffer of 44 uint32s to store the expanded keys for aes
+// This method does not include a make() call like aes.NewCipher, but also does not use the fast aes implementations that the crypto library uses
+// As a result, this method has a similar performance to FlyoverMacSelfmade
 func FlyoverMacSelfmadeAes(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) ([]byte, error) {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
@@ -227,7 +229,7 @@ func CompareVkPadded(a, b []byte) bool {
 	if len(a) != 4 || len(b) != 4 {
 		return false
 	}
-	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3]&Mask == b[3]&Mask
+	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3]&0xf0 == b[3]&0xf0
 }
 
 // code based on crypto/aes/block.go
@@ -244,6 +246,10 @@ func aesExpandKey128(xk []uint32, key []byte) {
 		if i&0x3 == 0 {
 			t = subw(t<<8|t>>24) ^ (uint32(powx[i>>2-1]) << 24)
 		}
+		// used if we want to change to 192 or 256 bits keys
+		// else if nk > 6 && i%nk == 4 {
+		// 	t = subw(t)
+		// }
 		xk[i] = xk[i-4] ^ t
 	}
 }
