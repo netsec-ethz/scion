@@ -61,7 +61,6 @@ func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTi
 	if len(buffer) < 18 {
 		buffer = make([]byte, 18)
 	}
-
 	binary.BigEndian.PutUint64(buffer[0:8], uint64(dstIA))
 	binary.BigEndian.PutUint16(buffer[8:10], pktlen)
 	binary.BigEndian.PutUint32(buffer[10:14], baseTime)
@@ -133,6 +132,47 @@ func FullMacSelfmade(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, h
 	return buffer[0:16], nil
 }
 
+func FullMacSelfmadeAes(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) ([]byte, error) {
+	if len(buffer) < 34 {
+		buffer = make([]byte, 34)
+	}
+	if len(xkbuffer) < 44 {
+		xkbuffer = make([]uint32, 44)
+	}
+
+	binary.BigEndian.PutUint64(buffer[0:8], uint64(dstIA))
+	binary.BigEndian.PutUint16(buffer[8:10], pktlen)
+	binary.BigEndian.PutUint32(buffer[10:14], baseTime)
+	binary.BigEndian.PutUint32(buffer[14:18], highResTime)
+
+	aesExpandKey128(xkbuffer, ak)
+	//compute subkeys
+	aesEncrypt(xkbuffer, buffer[18:34], ZeroBlock[:])
+
+	// compute K1
+	flag := buffer[18]&byte(128) == 0
+	shiftLeft(buffer[18:34])
+	if !flag {
+		buffer[33] ^= 0x87
+	}
+	// compute K2, overwrite K1 since we will always use K2
+	flag = buffer[18]&byte(128) == 0
+	shiftLeft(buffer[18:34])
+	if !flag {
+		buffer[33] ^= 0x87
+	}
+	//Compute cmac
+	aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
+
+	buffer[0] ^= buffer[16]
+	buffer[1] ^= buffer[17]
+	xor(buffer[0:16], buffer[18:34])
+	buffer[2] ^= 0x80
+
+	aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
+	return buffer[0:16], nil
+}
+
 // Compares two 16 byte arrays.
 // Returns true if equal, false otherwise
 func CompareAk(a []byte, b []byte) bool {
@@ -165,4 +205,77 @@ func CompareVkPadded(a, b []byte) bool {
 		return false
 	}
 	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3]&Mask == b[3]&Mask
+}
+
+// code based on crypto/aes/block.go
+func aesExpandKey128(xk []uint32, key []byte) {
+
+	// Nk = 4, Nr = 10
+	for i := 0; i < 4; i++ {
+		xk[i] = binary.BigEndian.Uint32(key[4*i : 4*(i+1)])
+	}
+
+	// 44 = 4 * (Nr + 1), 4 is block size
+	for i := 4; i < 44; i++ {
+		t := xk[i-1]
+		if i&0x3 == 0 {
+			t = subw(t<<8|t>>24) ^ (uint32(powx[i>>2-1]) << 24)
+		}
+		xk[i] = xk[i-4] ^ t
+	}
+}
+
+func subw(w uint32) uint32 {
+	return uint32(sbox0[w>>24])<<24 |
+		uint32(sbox0[w>>16&0xff])<<16 |
+		uint32(sbox0[w>>8&0xff])<<8 |
+		uint32(sbox0[w&0xff])
+}
+
+func aesEncrypt(xk []uint32, dst, src []byte) {
+
+	//Copy pasted from crypto/aes/block.go
+	_ = src[15] // early bounds check
+	s0 := binary.BigEndian.Uint32(src[0:4])
+	s1 := binary.BigEndian.Uint32(src[4:8])
+	s2 := binary.BigEndian.Uint32(src[8:12])
+	s3 := binary.BigEndian.Uint32(src[12:16])
+
+	// First round just XORs input with key.
+	s0 ^= xk[0]
+	s1 ^= xk[1]
+	s2 ^= xk[2]
+	s3 ^= xk[3]
+
+	// Middle rounds shuffle using tables.
+	// Number of rounds is set by length of expanded key.
+	//nr := len(xk)/4 - 2 // - 2: one above, one more below //8
+	nr := 9
+	k := 4
+	var t0, t1, t2, t3 uint32
+	for r := 0; r < nr; r++ {
+		t0 = xk[k+0] ^ te0[uint8(s0>>24)] ^ te1[uint8(s1>>16)] ^ te2[uint8(s2>>8)] ^ te3[uint8(s3)]
+		t1 = xk[k+1] ^ te0[uint8(s1>>24)] ^ te1[uint8(s2>>16)] ^ te2[uint8(s3>>8)] ^ te3[uint8(s0)]
+		t2 = xk[k+2] ^ te0[uint8(s2>>24)] ^ te1[uint8(s3>>16)] ^ te2[uint8(s0>>8)] ^ te3[uint8(s1)]
+		t3 = xk[k+3] ^ te0[uint8(s3>>24)] ^ te1[uint8(s0>>16)] ^ te2[uint8(s1>>8)] ^ te3[uint8(s2)]
+		k += 4
+		s0, s1, s2, s3 = t0, t1, t2, t3
+	}
+
+	// Last round uses s-box directly and XORs to produce output.
+	s0 = uint32(sbox0[t0>>24])<<24 | uint32(sbox0[t1>>16&0xff])<<16 | uint32(sbox0[t2>>8&0xff])<<8 | uint32(sbox0[t3&0xff])
+	s1 = uint32(sbox0[t1>>24])<<24 | uint32(sbox0[t2>>16&0xff])<<16 | uint32(sbox0[t3>>8&0xff])<<8 | uint32(sbox0[t0&0xff])
+	s2 = uint32(sbox0[t2>>24])<<24 | uint32(sbox0[t3>>16&0xff])<<16 | uint32(sbox0[t0>>8&0xff])<<8 | uint32(sbox0[t1&0xff])
+	s3 = uint32(sbox0[t3>>24])<<24 | uint32(sbox0[t0>>16&0xff])<<16 | uint32(sbox0[t1>>8&0xff])<<8 | uint32(sbox0[t2&0xff])
+
+	s0 ^= xk[k+0]
+	s1 ^= xk[k+1]
+	s2 ^= xk[k+2]
+	s3 ^= xk[k+3]
+
+	_ = dst[15] // early bounds check
+	binary.BigEndian.PutUint32(dst[0:4], s0)
+	binary.BigEndian.PutUint32(dst[4:8], s1)
+	binary.BigEndian.PutUint32(dst[8:12], s2)
+	binary.BigEndian.PutUint32(dst[12:16], s3)
 }

@@ -71,7 +71,7 @@ func TestFlyOverMac(t *testing.T) {
 	var pktlen uint16 = 23
 	var baseTs uint32 = 1234
 	var highResTs uint32 = 4321
-	buffer := make([]byte, 18)
+	buffer := make([]byte, 34)
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 	//expected with 0, 23, 1234, 4321: 726f7d9e 17e3cbe1 d47a32eb d8a5e26e
 	mac, err := hummingbird.FullMacSelfmade(ak, dstIA, pktlen, baseTs, highResTs, buffer)
@@ -79,8 +79,24 @@ func TestFlyOverMac(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestFlyOverMacSelfmadeAes(t *testing.T) {
+	ak := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var baseTs uint32 = 1234
+	var highResTs uint32 = 4321
+	buffer := make([]byte, 34)
+	xkbuffer := make([]uint32, 44)
+	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
+	//expected with 0, 23, 1234, 4321: 726f7d9e 17e3cbe1 d47a32eb d8a5e26e
+	mac, err := hummingbird.FullMacSelfmadeAes(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
+	require.Equal(t, expected, mac)
+	require.NoError(t, err)
+}
+
 func TestMeasureFlyoverMac(t *testing.T) {
-	// ca 800 microseconds
+	// ca 800 microseconds for original
+	// ca 400 for selfmade
 	ak := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
 	var dstIA addr.IA = 326
 	var pktlen uint16 = 23
@@ -95,6 +111,30 @@ func TestMeasureFlyoverMac(t *testing.T) {
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
 		mac, err = hummingbird.FullMacSelfmade(ak, dstIA, pktlen, baseTs, highResTs, buffer)
+	}
+	elapsed := time.Since(start)
+	fmt.Print(elapsed)
+	require.Equal(t, expected, mac)
+	require.NoError(t, err)
+}
+
+func TestMeasureFlyoverMacAes(t *testing.T) {
+	// ca 400 microseconds
+	ak := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var baseTs uint32 = 1234
+	var highResTs uint32 = 4321
+	buffer := make([]byte, 34)
+	xkbuffer := make([]uint32, 44)
+	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
+
+	var mac []byte
+	var err error
+
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		mac, err = hummingbird.FullMacSelfmadeAes(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
 	}
 	elapsed := time.Since(start)
 	fmt.Print(elapsed)
