@@ -29,6 +29,7 @@ func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, ti
 	binary.BigEndian.PutUint16(buffer[6:8], eg)
 	copy(buffer[8:12], times)
 	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
+	//If we want a 256 bits key: set buffer[16:32] to zero
 
 	mode := cipher.NewCBCEncrypter(block, ZeroBlock[:])
 	mode.CryptBlocks(buffer, buffer)
@@ -57,7 +58,29 @@ func DeriveAuthKeySelfmade(block cipher.Block, resID_bw []byte, in uint16, eg ui
 	return buffer[0:16], nil
 }
 
-func FullMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
+func DeriveAuthKeySelfmade256(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+
+	//around 30 microseconds
+	if len(buffer) < 32 {
+		buffer = make([]byte, 32)
+	}
+	//prepare input
+	copy(buffer[0:4], resID_bw)
+	binary.BigEndian.PutUint16(buffer[4:6], in)
+	binary.BigEndian.PutUint16(buffer[6:8], eg)
+	copy(buffer[8:12], times)
+	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
+
+	// should xor input with iv, but we use iv = 0 => identity
+	// iv makes no sense to use as we encrypt only one block
+	block.Encrypt(buffer[0:16], buffer[0:16])
+
+	//second block is all 0 padding, xor is unnecessary
+	block.Encrypt(buffer[16:32], buffer[0:16])
+	return buffer[0:32], nil
+}
+
+func FlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
 	if len(buffer) < 18 {
 		buffer = make([]byte, 18)
 	}
@@ -92,7 +115,7 @@ func xor(a, b []byte) {
 	binary.BigEndian.PutUint64(a[8:16], binary.BigEndian.Uint64(a[8:16])^binary.BigEndian.Uint64(b[8:16]))
 }
 
-func FullMacSelfmade(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
+func FlyoverMacSelfmade(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte) ([]byte, error) {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
 	}
@@ -132,7 +155,7 @@ func FullMacSelfmade(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, h
 	return buffer[0:16], nil
 }
 
-func FullMacSelfmadeAes(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) ([]byte, error) {
+func FlyoverMacSelfmadeAes(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) ([]byte, error) {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
 	}
