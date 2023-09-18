@@ -1,3 +1,5 @@
+//go:build amd64 || arm64 || ppc64 || ppc64le
+
 package hummingbird
 
 import (
@@ -8,6 +10,12 @@ import (
 	"github.com/dchest/cmac"
 	"github.com/scionproto/scion/pkg/addr"
 )
+
+//go:noescape
+func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+
+//go:noescape
+func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 
 const BufferSize = 16
 
@@ -175,6 +183,7 @@ func FlyoverMacSelfmadeAes(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uin
 	aesEncrypt(xkbuffer, buffer[18:34], ZeroBlock[:])
 
 	// compute K1
+	// TODO: combine shifts for K1 and K2 into one shift << 2
 	flag := buffer[18]&byte(128) == 0
 	shiftLeft(buffer[18:34])
 	if !flag {
@@ -195,6 +204,56 @@ func FlyoverMacSelfmadeAes(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uin
 	buffer[2] ^= 0x80
 
 	aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
+	return buffer[0:16], nil
+}
+
+// Computes flyover mac vk
+// Needs a xkbuffer of 44 uint32s to store the expanded keys for aes
+// This method does not include a make() call like aes.NewCipher, but also does not use the fast aes implementations that the crypto library uses
+// As a result, this method has a similar performance to FlyoverMacSelfmade
+func FlyoverMacAssembly(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer, dummy []uint32) ([]byte, error) {
+	if len(buffer) < 34 {
+		buffer = make([]byte, 34)
+	}
+	if len(xkbuffer) < 44 {
+		xkbuffer = make([]uint32, 44)
+	}
+
+	binary.BigEndian.PutUint64(buffer[0:8], uint64(dstIA))
+	binary.BigEndian.PutUint16(buffer[8:10], pktlen)
+	binary.BigEndian.PutUint32(buffer[10:14], baseTime)
+	binary.BigEndian.PutUint32(buffer[14:18], highResTime)
+
+	expandKeyAsm(10, &ak[0], &xkbuffer[0], &dummy[0])
+	//aesExpandKey128(xkbuffer, ak)
+	//compute subkeys
+	encryptBlockAsm(10, &xkbuffer[0], &buffer[18], &ZeroBlock[0])
+	//aesEncrypt(xkbuffer, buffer[18:34], ZeroBlock[:])
+
+	// compute K1
+	// TODO: combine shifts for K1 and K2 into one shift << 2
+	flag := buffer[18]&byte(128) == 0
+	shiftLeft(buffer[18:34])
+	if !flag {
+		buffer[33] ^= 0x87
+	}
+	// compute K2, overwrite K1 since we will always use K2
+	flag = buffer[18]&byte(128) == 0
+	shiftLeft(buffer[18:34])
+	if !flag {
+		buffer[33] ^= 0x87
+	}
+	//Compute cmac
+	//aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
+	encryptBlockAsm(10, &xkbuffer[0], &buffer[0], &buffer[0])
+
+	buffer[0] ^= buffer[16]
+	buffer[1] ^= buffer[17]
+	xor(buffer[0:16], buffer[18:34])
+	buffer[2] ^= 0x80
+
+	//aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
+	encryptBlockAsm(10, &xkbuffer[0], &buffer[0], &buffer[0])
 	return buffer[0:16], nil
 }
 
@@ -250,6 +309,26 @@ func aesExpandKey128(xk []uint32, key []byte) {
 		// else if nk > 6 && i%nk == 4 {
 		// 	t = subw(t)
 		// }
+		xk[i] = xk[i-4] ^ t
+	}
+}
+
+// code based on crypto/aes/block.go
+func aesExpandKey256(xk []uint32, key []byte) {
+
+	// Nk = 8, Nr = 10
+	for i := 0; i < 8; i++ {
+		xk[i] = binary.BigEndian.Uint32(key[4*i : 4*(i+1)])
+	}
+
+	// 44 = 4 * (Nr + 1), 4 is block size
+	for i := 8; i < 60; i++ {
+		t := xk[i-1]
+		if i&0x7 == 0 {
+			t = subw(t<<8|t>>24) ^ (uint32(powx[i>>3-1]) << 24)
+		} else if i%8 == 4 {
+			t = subw(t)
+		}
 		xk[i] = xk[i-4] ^ t
 	}
 }

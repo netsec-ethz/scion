@@ -192,6 +192,11 @@ func TestMeasureFlyoverMacSelfmade(t *testing.T) {
 
 func TestMeasureFlyoverMacAes(t *testing.T) {
 	// ca 400 - 500 microseconds
+	// ca 530 - 750 microseconds with 256 bits key
+	// ca 90 microseconds with assembly aes
+	// ca 250 without key expansion
+	// ca 250-200 without aes.encrypt
+	// 12 with neither
 	ak := []byte{142, 19, 145, 119, 76, 2, 228, 18, 134, 111, 116, 45, 200, 172, 113, 219}
 	var dstIA addr.IA = 326
 	var pktlen uint16 = 23
@@ -199,6 +204,7 @@ func TestMeasureFlyoverMacAes(t *testing.T) {
 	var highResTs uint32 = 4321
 	buffer := make([]byte, 34)
 	xkbuffer := make([]uint32, 44)
+	dummy := make([]uint32, 44)
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 
 	var mac []byte
@@ -206,7 +212,7 @@ func TestMeasureFlyoverMacAes(t *testing.T) {
 
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		mac, err = hummingbird.FlyoverMacSelfmadeAes(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
+		mac, err = hummingbird.FlyoverMacAssembly(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer, dummy)
 	}
 	elapsed := time.Since(start)
 	fmt.Print(elapsed)
