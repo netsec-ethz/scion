@@ -41,9 +41,9 @@ func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, ti
 
 // shifts left a 16 bytes array
 func shiftLeft(in []byte) {
-	flag := (in[8] & byte(128)) >> 7
-	binary.BigEndian.PutUint64(in[0:8], binary.BigEndian.Uint64(in[0:8])<<1+uint64(flag))
-	binary.BigEndian.PutUint64(in[8:16], binary.BigEndian.Uint64(in[8:16])<<1)
+	flag := (in[8] & byte(128+64)) >> 6
+	binary.BigEndian.PutUint64(in[0:8], binary.BigEndian.Uint64(in[0:8])<<2+uint64(flag))
+	binary.BigEndian.PutUint64(in[8:16], binary.BigEndian.Uint64(in[8:16])<<2)
 }
 
 func xor(a, b []byte) {
@@ -69,26 +69,21 @@ func FlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highRe
 	binary.BigEndian.PutUint32(buffer[14:18], highResTime)
 
 	expandKeyAsm(10, &ak[0], &xkbuffer[0], &dummy[0])
-	//aesExpandKey128(xkbuffer, ak)
 	//compute subkeys
 	encryptBlockAsm(10, &xkbuffer[0], &buffer[18], &ZeroBlock[0])
-	//aesEncrypt(xkbuffer, buffer[18:34], ZeroBlock[:])
 
-	// compute K1
-	// TODO: combine shifts for K1 and K2 into one shift << 2
-	flag := buffer[18]&byte(128) == 0
+	// Compute K2. Ignore K1 since we will always use K2
+	flag1 := buffer[18]&byte(128) == 0
+	flag2 := buffer[18]&byte(64) == 0
 	shiftLeft(buffer[18:34])
-	if !flag {
-		buffer[33] ^= 0x87
+	if !flag1 {
+		buffer[32] ^= 0x01
+		buffer[33] ^= 0x0e
 	}
-	// compute K2, overwrite K1 since we will always use K2
-	flag = buffer[18]&byte(128) == 0
-	shiftLeft(buffer[18:34])
-	if !flag {
+	if !flag2 {
 		buffer[33] ^= 0x87
 	}
 	//Compute cmac
-	//aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
 	encryptBlockAsm(10, &xkbuffer[0], &buffer[0], &buffer[0])
 
 	buffer[0] ^= buffer[16]
@@ -96,7 +91,6 @@ func FlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highRe
 	xor(buffer[0:16], buffer[18:34])
 	buffer[2] ^= 0x80
 
-	//aesEncrypt(xkbuffer, buffer[0:16], buffer[0:16])
 	encryptBlockAsm(10, &xkbuffer[0], &buffer[0], &buffer[0])
 	//TODO: return only first 28 bits (4 bytes, set last 4 to zero)
 	return buffer[0:16], nil
