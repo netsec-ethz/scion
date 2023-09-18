@@ -147,7 +147,7 @@ Lexp_enc256:
 	CALL _expand_key_256b<>(SB)
 	AESKEYGENASSIST $0x40, X2, X1
 	CALL _expand_key_256a<>(SB)
-	JMP Lexp_dec
+	RET
 Lexp_enc192:
 	MOVQ 16(AX), X2
 	AESKEYGENASSIST $0x01, X2, X1
@@ -166,7 +166,7 @@ Lexp_enc192:
 	CALL _expand_key_192a<>(SB)
 	AESKEYGENASSIST $0x80, X2, X1
 	CALL _expand_key_192b<>(SB)
-	JMP Lexp_dec
+	RET
 Lexp_enc128:
 	AESKEYGENASSIST $0x01, X0, X1
 	CALL _expand_key_128<>(SB)
@@ -188,6 +188,7 @@ Lexp_enc128:
 	CALL _expand_key_128<>(SB)
 	AESKEYGENASSIST $0x36, X0, X1
 	CALL _expand_key_128<>(SB)
+	RET
 Lexp_dec:
 	// dec
 	SUBQ $16, BX

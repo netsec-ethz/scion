@@ -10,6 +10,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 )
 
+// defined in asm_* assembly files
+
 //go:noescape
 func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 
@@ -51,11 +53,11 @@ func xor(a, b []byte) {
 	binary.BigEndian.PutUint64(a[8:16], binary.BigEndian.Uint64(a[8:16])^binary.BigEndian.Uint64(b[8:16]))
 }
 
-// Computes flyover mac vk
+// Computes full flyover mac vk
 // Needs a xkbuffer of 44 uint32s to store the expanded keys for aes
-// This method does not include a make() call like aes.NewCipher, but also does not use the fast aes implementations that the crypto library uses
-// As a result, this method has a similar performance to FlyoverMacSelfmade
-func FlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer, dummy []uint32) ([]byte, error) {
+// dummy buffer is memory used by key expansion to store decryption keys
+// TODO: remove usage of dummy buffer; is no longer used for AMD64 machines and should (not tested) be fine for arm64 machines as well
+func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer, dummy []uint32) ([]byte, error) {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
 	}
@@ -97,6 +99,7 @@ func FlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highRe
 }
 
 // Compares two 16 byte arrays.
+// Always returns false if at least one input has a length different from 16
 // Returns true if equal, false otherwise
 func CompareAk(a []byte, b []byte) bool {
 	if len(a) != 16 || len(b) != 16 {
