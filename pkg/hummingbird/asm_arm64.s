@@ -111,13 +111,12 @@ dec128:
 	VST1	[V0.B16], (R11)
 	RET
 
-// func expandKeyAsm(nr int, key *byte, enc, dec *uint32) {
+// func expandKeyAsm(nr int, key *byte, enc) {
 // Note that round keys are stored in uint128 format, not uint32
 TEXT ·expandKeyAsm(SB),NOSPLIT,$0
 	MOVD	nr+0(FP), R8
 	MOVD	key+8(FP), R9
 	MOVD	enc+16(FP), R10
-	MOVD	dec+24(FP), R11
 	LDP	rotInvSRows<>(SB), (R0, R1)
 	VMOV	R0, V3.D[0]
 	VMOV	R1, V3.D[1]

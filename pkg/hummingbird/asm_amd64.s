@@ -102,13 +102,12 @@ Ldec128:
 	MOVUPS X0, 0(DX)
 	RET
 
-// func expandKeyAsm(nr int, key *byte, enc, dec *uint32) {
+// func expandKeyAsm(nr int, key *byte, enc) {
 // Note that round keys are stored in uint128 format, not uint32
 TEXT ·expandKeyAsm(SB),NOSPLIT,$0
 	MOVQ nr+0(FP), CX
 	MOVQ key+8(FP), AX
 	MOVQ enc+16(FP), BX
-	MOVQ dec+24(FP), DX
 	MOVUPS (AX), X0
 	// enc
 	MOVUPS X0, (BX)
@@ -188,23 +187,6 @@ Lexp_enc128:
 	CALL _expand_key_128<>(SB)
 	AESKEYGENASSIST $0x36, X0, X1
 	CALL _expand_key_128<>(SB)
-	RET
-Lexp_dec:
-	// dec
-	SUBQ $16, BX
-	MOVUPS (BX), X1
-	MOVUPS X1, (DX)
-	DECQ CX
-Lexp_dec_loop:
-	MOVUPS -16(BX), X1
-	AESIMC X1, X0
-	MOVUPS X0, 16(DX)
-	SUBQ $16, BX
-	ADDQ $16, DX
-	DECQ CX
-	JNZ Lexp_dec_loop
-	MOVUPS -16(BX), X0
-	MOVUPS X0, 16(DX)
 	RET
 
 TEXT _expand_key_128<>(SB),NOSPLIT,$0

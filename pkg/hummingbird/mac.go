@@ -16,7 +16,7 @@ import (
 func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 
 //go:noescape
-func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+func expandKeyAsm(nr int, key *byte, enc *uint32)
 
 const BufferSize = 16
 
@@ -57,7 +57,7 @@ func xor(a, b []byte) {
 // Needs a xkbuffer of 44 uint32s to store the expanded keys for aes
 // dummy buffer is memory used by key expansion to store decryption keys
 // TODO: remove usage of dummy buffer; is no longer used for AMD64 machines and should (not tested) be fine for arm64 machines as well
-func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer, dummy []uint32) ([]byte, error) {
+func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) ([]byte, error) {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
 	}
@@ -70,7 +70,7 @@ func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, hi
 	binary.BigEndian.PutUint32(buffer[10:14], baseTime)
 	binary.BigEndian.PutUint32(buffer[14:18], highResTime)
 
-	expandKeyAsm(10, &ak[0], &xkbuffer[0], &dummy[0])
+	expandKeyAsm(10, &ak[0], &xkbuffer[0])
 	//compute subkeys
 	encryptBlockAsm(10, &xkbuffer[0], &buffer[18], &ZeroBlock[0])
 

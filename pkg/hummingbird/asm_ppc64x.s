@@ -93,13 +93,13 @@ GLOBL ·rcon(SB), RODATA, $80
 	LXSDX	(RA+RB), VT
 #endif
 
-// func setEncryptKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+// func setEncryptKeyAsm(nr int, key *byte, enc *uint32)
 TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
 	// Load the arguments inside the registers
 	MOVD	nr+0(FP), ROUNDS
 	MOVD	key+8(FP), INP
 	MOVD	enc+16(FP), OUTENC
-	MOVD	dec+24(FP), OUTDEC
+//	MOVD	dec+24(FP), OUTDEC
 
 #ifdef GOARCH_ppc64le
 	MOVD	$·rcon(SB), PTR // PTR point to rcon addr
@@ -124,11 +124,11 @@ TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
 
 	// The expanded decrypt key is the expanded encrypt key stored in reverse order.
 	// Move OUTDEC to the last key location, and store in descending order.
-	ADD	$160, OUTDEC, OUTDEC
+//	ADD	$160, OUTDEC, OUTDEC
 	BLT	loop128
-	ADD	$32, OUTDEC, OUTDEC
+//	ADD	$32, OUTDEC, OUTDEC
 	BEQ	l192
-	ADD	$32, OUTDEC, OUTDEC
+//	ADD	$32, OUTDEC, OUTDEC
 	JMP	l256
 
 loop128:
@@ -136,10 +136,10 @@ loop128:
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5         Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 
 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP // vsldoi 6,0,6,12
@@ -156,10 +156,10 @@ loop128:
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-spat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 
 	// Key schedule (Round 10)
 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
@@ -173,10 +173,10 @@ loop128:
 	VPERM	IN0, IN0, MASK, KEY              // vperm 3,1,1,5   Rotate-n-splat
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 
 	// Key schedule (Round 11)
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
@@ -186,7 +186,7 @@ loop128:
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 
 	RET
 
@@ -194,9 +194,9 @@ l192:
 	LXSDX_BE(INP, R0, IN1)                   // Load next 8 bytes into upper half of VSR in BE order.
 	MOVD	$4, CNT                          // li 7,4
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 	VSPLTISB	$8, KEY                  // vspltisb 3,8
 	MOVD	CNT, CTR                         // mtctr 7
 	VSUBUBM	MASK, KEY, MASK                  // vsububm 5,5,3
@@ -225,21 +225,21 @@ loop192:
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
 	STXVD2X	STAGE, (R0+OUTENC)
-	STXVD2X	STAGE, (R0+OUTDEC)
+//	STXVD2X	STAGE, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 
 	VSLDOI	$8, IN0, IN1, STAGE              // vsldoi 7,1,2,8
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	STXVD2X	STAGE, (R0+OUTENC)
-	STXVD2X	STAGE, (R0+OUTDEC)
+//	STXVD2X	STAGE, (R0+OUTDEC)
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 
 	VSPLTW	$3, IN0, TMP                     // vspltw 6,1,3
 	VXOR	TMP, IN1, TMP                    // vxor 6,6,2
@@ -249,9 +249,9 @@ loop192:
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
 	VXOR	IN1, KEY, IN1                    // vxor 2,2,3
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 	BC	0x10, 0, loop192                 // bdnz .Loop192
 
 	RET
@@ -260,19 +260,19 @@ l256:
 	P8_LXVB16X(INP, R0, IN1)
 	MOVD	$7, CNT                          // li 7,7
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 	MOVD	CNT, CTR                         // mtctr 7
 
 loop256:
 	VPERM	IN1, IN1, MASK, KEY              // vperm 3,2,2,5
 	VSLDOI	$12, ZERO, IN0, TMP              // vsldoi 6,0,1,12
 	STXVD2X	IN1, (R0+OUTENC)
-	STXVD2X	IN1, (R0+OUTDEC)
+//	STXVD2X	IN1, (R0+OUTDEC)
 	VCIPHERLAST	KEY, RCON, KEY           // vcipherlast 3,3,4
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 
 	VXOR	IN0, TMP, IN0                    // vxor 1,1,6
 	VSLDOI	$12, ZERO, TMP, TMP              // vsldoi 6,0,6,12
@@ -282,9 +282,9 @@ loop256:
 	VADDUWM	RCON, RCON, RCON                 // vadduwm 4,4,4
 	VXOR	IN0, KEY, IN0                    // vxor 1,1,3
 	STXVD2X	IN0, (R0+OUTENC)
-	STXVD2X	IN0, (R0+OUTDEC)
+//	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
-	ADD	$-16, OUTDEC, OUTDEC
+//	ADD	$-16, OUTDEC, OUTDEC
 	BC	0x12, 0, done                    // bdz .Ldone
 
 	VSPLTW	$3, IN0, KEY        // vspltw 3,1,3
