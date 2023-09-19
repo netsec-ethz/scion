@@ -15,6 +15,8 @@ import (
 //go:noescape
 func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 
+//TODO: test expandKeyAsm on arm64 and ppc64 machines. Compare with code in go/src/crypto/aes/asm_* if necessary
+
 //go:noescape
 func expandKeyAsm(nr int, key *byte, enc *uint32)
 
