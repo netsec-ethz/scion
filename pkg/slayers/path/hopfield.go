@@ -111,7 +111,7 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 // @ decreases
 func (h *HopField) SerializeTo(b []byte) (err error) {
 	if len(b) < HopLen {
-		return serrors.New("buffer for HopField too short", "expected", MacLen, "actual", len(b))
+		return serrors.New("buffer for HopField too short", "expected", HopLen, "actual", len(b))
 	}
 	b[0] = 0
 	if h.EgressRouterAlert {
