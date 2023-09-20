@@ -30,13 +30,11 @@ func TestDeriveAuthKey(t *testing.T) {
 		require.Fail(t, err.Error())
 	}
 
-	key, err := hummingbird.DeriveAuthKey(block, resId, bw, in, eg, start, end, buffer)
+	key := hummingbird.DeriveAuthKey(block, resId, bw, in, eg, start, end, buffer)
 	require.Equal(t, expected, key)
-	require.NoError(t, err)
 
-	key, err = hummingbird.DeriveAuthKey(block, resId, bw, in, eg, start, end, buffer)
+	key = hummingbird.DeriveAuthKey(block, resId, bw, in, eg, start, end, buffer)
 	require.Equal(t, expected, key)
-	require.NoError(t, err)
 }
 
 func TestMeasureDeriveAuthKey(t *testing.T) {
@@ -59,11 +57,10 @@ func TestMeasureDeriveAuthKey(t *testing.T) {
 	var key []byte
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		key, err = hummingbird.DeriveAuthKey(block, resId, bw, in, eg, startTime, endTime, buffer)
+		key = hummingbird.DeriveAuthKey(block, resId, bw, in, eg, startTime, endTime, buffer)
 	}
 	elapsed := time.Since(start)
 	require.Equal(t, expected, key)
-	require.NoError(t, err)
 	fmt.Print(elapsed)
 }
 
@@ -79,12 +76,10 @@ func TestFlyOverMac(t *testing.T) {
 	xkbuffer := make([]uint32, 44)
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 	//expected with 0, 23, 1234, 4321: 726f7d9e 17e3cbe1 d47a32eb d8a5e26e
-	mac, err := hummingbird.FullFlyoverMac(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
+	mac := hummingbird.FullFlyoverMac(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
 	require.Equal(t, expected, mac)
-	require.NoError(t, err)
-	mac, err = hummingbird.FullFlyoverMac(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
+	mac = hummingbird.FullFlyoverMac(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
 	require.Equal(t, expected, mac)
-	require.NoError(t, err)
 }
 
 // func TestMeasureFlyoverMac(t *testing.T) {
@@ -175,16 +170,14 @@ func TestMeasureFlyoverMac(t *testing.T) {
 	expected := []byte{106, 137, 42, 100, 162, 8, 148, 176, 96, 188, 243, 236, 179, 195, 218, 185}
 
 	var mac []byte
-	var err error
 
 	start := time.Now()
 	for i := 0; i < 1000; i++ {
-		mac, err = hummingbird.FullFlyoverMac(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
+		mac = hummingbird.FullFlyoverMac(ak, dstIA, pktlen, baseTs, highResTs, buffer, xkbuffer)
 	}
 	elapsed := time.Since(start)
 	fmt.Print(elapsed)
 	require.Equal(t, expected, mac)
-	require.NoError(t, err)
 }
 
 func TestCompareAk(t *testing.T) {

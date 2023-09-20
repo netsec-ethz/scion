@@ -26,7 +26,7 @@ var ZeroBlock [aes.BlockSize]byte
 
 // Derive authentication key A_k
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
-func DeriveAuthKey(block cipher.Block, resId uint32, bw, in, eg, startTime, endTime uint16, buffer []byte) ([]byte, error) {
+func DeriveAuthKey(block cipher.Block, resId uint32, bw, in, eg, startTime, endTime uint16, buffer []byte) []byte {
 
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
@@ -43,7 +43,7 @@ func DeriveAuthKey(block cipher.Block, resId uint32, bw, in, eg, startTime, endT
 
 	// should xor input with iv, but we use iv = 0 => identity
 	block.Encrypt(buffer[0:16], buffer[0:16])
-	return buffer[0:16], nil
+	return buffer[0:16]
 }
 
 // shifts left a 16 bytes array
@@ -62,7 +62,7 @@ func xor(a, b []byte) {
 // Needs a xkbuffer of 44 uint32s to store the expanded keys for aes
 // dummy buffer is memory used by key expansion to store decryption keys
 // TODO: remove usage of dummy buffer; is no longer used for AMD64 machines and should (not tested) be fine for arm64 machines as well
-func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) ([]byte, error) {
+func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, highResTime uint32, buffer []byte, xkbuffer []uint32) []byte {
 	if len(buffer) < 34 {
 		buffer = make([]byte, 34)
 	}
@@ -100,7 +100,7 @@ func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, baseTime uint32, hi
 
 	encryptBlockAsm(10, &xkbuffer[0], &buffer[0], &buffer[0])
 	//TODO: return only first 28 bits (4 bytes, set last 4 to zero)
-	return buffer[0:16], nil
+	return buffer[0:16]
 }
 
 // Compares two 16 byte arrays.
