@@ -26,16 +26,19 @@ var ZeroBlock [aes.BlockSize]byte
 
 // Derive authentication key A_k
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
-func DeriveAuthKey(block cipher.Block, resID_bw []byte, in uint16, eg uint16, times []byte, buffer []byte) ([]byte, error) {
+func DeriveAuthKey(block cipher.Block, resId uint32, bw, in, eg, startTime, endTime uint16, buffer []byte) ([]byte, error) {
 
 	if len(buffer) < BufferSize {
 		buffer = make([]byte, BufferSize)
 	}
 	//prepare input
-	copy(buffer[0:4], resID_bw)
+	binary.BigEndian.PutUint32(buffer[0:4], resId<<10)
+	buffer[2] |= byte(bw >> 8)
+	buffer[3] = byte(bw)
 	binary.BigEndian.PutUint16(buffer[4:6], in)
 	binary.BigEndian.PutUint16(buffer[6:8], eg)
-	copy(buffer[8:12], times)
+	binary.BigEndian.PutUint16(buffer[8:10], startTime)
+	binary.BigEndian.PutUint16(buffer[10:12], endTime)
 	binary.BigEndian.PutUint32(buffer[12:16], 0) //padding
 
 	// should xor input with iv, but we use iv = 0 => identity
