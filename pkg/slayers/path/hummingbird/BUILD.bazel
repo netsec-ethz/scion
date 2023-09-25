@@ -5,7 +5,7 @@ go_library(
     srcs = [
         "mac.go"
     ],
-    importpath = "github.com/scionproto/scion/pkg/hummingbird",
+    importpath = "github.com/scionproto/scion/pkg/slayers/path/hummingbird",
     visibility = ["//visibility:public"],
     deps = [
 

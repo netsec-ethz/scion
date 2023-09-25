@@ -8,7 +8,7 @@ import (
 
 	"github.com/dchest/cmac"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/hummingbird"
+	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/stretchr/testify/require"
 )
 
