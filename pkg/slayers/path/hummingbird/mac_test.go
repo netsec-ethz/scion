@@ -75,7 +75,37 @@ func BenchmarkDeriveAuthKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		hummingbird.DeriveAuthKey(block, resId, bw, in, eg, start, duration, buffer)
 	}
+}
 
+// BenchmarkDeriveAuthKeyManually benchmarks obtaining Ak by just using the stdlib.
+// Results in my machine of 5.987 ns/op.
+func BenchmarkDeriveAuthKeyManually(b *testing.B) {
+	sv := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	var resId uint32 = 0x40
+	var bw uint16 = 0x0203
+	var in uint16 = 2
+	var eg uint16 = 5
+	var start uint16 = 0x0001
+	var end uint16 = 0x0203
+
+	src := make([]byte, hummingbird.BufferSize)
+	binary.BigEndian.PutUint32(src[0:4], resId<<10)
+	src[2] |= byte(bw >> 8)
+	src[3] = byte(bw)
+	binary.BigEndian.PutUint16(src[4:6], in)
+	binary.BigEndian.PutUint16(src[6:8], eg)
+	binary.BigEndian.PutUint16(src[8:10], start)
+	binary.BigEndian.PutUint16(src[10:12], end)
+	binary.BigEndian.PutUint32(src[12:16], 0) //padding
+
+	buffer := make([]byte, 16)
+	block, err := aes.NewCipher(sv)
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		block.Encrypt(buffer[:], src)
+	}
 }
 
 // verified with https://artjomb.github.io/cryptojs-extension/
