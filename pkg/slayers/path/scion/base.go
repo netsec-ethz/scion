@@ -24,6 +24,7 @@ import (
 
 // MetaLen is the length of the PathMetaHeader.
 const MetaLen = 4
+const MetaLenHBird = 12
 
 const PathType path.Type = 1
 
@@ -45,14 +46,25 @@ type Base struct {
 	// NumINF is the number of InfoFields in the path.
 	NumINF int
 	// NumHops is the number HopFields in the path.
+	// If IsHummingbird is true, NumHops is the number of 4 bytes lines in the path instead of the number of hops.
+	// TODO: rename and reevaluate?
 	NumHops int
+	// IsHummingbird is true iff the PathMetaHdr is in the Hummingbird PathMetaHdr format
+	IsHummingbird bool
 }
 
 func (s *Base) DecodeFromBytes(data []byte) error {
 	// PathMeta takes care of bounds check.
-	err := s.PathMeta.DecodeFromBytes(data)
-	if err != nil {
-		return err
+	if s.IsHummingbird {
+		err := s.PathMeta.DecodeFromBytesHBird(data)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := s.PathMeta.DecodeFromBytes(data)
+		if err != nil {
+			return err
+		}
 	}
 	s.NumINF = 0
 	s.NumHops = 0
@@ -78,7 +90,28 @@ func (s *Base) IncPath() error {
 		s.PathMeta.CurrHF = uint8(s.NumHops - 1)
 		return serrors.New("path already at end")
 	}
-	s.PathMeta.CurrHF++
+	if s.IsHummingbird {
+		s.PathMeta.CurrHF += 3
+	} else {
+		s.PathMeta.CurrHF++
+	}
+	// Update CurrINF
+	s.PathMeta.CurrINF = s.infIndexForHF(s.PathMeta.CurrHF)
+	return nil
+}
+
+// TODO: Use a function argument specifying by how much the path should be incremented instead of duplicating method?
+// Or find another solution, but having a second method IncPathFlyover() is ugly imo
+func (s *Base) IncPathFlyover() error {
+	if s.NumINF == 0 {
+		return serrors.New("empty path cannot be increased")
+	}
+	if int(s.PathMeta.CurrHF) >= s.NumHops-1 {
+		s.PathMeta.CurrHF = uint8(s.NumHops - 1)
+		return serrors.New("path already at end")
+	}
+	s.PathMeta.CurrHF += 5
+
 	// Update CurrINF
 	s.PathMeta.CurrINF = s.infIndexForHF(s.PathMeta.CurrHF)
 	return nil
@@ -86,6 +119,10 @@ func (s *Base) IncPath() error {
 
 // IsXover returns whether we are at a crossover point.
 func (s *Base) IsXover() bool {
+	if s.IsHummingbird {
+		return s.PathMeta.CurrHF+5 < uint8(s.NumHops) &&
+			s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
+	}
 	return s.PathMeta.CurrHF+1 < uint8(s.NumHops) &&
 		s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
 }
@@ -109,6 +146,9 @@ func (s *Base) infIndexForHF(hf uint8) uint8 {
 
 // Len returns the length of the path in bytes.
 func (s *Base) Len() int {
+	if s.IsHummingbird {
+		return MetaLenHBird + s.NumINF*path.InfoLen + s.NumHops*4
+	}
 	return MetaLen + s.NumINF*path.InfoLen + s.NumHops*path.HopLen
 }
 
@@ -119,9 +159,11 @@ func (s *Base) Type() path.Type {
 
 // MetaHdr is the PathMetaHdr of a SCION (data-plane) path type.
 type MetaHdr struct {
-	CurrINF uint8
-	CurrHF  uint8
-	SegLen  [3]uint8
+	CurrINF   uint8
+	CurrHF    uint8
+	SegLen    [3]uint8
+	BaseTS    uint32
+	HighResTS uint32
 }
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
@@ -136,6 +178,23 @@ func (m *MetaHdr) DecodeFromBytes(raw []byte) error {
 	m.SegLen[0] = uint8(line>>12) & 0x3F
 	m.SegLen[1] = uint8(line>>6) & 0x3F
 	m.SegLen[2] = uint8(line) & 0x3F
+
+	return nil
+}
+
+func (m *MetaHdr) DecodeFromBytesHBird(raw []byte) error {
+	if len(raw) < MetaLenHBird {
+		return serrors.New("MetaHdr raw too short", "expected", MetaLenHBird, "actual", len(raw))
+	}
+	line := binary.BigEndian.Uint32(raw[0:4])
+	m.CurrINF = uint8(line >> 30)
+	m.CurrHF = uint8(line >> 22)
+	m.SegLen[0] = uint8(line>>14) & 0x7F
+	m.SegLen[1] = uint8(line>>7) & 0x7F
+	m.SegLen[2] = uint8(line) & 0x7F
+
+	m.BaseTS = binary.BigEndian.Uint32(raw[4:8])
+	m.HighResTS = binary.BigEndian.Uint32(raw[8:12])
 
 	return nil
 }
@@ -155,6 +214,23 @@ func (m *MetaHdr) SerializeTo(b []byte) error {
 	return nil
 }
 
+func (m *MetaHdr) SerializeToHBird(b []byte) error {
+	if len(b) < MetaLenHBird {
+		return serrors.New("buffer for MetaHdr too short", "expected", MetaLenHBird, "actual", len(b))
+	}
+	line := uint32(m.CurrINF)<<30 | uint32(m.CurrHF)<<22
+	line |= uint32(m.SegLen[0]&0x7F) << 14
+	line |= uint32(m.SegLen[1]&0x7F) << 7
+	line |= uint32(m.SegLen[2] & 0x7F)
+	binary.BigEndian.PutUint32(b[0:4], line)
+
+	binary.BigEndian.PutUint32(b[4:8], m.BaseTS)
+	binary.BigEndian.PutUint32(b[8:12], m.HighResTS)
+
+	return nil
+}
+
 func (m MetaHdr) String() string {
-	return fmt.Sprintf("{CurrInf: %d, CurrHF: %d, SegLen: %v}", m.CurrINF, m.CurrHF, m.SegLen)
+	return fmt.Sprintf("{CurrInf: %d, CurrHF: %d, SegLen: %v, BaseTimestamp: %v, HighResTimestamp: %v}",
+		m.CurrINF, m.CurrHF, m.SegLen, m.BaseTS, m.HighResTS)
 }
