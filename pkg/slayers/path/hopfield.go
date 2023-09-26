@@ -26,6 +26,8 @@ import (
 const (
 	// HopLen is the size of a HopField in bytes.
 	HopLen = 12
+	// FlyoverLen is the length of a FlyoverHopField in bytes
+	FlyoverLen = 20
 	// MacLen is the size of the MAC of each HopField.
 	MacLen = 6
 )
@@ -49,6 +51,8 @@ const expTimeUnit = MaxTTL / 256 // ~5m38s
 //	|                              MAC                              |
 //	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type HopField struct {
+	// Flyover flag. If the Flyover is set, this HopField is a FlyoverHopfield and contains a reservation
+	Flyover bool
 	// IngressRouterAlert flag. If the IngressRouterAlert is set, the ingress router (in
 	// construction direction) will process the L4 payload in the packet.
 	IngressRouterAlert bool
@@ -68,6 +72,14 @@ type HopField struct {
 	ConsEgress uint16
 	// Mac is the 6-byte Message Authentication Code to authenticate the HopField.
 	Mac [MacLen]byte
+	// ResID is the Reservation ID of the flyover
+	ResID uint32
+	// Bw is the reserved banwidth of the flyover
+	Bw uint16
+	// ResStartTime is the start time of the reservation, as a negative offset from the BaseTimeStamp in the PathMetaHdr
+	ResStartTime uint16
+	// Duration is the duration of the reservation
+	Duration uint16
 }
 
 // DecodeFromBytes populates the fields from a raw buffer.
@@ -84,6 +96,7 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < HopLen {
 		return serrors.New("HopField raw too short", "expected", HopLen, "actual", len(raw))
 	}
+	h.Flyover = raw[0]&0x80 == 0x80
 	h.EgressRouterAlert = raw[0]&0x1 == 0x1
 	h.IngressRouterAlert = raw[0]&0x2 == 0x2
 	h.ExpTime = raw[1]
@@ -96,6 +109,18 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	//@ assert forall i int :: 0 <= i && i < len(raw[6:6+MacLen]) ==>
 	//@     &raw[6:6+MacLen][i] == &raw[i+6]
 	copy(h.Mac[:], raw[6:6+MacLen] /*@, perm(1/2)@*/)
+	if h.Flyover {
+		if len(raw) < FlyoverLen {
+			return serrors.New("FlyoverHopField raw too short", "expected", HopLen, "actual", len(raw))
+		}
+		//@ assert &raw[12:16][0] == &raw[12] && &raw[12:16][1] == &raw[12] && &raw[12:16][2] == &raw[14] && &raw[12:16][3] == &raw[15]
+		h.ResID = binary.BigEndian.Uint32(raw[12:16]) >> 10
+		h.Bw = binary.BigEndian.Uint16(raw[14:16]) & 0x03ff
+		//@ assert &raw[16:18][0] == &raw[16] && &raw[16:18][1] == &raw[17]
+		h.ResStartTime = binary.BigEndian.Uint16(raw[16:18])
+		//@ assert &raw[18:20][0] == &raw[18] && &raw[18:20][1] == &raw[19]
+		h.Duration = binary.BigEndian.Uint16(raw[18:20])
+	}
 	return nil
 }
 
@@ -130,6 +155,18 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 	//@ assert forall i int :: 0 <= i && i < MacLen ==>
 	//@     &b[6:6+MacLen][i] == &b[i+6]
 	copy(b[6:6+MacLen], h.Mac[:] /*@, perm(1/2) @*/)
+	if h.Flyover {
+		if len(b) < FlyoverLen {
+			return serrors.New("buffer for FlyoverHopField too short", "expected", HopLen, "actual", len(b))
+		}
+		b[0] |= 0x80
+		//@ assert &b[12:16][0] == &b[12] && &b[12:16][1] == &b[12] && &b[12:16][2] == &b[14] && &b[12:16][3] == &b[15]
+		binary.BigEndian.PutUint32(b[12:16], h.ResID<<10+uint32(h.Bw))
+		//@ assert &b[16:18][0] == &b[16] && &b[16:18][1] == &b[17]
+		binary.BigEndian.PutUint16(b[16:18], h.ResStartTime)
+		//@ assert &b[18:20][0] == &b[18] && &b[18:20][1] == &b[19]
+		binary.BigEndian.PutUint16(b[18:20], h.Duration)
+	}
 
 	return nil
 }

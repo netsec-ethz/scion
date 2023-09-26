@@ -38,3 +38,25 @@ func TestHopSerializeDecode(t *testing.T) {
 	assert.NoError(t, got.DecodeFromBytes(b))
 	assert.Equal(t, want, got)
 }
+
+func TestFlyoverHopSerializeDecode(t *testing.T) {
+	want := &path.HopField{
+		Flyover:            true,
+		IngressRouterAlert: true,
+		EgressRouterAlert:  true,
+		ExpTime:            63,
+		ConsIngress:        1,
+		ConsEgress:         0,
+		Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+		ResID:              782,
+		Bw:                 23,
+		ResStartTime:       233,
+		Duration:           11,
+	}
+	b := make([]byte, path.FlyoverLen)
+	assert.NoError(t, want.SerializeTo(b))
+
+	got := &path.HopField{}
+	assert.NoError(t, got.DecodeFromBytes(b))
+	assert.Equal(t, want, got)
+}
