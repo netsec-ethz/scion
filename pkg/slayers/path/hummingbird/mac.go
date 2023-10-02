@@ -105,25 +105,12 @@ func CompareAk(a []byte, b []byte) bool {
 
 // around 800 ns
 
-// Compares two 4 byte arrays.
+// Compares two 6 byte arrays.
 // Always returns false if at least one input is of a different length.
 // Returns true if equal, false otherwise.
-// Expects 4 bits of padding to also be identical.
 func CompareVk(a, b []byte) bool {
-	if len(a) != 4 || len(b) != 4 {
+	if len(a) != 6 || len(b) != 6 {
 		return false
 	}
-	return binary.BigEndian.Uint32(a) == binary.BigEndian.Uint32(b)
-}
-
-// around 1.2 microseconds
-
-// Compare two 4 byte arrays, ignores last 4 bits.
-// Always returns false if at least one input is of a different length.
-// Returns true if equal, false otherwise.
-func CompareVkPadded(a, b []byte) bool {
-	if len(a) != 4 || len(b) != 4 {
-		return false
-	}
-	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3]&0xf0 == b[3]&0xf0
+	return binary.BigEndian.Uint32(a) == binary.BigEndian.Uint32(b) && a[4] == b[4] && a[5] == b[5]
 }

@@ -183,35 +183,19 @@ func BenchmarkCompareAk(b *testing.B) {
 }
 
 func TestCompareVk(t *testing.T) {
-	a := []byte{1, 2, 3, 4}
-	b := []byte{1, 2, 3, 4}
-	c := []byte{2, 2, 3, 4}
-	d := []byte{1, 2, 3, 6}
+	a := []byte{1, 2, 3, 4, 5, 6}
+	b := []byte{1, 2, 3, 4, 5, 6}
+	c := []byte{2, 2, 3, 4, 5, 6}
+	d := []byte{1, 2, 3, 6, 5, 6}
 
 	require.True(t, hummingbird.CompareVk(a, b))
 	require.False(t, hummingbird.CompareVk(a, c))
 	require.False(t, hummingbird.CompareVk(a, d))
 }
 
-func TestCompareVkPadded(t *testing.T) {
-	a := []byte{1, 2, 3, 4}
-	b := []byte{1, 2, 3, 4}
-	c := []byte{2, 2, 3, 4}
-	d := []byte{1, 2, 3, 6}
-	e := []byte{1, 2, 3, 134}
-	f := []byte{1, 2, 3, 128}
-	g := []byte{1, 2, 3, 34}
-
-	require.True(t, hummingbird.CompareVkPadded(a, b))
-	require.False(t, hummingbird.CompareVkPadded(a, c))
-	require.True(t, hummingbird.CompareVkPadded(a, d))
-	require.True(t, hummingbird.CompareVkPadded(e, f))
-	require.False(t, hummingbird.CompareVkPadded(e, g))
-}
-
 func BenchmarkCompareVk(b *testing.B) {
-	a := []byte{1, 2, 3, 4}
-	c := []byte{1, 2, 4, 4}
+	a := []byte{1, 2, 3, 4, 5, 6}
+	c := []byte{1, 2, 4, 4, 5, 6}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		hummingbird.CompareVk(a, c)
