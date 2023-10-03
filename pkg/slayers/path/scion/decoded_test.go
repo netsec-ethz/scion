@@ -66,6 +66,38 @@ var testHopFields = []path.HopField{
 	},
 }
 
+var testFlyoverFields = []path.HopField{
+	{
+		ExpTime:     63,
+		ConsIngress: 1,
+		ConsEgress:  0,
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+	},
+	{
+		ExpTime:     63,
+		ConsIngress: 3,
+		ConsEgress:  2,
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+	},
+	{
+		ExpTime:     63,
+		ConsIngress: 0,
+		ConsEgress:  2,
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+	},
+	{
+		Flyover:      true,
+		ExpTime:      63,
+		ConsIngress:  1,
+		ConsEgress:   0,
+		Mac:          [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+		ResID:        0,
+		Bw:           4,
+		ResStartTime: 0,
+		Duration:     1,
+	},
+}
+
 var decodedTestPath = &scion.Decoded{
 	Base: scion.Base{
 		PathMeta: scion.MetaHdr{
@@ -81,6 +113,23 @@ var decodedTestPath = &scion.Decoded{
 	HopFields:  testHopFields,
 }
 
+var decodedHbirdTestPath = &scion.Decoded{
+	Base: scion.Base{
+		PathMeta: scion.MetaHdr{
+			CurrINF:   0,
+			CurrHF:    0,
+			SegLen:    [3]uint8{6, 8, 0},
+			BaseTS:    808,
+			HighResTS: 1234,
+		},
+		NumINF:        2,
+		NumHops:       14,
+		IsHummingbird: true,
+	},
+	InfoFields: testInfoFields,
+	HopFields:  testFlyoverFields,
+}
+
 var emptyDecodedTestPath = &scion.Decoded{
 	Base:       scion.Base{},
 	InfoFields: []path.InfoField{},
@@ -91,6 +140,13 @@ var rawPath = []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x
 	"\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00\x02\x01\x02\x03" +
 	"\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00\x01\x02" +
 	"\x03\x04\x05\x06")
+
+var rawHbirdPath = []byte("\x00\x01\x84\x00\x00\x00\x03\x28\x00\x00\x04\xd2" + //Pathmeta header
+	"\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00\x00\x01\x00" + //Infofields
+	"\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06" + //hopfield 0
+	"\x00\x3f\x00\x03\x00\x02\x01\x02\x03\x04\x05\x06" + //hopfield 1
+	"\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06" + //hopfield 2
+	"\x80\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x00\x00\x04\x00\x00\x00\x01") //flyoverfield 3
 
 type pathCase struct {
 	infos []bool
@@ -153,10 +209,23 @@ func TestDecodedSerialize(t *testing.T) {
 	assert.Equal(t, rawPath, b)
 }
 
+func TestDecodedSerializeHbird(t *testing.T) {
+	b := make([]byte, decodedHbirdTestPath.Len())
+	assert.NoError(t, decodedHbirdTestPath.SerializeTo(b))
+	assert.Equal(t, rawHbirdPath, b)
+}
+
 func TestDecodedDecodeFromBytes(t *testing.T) {
 	s := &scion.Decoded{}
 	assert.NoError(t, s.DecodeFromBytes(rawPath))
 	assert.Equal(t, decodedTestPath, s)
+}
+
+func TestDecodedDecodeFromBytesHbird(t *testing.T) {
+	s := &scion.Decoded{}
+	s.Base.IsHummingbird = true
+	assert.NoError(t, s.DecodeFromBytes(rawHbirdPath))
+	assert.Equal(t, decodedHbirdTestPath, s)
 }
 
 func TestDecodedSerializeDecode(t *testing.T) {
@@ -165,6 +234,15 @@ func TestDecodedSerializeDecode(t *testing.T) {
 	s := &scion.Decoded{}
 	assert.NoError(t, s.DecodeFromBytes(b))
 	assert.Equal(t, decodedTestPath, s)
+}
+
+func TestDecodedSerializeDecodeHbird(t *testing.T) {
+	b := make([]byte, decodedHbirdTestPath.Len())
+	assert.NoError(t, decodedHbirdTestPath.SerializeTo(b))
+	s := &scion.Decoded{}
+	s.Base.IsHummingbird = true
+	assert.NoError(t, s.DecodeFromBytes(b))
+	assert.Equal(t, decodedHbirdTestPath, s)
 }
 
 func TestDecodedReverse(t *testing.T) {
@@ -195,6 +273,12 @@ func TestDecodedToRaw(t *testing.T) {
 	raw, err := decodedTestPath.ToRaw()
 	assert.NoError(t, err)
 	assert.Equal(t, rawTestPath, raw)
+}
+
+func TestDecodedToRawHbird(t *testing.T) {
+	raw, err := decodedHbirdTestPath.ToRaw()
+	assert.NoError(t, err)
+	assert.Equal(t, rawHbirdTestPath, raw)
 }
 
 func mkDecodedPath(t *testing.T, pcase pathCase, infIdx, hopIdx uint8) *scion.Decoded {

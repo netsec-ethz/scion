@@ -51,8 +51,14 @@ func (s *Raw) SerializeTo(b []byte) error {
 	}
 	// XXX(roosd): This modifies the underlying buffer. Consider writing to data
 	// directly.
-	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
-		return err
+	if s.Base.IsHummingbird {
+		if err := s.PathMeta.SerializeToHBird(s.Raw[:MetaLenHBird]); err != nil {
+			return err
+		}
+	} else {
+		if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
+			return err
+		}
 	}
 	copy(b, s.Raw)
 	return nil
@@ -82,10 +88,17 @@ func (s *Raw) Reverse() (path.Path, error) {
 // ToDecoded transforms a scion.Raw to a scion.Decoded.
 func (s *Raw) ToDecoded() (*Decoded, error) {
 	// Serialize PathMeta to ensure potential changes are reflected Raw.
-	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
-		return nil, err
+	if s.Base.IsHummingbird {
+		if err := s.PathMeta.SerializeToHBird(s.Raw[:MetaLenHBird]); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
+			return nil, err
+		}
 	}
 	decoded := &Decoded{}
+	decoded.Base.IsHummingbird = s.Base.IsHummingbird
 	if err := decoded.DecodeFromBytes(s.Raw); err != nil {
 		return nil, err
 	}
@@ -97,7 +110,18 @@ func (s *Raw) IncPath() error {
 	if err := s.Base.IncPath(); err != nil {
 		return err
 	}
+	if s.Base.IsHummingbird {
+		return s.PathMeta.SerializeToHBird(s.Raw[:MetaLenHBird])
+	}
 	return s.PathMeta.SerializeTo(s.Raw[:MetaLen])
+}
+
+// IncPathFlyover increments the path by 5 and writes it to the buffer.
+func (s *Raw) IncPathFlyover() error {
+	if err := s.Base.IncPathFlyover(); err != nil {
+		return err
+	}
+	return s.PathMeta.SerializeToHBird(s.Raw[:MetaLenHBird])
 }
 
 // GetInfoField returns the InfoField at a given index.
@@ -107,6 +131,9 @@ func (s *Raw) GetInfoField(idx int) (path.InfoField, error) {
 			serrors.New("InfoField index out of bounds", "max", s.NumINF-1, "actual", idx)
 	}
 	infOffset := MetaLen + idx*path.InfoLen
+	if s.Base.IsHummingbird {
+		infOffset += 8 //consider the 8 additional bytes of PathMeta header bytes in Hummingbird
+	}
 	info := path.InfoField{}
 	if err := info.DecodeFromBytes(s.Raw[infOffset : infOffset+path.InfoLen]); err != nil {
 		return path.InfoField{}, err
@@ -126,11 +153,40 @@ func (s *Raw) SetInfoField(info path.InfoField, idx int) error {
 		return serrors.New("InfoField index out of bounds", "max", s.NumINF-1, "actual", idx)
 	}
 	infOffset := MetaLen + idx*path.InfoLen
+	if s.Base.IsHummingbird {
+		infOffset += 8 //consider the 8 additional bytes of PathMeta header bytes in Hummingbird
+	}
 	return info.SerializeTo(s.Raw[infOffset : infOffset+path.InfoLen])
 }
 
+func (s *Raw) getHbirdHopField(idx int) (path.HopField, error) {
+	if idx >= s.NumHops-2 {
+		return path.HopField{},
+			serrors.New("HopField index out of bounds", "max", s.NumHops-3, "actual", idx)
+	}
+	hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
+	hop := path.HopField{}
+	// Let the decoder read a big enough slice in case it is a FlyoverHopField
+	maxHopLen := path.FlyoverLen
+	if idx > s.NumHops-5 {
+		if idx == s.NumHops-3 {
+			maxHopLen = path.HopLen
+		} else {
+			return path.HopField{}, serrors.New("Invalid hopfield index", "NumHops", s.NumHops, "index", idx)
+		}
+	}
+	if err := hop.DecodeFromBytes(s.Raw[hopOffset : hopOffset+maxHopLen]); err != nil {
+		return path.HopField{}, err
+	}
+	return hop, nil
+}
+
 // GetHopField returns the HopField at a given index.
+// For Hummingbird paths the index is the offset in 4 byte lines
 func (s *Raw) GetHopField(idx int) (path.HopField, error) {
+	if s.Base.IsHummingbird {
+		return s.getHbirdHopField(idx)
+	}
 	if idx >= s.NumHops {
 		return path.HopField{},
 			serrors.New("HopField index out of bounds", "max", s.NumHops-1, "actual", idx)
@@ -149,8 +205,47 @@ func (s *Raw) GetCurrentHopField() (path.HopField, error) {
 	return s.GetHopField(int(s.PathMeta.CurrHF))
 }
 
+func (s *Raw) setHbirdHopField(hop path.HopField, idx int) error {
+	if hop.Flyover {
+		return serrors.New("Setting new Flyoverhop with setHopField not supported")
+		// if idx >= s.NumHops-4 {
+		// 	return serrors.New("HopField index out of bounds", "max", s.NumHops-5, "actual", idx)
+		// }
+		// hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
+		// return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.FlyoverLen])
+	}
+	if idx >= s.NumHops-2 {
+		return serrors.New("HopField index out of bounds", "max", s.NumHops-3, "actual", idx)
+	}
+	hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
+	if s.Raw[hopOffset]&0x80 == 0x80 { //If current hopfield is flyoverfield
+		return serrors.New("replacing FlyoverHopField with Hopfield currently not supported")
+		// TODO: would need to shorten entire packet to do this
+		// necessites pointer to rawpacket
+		// copy(s.Raw[hopOffset+path.HopLen:], s.Raw[hopOffset+path.FlyoverLen:])
+		// s.Raw = s.Raw[:len(s.Raw)-2*path.LineLen] //shorten raw path //TODO: does this work? don't we need to shift also all the remainer of the packet?
+		// seg := s.PathMeta.SegLen[0]
+		// if uint8(idx) < seg {
+		// 	s.PathMeta.SegLen[0] -= 2
+		// } else if uint8(idx) < seg+s.PathMeta.SegLen[1] {
+		// 	s.PathMeta.SegLen[1] -= 2
+		// } else {
+		// 	s.PathMeta.SegLen[2] -= 2
+		// }
+		// if err := s.PathMeta.SerializeToHBird(s.Raw[:MetaLenHBird]); err != nil {
+		// 	return err
+		// }
+	}
+	return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.HopLen])
+}
+
 // SetHopField updates the HopField at a given index.
+// For Hummingbird paths the index is the offset in 4 byte lines
+// Does not work for Seting a Hopfield currently occupied by a reservation / setting a reservation
 func (s *Raw) SetHopField(hop path.HopField, idx int) error {
+	if s.Base.IsHummingbird {
+		return s.setHbirdHopField(hop, idx)
+	}
 	if idx >= s.NumHops {
 		return serrors.New("HopField index out of bounds", "max", s.NumHops-1, "actual", idx)
 	}
@@ -165,10 +260,16 @@ func (s *Raw) IsFirstHop() bool {
 
 // IsPenultimateHop returns whether the current hop is the penultimate hop on the path.
 func (s *Raw) IsPenultimateHop() bool {
+	if s.IsHummingbird {
+		return int(s.PathMeta.CurrHF) == (s.NumHops-6) || int(s.PathMeta.CurrHF) == (s.NumHops-8) || int(s.PathMeta.CurrHF) == (s.NumHops-10)
+	}
 	return int(s.PathMeta.CurrHF) == (s.NumHops - 2)
 }
 
 // IsLastHop returns whether the current hop is the last hop on the path.
 func (s *Raw) IsLastHop() bool {
+	if s.IsHummingbird {
+		return int(s.PathMeta.CurrHF) == (s.NumHops-3) || int(s.PathMeta.CurrHF) == (s.NumHops-5)
+	}
 	return int(s.PathMeta.CurrHF) == (s.NumHops - 1)
 }

@@ -28,6 +28,8 @@ const (
 	HopLen = 12
 	// FlyoverLen is the length of a FlyoverHopField in bytes
 	FlyoverLen = 20
+	// LineLen is the length of a line for the computation of the hop offset of hummingbird packets
+	LineLen = 4
 	// MacLen is the size of the MAC of each HopField.
 	MacLen = 6
 )

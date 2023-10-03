@@ -147,7 +147,7 @@ func (s *Base) infIndexForHF(hf uint8) uint8 {
 // Len returns the length of the path in bytes.
 func (s *Base) Len() int {
 	if s.IsHummingbird {
-		return MetaLenHBird + s.NumINF*path.InfoLen + s.NumHops*4
+		return MetaLenHBird + s.NumINF*path.InfoLen + s.NumHops*path.LineLen
 	}
 	return MetaLen + s.NumINF*path.InfoLen + s.NumHops*path.HopLen
 }

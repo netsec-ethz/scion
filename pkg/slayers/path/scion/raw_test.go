@@ -51,10 +51,32 @@ var emptyRawTestPath = &scion.Raw{
 	Raw: make([]byte, scion.MetaLen),
 }
 
+var rawHbirdTestPath = &scion.Raw{
+	Base: scion.Base{
+		PathMeta: scion.MetaHdr{
+			CurrINF:   0,
+			CurrHF:    0,
+			SegLen:    [3]uint8{6, 8, 0},
+			BaseTS:    808,
+			HighResTS: 1234,
+		},
+		NumINF:        2,
+		NumHops:       14,
+		IsHummingbird: true,
+	},
+	Raw: rawHbirdPath,
+}
+
 func TestRawSerialize(t *testing.T) {
 	b := make([]byte, rawTestPath.Len())
 	assert.NoError(t, rawTestPath.SerializeTo(b))
 	assert.Equal(t, rawPath, b)
+}
+
+func TestRawSerializeHbird(t *testing.T) {
+	b := make([]byte, rawHbirdTestPath.Len())
+	assert.NoError(t, rawHbirdTestPath.SerializeTo(b))
+	assert.Equal(t, rawHbirdPath, b)
 }
 
 func TestRawDecodeFromBytes(t *testing.T) {
@@ -63,12 +85,28 @@ func TestRawDecodeFromBytes(t *testing.T) {
 	assert.Equal(t, rawTestPath, s)
 }
 
+func TestRawDecodeFromBytesHbird(t *testing.T) {
+	s := &scion.Raw{}
+	s.IsHummingbird = true
+	assert.NoError(t, s.DecodeFromBytes(rawHbirdPath))
+	assert.Equal(t, rawHbirdTestPath, s)
+}
+
 func TestRawSerliazeDecode(t *testing.T) {
 	b := make([]byte, rawTestPath.Len())
 	assert.NoError(t, rawTestPath.SerializeTo(b))
 	s := &scion.Raw{}
 	assert.NoError(t, s.DecodeFromBytes(b))
 	assert.Equal(t, rawTestPath, s)
+}
+
+func TestRawSerializeDecodeHbird(t *testing.T) {
+	b := make([]byte, rawHbirdTestPath.Len())
+	assert.NoError(t, rawHbirdTestPath.SerializeTo(b))
+	s := &scion.Raw{}
+	s.IsHummingbird = true
+	assert.NoError(t, s.DecodeFromBytes(b))
+	assert.Equal(t, rawHbirdTestPath, s)
 }
 
 func TestRawReverse(t *testing.T) {
@@ -97,6 +135,12 @@ func TestRawToDecoded(t *testing.T) {
 	decoded, err := rawTestPath.ToDecoded()
 	assert.NoError(t, err)
 	assert.Equal(t, decodedTestPath, decoded)
+}
+
+func TestRawToDecodedHbird(t *testing.T) {
+	decoded, err := rawHbirdTestPath.ToDecoded()
+	assert.NoError(t, err)
+	assert.Equal(t, decodedHbirdTestPath, decoded)
 }
 
 func TestGetInfoField(t *testing.T) {
@@ -130,6 +174,13 @@ func TestGetInfoField(t *testing.T) {
 			tc.errorFunc(t, err)
 			assert.Equal(t, tc.want, got)
 		})
+
+		t.Run(name+" hummingbird", func(t *testing.T) {
+			t.Parallel()
+			got, err := rawHbirdTestPath.GetInfoField(tc.idx)
+			tc.errorFunc(t, err)
+			assert.Equal(t, tc.want, got)
+		})
 	}
 }
 
@@ -160,6 +211,43 @@ func TestGetHopField(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got, err := rawTestPath.GetHopField(tc.idx)
+			tc.errorFunc(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestGetHbirdHopField(t *testing.T) {
+	testCases := map[string]struct {
+		idx       int
+		want      path.HopField
+		errorFunc assert.ErrorAssertionFunc
+	}{
+		"first hop": {
+			idx:       0,
+			want:      testFlyoverFields[0],
+			errorFunc: assert.NoError,
+		},
+		"fourth hop": {
+			idx:       9,
+			want:      testFlyoverFields[3],
+			errorFunc: assert.NoError,
+		},
+		"invalid index": {
+			idx:       10,
+			errorFunc: assert.Error,
+		},
+		"out of bounds": {
+			idx:       14,
+			errorFunc: assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := rawHbirdTestPath.GetHopField(tc.idx)
 			tc.errorFunc(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -205,9 +293,26 @@ func TestSetInfoField(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
+		t.Run(name+" hummingbird", func(t *testing.T) {
+			t.Parallel()
+			raw := &scion.Raw{}
+			raw.Base.IsHummingbird = true
+			require.NoError(t, raw.DecodeFromBytes(rawHbirdPath))
+
+			err := raw.SetInfoField(tc.want, tc.idx)
+			tc.errorFunc(t, err)
+			if err != nil {
+				return
+			}
+			got, err := raw.GetInfoField(tc.idx)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
 	}
 }
 
+// TODO: write test for Hummingbird SetHopField once that is implemented
+// Will also need test to check entire RawPacket is correct
 func TestSetHopField(t *testing.T) {
 	testCases := map[string]struct {
 		idx       int
@@ -259,12 +364,17 @@ func mkRawPath(t *testing.T, pcase pathCase, infIdx, hopIdx uint8) *scion.Raw {
 
 func TestPenultimateHop(t *testing.T) {
 	testCases := map[*scion.Raw]bool{
-		createScionPath(0, 2): true,
-		createScionPath(1, 2): false,
-		createScionPath(2, 2): false,
-		createScionPath(5, 7): true,
-		createScionPath(6, 7): false,
-		createScionPath(7, 7): false,
+		createScionPath(0, 2):  true,
+		createScionPath(1, 2):  false,
+		createScionPath(2, 2):  false,
+		createScionPath(5, 7):  true,
+		createScionPath(6, 7):  false,
+		createScionPath(7, 7):  false,
+		createHbirdPath(3, 9):  true,
+		createHbirdPath(3, 11): true,
+		createHbirdPath(3, 12): false,
+		createHbirdPath(6, 9):  false,
+		createHbirdPath(6, 11): false,
 	}
 	for scionRaw, want := range testCases {
 		got := scionRaw.IsPenultimateHop()
@@ -274,12 +384,17 @@ func TestPenultimateHop(t *testing.T) {
 
 func TestLastHop(t *testing.T) {
 	testCases := map[*scion.Raw]bool{
-		createScionPath(0, 2): false,
-		createScionPath(1, 2): true,
-		createScionPath(2, 2): false,
-		createScionPath(5, 7): false,
-		createScionPath(6, 7): true,
-		createScionPath(7, 7): false,
+		createScionPath(0, 2):  false,
+		createScionPath(1, 2):  true,
+		createScionPath(2, 2):  false,
+		createScionPath(5, 7):  false,
+		createScionPath(6, 7):  true,
+		createScionPath(7, 7):  false,
+		createHbirdPath(3, 9):  false,
+		createHbirdPath(3, 11): false,
+		createHbirdPath(3, 12): false,
+		createHbirdPath(6, 9):  true,
+		createHbirdPath(6, 11): true,
 	}
 	for scionRaw, want := range testCases {
 		got := scionRaw.IsLastHop()
@@ -297,4 +412,17 @@ func createScionPath(currHF uint8, numHops int) *scion.Raw {
 		},
 	}
 	return scionRaw
+}
+
+func createHbirdPath(currHF uint8, numHops int) *scion.Raw {
+	hbirdRaw := &scion.Raw{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF: currHF,
+			},
+			NumHops:       numHops,
+			IsHummingbird: true,
+		},
+	}
+	return hbirdRaw
 }

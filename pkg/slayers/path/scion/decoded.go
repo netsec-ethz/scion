@@ -42,11 +42,16 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 	if err := s.Base.DecodeFromBytes(data); err != nil {
 		return err
 	}
+	// fmt.Printf("s: %v\n", s)
+	// fmt.Print(s.Len())
 	if minLen := s.Len(); len(data) < minLen {
 		return serrors.New("DecodedPath raw too short", "expected", minLen, "actual", len(data))
 	}
 
 	offset := MetaLen
+	if s.Base.IsHummingbird {
+		offset = MetaLenHBird
+	}
 	s.InfoFields = make([]path.InfoField, s.NumINF)
 	for i := 0; i < s.NumINF; i++ {
 		if err := s.InfoFields[i].DecodeFromBytes(data[offset : offset+path.InfoLen]); err != nil {
@@ -54,12 +59,39 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 		}
 		offset += path.InfoLen
 	}
-	s.HopFields = make([]path.HopField, s.NumHops)
-	for i := 0; i < s.NumHops; i++ {
-		if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
-			return err
+
+	if s.Base.IsHummingbird {
+		// Allocate maximum number of possible hopfields based on length
+		s.HopFields = make([]path.HopField, s.NumHops/3)
+		i, j := 0, 0
+		// If last hop is not a flyover hop, decode it with only 12 bytes slice
+		for ; j < s.NumHops-3; i++ {
+			if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+path.FlyoverLen]); err != nil {
+				return err
+			}
+			if s.HopFields[i].Flyover {
+				offset += path.FlyoverLen
+				j += 5
+			} else {
+				offset += path.HopLen
+				j += 3
+			}
 		}
-		offset += path.HopLen
+		if j == s.NumHops-3 {
+			if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
+				return err
+			}
+			i++
+		}
+		s.HopFields = s.HopFields[:i]
+	} else {
+		s.HopFields = make([]path.HopField, s.NumHops)
+		for i := 0; i < s.NumHops; i++ {
+			if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
+				return err
+			}
+			offset += path.HopLen
+		}
 	}
 	return nil
 }
@@ -71,10 +103,19 @@ func (s *Decoded) SerializeTo(b []byte) error {
 		return serrors.New("buffer too small to serialize path.", "expected", s.Len(),
 			"actual", len(b))
 	}
-	if err := s.PathMeta.SerializeTo(b[:MetaLen]); err != nil {
-		return err
+	var offset int
+	if s.Base.IsHummingbird {
+		if err := s.PathMeta.SerializeToHBird(b[:MetaLenHBird]); err != nil {
+			return err
+		}
+		offset = MetaLenHBird
+	} else {
+		if err := s.PathMeta.SerializeTo(b[:MetaLen]); err != nil {
+			return err
+		}
+		offset = MetaLen
 	}
-	offset := MetaLen
+
 	for _, info := range s.InfoFields {
 		if err := info.SerializeTo(b[offset : offset+path.InfoLen]); err != nil {
 			return err
@@ -82,18 +123,32 @@ func (s *Decoded) SerializeTo(b []byte) error {
 		offset += path.InfoLen
 	}
 	for _, hop := range s.HopFields {
-		if err := hop.SerializeTo(b[offset : offset+path.HopLen]); err != nil {
-			return err
+		if hop.Flyover {
+			if err := hop.SerializeTo(b[offset : offset+path.FlyoverLen]); err != nil {
+				return err
+			}
+			offset += path.FlyoverLen
+		} else {
+			if err := hop.SerializeTo(b[offset : offset+path.HopLen]); err != nil {
+				return err
+			}
+			offset += path.HopLen
 		}
-		offset += path.HopLen
+
 	}
 	return nil
 }
 
 // Reverse reverses a SCION path.
+// Removes all reservations from a Hummingbird path, as these are not bidirectional
 func (s *Decoded) Reverse() (path.Path, error) {
 	if s.NumINF == 0 {
 		return nil, serrors.New("empty decoded path is invalid and cannot be reversed")
+	}
+	if s.Base.IsHummingbird {
+		if err := s.RemoveFlyovers(); err != nil {
+			return nil, err
+		}
 	}
 	// Reverse order of InfoFields and SegLens
 	for i, j := 0, s.NumINF-1; i < j; i, j = i+1, j-1 {
@@ -111,9 +166,45 @@ func (s *Decoded) Reverse() (path.Path, error) {
 	}
 	// Update CurrINF and CurrHF and SegLens
 	s.PathMeta.CurrINF = uint8(s.NumINF) - s.PathMeta.CurrINF - 1
-	s.PathMeta.CurrHF = uint8(s.NumHops) - s.PathMeta.CurrHF - 1
-
+	if s.Base.IsHummingbird {
+		s.PathMeta.CurrHF = uint8(s.NumHops) - s.PathMeta.CurrHF - 3
+	} else {
+		s.PathMeta.CurrHF = uint8(s.NumHops) - s.PathMeta.CurrHF - 1
+	}
 	return s, nil
+}
+
+// RemoveFlyovers removes all reservations from a decoded path and corrects SegLen and CurrHF accordingly
+func (s *Decoded) RemoveFlyovers() error {
+	var idxInf uint8 = 0
+	var offset uint8 = 0
+	var segCount uint8 = 0
+
+	for _, hop := range s.HopFields {
+		if hop.Flyover {
+			hop.Flyover = false
+
+			if s.PathMeta.CurrHF > offset {
+				s.PathMeta.CurrHF -= 2
+			}
+			s.Base.NumHops -= 2
+			s.PathMeta.SegLen[idxInf] -= 2
+			segCount += 3
+
+			if s.PathMeta.SegLen[idxInf] == segCount {
+				segCount = 0
+				idxInf += 1
+				if idxInf > 2 {
+					return serrors.New("path appears to have more than 3 segments during flyover removal")
+				}
+			} else if s.PathMeta.SegLen[idxInf] < segCount {
+				return serrors.New("new hopfields boundaries do not match new segment lengths after flyover removal")
+			}
+		}
+		segCount += 3
+		offset += 3
+	}
+	return nil
 }
 
 // ToRaw tranforms scion.Decoded into scion.Raw.
@@ -123,6 +214,7 @@ func (s *Decoded) ToRaw() (*Raw, error) {
 		return nil, err
 	}
 	raw := &Raw{}
+	raw.Base.IsHummingbird = s.Base.IsHummingbird
 	if err := raw.DecodeFromBytes(b); err != nil {
 		return nil, err
 	}
