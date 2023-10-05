@@ -29,8 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/ipv4"
-
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/prometheus/client_golang/prometheus"
