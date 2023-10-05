@@ -547,14 +547,7 @@ func (d *DataPlane) Run(ctx context.Context) error {
 				}
 
 				if result.Class == tc.ClsSNC {
-					var op ipv4.Message
-					op.Buffers[0] = result.OutPkt
-					op.Addr = nil
-					if result.OutAddr != nil {
-						op.Addr = result.OutAddr
-					}
-					addr := op.Addr.(*net.UDPAddr)
-					_, err = result.OutConn.WriteTo(op.Buffers[0], addr)
+					_, err = result.OutConn.WriteTo(result.OutPkt, result.OutAddr)
 				} else {
 					d.enqueue(&result)
 				}
