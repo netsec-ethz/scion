@@ -126,6 +126,23 @@ func TestRawReverse(t *testing.T) {
 	}
 }
 
+func TestRawReverseHbird(t *testing.T) {
+	for name, tc := range pathReverseCasesHbird {
+		name, tc := name, tc
+		for i := range tc.inIdxs {
+			i := i
+			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
+				//t.Parallel()
+				input := mkRawHbirdPath(t, tc.input, uint8(tc.inIdxs[i][0]), uint8(tc.inIdxs[i][1]))
+				want := mkRawHbirdPath(t, tc.want, uint8(tc.wantIdxs[i][0]), uint8(tc.wantIdxs[i][1]))
+				revPath, err := input.Reverse()
+				assert.NoError(t, err)
+				assert.Equal(t, want, revPath)
+			})
+		}
+	}
+}
+
 func TestEmptyRawReverse(t *testing.T) {
 	_, err := emptyRawTestPath.Reverse()
 	assert.Error(t, err)
@@ -357,6 +374,14 @@ func TestSetHopField(t *testing.T) {
 func mkRawPath(t *testing.T, pcase pathCase, infIdx, hopIdx uint8) *scion.Raw {
 	t.Helper()
 	decoded := mkDecodedPath(t, pcase, infIdx, hopIdx)
+	raw, err := decoded.ToRaw()
+	require.NoError(t, err)
+	return raw
+}
+
+func mkRawHbirdPath(t *testing.T, pcase hbirdPathCase, infIdx, hopIdx uint8) *scion.Raw {
+	t.Helper()
+	decoded := mkDecodedHbirdPath(t, pcase, infIdx, hopIdx)
 	raw, err := decoded.ToRaw()
 	require.NoError(t, err)
 	return raw

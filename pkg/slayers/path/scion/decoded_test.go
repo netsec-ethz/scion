@@ -158,6 +158,11 @@ type pathCase struct {
 	hops  [][]uint16
 }
 
+type hbirdPathCase struct {
+	infos []bool
+	hops  [][][]uint16
+}
+
 var pathReverseCases = map[string]struct {
 	input    pathCase
 	want     pathCase
@@ -204,6 +209,56 @@ var pathReverseCases = map[string]struct {
 		},
 		wantIdxs: [][2]int{
 			{2, 8}, {2, 7}, {1, 6}, {1, 5}, {1, 4}, {1, 3}, {0, 2}, {0, 1}, {0, 0},
+		},
+	},
+}
+
+var pathReverseCasesHbird = map[string]struct {
+	input    hbirdPathCase
+	want     hbirdPathCase
+	inIdxs   [][2]int
+	wantIdxs [][2]int
+}{
+	"1 segment, 2 hops": {
+		input:    hbirdPathCase{[]bool{true}, [][][]uint16{{{11, 0}, {12, 1}}}},
+		want:     hbirdPathCase{[]bool{false}, [][][]uint16{{{12, 0}, {11, 0}}}},
+		inIdxs:   [][2]int{{0, 0}, {0, 3}},
+		wantIdxs: [][2]int{{0, 3}, {0, 0}},
+	},
+	"1 segment, 5 hops": {
+		input:    hbirdPathCase{[]bool{true}, [][][]uint16{{{11, 1}, {12, 1}, {13, 0}, {14, 1}, {15, 0}}}},
+		want:     hbirdPathCase{[]bool{false}, [][][]uint16{{{15, 0}, {14, 0}, {13, 0}, {12, 0}, {11, 0}}}},
+		inIdxs:   [][2]int{{0, 0}, {0, 5}, {0, 10}, {0, 13}, {0, 18}},
+		wantIdxs: [][2]int{{0, 12}, {0, 9}, {0, 6}, {0, 3}, {0, 0}},
+	},
+	"2 segments, 5 hops": {
+		input:    hbirdPathCase{[]bool{true, false}, [][][]uint16{{{11, 0}, {12, 0}}, {{13, 1}, {14, 1}, {15, 0}}}},
+		want:     hbirdPathCase{[]bool{true, false}, [][][]uint16{{{15, 0}, {14, 0}, {13, 0}}, {{12, 0}, {11, 0}}}},
+		inIdxs:   [][2]int{{0, 0}, {0, 3}, {1, 6}, {1, 11}, {1, 16}},
+		wantIdxs: [][2]int{{1, 12}, {1, 9}, {0, 6}, {0, 3}, {0, 0}},
+	},
+	"3 segments, 9 hops": {
+		input: hbirdPathCase{
+			[]bool{true, false, false},
+			[][][]uint16{
+				{{11, 1}, {12, 0}},
+				{{13, 0}, {14, 1}, {15, 1}, {16, 0}},
+				{{17, 0}, {18, 1}, {19, 1}},
+			},
+		},
+		want: hbirdPathCase{
+			[]bool{true, true, false},
+			[][][]uint16{
+				{{19, 0}, {18, 0}, {17, 0}},
+				{{16, 0}, {15, 0}, {14, 0}, {13, 0}},
+				{{12, 0}, {11, 0}},
+			},
+		},
+		inIdxs: [][2]int{
+			{0, 0}, {0, 5}, {1, 8}, {1, 11}, {1, 16}, {1, 21}, {2, 24}, {2, 27}, {2, 32},
+		},
+		wantIdxs: [][2]int{
+			{2, 24}, {2, 21}, {1, 18}, {1, 15}, {1, 12}, {1, 9}, {0, 6}, {0, 3}, {0, 0},
 		},
 	},
 }
@@ -302,6 +357,40 @@ func mkDecodedPath(t *testing.T, pcase pathCase, infIdx, hopIdx uint8) *scion.De
 		for _, hop := range hops {
 			s.HopFields = append(s.HopFields, path.HopField{ConsIngress: hop, ConsEgress: hop})
 			i++
+		}
+	}
+	s.PathMeta = meta
+	s.NumINF = len(pcase.infos)
+	s.NumHops = i
+
+	return s
+}
+
+func mkDecodedHbirdPath(t *testing.T, pcase hbirdPathCase, infIdx, hopIdx uint8) *scion.Decoded {
+	t.Helper()
+	s := &scion.Decoded{}
+	s.Base.IsHummingbird = true
+	meta := scion.MetaHdr{
+		CurrINF:   infIdx,
+		CurrHF:    hopIdx,
+		BaseTS:    14,
+		HighResTS: 15,
+	}
+	for _, dir := range pcase.infos {
+		s.InfoFields = append(s.InfoFields, path.InfoField{ConsDir: dir})
+	}
+	i := 0
+	for j, hops := range pcase.hops {
+		for _, hop := range hops {
+			f := hop[1] == 1
+			s.HopFields = append(s.HopFields, path.HopField{Flyover: f, ConsIngress: hop[0], ConsEgress: hop[0], Mac: [6]byte{1, 2, 3, 4, 5, 6}, Duration: 2})
+			if f {
+				i += 5
+				meta.SegLen[j] += 5
+			} else {
+				i += 3
+				meta.SegLen[j] += 3
+			}
 		}
 	}
 	s.PathMeta = meta

@@ -180,28 +180,26 @@ func (s *Decoded) RemoveFlyovers() error {
 	var offset uint8 = 0
 	var segCount uint8 = 0
 
-	for _, hop := range s.HopFields {
+	for i, hop := range s.HopFields {
+		if idxInf > 2 {
+			return serrors.New("path appears to have more than 3 segments during flyover removal")
+		}
 		if hop.Flyover {
-			hop.Flyover = false
+			s.HopFields[i].Flyover = false
 
 			if s.PathMeta.CurrHF > offset {
 				s.PathMeta.CurrHF -= 2
 			}
 			s.Base.NumHops -= 2
 			s.PathMeta.SegLen[idxInf] -= 2
-			segCount += 3
-
-			if s.PathMeta.SegLen[idxInf] == segCount {
-				segCount = 0
-				idxInf += 1
-				if idxInf > 2 {
-					return serrors.New("path appears to have more than 3 segments during flyover removal")
-				}
-			} else if s.PathMeta.SegLen[idxInf] < segCount {
-				return serrors.New("new hopfields boundaries do not match new segment lengths after flyover removal")
-			}
 		}
 		segCount += 3
+		if s.PathMeta.SegLen[idxInf] == segCount {
+			segCount = 0
+			idxInf += 1
+		} else if s.PathMeta.SegLen[idxInf] < segCount {
+			return serrors.New("new hopfields boundaries do not match new segment lengths after flyover removal")
+		}
 		offset += 3
 	}
 	return nil
