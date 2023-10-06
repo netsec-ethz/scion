@@ -47,7 +47,7 @@ func NewDP(
 	svc map[addr.SVC][]*net.UDPAddr,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) *DataPlane {
+	key []byte, sv []byte) *DataPlane {
 
 	dp := &DataPlane{
 		localIA:          local,
@@ -60,6 +60,9 @@ func NewDP(
 		internalIP:       netip.MustParseAddr("198.51.100.1"),
 	}
 	if err := dp.SetKey(key); err != nil {
+		panic(err)
+	}
+	if err := dp.SetSecretValue(sv); err != nil {
 		panic(err)
 	}
 	return dp

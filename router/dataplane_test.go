@@ -18,6 +18,7 @@ package router_test
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
 	"fmt"
 	"net"
 	"net/netip"
@@ -41,6 +42,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/private/topology"
@@ -105,6 +107,28 @@ func TestDataPlaneSetKey(t *testing.T) {
 		d := &router.DataPlane{}
 		assert.NoError(t, d.SetKey([]byte("dummy key xxxxxx")))
 		assert.Error(t, d.SetKey([]byte("dummy key xxxxxx")))
+	})
+}
+
+func TestDataPlaneSetSecretValue(t *testing.T) {
+	t.Run("fails after serve", func(t *testing.T) {
+		d := &router.DataPlane{}
+		d.FakeStart()
+		assert.Error(t, d.SetSecretValue([]byte("dummy")))
+	})
+	t.Run("setting nil value is not allowed", func(t *testing.T) {
+		d := &router.DataPlane{}
+		d.FakeStart()
+		assert.Error(t, d.SetSecretValue(nil))
+	})
+	t.Run("single set works", func(t *testing.T) {
+		d := &router.DataPlane{}
+		assert.NoError(t, d.SetSecretValue([]byte("dummy key xxxxxx")))
+	})
+	t.Run("double set fails", func(t *testing.T) {
+		d := &router.DataPlane{}
+		assert.NoError(t, d.SetSecretValue([]byte("dummy key xxxxxx")))
+		assert.Error(t, d.SetSecretValue([]byte("dummy key xxxxxx")))
 	})
 }
 
@@ -261,6 +285,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				_ = ret.SetIA(local)
 				_ = ret.SetKey(key)
+				_ = ret.SetSecretValue(key)
 				return ret
 			},
 		},
@@ -336,6 +361,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				local := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.SetSecretValue([]byte("randomkeyforassv"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 				for remote, ifIDs := range routers {
 					for _, ifID := range ifIDs {
@@ -392,6 +418,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.SetSecretValue([]byte("randomkeyforassv"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 				_ = ret.AddNextHop(3, localAddr)
 				_ = ret.AddNextHopBFD(3, localAddr, remoteAddr, bfd(), "")
@@ -446,6 +473,7 @@ func TestDataPlaneRun(t *testing.T) {
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.SetSecretValue([]byte("randomkeyforassv"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 				_ = ret.AddExternalInterface(ifID, mExternal)
 				_ = ret.AddExternalInterfaceBFD(ifID, mExternal, local, remote, bfd())
@@ -526,6 +554,7 @@ func TestDataPlaneRun(t *testing.T) {
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.SetSecretValue([]byte("randomkeyforassv"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 				_ = ret.AddExternalInterface(1, mExternal)
 				_ = ret.AddExternalInterfaceBFD(1, mExternal, local, remote, bfd())
@@ -583,7 +612,7 @@ func TestProcessPkt(t *testing.T) {
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -616,7 +645,7 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -651,7 +680,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -684,7 +713,7 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						2: topology.Parent,
 						1: topology.Child,
-					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -719,7 +748,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -749,7 +778,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -802,7 +831,7 @@ func TestProcessPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -830,7 +859,7 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -853,7 +882,7 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -887,7 +916,7 @@ func TestProcessPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
-					}, key)
+					}, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -941,7 +970,7 @@ func TestProcessPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
-					}, key)
+					}, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -984,7 +1013,7 @@ func TestProcessPkt(t *testing.T) {
 							Port: topology.EndhostPort,
 						}},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1041,7 +1070,7 @@ func TestProcessPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(2): xtest.MustParseIA("1-ff00:0:111"),
-					}, key)
+					}, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1079,7 +1108,7 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -1103,7 +1132,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1118,7 +1147,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic malformed path": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1134,7 +1163,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic invalid timestamp": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1152,7 +1181,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic invalid LHVF": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1166,6 +1195,510 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface: 1,
 			assertFunc:   assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dp := tc.prepareDP(ctrl)
+			input, want := tc.mockMsg(false), tc.mockMsg(true)
+			result, err := dp.ProcessPkt(tc.srcInterface, input)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			outPkt := &ipv4.Message{
+				Buffers: [][]byte{result.OutPkt},
+				Addr:    result.OutAddr,
+			}
+			if result.OutAddr == nil {
+				outPkt.Addr = nil
+			}
+			assert.Equal(t, want, outPkt)
+		})
+	}
+}
+
+func TestProcessHbirdPacket(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	key := []byte("testkey_xxxxxxxx")
+	sv := []byte("test_secretvalue")
+	now := time.Now()
+
+	testCases := map[string]struct {
+		mockMsg      func(bool) *ipv4.Message
+		prepareDP    func(*gomock.Controller) *router.DataPlane
+		srcInterface uint16
+		assertFunc   assert.ErrorAssertionFunc
+	}{
+		"inbound": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				_ = spkt.SetDstAddr(dst)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 01, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 6
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				ret := toMsg(t, spkt, dpath)
+				if afterProcessing {
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+
+				}
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"outbound": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 0, ConsEgress: 1},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 41, ConsEgress: 40},
+				}
+				dpath.Base.PathMeta.CurrHF = 0
+				dpath.HopFields[0].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[0])
+				if !afterProcessing {
+					return toMsg(t, spkt, dpath)
+				}
+				_ = dpath.IncPath()
+				dpath.InfoFields[0].UpdateSegID(dpath.HopFields[0].Mac)
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 0,
+			assertFunc:   assert.NoError,
+		},
+		"brtransit": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Parent,
+						2: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 2},
+					{ConsIngress: 40, ConsEgress: 41},
+				}
+				dpath.Base.PathMeta.CurrHF = 3
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				if !afterProcessing {
+					return toMsg(t, spkt, dpath)
+				}
+				_ = dpath.IncPath()
+				dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"brtransit non consdir": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						2: topology.Parent,
+						1: topology.Child,
+					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 2, ConsEgress: 1},
+					{ConsIngress: 40, ConsEgress: 41},
+				}
+				dpath.Base.PathMeta.CurrHF = 3
+				dpath.InfoFields[0].ConsDir = false
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				if !afterProcessing {
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
+					return toMsg(t, spkt, dpath)
+				}
+				require.NoError(t, dpath.IncPath())
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"astransit direct": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil,
+					map[uint16]topology.LinkType{
+						1: topology.Core,
+						3: topology.Core,
+					},
+					mock_router.NewMockBatchConn(ctrl),
+					map[uint16]*net.UDPAddr{
+						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 3},
+					{ConsIngress: 50, ConsEgress: 51},
+				}
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				ret := toMsg(t, spkt, dpath)
+				if afterProcessing {
+					ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				}
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"astransit xover": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil,
+					map[uint16]topology.LinkType{
+						51: topology.Child,
+						3:  topology.Core,
+					},
+					mock_router.NewMockBatchConn(ctrl),
+					map[uint16]*net.UDPAddr{
+						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, _ := prepHbirdMsg(now)
+				dpath := &scion.Decoded{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrHF: 6,
+							SegLen: [3]uint8{6, 6, 0},
+						},
+						NumINF:        2,
+						NumHops:       12,
+						IsHummingbird: true,
+					},
+					InfoFields: []path.InfoField{
+						// up seg
+						{SegID: 0x111, ConsDir: false, Timestamp: util.TimeToSecs(now)},
+						// core seg
+						{SegID: 0x222, ConsDir: false, Timestamp: util.TimeToSecs(now)},
+					},
+					HopFields: []path.HopField{
+						{ConsIngress: 0, ConsEgress: 1},  // IA 110
+						{ConsIngress: 31, ConsEgress: 0}, // Src
+						{ConsIngress: 0, ConsEgress: 51}, // Dst
+						{ConsIngress: 3, ConsEgress: 0},  // IA 110
+					},
+				}
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				dpath.HopFields[3].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[3])
+
+				if !afterProcessing {
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[2].Mac)
+					return toMsg(t, spkt, dpath)
+				}
+				require.NoError(t, dpath.IncPath())
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 51,
+			assertFunc:   assert.NoError,
+		},
+		"invalid dest": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.SVC][]*net.UDPAddr{},
+					xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:f1")
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 404},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 6
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				ret := toMsg(t, spkt, dpath)
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc: assertIsSCMPError(
+				slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidDestinationAddress,
+			),
+		},
+		"inbound flyover": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				_ = spkt.SetDstAddr(dst)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{Flyover: true, ConsIngress: 01, ConsEgress: 0, ResStartTime: 123, Duration: 304},
+				}
+				dpath.Base.PathMeta.SegLen[0] = 11
+				dpath.Base.NumHops = 11
+				dpath.Base.PathMeta.CurrHF = 6
+				dpath.HopFields[2].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
+				if afterProcessing {
+					dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+					ret := toMsg(t, spkt, dpath)
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+					return ret
+				}
+				return toMsg(t, spkt, dpath)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"outbound flyover": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
+				dpath.HopFields = []path.HopField{
+					{Flyover: true, ConsIngress: 0, ConsEgress: 1, ResStartTime: 123, Duration: 304},
+					{Flyover: true, ConsIngress: 31, ConsEgress: 30, ResStartTime: 123, Duration: 304},
+					{Flyover: true, ConsIngress: 41, ConsEgress: 40, ResStartTime: 123, Duration: 304},
+				}
+				dpath.Base.PathMeta.CurrHF = 0
+				dpath.Base.PathMeta.SegLen[0] = 15
+				dpath.NumHops = 15
+				dpath.HopFields[0].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[0], dpath.Base.PathMeta)
+				if !afterProcessing {
+					return toMsg(t, spkt, dpath)
+				}
+				dpath.HopFields[0].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[0])
+				_ = dpath.IncPathFlyover()
+				dpath.InfoFields[0].UpdateSegID(dpath.HopFields[0].Mac)
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 0,
+			assertFunc:   assert.NoError,
+		},
+		"reservation expired": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				_ = spkt.SetDstAddr(dst)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{Flyover: true, ConsIngress: 01, ConsEgress: 0, ResStartTime: 5, Duration: 2},
+				}
+				dpath.Base.PathMeta.SegLen[0] = 11
+				dpath.Base.NumHops = 11
+				dpath.Base.PathMeta.CurrHF = 6
+				dpath.HopFields[2].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
+				ret := toMsg(t, spkt, dpath)
+				if afterProcessing {
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				}
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc: assertIsSCMPError(
+				slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeReservationExpired,
+			),
+		},
+		"brtransit flyover": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Parent,
+						2: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 31, ConsEgress: 30},
+					{Flyover: true, ConsIngress: 1, ConsEgress: 2, ResStartTime: 123, Duration: 304},
+					{ConsIngress: 40, ConsEgress: 41},
+				}
+				dpath.Base.PathMeta.SegLen[0] = 11
+				dpath.Base.PathMeta.CurrHF = 3
+				dpath.Base.NumHops = 11
+				dpath.HopFields[1].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
+				if !afterProcessing {
+					return toMsg(t, spkt, dpath)
+				}
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				_ = dpath.IncPathFlyover()
+				dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"astransit direct flyover": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil,
+					map[uint16]topology.LinkType{
+						1: topology.Core,
+						3: topology.Core,
+					},
+					mock_router.NewMockBatchConn(ctrl),
+					map[uint16]*net.UDPAddr{
+						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepHbirdMsg(now)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 31, ConsEgress: 30},
+					{Flyover: true, ConsIngress: 1, ConsEgress: 3, ResStartTime: 5, Duration: 301},
+					{ConsIngress: 50, ConsEgress: 51},
+				}
+				dpath.Base.PathMeta.SegLen[0] = 11
+				dpath.Base.NumHops = 11
+				dpath.HopFields[1].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
+				if afterProcessing {
+					dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+					ret := toMsg(t, spkt, dpath)
+					ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+					return ret
+				}
+				return toMsg(t, spkt, dpath)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"astransit xover flyover": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil,
+					map[uint16]topology.LinkType{
+						51: topology.Child,
+						3:  topology.Core,
+					},
+					mock_router.NewMockBatchConn(ctrl),
+					map[uint16]*net.UDPAddr{
+						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, _ := prepHbirdMsg(now)
+				dpath := &scion.Decoded{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrHF: 6,
+							SegLen: [3]uint8{6, 10, 0},
+							BaseTS: util.TimeToSecs(now),
+						},
+						NumINF:        2,
+						NumHops:       16,
+						IsHummingbird: true,
+					},
+					InfoFields: []path.InfoField{
+						// up seg
+						{SegID: 0x111, ConsDir: false, Timestamp: util.TimeToSecs(now)},
+						// core seg
+						{SegID: 0x222, ConsDir: false, Timestamp: util.TimeToSecs(now)},
+					},
+					HopFields: []path.HopField{
+						{ConsIngress: 0, ConsEgress: 1},  // IA 110
+						{ConsIngress: 31, ConsEgress: 0}, // Src
+						{Flyover: true, ConsIngress: 0, ConsEgress: 51, ResStartTime: 5, Duration: 310}, // Dst
+						{Flyover: true, ConsIngress: 3, ConsEgress: 0, ResStartTime: 5, Duration: 410},  // IA 110
+					},
+				}
+				dpath.HopFields[2].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
+				dpath.HopFields[3].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[1], dpath.HopFields[3], dpath.PathMeta)
+				if !afterProcessing {
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[2].Mac)
+
+					return toMsg(t, spkt, dpath)
+				}
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				dpath.HopFields[3].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[3])
+				require.NoError(t, dpath.IncPathFlyover())
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 51,
+			assertFunc:   assert.NoError,
 		},
 	}
 
@@ -1231,6 +1764,40 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 			},
 			NumINF:  1,
 			NumHops: 3,
+		},
+		InfoFields: []path.InfoField{
+			{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(now)},
+		},
+
+		HopFields: []path.HopField{},
+	}
+	return spkt, dpath
+}
+
+func prepHbirdMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
+	spkt := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      slayers.L4UDP,
+		PathType:     hummingbird.PathType,
+		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
+		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+		Path:         &scion.Raw{},
+		PayloadLen:   18,
+	}
+
+	dpath := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF:    3,
+				SegLen:    [3]uint8{9, 0, 0},
+				BaseTS:    util.TimeToSecs(now),
+				HighResTS: 0,
+			},
+			NumINF:        1,
+			NumHops:       9,
+			IsHummingbird: true,
 		},
 		InfoFields: []path.InfoField{
 			{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(now)},
@@ -1314,6 +1881,24 @@ func computeFullMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopFi
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.FullMAC(mac, info, hf, nil)
+}
+
+func computeAggregateMac(t *testing.T, key, sv []byte, dst addr.IA, l uint16, info path.InfoField, hf path.HopField, meta scion.MetaHdr) [path.MacLen]byte {
+
+	scionMac := computeMAC(t, key, info, hf)
+
+	block, err := aes.NewCipher(sv)
+	require.NoError(t, err)
+
+	ak := hummingbird.DeriveAuthKey(block, hf.ResID, hf.Bw, hf.ConsIngress, hf.ConsEgress,
+		meta.BaseTS-uint32(hf.ResStartTime), hf.Duration, nil)
+	flyoverMac := hummingbird.FullFlyoverMac(ak, dst, l, hf.ResStartTime,
+		meta.HighResTS, nil, nil)
+
+	for i, b := range scionMac {
+		scionMac[i] = b ^ flyoverMac[i]
+	}
+	return scionMac
 }
 
 func bfd() control.BFD {

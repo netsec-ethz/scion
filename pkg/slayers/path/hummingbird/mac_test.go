@@ -88,7 +88,7 @@ func BenchmarkDeriveAuthKeyManually(b *testing.B) {
 	var start uint16 = 0x0001
 	var end uint16 = 0x0203
 
-	src := make([]byte, hummingbird.BufferSize)
+	src := make([]byte, hummingbird.AkBufferSize)
 	binary.BigEndian.PutUint32(src[0:4], resId<<10)
 	src[2] |= byte(bw >> 8)
 	src[3] = byte(bw)
@@ -199,5 +199,14 @@ func BenchmarkCompareVk(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		hummingbird.CompareVk(a, c)
+	}
+}
+
+func BenchmarkSubtleCompare(b *testing.B) {
+	a := []byte{1, 2, 3, 4, 5, 6}
+	c := []byte{1, 2, 4, 4, 5, 6}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		hummingbird.SubtleCompare(a, c)
 	}
 }

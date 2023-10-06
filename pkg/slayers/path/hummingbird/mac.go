@@ -5,9 +5,11 @@ package hummingbird
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/subtle"
 	"encoding/binary"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
 // defined in asm_* assembly files
@@ -20,7 +22,10 @@ func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 //go:noescape
 func expandKeyAsm(nr int, key *byte, enc *uint32)
 
-const BufferSize = 16
+const AkBufferSize = 16
+const FlyoverMacBufferSize = 32
+const XkBufferSize = 44
+const PathType = 5
 
 var ZeroBlock [aes.BlockSize]byte
 
@@ -28,8 +33,8 @@ var ZeroBlock [aes.BlockSize]byte
 // block is expected to be initialized beforehand with aes.NewCipher(sv), where sv is this AS' secret value
 func DeriveAuthKey(block cipher.Block, resId uint32, bw, in, eg uint16, startTime uint32, resDuration uint16, buffer []byte) []byte {
 
-	if len(buffer) < BufferSize {
-		buffer = make([]byte, BufferSize)
+	if len(buffer) < AkBufferSize {
+		buffer = make([]byte, AkBufferSize)
 	}
 	//prepare input
 	binary.BigEndian.PutUint32(buffer[0:4], resId<<10|uint32(bw))
@@ -63,11 +68,11 @@ func xor(a, b []byte) {
 // Needs a xkbuffer of 44 uint32s to store the expanded keys for aes
 // dummy buffer is memory used by key expansion to store decryption keys
 func FullFlyoverMac(ak []byte, dstIA addr.IA, pktlen uint16, resStartTime uint16, highResTime uint32, buffer []byte, xkbuffer []uint32) []byte {
-	if len(buffer) < 32 {
-		buffer = make([]byte, 32)
+	if len(buffer) < FlyoverMacBufferSize {
+		buffer = make([]byte, FlyoverMacBufferSize)
 	}
-	if len(xkbuffer) < 44 {
-		xkbuffer = make([]uint32, 44)
+	if len(xkbuffer) < XkBufferSize {
+		xkbuffer = make([]uint32, XkBufferSize)
 	}
 
 	binary.BigEndian.PutUint64(buffer[0:8], uint64(dstIA))
@@ -113,4 +118,8 @@ func CompareVk(a, b []byte) bool {
 		return false
 	}
 	return binary.BigEndian.Uint32(a) == binary.BigEndian.Uint32(b) && a[4] == b[4] && a[5] == b[5]
+}
+
+func SubtleCompare(a, b []byte) bool {
+	return subtle.ConstantTimeCompare(a[:path.MacLen], b[:path.MacLen]) == 0
 }

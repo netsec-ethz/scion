@@ -18,8 +18,11 @@ package router
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -47,6 +50,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
@@ -103,6 +107,7 @@ type DataPlane struct {
 	internalNextHops  map[uint16]*net.UDPAddr
 	svc               *services
 	macFactory        func() hash.Hash
+	prfFactory        func() cipher.Block
 	bfdSessions       map[uint16]bfdSession
 	localIA           addr.IA
 	mtx               sync.Mutex
@@ -186,6 +191,30 @@ func (d *DataPlane) SetKey(key []byte) error {
 	d.macFactory = func() hash.Hash {
 		mac, _ := scrypto.InitMac(key)
 		return mac
+	}
+	return nil
+}
+
+// SetSecretValue sets the secret value for the PRF function used to compute the Hummingbird Auth Key
+func (d *DataPlane) SetSecretValue(key []byte) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.running {
+		return modifyExisting
+	}
+	if len(key) == 0 {
+		return emptyValue
+	}
+	if d.prfFactory != nil {
+		return alreadySet
+	}
+	// First check for cipher creation errors
+	if _, err := aes.NewCipher(key); err != nil {
+		return err
+	}
+	d.prfFactory = func() cipher.Block {
+		prf, _ := aes.NewCipher(key)
+		return prf
 	}
 	return nil
 }
@@ -797,10 +826,14 @@ func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 		d:      d,
 		buffer: gopacket.NewSerializeBuffer(),
 		mac:    d.macFactory(),
+		prf:    d.prfFactory(),
 		macBuffers: macBuffers{
-			scionInput: make([]byte, path.MACBufferSize),
-			epicInput:  make([]byte, libepic.MACBufferSize),
-			drkeyInput: make([]byte, spao.MACBufferSize),
+			scionInput:     make([]byte, path.MACBufferSize),
+			epicInput:      make([]byte, libepic.MACBufferSize),
+			drkeyInput:     make([]byte, spao.MACBufferSize),
+			hbirdAuthInput: make([]byte, hummingbird.AkBufferSize),
+			hbirdMacInput:  make([]byte, hummingbird.FlyoverMacBufferSize),
+			hbirdXkbuffer:  make([]uint32, hummingbird.XkBufferSize),
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
 		drkeyProvider: &fakeProvider{},
@@ -820,6 +853,7 @@ func (p *scionPacketProcessor) reset() error {
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
 	p.segmentChange = false
+	p.hasPriority = false
 	if err := p.buffer.Clear(); err != nil {
 		return serrors.WrapStr("Failed to clear buffer", err)
 	}
@@ -871,6 +905,8 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 		return p.processSCION()
 	case epic.PathType:
 		return p.processEPIC()
+	case hummingbird.PathType:
+		return p.processHBIRD()
 	default:
 		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", pathType)
 	}
@@ -922,6 +958,16 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) error {
 
 func (p *scionPacketProcessor) processSCION() (processResult, error) {
 
+	var ok bool
+	p.path, ok = p.scionLayer.Path.(*scion.Raw)
+	if !ok {
+		// TODO(lukedirtwalker) parameter problem invalid path?
+		return processResult{}, malformedPath
+	}
+	return p.process()
+}
+
+func (p *scionPacketProcessor) processHBIRD() (processResult, error) {
 	var ok bool
 	p.path, ok = p.scionLayer.Path.(*scion.Raw)
 	if !ok {
@@ -996,6 +1042,8 @@ type scionPacketProcessor struct {
 	buffer gopacket.SerializeBuffer
 	// mac is the hasher for the MAC computation.
 	mac hash.Hash
+	// block is the keyed PRF for the hummingbird auth key computation
+	prf cipher.Block
 
 	// scionLayer is the SCION gopacket layer.
 	scionLayer slayers.SCION
@@ -1012,6 +1060,8 @@ type scionPacketProcessor struct {
 	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
+	// hasPriority indicates whether this packet has forwarding priority
+	hasPriority bool
 
 	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
 	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
@@ -1033,9 +1083,12 @@ type scionPacketProcessor struct {
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.
 type macBuffers struct {
-	scionInput []byte
-	epicInput  []byte
-	drkeyInput []byte
+	scionInput     []byte
+	epicInput      []byte
+	drkeyInput     []byte
+	hbirdAuthInput []byte
+	hbirdMacInput  []byte
+	hbirdXkbuffer  []uint32
 }
 
 func (p *scionPacketProcessor) packSCMP(
@@ -1078,7 +1131,35 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
+	if p.hopField.Flyover {
+		p.hasPriority = true
+	}
 	return processResult{}, nil
+}
+
+// Verifies the PathMetaHeader timestamp is recent
+// Current implementation works with a nanosecond granularity HighResTS
+func (p *scionPacketProcessor) validatePathMetaTimestamp() {
+	timestamp := util.SecsToTime(p.path.PathMeta.BaseTS)
+	// TODO: make a configurable value instead of using a flat 1.5 seconds
+	if time.Until(timestamp).Abs() > time.Duration(1500)*time.Millisecond {
+		// Hummingbird specification explicitely says to forward best-effort is timestamp too old
+		p.hasPriority = false
+	}
+}
+
+func (p *scionPacketProcessor) validateReservationExpiry() (processResult, error) {
+	startTime := util.SecsToTime(p.path.PathMeta.BaseTS - uint32(p.hopField.ResStartTime))
+	endTime := startTime.Add(time.Duration(p.hopField.Duration) * time.Second)
+	now := time.Now()
+	if startTime.Before(now) && now.Before(endTime) {
+		return processResult{}, nil
+	}
+	return p.packSCMP(slayers.SCMPTypeParameterProblem,
+		slayers.SCMPCodeReservationExpired,
+		&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
+		serrors.New("reservation not valid now", "reservation start", startTime, "reservation end", endTime, "now", now),
+	)
 }
 
 func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
@@ -1263,16 +1344,58 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 		scion.MetaLen + path.InfoLen*p.path.NumINF + path.HopLen*int(p.path.PathMeta.CurrHF))
 }
 
+// Compares two 6 byte arrays.
+// Always returns false if at least one input is of a different length.
+// Returns true if equal, false otherwise.
+func CompareMac(a, b []byte) bool {
+	if len(a) != 6 || len(b) != 6 {
+		return false
+	}
+	return binary.BigEndian.Uint32(a) == binary.BigEndian.Uint32(b) && a[4] == b[4] && a[5] == b[5]
+}
+
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
-	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
+	scionMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
+
+	var verified bool
+	if p.hopField.Flyover {
+		ak := hummingbird.DeriveAuthKey(p.prf, p.hopField.ResID, p.hopField.Bw, p.hopField.ConsIngress, p.hopField.ConsEgress,
+			p.path.PathMeta.BaseTS-uint32(p.hopField.ResStartTime), p.hopField.Duration, p.macBuffers.hbirdAuthInput)
+		flyoverMac := hummingbird.FullFlyoverMac(ak, p.scionLayer.DstIA, p.scionLayer.PayloadLen, p.hopField.ResStartTime,
+			p.path.PathMeta.HighResTS, p.macBuffers.hbirdMacInput, p.macBuffers.hbirdXkbuffer)
+		// Xor to Aggregate MACs
+		binary.BigEndian.PutUint64(flyoverMac[0:8], binary.BigEndian.Uint64(scionMac[0:8])^binary.BigEndian.Uint64(flyoverMac[0:8]))
+		binary.BigEndian.PutUint32(flyoverMac[8:12], binary.BigEndian.Uint32(scionMac[8:12])^binary.BigEndian.Uint32(flyoverMac[8:12]))
+
+		verified = CompareMac(p.hopField.Mac[:path.MacLen], flyoverMac[:path.MacLen])
+	} else {
+		verified = CompareMac(p.hopField.Mac[:path.MacLen], scionMac[:path.MacLen])
+	}
+	// Add the full MAC to the SCION packet processor,
+	// such that EPIC does not need to recalculate it.
+	p.cachedMac = scionMac
+	if p.hopField.Flyover {
+		//TODO: can this be written as assignment rather than copy?
+		copy(p.hopField.Mac[:], p.cachedMac[:path.MacLen])
+		if err := p.path.ReplaceCurrentMac(p.cachedMac); err != nil {
+			//TODO: what SCMP packet should be returned here?
+			return p.packSCMP(
+				slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidHopFieldMAC,
+				&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
+				serrors.Join(err, serrors.New("Mac replacement failed")),
+			)
+		}
+	}
+	if !verified {
 		return p.packSCMP(
 			slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidHopFieldMAC,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 			serrors.New("MAC verification failed", "expected", fmt.Sprintf(
-				"%x", fullMac[:path.MacLen]),
+				"%x", scionMac[:path.MacLen]),
 				"actual", fmt.Sprintf("%x", p.hopField.Mac[:path.MacLen]),
+				"aggregate with flyover", p.hopField.Flyover,
 				"cons_dir", p.infoField.ConsDir,
 				"if_id", p.ingressID, "curr_inf", p.path.PathMeta.CurrINF,
 				"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID),
@@ -1280,7 +1403,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	}
 	// Add the full MAC to the SCION packet processor,
 	// such that EPIC does not need to recalculate it.
-	p.cachedMac = fullMac
+	p.cachedMac = scionMac
 
 	return processResult{}, nil
 }
@@ -1309,6 +1432,13 @@ func (p *scionPacketProcessor) processEgress() error {
 			return serrors.WrapStr("update info field", err)
 		}
 	}
+	if p.hopField.Flyover {
+		if err := p.path.IncPathFlyover(); err != nil {
+			// TODO parameter problem invalid path
+			return serrors.WrapStr("incrementing path", err)
+		}
+		return nil
+	}
 	if err := p.path.IncPath(); err != nil {
 		// TODO parameter problem invalid path
 		return serrors.WrapStr("incrementing path", err)
@@ -1318,9 +1448,16 @@ func (p *scionPacketProcessor) processEgress() error {
 
 func (p *scionPacketProcessor) doXover() (processResult, error) {
 	p.segmentChange = true
-	if err := p.path.IncPath(); err != nil {
-		// TODO parameter problem invalid path
-		return processResult{}, serrors.WrapStr("incrementing path", err)
+	if p.hopField.Flyover {
+		if err := p.path.IncPathFlyover(); err != nil {
+			// TODO parameter problem invalid path
+			return processResult{}, serrors.WrapStr("incrementing path", err)
+		}
+	} else {
+		if err := p.path.IncPath(); err != nil {
+			// TODO parameter problem invalid path
+			return processResult{}, serrors.WrapStr("incrementing path", err)
+		}
 	}
 	var err error
 	if p.hopField, err = p.path.GetCurrentHopField(); err != nil {
@@ -1330,6 +1467,9 @@ func (p *scionPacketProcessor) doXover() (processResult, error) {
 	if p.infoField, err = p.path.GetCurrentInfoField(); err != nil {
 		// TODO parameter problem invalid path
 		return processResult{}, err
+	}
+	if p.hopField.Flyover {
+		p.hasPriority = true
 	}
 	return processResult{}, nil
 }
@@ -1494,12 +1634,18 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.validateSrcDstIA(); err != nil {
 		return r, err
 	}
+	if p.hopField.Flyover {
+		if r, err := p.validateReservationExpiry(); err != nil {
+			return r, err
+		}
+	}
 	if err := p.updateNonConsDirIngressSegID(); err != nil {
 		return processResult{}, err
 	}
 	if r, err := p.verifyCurrentMAC(); err != nil {
 		return r, err
 	}
+	p.validatePathMetaTimestamp()
 	if r, err := p.handleIngressRouterAlert(); err != nil {
 		return r, err
 	}
@@ -1525,6 +1671,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if r, err := p.verifyCurrentMAC(); err != nil {
 			return r, serrors.WithCtx(err, "info", "after xover")
 		}
+		p.validatePathMetaTimestamp()
 	}
 	if r, err := p.validateEgressID(); err != nil {
 		return r, err

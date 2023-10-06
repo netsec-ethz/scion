@@ -32,6 +32,8 @@ const (
 	LineLen = 4
 	// MacLen is the size of the MAC of each HopField.
 	MacLen = 6
+	// MacOffset is the offset of the MAC field from the beginning of the HopField
+	MacOffset = 6
 )
 
 // MaxTTL is the maximum age of a HopField in seconds.
@@ -113,7 +115,7 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	copy(h.Mac[:], raw[6:6+MacLen] /*@, perm(1/2)@*/)
 	if h.Flyover {
 		if len(raw) < FlyoverLen {
-			return serrors.New("FlyoverHopField raw too short", "expected", HopLen, "actual", len(raw))
+			return serrors.New("FlyoverHopField raw too short", "expected", FlyoverLen, "actual", len(raw))
 		}
 		//@ assert &raw[12:16][0] == &raw[12] && &raw[12:16][1] == &raw[12] && &raw[12:16][2] == &raw[14] && &raw[12:16][3] == &raw[15]
 		h.ResID = binary.BigEndian.Uint32(raw[12:16]) >> 10

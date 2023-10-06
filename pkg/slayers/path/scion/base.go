@@ -117,6 +117,19 @@ func (s *Base) IncPathFlyover() error {
 	return nil
 }
 
+func (s *Base) IncPathAmt(n int) error {
+	if s.NumINF == 0 {
+		return serrors.New("empty path cannot be increased")
+	}
+	if int(s.PathMeta.CurrHF) >= s.NumHops-n {
+		s.PathMeta.CurrHF = uint8(s.NumHops - n)
+		return serrors.New("Incrementing path over end")
+	}
+	s.PathMeta.CurrHF += uint8(n)
+	s.PathMeta.CurrINF = s.infIndexForHF(s.PathMeta.CurrHF)
+	return nil
+}
+
 // IsXover returns whether we are at a crossover point.
 func (s *Base) IsXover() bool {
 	if s.IsHummingbird {

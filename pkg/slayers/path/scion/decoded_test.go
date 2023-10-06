@@ -68,10 +68,15 @@ var testHopFields = []path.HopField{
 
 var testFlyoverFields = []path.HopField{
 	{
-		ExpTime:     63,
-		ConsIngress: 1,
-		ConsEgress:  0,
-		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+		Flyover:      true,
+		ExpTime:      63,
+		ConsIngress:  1,
+		ConsEgress:   0,
+		Mac:          [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+		ResID:        0,
+		Bw:           4,
+		ResStartTime: 2,
+		Duration:     1,
 	},
 	{
 		ExpTime:     63,
@@ -118,12 +123,12 @@ var decodedHbirdTestPath = &scion.Decoded{
 		PathMeta: scion.MetaHdr{
 			CurrINF:   0,
 			CurrHF:    0,
-			SegLen:    [3]uint8{6, 8, 0},
+			SegLen:    [3]uint8{8, 8, 0},
 			BaseTS:    808,
 			HighResTS: 1234,
 		},
 		NumINF:        2,
-		NumHops:       14,
+		NumHops:       16,
 		IsHummingbird: true,
 	},
 	InfoFields: testInfoFields,
@@ -141,9 +146,9 @@ var rawPath = []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x
 	"\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00\x01\x02" +
 	"\x03\x04\x05\x06")
 
-var rawHbirdPath = []byte("\x00\x01\x84\x00\x00\x00\x03\x28\x00\x00\x04\xd2" + //Pathmeta header
+var rawHbirdPath = []byte("\x00\x02\x04\x00\x00\x00\x03\x28\x00\x00\x04\xd2" + //Pathmeta header
 	"\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00\x00\x01\x00" + //Infofields
-	"\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06" + //hopfield 0
+	"\x80\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x00\x00\x04\x00\x02\x00\x01" + //flyoverfield 0
 	"\x00\x3f\x00\x03\x00\x02\x01\x02\x03\x04\x05\x06" + //hopfield 1
 	"\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06" + //hopfield 2
 	"\x80\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x00\x00\x04\x00\x00\x00\x01") //flyoverfield 3

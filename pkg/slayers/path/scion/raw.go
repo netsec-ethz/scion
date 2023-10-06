@@ -205,21 +205,44 @@ func (s *Raw) GetCurrentHopField() (path.HopField, error) {
 	return s.GetHopField(int(s.PathMeta.CurrHF))
 }
 
+func (s *Raw) ReplacMac(idx int, mac []byte) error {
+	if idx >= s.NumHops {
+		return serrors.New("HopField index out of bounds", "max", s.NumHops-1, "actual", idx)
+	}
+	offset := s.NumINF*path.InfoLen + path.MacOffset
+	if s.IsHummingbird {
+		offset += MetaLenHBird + idx*path.LineLen
+	} else {
+		offset += MetaLen + idx*path.HopLen
+	}
+	if n := copy(s.Raw[offset:offset+path.MacLen], mac[:path.MacLen]); n != path.MacLen {
+		return serrors.New("copied worng number of bytes for mac replacement", "expected", path.MacLen, "actual", n)
+	}
+	return nil
+}
+
+// SetCurrentMac replaces the Mac of the current hopfield by a new mac
+func (s *Raw) ReplaceCurrentMac(mac []byte) error {
+	return s.ReplacMac(int(s.PathMeta.CurrHF), mac)
+}
+
 func (s *Raw) setHbirdHopField(hop path.HopField, idx int) error {
 	if hop.Flyover {
-		return serrors.New("Setting new Flyoverhop with setHopField not supported")
-		// if idx >= s.NumHops-4 {
-		// 	return serrors.New("HopField index out of bounds", "max", s.NumHops-5, "actual", idx)
-		// }
-		// hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
-		// return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.FlyoverLen])
+		if idx >= s.NumHops-4 {
+			return serrors.New("FlyoverHopField index out of bounds", "max", s.NumHops-5, "actual", idx)
+		}
+		hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
+		if s.Raw[hopOffset]&0x80 == 0x00 {
+			return serrors.New("Setting FlyoverHopField over Hopfield with setHopField not supported")
+		}
+		return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.FlyoverLen])
 	}
 	if idx >= s.NumHops-2 {
 		return serrors.New("HopField index out of bounds", "max", s.NumHops-3, "actual", idx)
 	}
 	hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
 	if s.Raw[hopOffset]&0x80 == 0x80 { //If current hopfield is flyoverfield
-		return serrors.New("replacing FlyoverHopField with Hopfield currently not supported")
+		return serrors.New("replacing FlyoverHopField with Hopfield not yet implemented")
 		// TODO: would need to shorten entire packet to do this
 		// necessites pointer to rawpacket
 		// copy(s.Raw[hopOffset+path.HopLen:], s.Raw[hopOffset+path.FlyoverLen:])

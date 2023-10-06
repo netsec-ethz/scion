@@ -161,7 +161,7 @@ func (s *Decoded) Reverse() (path.Path, error) {
 		info.ConsDir = !info.ConsDir
 	}
 	// Reverse order of hop fields
-	for i, j := 0, s.NumHops-1; i < j; i, j = i+1, j-1 {
+	for i, j := 0, len(s.HopFields)-1; i < j; i, j = i+1, j-1 {
 		s.HopFields[i], s.HopFields[j] = s.HopFields[j], s.HopFields[i]
 	}
 	// Update CurrINF and CurrHF and SegLens

@@ -56,12 +56,12 @@ var rawHbirdTestPath = &scion.Raw{
 		PathMeta: scion.MetaHdr{
 			CurrINF:   0,
 			CurrHF:    0,
-			SegLen:    [3]uint8{6, 8, 0},
+			SegLen:    [3]uint8{8, 8, 0},
 			BaseTS:    808,
 			HighResTS: 1234,
 		},
 		NumINF:        2,
-		NumHops:       14,
+		NumHops:       16,
 		IsHummingbird: true,
 	},
 	Raw: rawHbirdPath,
@@ -229,12 +229,12 @@ func TestGetHbirdHopField(t *testing.T) {
 			errorFunc: assert.NoError,
 		},
 		"fourth hop": {
-			idx:       9,
+			idx:       11,
 			want:      testFlyoverFields[3],
 			errorFunc: assert.NoError,
 		},
 		"invalid index": {
-			idx:       10,
+			idx:       12,
 			errorFunc: assert.Error,
 		},
 		"out of bounds": {

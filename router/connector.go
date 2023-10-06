@@ -177,6 +177,8 @@ func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	if index != 0 {
 		return serrors.New("currently only index 0 key is supported")
 	}
+	//TODO: have method to set secret value separately
+	c.DataPlane.SetSecretValue(key)
 	return c.DataPlane.SetKey(key)
 }
 
