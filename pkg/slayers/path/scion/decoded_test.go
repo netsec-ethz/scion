@@ -324,6 +324,25 @@ func TestDecodedReverse(t *testing.T) {
 	}
 }
 
+func TestDecodedReverseHbird(t *testing.T) {
+	for name, tc := range pathReverseCasesHbird {
+		name, tc := name, tc
+		for i := range tc.inIdxs {
+			i := i
+			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
+				t.Parallel()
+				inputPath := mkDecodedHbirdPath(t, tc.input, uint8(tc.inIdxs[i][0]),
+					uint8(tc.inIdxs[i][1]))
+				wantPath := mkDecodedHbirdPath(t, tc.want, uint8(tc.wantIdxs[i][0]),
+					uint8(tc.wantIdxs[i][1]))
+				revPath, err := inputPath.Reverse()
+				assert.NoError(t, err)
+				assert.Equal(t, wantPath, revPath)
+			})
+		}
+	}
+}
+
 func TestEmptyDecodedReverse(t *testing.T) {
 	_, err := emptyDecodedTestPath.Reverse()
 	assert.Error(t, err)
