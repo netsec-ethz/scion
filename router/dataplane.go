@@ -1645,7 +1645,9 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.verifyCurrentMAC(); err != nil {
 		return r, err
 	}
-	p.validatePathMetaTimestamp()
+	if p.hasPriority && p.hopField.Flyover {
+		p.validatePathMetaTimestamp()
+	}
 	if r, err := p.handleIngressRouterAlert(); err != nil {
 		return r, err
 	}
@@ -1671,7 +1673,14 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if r, err := p.verifyCurrentMAC(); err != nil {
 			return r, serrors.WithCtx(err, "info", "after xover")
 		}
-		p.validatePathMetaTimestamp()
+		if p.hopField.Flyover {
+			if r, err := p.validateReservationExpiry(); err != nil {
+				return r, serrors.WithCtx(err, "info", "after xover")
+			}
+			if p.hasPriority {
+				p.validatePathMetaTimestamp()
+			}
+		}
 	}
 	if r, err := p.validateEgressID(); err != nil {
 		return r, err
@@ -1951,6 +1960,14 @@ func (p *scionPacketProcessor) prepareSCMP(
 				"path type", pathType)
 		}
 		path = epicPath.ScionPath
+	case hummingbird.PathType:
+		var ok bool
+		path, ok = p.scionLayer.Path.(*scion.Raw)
+		path.Base.IsHummingbird = true
+		if !ok {
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
+		}
 	default:
 		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
 			"path type", pathType)

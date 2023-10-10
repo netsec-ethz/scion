@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 )
 
 // MetaLen is the length of the PathMetaHeader.
@@ -167,6 +168,9 @@ func (s *Base) Len() int {
 
 // Type returns the type of the path.
 func (s *Base) Type() path.Type {
+	if s.IsHummingbird {
+		return hummingbird.PathType
+	}
 	return PathType
 }
 

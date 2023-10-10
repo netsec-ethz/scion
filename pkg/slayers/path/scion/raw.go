@@ -227,6 +227,18 @@ func (s *Raw) ReplaceCurrentMac(mac []byte) error {
 }
 
 func (s *Raw) setHbirdHopField(hop path.HopField, idx int) error {
+	if idx >= s.NumHops-2 {
+		return serrors.New("HopField index out of bounds", "max", s.NumHops-3, "actual", idx)
+	}
+	hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
+	if s.Raw[hopOffset]&0x80 == 0x80 {
+		// IF the current hop is a flyover, the flyover bit of the new hop is set to 1 in order to preserve correctness of the path
+		// The reservation data of the new hop is dummy data and invalid.
+		// This works because SetHopField is currently only used to prepare a SCMP packet, and all flyovers are removed later in that process
+		//
+		// IF this is ever used for something else, this function needs to be re-written
+		hop.Flyover = true
+	}
 	if hop.Flyover {
 		if idx >= s.NumHops-4 {
 			return serrors.New("FlyoverHopField index out of bounds", "max", s.NumHops-5, "actual", idx)
@@ -237,34 +249,14 @@ func (s *Raw) setHbirdHopField(hop path.HopField, idx int) error {
 		}
 		return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.FlyoverLen])
 	}
-	if idx >= s.NumHops-2 {
-		return serrors.New("HopField index out of bounds", "max", s.NumHops-3, "actual", idx)
-	}
-	hopOffset := MetaLenHBird + s.NumINF*path.InfoLen + idx*path.LineLen
-	if s.Raw[hopOffset]&0x80 == 0x80 { //If current hopfield is flyoverfield
-		return serrors.New("replacing FlyoverHopField with Hopfield not yet implemented")
-		// TODO: would need to shorten entire packet to do this
-		// necessites pointer to rawpacket
-		// copy(s.Raw[hopOffset+path.HopLen:], s.Raw[hopOffset+path.FlyoverLen:])
-		// s.Raw = s.Raw[:len(s.Raw)-2*path.LineLen] //shorten raw path //TODO: does this work? don't we need to shift also all the remainer of the packet?
-		// seg := s.PathMeta.SegLen[0]
-		// if uint8(idx) < seg {
-		// 	s.PathMeta.SegLen[0] -= 2
-		// } else if uint8(idx) < seg+s.PathMeta.SegLen[1] {
-		// 	s.PathMeta.SegLen[1] -= 2
-		// } else {
-		// 	s.PathMeta.SegLen[2] -= 2
-		// }
-		// if err := s.PathMeta.SerializeToHBird(s.Raw[:MetaLenHBird]); err != nil {
-		// 	return err
-		// }
-	}
 	return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.HopLen])
 }
 
 // SetHopField updates the HopField at a given index.
 // For Hummingbird paths the index is the offset in 4 byte lines
-// Does not work for Seting a Hopfield currently occupied by a reservation / setting a reservation
+//
+// If replacing a FlyoverHopField with a Hopfield, it is replaced by a FlyoverHopField with dummy values.
+// This works for SCMP packets as Flyover hops are removed later in the process of building a SCMP packet.
 func (s *Raw) SetHopField(hop path.HopField, idx int) error {
 	if s.Base.IsHummingbird {
 		return s.setHbirdHopField(hop, idx)

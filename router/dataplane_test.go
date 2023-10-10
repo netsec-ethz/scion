@@ -1725,6 +1725,70 @@ func TestProcessHbirdPacket(t *testing.T) {
 	}
 }
 
+func TestFlyoverPathReverseLength(t *testing.T) {
+	//Performs test by provoking an error and checking the length of the returned SCMP packet
+	//Does this with two different length paths, which should be reduced to identical length due to flyover removal
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	key := []byte("testkey_xxxxxxxx")
+	sv := []byte("test_secretvalue")
+	now := time.Now()
+
+	//prepare datalane
+	dp := router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+		nil, xtest.MustParseIA("1-ff00:0:110"), nil, key, sv)
+
+	//prepare input message 1
+	spkt, dpath := prepHbirdMsg(now)
+	spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+	dst := addr.MustParseHost("10.0.100.100")
+	_ = spkt.SetDstAddr(dst)
+	dpath.HopFields = []path.HopField{
+		{Flyover: true, ConsIngress: 41, ConsEgress: 40, ResStartTime: 5, Duration: 200},
+		{ConsIngress: 31, ConsEgress: 30},
+		{Flyover: true, ConsIngress: 01, ConsEgress: 0, ResStartTime: 5, Duration: 2},
+	}
+	dpath.Base.PathMeta.SegLen[0] = 13
+	dpath.Base.NumHops = 13
+	dpath.Base.PathMeta.CurrHF = 8
+	dpath.HopFields[2].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
+	inputLong := toMsg(t, spkt, dpath)
+
+	//input message 2
+	spkt, dpath = prepHbirdMsg(now)
+	spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+	dst = addr.MustParseHost("10.0.100.100")
+	_ = spkt.SetDstAddr(dst)
+	dpath.HopFields = []path.HopField{
+		{ConsIngress: 41, ConsEgress: 40},
+		{ConsIngress: 31, ConsEgress: 30},
+		{Flyover: true, ConsIngress: 01, ConsEgress: 0, ResStartTime: 5, Duration: 2},
+	}
+	dpath.Base.PathMeta.SegLen[0] = 11
+	dpath.Base.NumHops = 11
+	dpath.Base.PathMeta.CurrHF = 6
+	dpath.HopFields[2].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
+	inputShort := toMsg(t, spkt, dpath)
+	fmt.Printf("inputShort: %x\n", inputShort)
+	fmt.Printf("inputLong: %x\n", inputLong)
+
+	//set src interface
+	var srcInterface uint16 = 1
+	res, _ := dp.ProcessPkt(srcInterface, inputLong)
+	res2, _ := dp.ProcessPkt(srcInterface, inputShort)
+
+	layer1 := slayers.SCION{}
+	layer1.RecyclePaths()
+	layer1.DecodeFromBytes(res.OutPkt, gopacket.NilDecodeFeedback)
+
+	layer2 := slayers.SCION{}
+	layer2.RecyclePaths()
+	layer2.DecodeFromBytes(res2.OutPkt, gopacket.NilDecodeFeedback)
+	assert.Equal(t, layer1.Path.Len(), layer2.Path.Len())
+	assert.Equal(t, 56, layer1.Path.Len())
+}
+
 func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
 	t.Helper()
 	ret := &ipv4.Message{}
