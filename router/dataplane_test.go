@@ -1633,7 +1633,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.NumHops = 11
 				dpath.HopFields[1].Mac = computeAggregateMac(t, key, sv, spkt.DstIA, spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
 				if afterProcessing {
-					dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+					// dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
 					ret := toMsg(t, spkt, dpath)
 					ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
@@ -1689,8 +1689,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 
 					return toMsg(t, spkt, dpath)
 				}
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				dpath.HopFields[3].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[3])
+				//dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				//dpath.HopFields[3].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[3])
 				require.NoError(t, dpath.IncPathFlyover())
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}

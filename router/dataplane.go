@@ -1372,21 +1372,8 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 		verified = CompareMac(p.hopField.Mac[:path.MacLen], scionMac[:path.MacLen])
 	}
 	// Add the full MAC to the SCION packet processor,
-	// such that EPIC does not need to recalculate it.
+	// such that EPIC and hummingbird mac de-aggregation do not need to recalculate it.
 	p.cachedMac = scionMac
-	if p.hopField.Flyover {
-		//TODO: can this be written as assignment rather than copy?
-		copy(p.hopField.Mac[:], p.cachedMac[:path.MacLen])
-		if err := p.path.ReplaceCurrentMac(p.cachedMac); err != nil {
-			//TODO: what SCMP packet should be returned here?
-			return p.packSCMP(
-				slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidHopFieldMAC,
-				&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-				serrors.Join(err, serrors.New("Mac replacement failed")),
-			)
-		}
-	}
 	if !verified {
 		return p.packSCMP(
 			slayers.SCMPTypeParameterProblem,
@@ -1401,10 +1388,24 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 				"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID),
 		)
 	}
-	// Add the full MAC to the SCION packet processor,
-	// such that EPIC does not need to recalculate it.
-	p.cachedMac = scionMac
 
+	return processResult{}, nil
+}
+
+func (p *scionPacketProcessor) deAggregateMac() (processResult, error) {
+	if !p.hopField.Flyover {
+		return processResult{}, nil
+	}
+	copy(p.hopField.Mac[:], p.cachedMac[:path.MacLen])
+	if err := p.path.ReplaceCurrentMac(p.cachedMac); err != nil {
+		//TODO: what SCMP packet should be returned here? Is that even necessary?
+		return p.packSCMP(
+			slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidHopFieldMAC,
+			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
+			serrors.Join(err, serrors.New("Mac replacement failed")),
+		)
+	}
 	return processResult{}, nil
 }
 
@@ -1653,6 +1654,10 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	// Inbound: pkts destined to the local IA.
 	if p.scionLayer.DstIA == p.d.localIA {
+
+		if r, err := p.deAggregateMac(); err != nil {
+			return r, err
+		}
 		a, r, err := p.resolveInbound()
 		if err != nil {
 			return r, err
@@ -1696,6 +1701,9 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; ok {
+		if r, err := p.deAggregateMac(); err != nil {
+			return r, err
+		}
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
 		}
