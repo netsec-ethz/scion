@@ -40,7 +40,7 @@ message StaticInfoExtension {
     LatencyInfo latency = 1;
     // Approximate, maximum bandwidth for paths based on this ASEntry.
     BandwidthInfo bandwidth = 2;
-    // Aproximate carbon intensity.
+    // Approximate carbon intensity.
     CarbonIntensityInfo carbon_intensity = 7;
     // Geographical coordinates describing the location of the routers for
     // relevant interfaces of this AS. The key is the interface identifier.
