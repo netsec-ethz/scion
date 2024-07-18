@@ -9,7 +9,7 @@ go_library(
         "metrics.go",
         "sqler.go",
         "sqlite.go",
-        "sqlite_modernc.go",
+        "sqlite_mattn.go",
     ],
     importpath = "github.com/scionproto/scion/private/storage/db",
     visibility = ["//visibility:public"],
@@ -17,7 +17,7 @@ go_library(
         "//pkg/private/common:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "@org_modernc_sqlite//:go_default_library",
+        "@com_github_mattn_go_sqlite3//:go_default_library",
     ],
 )
 

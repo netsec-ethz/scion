@@ -12,14 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build sqlite_modernc || !sqlite_mattn
-
-// Note that above go:build expression makes modernc the default by matching
-// the absence of sqlite_mattn. Should there be more alternatives, please
-// update that expression to match their absence too.
-// Also note that this default is overridden by a build configuration
-// in .bazelrc, so this is only useful when building with "go build" and
-// may not match the bazel build configuration.
+//go:build sqlite_modernc
 
 package db
 
