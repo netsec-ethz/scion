@@ -163,19 +163,6 @@ func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error {
 	return c.DataPlane.DelSvc(svc, a)
 }
 
-func (c *Connector) AddDRKeySecret(protocolID int32, sv control.SecretValue) error {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.DataPlane.DRKeyProvider.AddSecret(protocolID, sv)
-}
-
-func (c *Connector) UpdateFabridPolicies(ipRangePolicies map[uint32][]*control.PolicyIPRange,
-	interfacePolicies map[uint64]uint32) error {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.DataPlane.UpdateFabridPolicies(ipRangePolicies, interfacePolicies)
-}
-
 // SetKey sets the key for the given ISD-AS at the given index.
 func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	c.mtx.Lock()

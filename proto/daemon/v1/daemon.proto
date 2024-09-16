@@ -22,7 +22,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "proto/drkey/v1/drkey.proto";
-import "proto/control_plane/experimental/v1/fabrid_extensions.proto";
+import "proto/daemon/v1/daemon_fabrid.proto";
 
 service DaemonService {
     // Return a set of paths to the requested destination.
@@ -46,7 +46,7 @@ service DaemonService {
     // DRKeyHostHost returns a key that matches the request.
     rpc DRKeyHostHost (DRKeyHostHostRequest) returns (DRKeyHostHostResponse) {}
     // FabridKeys returns the DRKeys for FABRID
-    rpc FabridKeys (FabridKeysRequest) returns (FabridKeysResponse) {}
+    rpc FabridKeys (proto.daemon.v1.FabridKeysRequest) returns (proto.daemon.v1.FabridKeysResponse) {}
 }
 
 message PathsRequest {
@@ -124,52 +124,7 @@ message Path {
     // whether the AS in the hop supports FABRID, the possible policies, and whether the AS's FABRID
     // maps were detached during beaconing (requiring manual fetching by the end host to fill the
     // missing policies list).
-    repeated FabridInfo fabrid_info = 14;
-}
-
-message FabridInfo {
-    // Enabled describes whether the hop supports Fabrid.
-    bool enabled = 1;
-    // Digest contains the digest for the FABRID map of this hop.
-    bytes digest = 2;
-    // Policies contains the fabrid policy identifiers that are supported for this hop.
-    repeated FabridPolicy policies = 3;
-    // Detached indicates whether the FABRID map has been detached for this hop.
-    bool detached = 4;
-}
-
-message FabridPolicy {
-    // The identifier for the policy, either local or global:
-    proto.control_plane.experimental.v1.FABRIDPolicyIdentifier policy_identifier = 1;
-    // The local index, this may differ between similar policy identifiers, as it is specific to a hop.
-    uint32 policy_index = 2;
-}
-
-message FabridKeysRequest {
-    // The source host
-    string src_host = 1;
-    // The destination AS
-    uint64 dst_as = 2;
-    // A list of ASes for which the AS-Host Key should be fetched
-    repeated uint64 path_ases = 3;
-    // The destination host. Only required if the path key should be fetched too
-    optional string dst_host = 4;
-}
-
-message FabridKeyResponse {
-    // Begin of validity period of DRKey.
-    google.protobuf.Timestamp epoch_begin = 1;
-    // End of validity period of DRKey.
-    google.protobuf.Timestamp epoch_end = 2;
-    // Level2 key.
-    bytes key = 3;
-}
-
-message FabridKeysResponse {
-    // The FABRID AS-Host DRKeys
-    repeated FabridKeyResponse as_host_keys = 1;
-    // The FABRID path key
-    optional FabridKeyResponse host_host_key = 2;
+    repeated proto.daemon.v1.FabridInfo fabrid_info = 14;
 }
 
 message EpicAuths {

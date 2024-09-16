@@ -3,7 +3,10 @@ load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
-    srcs = ["main.go"],
+    srcs = [
+        "fabrid.go",
+        "main.go",
+    ],
     importpath = "github.com/scionproto/scion/tools/end2end",
     visibility = ["//visibility:private"],
     deps = [

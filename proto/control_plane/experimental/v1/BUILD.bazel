@@ -6,6 +6,7 @@ proto_library(
         "fabrid.proto",
         "fabrid_extensions.proto",
         "seg_detached_extensions.proto",
+        "seg_detached_extensions_fabrid.proto",
     ],
     visibility = ["//visibility:public"],
     deps = [

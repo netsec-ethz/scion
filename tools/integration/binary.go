@@ -104,24 +104,6 @@ func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []stri
 	return dockerize(bi)
 }
 
-func NewBinaryEndhostIntegration(name string, cmd string, clientArgs,
-	serverArgs []string) Integration {
-	logDir := filepath.Join(LogDir(), name)
-	err := os.Mkdir(logDir, os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
-		return nil
-	}
-	bi := &binaryIntegration{
-		name:       name,
-		cmd:        cmd,
-		clientArgs: clientArgs,
-		serverArgs: serverArgs,
-		logDir:     logDir,
-	}
-	return dockerizeEndhost(bi)
-}
-
 func (bi *binaryIntegration) Name() string {
 	return bi.name
 }

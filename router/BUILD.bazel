@@ -4,7 +4,9 @@ go_library(
     name = "go_default_library",
     srcs = [
         "connector.go",
+        "connector_fabrid.go",
         "dataplane.go",
+        "dataplane_fabrid.go",
         "fnv1aCheap.go",
         "metrics.go",
         "svc.go",
@@ -47,6 +49,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "dataplane_internal_fabrid_test.go",
         "dataplane_internal_test.go",
         "dataplane_test.go",
         "export_test.go",

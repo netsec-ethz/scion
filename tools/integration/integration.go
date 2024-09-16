@@ -246,40 +246,6 @@ var CSAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	return &snet.UDPAddr{IA: ia, Host: cs.SCIONAddress}
 }
 
-// SDAddr reads the endhost (dockerized) or scion daemon (normal) host Addr from the topology
-// for the specified IA. If the address cannot be found, the CS address is returned.
-var SDAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
-	if a := loadAddr(ia); a != nil {
-		return a
-	}
-	var name string
-	if *Docker {
-		name = "endhost_"
-	} else {
-		name = "sd"
-	}
-	if raw, err := os.ReadFile(GenFile("networks.conf")); err == nil {
-		pattern := fmt.Sprintf("%s%s = (.*)", name, addr.FormatIA(ia, addr.WithFileSeparator()))
-		matches := regexp.MustCompile(pattern).FindSubmatch(raw)
-		if len(matches) == 2 {
-			return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.ParseIP(string(matches[1]))}}
-		}
-	}
-	path := GenFile(
-		filepath.Join(
-			addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
-			"topology.json",
-		),
-	)
-	topo, err := topology.RWTopologyFromJSONFile(path)
-	if err != nil {
-		log.Error("Error loading topology", "err", err)
-		os.Exit(1)
-	}
-	cs := topo.CS["cs"+addr.FormatIA(ia, addr.WithFileSeparator())+"-1"]
-	return &snet.UDPAddr{IA: ia, Host: cs.SCIONAddress}
-}
-
 var addrs map[addr.IA]*snet.UDPAddr
 
 func initAddrs() {

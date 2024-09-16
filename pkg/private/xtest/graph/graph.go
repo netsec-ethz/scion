@@ -37,7 +37,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/experimental/fabrid"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -415,23 +414,6 @@ func (g *Graph) InternalHops(a, b uint16) uint32 {
 		panic("interfaces must be in the same AS")
 	}
 	return uint32(a * b % 10)
-}
-
-// FabridPolicy returns an arbitrary set of policies between between two interfaces of an AS.
-func (g *Graph) FabridPolicy(a, b uint16) []*fabrid.Policy {
-	if g.parents[a] != g.parents[b] && a != 0 && b != 0 {
-		panic("interfaces must be in the same AS")
-	}
-	amtOfPols := int(a*b%10 + 3)
-	policies := make([]*fabrid.Policy, amtOfPols)
-	for i := 0; i < amtOfPols; i++ {
-		policies[i] = &fabrid.Policy{
-			IsLocal:    false,
-			Identifier: (uint32(a)*uint32(b)*uint32(i)*39 + uint32(i) + 1) % 20000,
-			Index:      fabrid.PolicyID(a * b),
-		}
-	}
-	return policies
 }
 
 // SignerOption allows customizing the generated Signer.

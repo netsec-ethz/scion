@@ -18,7 +18,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
-	"github.com/scionproto/scion/pkg/snet"
 )
 
 type SCION struct {
@@ -42,9 +41,5 @@ func (p SCION) SetPath(s *slayers.SCION) error {
 		return err
 	}
 	s.Path, s.PathType = &sp, sp.Type()
-	return nil
-}
-
-func (p SCION) SetExtensions(s *slayers.SCION, pi *snet.PacketInfo) error {
 	return nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich
+// Copyright 2024 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,21 @@ package path
 
 import (
 	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/path/empty"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
-type Empty struct{}
+func (e Empty) SetExtensions(s *slayers.SCION, p *snet.PacketInfo) error {
+	return nil
+}
 
-func (e Empty) SetPath(s *slayers.SCION) error {
-	s.Path, s.PathType = empty.Path{}, empty.PathType
+func (e *EPIC) SetExtensions(s *slayers.SCION, p *snet.PacketInfo) error {
+	return nil
+}
+
+func (p OneHop) SetExtensions(s *slayers.SCION, pi *snet.PacketInfo) error {
+	return nil
+}
+
+func (p SCION) SetExtensions(s *slayers.SCION, pi *snet.PacketInfo) error {
 	return nil
 }

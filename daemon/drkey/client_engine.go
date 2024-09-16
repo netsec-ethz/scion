@@ -38,55 +38,6 @@ type ClientEngine struct {
 	Fetcher Fetcher
 }
 
-// For all ASHost Keys and for the HostHost Key, it checks whether the keys are in the database.
-// If this is the case, those keys are returned. If not, the keys are requested from CS.
-func (e *ClientEngine) FabridKeys(ctx context.Context, meta drkey.FabridKeysMeta,
-) (drkey.FabridKeysResponse, error) {
-	now := time.Now()
-	hostHostKey := drkey.FabridKey{}
-	if meta.DstHost != nil && len(meta.PathASes) > 0 {
-		key, err := e.GetHostHostKey(ctx, drkey.HostHostMeta{
-			ProtoId:  drkey.FABRID,
-			Validity: now,
-			SrcIA:    meta.DstAS,
-			SrcHost:  *meta.DstHost,
-			DstIA:    meta.SrcAS,
-			DstHost:  meta.SrcHost,
-		})
-		if err != nil {
-			return drkey.FabridKeysResponse{}, serrors.WrapStr("prepare FABRID host-host key", err)
-		}
-		hostHostKey = drkey.FabridKey{
-			Epoch: key.Epoch,
-			AS:    meta.DstAS,
-			Key:   key.Key,
-		}
-	}
-	asHostKeys := make([]drkey.FabridKey, 0, len(meta.PathASes))
-	for _, as := range meta.PathASes {
-		key, err := e.GetASHostKey(ctx, drkey.ASHostMeta{
-			ProtoId:  drkey.FABRID,
-			Validity: now,
-			SrcIA:    as,
-			DstIA:    meta.SrcAS,
-			DstHost:  meta.SrcHost,
-		})
-		if err != nil {
-			return drkey.FabridKeysResponse{}, serrors.WrapStr("prepare FABRID AS-host key", err)
-		}
-		asHostKeys = append(asHostKeys, drkey.FabridKey{
-			Epoch: key.Epoch,
-			AS:    as,
-			Key:   key.Key,
-		})
-	}
-
-	return drkey.FabridKeysResponse{
-		ASHostKeys: asHostKeys,
-		PathKey:    hostHostKey,
-	}, nil
-}
-
 // GetASHostKey returns the ASHost key from the local DB or if not found, by asking our local CS.
 func (e *ClientEngine) GetASHostKey(
 	ctx context.Context,

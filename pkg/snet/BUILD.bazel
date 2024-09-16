@@ -8,6 +8,7 @@ go_library(
         "packet.go",
         "packet_conn.go",
         "path.go",
+        "path_fabrid.go",
         "reader.go",
         "reply_pather.go",
         "router.go",

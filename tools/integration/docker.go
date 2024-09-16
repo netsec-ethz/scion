@@ -48,10 +48,6 @@ type dockerIntegration struct {
 	*binaryIntegration
 }
 
-type dockerizedEndhostIntegration struct {
-	*binaryIntegration
-}
-
 func dockerize(bi *binaryIntegration) Integration {
 	if *Docker {
 		return &dockerIntegration{
@@ -59,40 +55,6 @@ func dockerize(bi *binaryIntegration) Integration {
 		}
 	}
 	return bi
-}
-
-func dockerizeEndhost(bi *binaryIntegration) Integration {
-	if *Docker {
-		return &dockerizedEndhostIntegration{
-			binaryIntegration: bi,
-		}
-	}
-	return bi
-}
-
-// StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (di *dockerizedEndhostIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter,
-	error) {
-	bi := *di.binaryIntegration
-	bi.serverArgs = append(dockerArgs,
-		append([]string{EndhostID(dst), bi.cmd}, bi.serverArgs...)...)
-	bi.cmd = dockerCmd
-	log.Debug(fmt.Sprintf("Starting server for %s in a docker container",
-		addr.FormatIA(dst.IA, addr.WithFileSeparator())),
-	)
-	return bi.StartServer(ctx, dst)
-}
-
-func (di *dockerizedEndhostIntegration) StartClient(ctx context.Context,
-	src, dst *snet.UDPAddr) (*BinaryWaiter, error) {
-	bi := *di.binaryIntegration
-	bi.clientArgs = append(dockerArgs,
-		append([]string{EndhostID(src), bi.cmd}, bi.clientArgs...)...)
-	bi.cmd = dockerCmd
-	log.Debug(fmt.Sprintf("Starting client for %s in a docker container",
-		addr.FormatIA(src.IA, addr.WithFileSeparator())),
-	)
-	return bi.StartClient(ctx, src, dst)
 }
 
 func (di *dockerIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter, error) {
@@ -122,15 +84,6 @@ func TesterID(a *snet.UDPAddr) string {
 	envID, ok := os.LookupEnv(fmt.Sprintf("tester_%s", strings.Replace(ia, "-", "_", -1)))
 	if !ok {
 		return fmt.Sprintf("tester_%s", ia)
-	}
-	return envID
-}
-
-func EndhostID(a *snet.UDPAddr) string {
-	ia := addr.FormatIA(a.IA, addr.WithFileSeparator())
-	envID, ok := os.LookupEnv(fmt.Sprintf("endhost_%s", strings.Replace(ia, "-", "_", -1)))
-	if !ok {
-		return fmt.Sprintf("endhost_%s", ia)
 	}
 	return envID
 }

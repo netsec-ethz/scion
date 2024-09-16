@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
-	"github.com/scionproto/scion/pkg/snet"
 )
 
 type OneHop struct {
@@ -40,10 +39,6 @@ func (p OneHop) SetPath(s *slayers.SCION) error {
 		SecondHop: p.SecondHop,
 	}
 	s.Path, s.PathType = ohp, ohp.Type()
-	return nil
-}
-
-func (p OneHop) SetExtensions(s *slayers.SCION, pi *snet.PacketInfo) error {
 	return nil
 }
 

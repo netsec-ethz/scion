@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich
+// Copyright 2024 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package path
+package drkey
 
-import (
-	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/path/empty"
-)
+import "github.com/scionproto/scion/pkg/addr"
 
-type Empty struct{}
+type FabridKeysMeta struct {
+	SrcAS   addr.IA
+	SrcHost string
+	// ASes on the path. Don't have to be in order
+	PathASes []addr.IA
+	// Field is optional. If DstHost is nil, no path-key will be fetched
+	DstHost *string
+	DstAS   addr.IA
+}
 
-func (e Empty) SetPath(s *slayers.SCION) error {
-	s.Path, s.PathType = empty.Path{}, empty.PathType
-	return nil
+type FabridKey struct {
+	Epoch Epoch
+	AS    addr.IA
+	Key   Key
+}
+
+type FabridKeysResponse struct {
+	ASHostKeys []FabridKey
+	PathKey    FabridKey
 }

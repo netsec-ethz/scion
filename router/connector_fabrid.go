@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich
+// Copyright 2024 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package path
+package router
 
-import (
-	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/path/empty"
-)
+import "github.com/scionproto/scion/router/control"
 
-type Empty struct{}
+func (c *Connector) AddDRKeySecret(protocolID int32, sv control.SecretValue) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	return c.DataPlane.DRKeyProvider.AddSecret(protocolID, sv)
+}
 
-func (e Empty) SetPath(s *slayers.SCION) error {
-	s.Path, s.PathType = empty.Path{}, empty.PathType
-	return nil
+func (c *Connector) UpdateFabridPolicies(ipRangePolicies map[uint32][]*control.PolicyIPRange,
+	interfacePolicies map[uint64]uint32) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	return c.DataPlane.UpdateFabridPolicies(ipRangePolicies, interfacePolicies)
 }
