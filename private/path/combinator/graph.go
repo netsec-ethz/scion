@@ -476,6 +476,7 @@ func getAuthPeer(a *seg.ASEntry, i int) []byte {
 	copy(auth[6:16], a.UnsignedExtensions.EpicDetached.AuthPeerEntries[i])
 	return auth
 }
+
 func isEpicAvailable(epicPathAuths [][]byte) ([]byte, []byte, bool) {
 	l := len(epicPathAuths)
 	if l < 2 {

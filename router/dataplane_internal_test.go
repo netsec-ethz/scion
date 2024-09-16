@@ -588,8 +588,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"),
-					nil, testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)

@@ -140,8 +140,8 @@ func (f *Fetcher) queryFabridPolicies() (*experimental.MPLSMapResponse, error) {
 	return rep, err
 }
 
-// StartSecretUpdater is responsible for quering the local control service to request the
-// DRKey secret values for the registerd DRKey protocols. (e.g. FABRID, SCMP, ...)
+// StartSecretUpdater is responsible for querying the local control service to request the
+// DRKey secret values for the registered DRKey protocols. (e.g. FABRID, SCMP, ...)
 // It will automatically register the received DRKey secrets in the dataplane and start
 // prefetching the upcoming secret values 3 minutes before they become valid.
 func (f *Fetcher) StartSecretUpdater(protocols []string) {

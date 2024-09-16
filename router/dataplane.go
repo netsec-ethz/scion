@@ -2593,14 +2593,17 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scmpH := slayers.SCMP{TypeCode: typeCode}
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
-	// Error messages must be authenticated.
-	// Traceroute are OPTIONALLY authenticated ONLY IF the request
-	// was authenticated.
-	// TODO(JordiSubira): Reuse the key computed in p.hasValidAuth
-	// if SCMPTypeTracerouteReply to create the response.
-	needsAuth := cause != nil ||
-		(scmpH.TypeCode.Type() == slayers.SCMPTypeTracerouteReply &&
-			p.hasValidAuth(time.Now()))
+	needsAuth := false
+	if p.d.ExperimentalSCMPAuthentication {
+		// Error messages must be authenticated.
+		// Traceroute are OPTIONALLY authenticated ONLY IF the request
+		// was authenticated.
+		// TODO(JordiSubira): Reuse the key computed in p.hasValidAuth
+		// if SCMPTypeTracerouteReply to create the response.
+		needsAuth = cause != nil ||
+			(scmpH.TypeCode.Type() == slayers.SCMPTypeTracerouteReply &&
+				p.hasValidAuth(time.Now()))
+	}
 
 	var quote []byte
 	if cause != nil {
