@@ -30,12 +30,13 @@ from topology.common import (
     prom_addr,
     prom_addr_dispatcher,
     sciond_ip,
-    endhost_ip,
     sciond_name,
     translate_features,
     SD_API_PORT,
     SD_CONFIG_NAME,
 )
+
+from topology.endhost import endhost_ip
 
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 

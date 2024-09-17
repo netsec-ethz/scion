@@ -125,15 +125,6 @@ def sciond_ip(docker, topo_id,
     return None
 
 
-def endhost_ip(docker, topo_id,
-               networks: Mapping[IPNetwork, NetworkDescription]):
-    for net_desc in networks.values():
-        for prog, ip_net in net_desc.ip_net.items():
-            if prog == 'endhost_%s' % topo_id.file_fmt():
-                return ip_net.ip
-    return None
-
-
 def prom_addr_dispatcher(docker, topo_id,
                          networks: Mapping[IPNetwork, NetworkDescription], port, name):
     if not docker:
