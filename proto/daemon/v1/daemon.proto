@@ -107,7 +107,7 @@ message Path {
     // Consequently, there are no entries for the first and last ASes, as these
     // are not traversed completely by the path.
     repeated uint32 internal_hops = 10;
-    // Notes contains the notes added by ASes on the path, in the lorder of
+    // Notes contains the notes added by ASes on the path, in the order of
     // occurrence.
     // Entry i is the note of AS i on the path.
     repeated string notes = 11;

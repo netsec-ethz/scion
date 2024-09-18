@@ -1071,8 +1071,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 						return 0, fmt.Errorf("no valid BFD message")
 					}).MinTimes(1)
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).
-					AnyTimes()
+				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
@@ -1172,8 +1171,7 @@ func TestDataPlaneRun(t *testing.T) {
 						done <- struct{}{}
 						return 1, nil
 					}).MinTimes(1)
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).
-					AnyTimes()
+				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),
@@ -1251,8 +1249,7 @@ func TestDataPlaneRun(t *testing.T) {
 						}
 						return 0, fmt.Errorf("no valid BFD message")
 					}).MinTimes(1)
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).
-					AnyTimes()
+				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),

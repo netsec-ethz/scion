@@ -116,8 +116,8 @@ def join_host_port(host: str, port: int) -> str:
     return '[{}]:{}'.format(host, port)
 
 
-def sciond_ip(docker, topo_id,
-              networks: Mapping[IPNetwork, NetworkDescription]):
+def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork,
+                                                 NetworkDescription]):
     for net_desc in networks.values():
         for prog, ip_net in net_desc.ip_net.items():
             if prog == 'sd%s' % topo_id.file_fmt():
@@ -126,7 +126,8 @@ def sciond_ip(docker, topo_id,
 
 
 def prom_addr_dispatcher(docker, topo_id,
-                         networks: Mapping[IPNetwork, NetworkDescription], port, name):
+                         networks: Mapping[IPNetwork,
+                                           NetworkDescription], port, name):
     if not docker:
         return "[127.0.0.1]:%s" % port
     target_name = ''
