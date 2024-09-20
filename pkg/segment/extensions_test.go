@@ -24,9 +24,13 @@ import (
 
 func TestDecodeEncodeEpicDigest(t *testing.T) {
 	h := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	h2 := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 	dig := &digest.Extension{
 		Epic: digest.Digest{
 			Digest: h,
+		},
+		Fabrid: digest.Digest{
+			Digest: h2,
 		},
 	}
 	ext := Extensions{

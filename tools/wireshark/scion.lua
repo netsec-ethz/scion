@@ -504,6 +504,8 @@ local scion_extn_tlv_option_types = {
   [0] = "Pad1",
   [1] = "PadN",
   [2] = "Packet Authenticator Option",
+  [3] = "Packet Identifier",
+  [4] = "Fabrid Extension",
 }
 
 local scion_extn_tlv_option_type = ProtoField.uint8("scion_extn_tlv_option.type", "Type", base.DEC, scion_extn_tlv_option_types)
@@ -555,6 +557,8 @@ function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     local ret_len
     if tlv["type"]:uint() == 2 then
         ret_len = scion_packet_authenticator_option_dissect(tvbuf(2, data_len), pktinfo, tree)
+    elseif tlv["type"]:uint() == 4 then
+        ret_len = scion_fabrid_extension_dissect(tvbuf(2, data_len), pktinfo, tree)
     else
         -- no specific dissector
         ret_len = data_len
@@ -736,6 +740,60 @@ function scion_packet_authenticator_option_dissect(buffer, pktinfo, tree)
 
     return length
 end
+scion_fabrid_path_validation_field = Proto("scion_fabrid_path_validation_field", "Path Validation Field")
+scion_fabrid_extension = Proto("scion_fabrid_extension", "Hop Validation Field")
+scion_fabrid_extension_encrypted_policy_id = ProtoField.uint8("scion_fabrid_extension.encrypted_policy_id", "Encrypted Policy ID", base.HEX)
+scion_fabrid_extension_enabled = ProtoField.uint8("scion_fabrid_extension.enabled", "FABRID Enabled", base.DEC, nil, 0x80)
+scion_fabrid_extension_as_level_key = ProtoField.uint8("scion_fabrid_extension.as_level_key", "AS-Level key", base.DEC, nil, 0x40)
+scion_fabrid_extension_hop_validation_field = ProtoField.uint32("scion_fabrid_extension.hop_validation_field", "Hop Validation Field", base.HEX)
+scion_fabrid_path_validation_field_value = ProtoField.uint32("scion_fabrid_path_validation_field.value", "Value", base.HEX)
+scion_fabrid_path_validation_field.fields = {
+    scion_fabrid_path_validation_field_value
+}
+scion_fabrid_extension.fields = {
+  scion_fabrid_extension_encrypted_policy_id,
+  scion_fabrid_extension_enabled,
+  scion_fabrid_extension_as_level_key,
+  scion_fabrid_extension_hop_validation_field
+}
+-- FABRID dissector
+function scion_fabrid_extension_dissect(buffer, pktinfo, root)
+    local length = buffer:len()
+    if length < 4 then
+        root:add_proto_expert_info(e_too_short)
+        return -1
+    end
+
+    local offset = 0
+    while offset < (buffer:len() - 4)
+    do
+      local len = scion_fabrid_hop_validation_dissect(buffer(offset, buffer:len()-offset), pktinfo, root)
+      if len <= 0 then
+        return -1
+      end
+      offset = offset + len
+    end
+    local tree = root:add(scion_fabrid_path_validation_field, buffer(offset, 4))
+    tree:add(scion_fabrid_path_validation_field_value, buffer(offset,4))
+    return length
+end
+
+function scion_fabrid_hop_validation_dissect(buffer, pktinfo, root)
+    local length = buffer:len()
+    if length < 4 then
+        tree:add_proto_expert_info(e_too_short)
+        return -1
+    end
+
+    local tree = root:add(scion_fabrid_extension, buffer(0, length))
+    tree:add(scion_fabrid_extension_encrypted_policy_id, buffer(0,1))
+    tree:add(scion_fabrid_extension_enabled, buffer(1,1))
+    tree:add(scion_fabrid_extension_as_level_key, buffer(1,1))
+    tree:add(scion_fabrid_extension_hop_validation_field, buffer(1,3))
+
+    return 4
+end
+
 
 -- EPIC Path
 epic_path = Proto("epic_path", "EPIC Path")

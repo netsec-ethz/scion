@@ -23,3 +23,4 @@ function generate {
 
 generate traffic_class
 generate sequence
+generate pathpolicyconstraints

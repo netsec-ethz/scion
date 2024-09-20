@@ -5,6 +5,11 @@
   "isd_as": "1-ff00:0:1",
   "mtu": 1400,
   "dispatched_ports": "1024-65535",
+  "control_service": {
+    "cs1": {
+      "addr": "10.123.10.3:30252"
+    }
+  },
   "border_routers": {
     "br1a": {
       "internal_addr": "10.123.10.1:30042",

@@ -44,6 +44,9 @@ const (
 	DefaultQueryInterval = 5 * time.Minute
 	// DefaultMaxASValidity is the default validity period for renewed AS certificates.
 	DefaultMaxASValidity = 3 * 24 * time.Hour
+	// DefaultFabridRemoteCacheValidity is the default validity period for a policy description
+	// fetched from a remote AS.
+	DefaultFabridRemoteCacheValidity = 3 * time.Hour
 )
 
 var _ config.Config = (*Config)(nil)
@@ -64,6 +67,7 @@ type Config struct {
 	CA          CA                 `toml:"ca,omitempty"`
 	TrustEngine trustengine.Config `toml:"trustengine,omitempty"`
 	DRKey       DRKeyConfig        `toml:"drkey,omitempty"`
+	Fabrid      FabridConfig       `toml:"fabrid,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -83,6 +87,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.CA,
 		&cfg.TrustEngine,
 		&cfg.DRKey,
+		&cfg.Fabrid,
 	)
 }
 
@@ -140,6 +145,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.CA,
 		&cfg.TrustEngine,
 		&cfg.DRKey,
+		&cfg.Fabrid,
 	)
 }
 
@@ -341,4 +347,28 @@ func (cfg *CAService) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 
 func (cfg *CAService) ConfigName() string {
 	return "service"
+}
+
+// FabridConfig contains the configuration for Fabrid on this AS and points to the policies.
+type FabridConfig struct {
+	// Enabled specifies whether the AS should support Fabrid.
+	Enabled bool `toml:"enabled,omitempty"`
+	// Path to the folder containing the Fabrid yaml policies
+	Path string `toml:"path,omitempty"`
+	// RemoteCacheValidity specifies how long a remote policy should be cached locally, i.e.
+	// the duration that the identifier->description mapping is stored.
+	RemoteCacheValidity util.DurWrap `toml:"remote_cache_validity,omitempty"`
+}
+
+func (cfg *FabridConfig) InitDefaults() {
+	if cfg.RemoteCacheValidity.Duration == 0 {
+		cfg.RemoteCacheValidity.Duration = DefaultFabridRemoteCacheValidity
+	}
+}
+func (cfg *FabridConfig) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
+	config.WriteString(dst, fabridConfigSample)
+}
+
+func (cfg *FabridConfig) ConfigName() string {
+	return "fabrid"
 }

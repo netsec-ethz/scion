@@ -202,14 +202,24 @@ func realMain(ctx context.Context) error {
 			},
 		}
 		defer level2DB.Close()
-
-		drkeyFetcher := &sd_grpc.Fetcher{
-			Dialer: dialer,
+		localAddrIPString, _, err := net.SplitHostPort(globalCfg.SD.Address)
+		if err != nil {
+			return serrors.WrapStr("resolve local address", err)
+		}
+		localAddrIP := net.ParseIP(localAddrIPString)
+		localAddr := &net.TCPAddr{
+			IP:   localAddrIP,
+			Port: 0,
 		}
 		drkeyClientEngine = &sd_drkey.ClientEngine{
-			IA:      topo.IA(),
-			DB:      level2DB,
-			Fetcher: drkeyFetcher,
+			IA: topo.IA(),
+			DB: level2DB,
+			Fetcher: &sd_grpc.Fetcher{
+				Dialer: &libgrpc.FixedLocalIPTCPDialer{
+					LocalAddr:   localAddr,
+					SvcResolver: dialer.SvcResolver,
+				},
+			},
 		}
 		cleaners := drkeyClientEngine.CreateStorageCleaners()
 		for _, cleaner := range cleaners {
@@ -275,6 +285,7 @@ func realMain(ctx context.Context) error {
 					Cfg:        globalCfg.SD,
 				},
 			),
+			Dialer:      dialer,
 			Engine:      engine,
 			RevCache:    revCache,
 			DRKeyClient: drkeyClientEngine,

@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "db.go",
         "drkey.go",
+        "drkey_fabrid.go",
         "protocol.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/drkey",

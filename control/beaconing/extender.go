@@ -20,6 +20,7 @@ import (
 	"hash"
 	"time"
 
+	"github.com/scionproto/scion/control/fabrid"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -31,6 +32,7 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
+	fabridext "github.com/scionproto/scion/pkg/segment/extensions/fabrid"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -86,6 +88,8 @@ type DefaultExtender struct {
 	// is below the maximum expiration time. This happens when the signer expiration time is lower
 	// than the maximum segment expiration time.
 	SegmentExpirationDeficient metrics.Gauge
+	// Fabrid includes FABRID policy maps into the PCBs.
+	Fabrid *fabrid.FabridManager
 }
 
 // Extend extends the beacon with hop fields.
@@ -194,6 +198,22 @@ func (s *DefaultExtender) Extend(
 
 		asEntry.Extensions.Digests = &digest.Extension{
 			Epic: d,
+		}
+	}
+	if s.Fabrid != nil {
+		f := &fabridext.Detached{
+			SupportedIndicesMap: s.Fabrid.SupportedIndicesMap,
+			IndexIdentiferMap:   s.Fabrid.IndexIdentifierMap,
+		}
+		asEntry.UnsignedExtensions.FabridDetached = f
+
+		d := digest.Digest{Digest: f.Hash()}
+		if s.EPIC {
+			asEntry.Extensions.Digests.Fabrid = d
+		} else {
+			asEntry.Extensions.Digests = &digest.Extension{
+				Fabrid: d,
+			}
 		}
 	}
 

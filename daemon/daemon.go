@@ -114,6 +114,7 @@ type ServerConfig struct {
 	Engine      trust.Engine
 	Topology    servers.Topology
 	DRKeyClient *drkey.ClientEngine
+	Dialer      libgrpc.Dialer
 }
 
 // NewServer constructs a daemon API server.
@@ -129,6 +130,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		ASInspector: cfg.Engine.Inspector,
 		RevCache:    cfg.RevCache,
 		DRKeyClient: cfg.DRKeyClient,
+		Dialer:      cfg.Dialer,
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{

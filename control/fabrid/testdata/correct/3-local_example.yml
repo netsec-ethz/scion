@@ -1,0 +1,17 @@
+connections:
+    - ingress:
+          type: interface
+          interface: 2
+      egress:
+          type: interface
+          interface: 1
+      mpls_label: 5
+    - ingress:
+          type: wildcard
+      egress:
+          type: interface
+          interface: 2
+      mpls_label: 3
+local: true
+local_identifier: 1103
+local_description: Fabrid Example Policy

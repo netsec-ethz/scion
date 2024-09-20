@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/drkey"
+	"github.com/scionproto/scion/control/fabrid"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
@@ -60,6 +61,7 @@ type TasksConfig struct {
 	Inspector             trust.Inspector
 	Metrics               *Metrics
 	DRKeyEngine           *drkey.ServiceEngine
+	Fabrid                *fabrid.FabridManager
 
 	MACGen     func() hash.Hash
 	StaticInfo func() *beaconing.StaticInfoCfg
@@ -217,6 +219,7 @@ func (t *TasksConfig) extender(
 		MTU:        mtu,
 		MaxExpTime: func() uint8 { return maxExp() },
 		StaticInfo: t.StaticInfo,
+		Fabrid:     t.Fabrid,
 		Task:       task,
 		EPIC:       t.EPIC,
 		SegmentExpirationDeficient: func() metrics.Gauge {

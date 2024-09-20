@@ -8,6 +8,7 @@ go_library(
         "packet.go",
         "packet_conn.go",
         "path.go",
+        "path_fabrid.go",
         "reader.go",
         "reply_pather.go",
         "router.go",
@@ -21,6 +22,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
+        "//pkg/experimental/fabrid:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics/v2:go_default_library",
         "//pkg/private/common:go_default_library",

@@ -1,0 +1,143 @@
+// Copyright 2024 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/pkg/proto/control_plane/experimental";
+
+package proto.control_plane.experimental.v1;
+
+import "proto/control_plane/experimental/v1/fabrid_extensions.proto";
+
+service FABRIDInterService{
+    // Gets the I-map for a local AS, mapping interfaces to supported policy indices
+    rpc SupportedIndicesMap(SupportedIndicesMapRequest) returns (SupportedIndicesMapResponse) {}
+    // Gets the D-Map for a local AS, mapping policy indices to policy identifiers
+    rpc IndexIdentifierMap(IndexIdentifierMapRequest) returns (IndexIdentifierMapResponse) {}
+    // Gets the detached maps (both the supported indices map and index identifier map)
+    rpc DetachedMaps(DetachedMapsRequest) returns (DetachedMapsResponse) {}
+    // Gets a string description for a local policy
+    rpc LocalPolicyDescription(LocalPolicyDescriptionRequest) returns
+        (LocalPolicyDescriptionResponse) {}
+}
+
+service FABRIDIntraService {
+    // Used by a host inside the AS to request a policy description for another AS. The control
+    // service will request the policy description from the remote AS if it is unknown to the
+    // control service.
+    rpc RemotePolicyDescription(RemotePolicyDescriptionRequest) returns
+        (RemotePolicyDescriptionResponse) {}
+    // Used by a host in the AS to request the supported indices map, as well as the index
+    // identifier map for a remote AS.
+    rpc RemoteMaps(RemoteMapsRequest) returns (RemoteMapsResponse) {}
+    // Used by border routers in the AS to request the mapping of supported policy indices to local MPLS labels
+    rpc MPLSMap(MPLSMapRequest) returns (MPLSMapResponse) {}
+}
+
+message MPLSIPArray {
+    // An entry of the MPLS Map, represented as an array to maintain the order.
+    repeated MPLSIP entry = 1;
+}
+
+message MPLSIP {
+    // The MPLS label to apply to a packet that is sent to a specific policy index that has a
+    // specific (AS-local) destination IP
+    uint32 mpls_label = 1;
+    // Specifies the IP which the packet has to match in addition to matching the specific policy
+    // index, before applying the MPLS Label
+    bytes ip = 2;
+    // In order to support more than one IP per MPLSIP mapping, a prefix is used to denote a range
+    // of IP addresses
+    uint32 prefix = 3;
+}
+
+message MPLSMapRequest {
+    // The MPLS map is only updated if the hash of the map already saved at the router is mismatched
+    // with the current active MPLS map. This field is optional, if empty, the active map is
+    // always sent in response.
+    bytes hash = 1;
+}
+
+message MPLSMapResponse {
+    // If true the endpoint should update its MPLS label map, if false it is already up to date
+    bool update = 1;
+    // The hash of the current active MPLS map on the control service
+    bytes hash = 2;
+    // The mapping for policy indices (uint8) to MPLS labels (uint32) that is used for
+    // connections where the egress is an interface.
+    map<uint64, uint32> mpls_interface_policies_map = 3;
+    // The mapping for policies to a specific MPLS label in cases where a packet is forwarded
+    // intra-AS to a specified IP range:
+    map<uint32, MPLSIPArray> mpls_ip_map = 4;
+}
+
+message SupportedIndicesMapRequest { }
+
+message SupportedIndicesMapResponse {
+    // Maps a pair of ingress and egress points (i.e. interfaces, or ip ranges)
+    // to a given local 8-bit policy index. The policy index is used in the
+    // dataplane and can be mapped to the corresponding policy identifier using the D-map.
+    repeated FABRIDIndexMapEntry supported_indices_map = 1;
+}
+
+message IndexIdentifierMapRequest { }
+
+message IndexIdentifierMapResponse {
+    // An AS-local policy index is mapped to a local or global policy identifier
+    // using the index_identifier_map (D-map).
+    map<uint32, FABRIDPolicyIdentifier> index_identifier_map = 1;
+}
+message RemotePolicyDescriptionRequest {
+    // The identifier for the policy
+    uint32 policy_identifier = 1;
+    // Remote ISD-AS of the non-global policy identifier
+    uint64 isd_as = 2;
+}
+
+message RemotePolicyDescriptionResponse {
+    // A description of the local policy.
+    string description = 1;
+}
+
+message LocalPolicyDescriptionRequest {
+    // The identifier for the policy
+    uint32 policy_identifier = 1;
+}
+
+message LocalPolicyDescriptionResponse {
+    // A description of the local policy.
+    string description = 1;
+}
+
+message RemoteMapsRequest {
+    // The digest corresponding to the maps that the end host is requesting, the end host
+    // receives this digest in a PCB.
+    bytes digest = 1;
+    // Remote ISD-AS
+    uint64 isd_as = 2;
+}
+
+message RemoteMapsResponse {
+    // The maps that the remote AS has detached from the PCB
+    FABRIDDetachableMaps maps = 1;
+}
+
+message DetachedMapsRequest { }
+
+message DetachedMapsResponse {
+    // The maps that the local AS has detached from the PCB
+    FABRIDDetachableMaps maps = 1;
+}
+
+

@@ -654,7 +654,8 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 				carbonIntensity.Intra[common.IFIDType(ifid)] = g.CarbonIntensity(ifid, outIF)
 			}
 			if ifid == outIF || g.isPeer[ifid] {
-				carbonIntensity.Inter[common.IFIDType(ifid)] = g.CarbonIntensity(ifid, g.links[ifid])
+				carbonIntensity.Inter[common.IFIDType(ifid)] =
+					g.CarbonIntensity(ifid, g.links[ifid])
 			}
 		}
 	}

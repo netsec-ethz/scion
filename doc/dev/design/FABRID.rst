@@ -20,7 +20,7 @@ This can also be seen as an enhancement for keeping traffic within a certain jur
 only along devices located in a specific country, because a single AS could cover multiple countries.
 
 .. figure:: fig/FABRID/NetworkTopology.png
-    
+
     Example network topology.
     Different colors for intra-AS routers indicate different manufacturers.
     H01 in AS01 and H02 in AS02 want to communicate with each other.
@@ -128,7 +128,7 @@ The Identifier Option always has a length of 8 bytes and looks like:
 Timestamp
     The 27 bit timestamp referring to the packet's transmission time with 1 millisecond precision
     relative to the timestamp of the first :ref:`InfoField <scion-path-info-field>` of the SCION header.
-    
+
 Packet ID
     The 32 bit packet ID that, together with the timestamp, uniquely identifies a source endhost's packet.
 
@@ -315,7 +315,7 @@ The following list explains the most important maps used in the FABRID service:
             Prefix      uint32
             InterfaceID uint16
         }
-    
+
 - Index identifiers
     A policy index is to be embedded in the HBH extension and therefore has to be minimal in size.
     The size of a policy index is 8 bits, whereas identifiers can be a multiple of this (especially global identifiers).
@@ -370,9 +370,9 @@ A custom language is used to make a selection out of the available paths and pol
   Applying a policy refers to selecting that specific policy for that hop when sending a FABRID packet.
   In case of multiple matches, the first match (from left to right) will be selected.
   Parts of this hop identifier may be a wildcard, such that the identifier can match with multiple hops in the path.
-  An identifier is structured as follows: 
+  An identifier is structured as follows:
   ``ISD-AS#IGIF,EGIF@POLICY``,
-  where 
+  where
 
   * ISD can be either the ISD number (e.g. ``1``), or a wildcard (``0``).
   * AS can be either the AS number seperated by underscores (e.g. ``ff00_0_110``) or a wildcard (``0``).
@@ -380,11 +380,11 @@ A custom language is used to make a selection out of the available paths and pol
   * EGIF can be either the egress interface number (e.g. ``41``), or a wildcard (``0``).
   * POLICY can be either the policy to apply, where a local policy is denoted as ``L`` + the policy identifier (e.g. ``L100``) and a global policy
     is denoted by ``G`` + the policy identifier (e.g. ``G100``), a wildcard (``0``), or a rejection ``REJECT``.
-    Rejection means that this path should not be chosen. 
+    Rejection means that this path should not be chosen.
 
 * **Concatenations**
 
-  Multiple identifiers can be combined by using a concatenation. Concatenations are created by the ``+`` symbol. 
+  Multiple identifiers can be combined by using a concatenation. Concatenations are created by the ``+`` symbol.
 
   Example:
 
@@ -418,18 +418,18 @@ A custom language is used to make a selection out of the available paths and pol
   The same applies for the ``EXPRESSION_IF_FALSE`` branch.
 
   Example:
-  
+
   There is a specific policy that signals that the middleboxes in this AS are from a specific manufacturer, e.g. ``G150``.
   This manufacturer is known to have a security vulnerability that allows malicious users to intercept traffic.
   The traffic to be sent is highly confidential, so the path should not be used.
   In this case the query ``{0-0#0,0@G150 ? 0-0#0,0@REJECT : 0-0#0,0@0}`` can be used.
-  ``G150`` in this case is a blacklisted policy. 
+  ``G150`` in this case is a blacklisted policy.
   (An alternative is a whitelist, where a user would specify all manufacturers that are allowed,
   i.e. ``G151``, ``G152``, ``G153``: ``0-0#0,0@G151 + 0-0#0,0@G152 + 0-0#0,0@G153 + 0-0#0,0@REJECT}``)
 
 **Evaluation Order**
 The language is evaluated left to right, for each hop only a single policy can be applied.
-The first identifier match applies the policy, so the order of the query is important. 
+The first identifier match applies the policy, so the order of the query is important.
 
 Example:
 
@@ -529,7 +529,7 @@ Example of a list of connection points:
       egress:
           type: interface
           interface: 1
-      mpls_label: 1    
+      mpls_label: 1
     - ingress:
           type: interface
           interface: 2

@@ -75,6 +75,13 @@ class ConfigGenerator(object):
         if self.args.sig and not self.args.docker:
             logging.critical("Cannot use sig without docker!")
             sys.exit(1)
+        if self.args.endhosts and not self.args.docker:
+            logging.critical("Cannot generate endhosts without the docker flag!")
+            sys.exit(1)
+        if self.args.fabrid and self.args.docker and not self.args.endhosts:
+            logging.critical(
+                "Cannot generate dockerized fabrid topologies without the endhosts flag!")
+            sys.exit(1)
         self.default_mtu = None
         self._read_defaults()
 
@@ -130,6 +137,8 @@ class ConfigGenerator(object):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
+        if self.args.endhosts:
+            go_gen.generate_endhost()
         go_gen.generate_sciond()
         go_gen.generate_control_service()
         go_gen.generate_disp()
@@ -196,9 +205,14 @@ class ConfigGenerator(object):
         d = dict()
         for net_desc in networks.values():
             for prog, ip_net in net_desc.ip_net.items():
-                if prog.startswith("sd"):
-                    ia = prog[2:].replace("_", ":")
-                    d[ia] = str(ip_net.ip)
+                if self.args.endhosts:
+                    if prog.startswith("endhost_"):
+                        ia = prog[8:].replace("_", ":")
+                        d[ia] = str(ip_net.ip)
+                else:
+                    if prog.startswith("sd"):
+                        ia = prog[2:].replace("_", ":")
+                        d[ia] = str(ip_net.ip)
         with open(os.path.join(self.args.output_dir, out_file), mode="w") as f:
             json.dump(d, f, sort_keys=True, indent=4)
 

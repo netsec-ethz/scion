@@ -13,3 +13,10 @@ antlr(
     language = "Go",
     package = "sequence",
 )
+
+antlr(
+    name = "pathpolicyconstraints",
+    srcs = ["PathPolicyConstraints.g4"],
+    language = "Go",
+    package = "pathpolicyconstraints",
+)

@@ -6,6 +6,7 @@ go_library(
         "bs_sample.go",
         "config.go",
         "drkey.go",
+        "fabrid.go",
         "sample.go",
     ],
     importpath = "github.com/scionproto/scion/control/config",
@@ -15,6 +16,7 @@ go_library(
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
+        "//pkg/segment/extensions/fabrid:go_default_library",
         "//private/config:go_default_library",
         "//private/env:go_default_library",
         "//private/mgmtapi:go_default_library",
@@ -29,11 +31,13 @@ go_test(
     srcs = [
         "config_test.go",
         "drkey_test.go",
+        "fabrid_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
         "//pkg/drkey:go_default_library",
         "//pkg/log/logtest:go_default_library",
+        "//pkg/segment/extensions/fabrid:go_default_library",
         "//private/env/envtest:go_default_library",
         "//private/mgmtapi/jwtauth:go_default_library",
         "//private/mgmtapi/mgmtapitest:go_default_library",
@@ -42,5 +46,6 @@ go_test(
         "@com_github_pelletier_go_toml_v2//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
+        "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )

@@ -33,6 +33,7 @@ import (
 const (
 	Generic = Protocol(pb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED)
 	SCMP    = Protocol(pb.Protocol_PROTOCOL_SCMP)
+	FABRID  = Protocol(pb.Protocol_PROTOCOL_FABRID)
 )
 
 // Epoch represents a validity period.

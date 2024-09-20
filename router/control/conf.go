@@ -38,6 +38,9 @@ type Dataplane interface {
 	DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
 	SetKey(ia addr.IA, index int, key []byte) error
 	SetPortRange(start, end uint16)
+	AddDRKeySecret(protocolID int32, sv SecretValue) error
+	UpdateFabridPolicies(ipRangePolicies map[uint32][]*PolicyIPRange,
+		interfacePolicies map[uint64]uint32) error
 }
 
 // BFD is the configuration for the BFD sessions.

@@ -64,6 +64,20 @@ func (mr *MockBatchConnMockRecorder) ReadBatch(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockBatchConn)(nil).ReadBatch), arg0)
 }
 
+// SetToS mocks base method.
+func (m *MockBatchConn) SetToS(arg0 byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetToS", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetToS indicates an expected call of SetToS.
+func (mr *MockBatchConnMockRecorder) SetToS(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetToS", reflect.TypeOf((*MockBatchConn)(nil).SetToS), arg0)
+}
+
 // WriteBatch mocks base method.
 func (m *MockBatchConn) WriteBatch(arg0 conn.Messages, arg1 int) (int, error) {
 	m.ctrl.T.Helper()

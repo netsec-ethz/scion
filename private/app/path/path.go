@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
+	"github.com/scionproto/scion/private/path/fabridquery"
 	"github.com/scionproto/scion/private/path/pathpol"
 )
 
@@ -79,7 +80,7 @@ func Choose(
 ) (snet.Path, error) {
 
 	o := applyOption(opts)
-	paths, err := fetchPaths(ctx, conn, remote, o.refresh, o.seq)
+	paths, err := fetchPaths(ctx, conn, remote, o.refresh, o.seq, o.fetchDetachedFabridMaps)
 	if err != nil {
 		return nil, serrors.WrapStr("fetching paths", err)
 	}
@@ -101,6 +102,45 @@ func Choose(
 		}
 		paths = epicPaths
 	}
+	if o.fabrid != nil {
+		query, err := fabridquery.ParseFabridQuery(o.fabrid.Query)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing fabrid query", err)
+		}
+
+		for _, p := range paths {
+			scionPath, isSCIONPath := p.Dataplane().(snetpath.SCION)
+			if !isSCIONPath {
+				continue
+			}
+			hopIntfs := p.Metadata().Hops()
+			ml := fabridquery.MatchList{
+				SelectedPolicies: make([]*fabridquery.Policy, len(hopIntfs)),
+			}
+			_, pols := query.Evaluate(hopIntfs, &ml)
+
+			if !pols.Accepted() {
+				continue
+			}
+			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, p.Metadata().Hops(),
+				pols.Policies(), &o.fabrid.FabridConfig)
+			if err != nil {
+				return nil, serrors.WrapStr("creating fabrid path from scion path", err)
+			}
+			resPath := snetpath.Path{Src: p.Source(), Dst: p.Destination(),
+				DataplanePath: fabridPath, NextHop: p.UnderlayNextHop(), Meta: *p.Metadata()}
+
+			if o.fabrid.PrintSelectedPolicies {
+				cs := DefaultColorScheme(false)
+				fmt.Printf("Using selected FABRID policies:\n  %s\n\n", cs.FabridPath(resPath,
+					ml.SelectedPolicies))
+			}
+			return resPath, nil
+		}
+		return nil, serrors.New(
+			fmt.Sprintf("no fabrid paths available satisfying query '%s'",
+				o.fabrid.Query))
+	}
 	if o.probeCfg != nil {
 		paths, err = filterUnhealthy(ctx, paths, remote, conn, o.probeCfg, o.epic)
 		if err != nil {
@@ -110,11 +150,16 @@ func Choose(
 			return nil, serrors.New("no healthy paths available")
 		}
 	}
+	var selectedPath snet.Path
 	if o.interactive {
-		return printAndChoose(paths, remote, o.colorScheme)
+		selectedPath, err = printAndChoose(paths, remote, o.colorScheme)
+		if err != nil {
+			return selectedPath, err
+		}
+	} else {
+		selectedPath = paths[rand.Intn(len(paths))]
 	}
-
-	return paths[rand.Intn(len(paths))], nil
+	return selectedPath, nil
 }
 
 func filterUnhealthy(
@@ -170,9 +215,11 @@ func fetchPaths(
 	remote addr.IA,
 	refresh bool,
 	seq string,
+	fetchFabridDetachedMaps bool,
 ) ([]snet.Path, error) {
 
-	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh})
+	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh,
+		FetchFabridDetachedMaps: fetchFabridDetachedMaps})
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving paths", err)
 	}
@@ -224,36 +271,42 @@ func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Pat
 
 // ColorScheme allows customizing the path coloring.
 type ColorScheme struct {
-	Header *color.Color
-	Keys   *color.Color
-	Values *color.Color
-	Link   *color.Color
-	Intf   *color.Color
-	Good   *color.Color
-	Bad    *color.Color
+	Header       *color.Color
+	Keys         *color.Color
+	Values       *color.Color
+	Link         *color.Color
+	GlobalPolicy *color.Color
+	LocalPolicy  *color.Color
+	Intf         *color.Color
+	Good         *color.Color
+	Bad          *color.Color
 }
 
 func DefaultColorScheme(disable bool) ColorScheme {
 	if disable {
 		noColor := color.New()
 		return ColorScheme{
-			Header: noColor,
-			Keys:   noColor,
-			Values: noColor,
-			Link:   noColor,
-			Intf:   noColor,
-			Good:   noColor,
-			Bad:    noColor,
+			Header:       noColor,
+			Keys:         noColor,
+			Values:       noColor,
+			GlobalPolicy: noColor,
+			LocalPolicy:  noColor,
+			Link:         noColor,
+			Intf:         noColor,
+			Good:         noColor,
+			Bad:          noColor,
 		}
 	}
 	return ColorScheme{
-		Header: color.New(color.FgHiBlack),
-		Keys:   color.New(color.FgHiCyan),
-		Values: color.New(),
-		Link:   color.New(color.FgHiMagenta),
-		Intf:   color.New(color.FgYellow),
-		Good:   color.New(color.FgGreen),
-		Bad:    color.New(color.FgRed),
+		Header:       color.New(color.FgHiBlack),
+		Keys:         color.New(color.FgHiCyan),
+		Values:       color.New(),
+		Link:         color.New(color.FgHiMagenta),
+		Intf:         color.New(color.FgYellow),
+		Good:         color.New(color.FgGreen),
+		Bad:          color.New(color.FgRed),
+		GlobalPolicy: color.New(color.FgHiBlue),
+		LocalPolicy:  color.New(color.FgHiGreen),
 	}
 }
 
@@ -271,8 +324,39 @@ func (cs ColorScheme) KeyValues(kv ...string) []string {
 	}
 	return entries
 }
+func (cs ColorScheme) Policies(policies []snet.FabridInfo, idx int) string {
+	if len(policies) < idx {
+		return ""
+	}
+	if policies[idx].Enabled && len(policies[idx].Policies) == 0 {
+		return cs.GlobalPolicy.Sprintf("~ZERO~")
+	}
+	policyStr := make([]string, len(policies[idx].Policies))
+	for i, v := range policies[idx].Policies {
+		if v.IsLocal {
+			policyStr[i] = cs.LocalPolicy.Sprintf(v.String())
+		} else {
+			policyStr[i] = cs.GlobalPolicy.Sprintf(v.String())
+		}
+	}
+	return fmt.Sprintf("~%s~", strings.Join(policyStr, ","))
+}
 
-func (cs ColorScheme) Path(path snet.Path) string {
+func (cs ColorScheme) SelectedPolicy(policy *fabridquery.Policy) string {
+	if policy == nil {
+		return ""
+	} else if policy.Type == fabridquery.WILDCARD_POLICY_TYPE || policy.
+		Type == fabridquery.REJECT_POLICY_TYPE {
+		return cs.GlobalPolicy.Sprintf("~ZERO~")
+	} else if policy.IsLocal {
+		return cs.LocalPolicy.Sprintf("~%s~", policy.String())
+	} else {
+		return cs.GlobalPolicy.Sprintf("~%s~", policy.String())
+	}
+}
+
+// FabridPath prints the path with only the selected policies for each hop.
+func (cs ColorScheme) FabridPath(path snet.Path, policies []*fabridquery.Policy) string {
 	if path == nil {
 		return ""
 	}
@@ -282,23 +366,61 @@ func (cs ColorScheme) Path(path snet.Path) string {
 	}
 	var hops []string
 	intf := intfs[0]
-	hops = append(hops, cs.Values.Sprintf("%s %s",
+	hops = append(hops, cs.Values.Sprintf("%s %s %s",
 		cs.Values.Sprint(intf.IA),
+		cs.SelectedPolicy(policies[0]),
 		cs.Intf.Sprint(intf.ID),
 	))
 	for i := 1; i < len(intfs)-1; i += 2 {
 		inIntf := intfs[i]
 		outIntf := intfs[i+1]
-		hops = append(hops, cs.Values.Sprintf("%s %s %s",
+		hops = append(hops, cs.Values.Sprintf("%s %s %s %s",
 			cs.Intf.Sprint(inIntf.ID),
 			cs.Values.Sprint(inIntf.IA),
+			cs.SelectedPolicy(policies[(i+1)/2]),
 			cs.Intf.Sprint(outIntf.ID),
 		))
 	}
 	intf = intfs[len(intfs)-1]
-	hops = append(hops, cs.Values.Sprintf("%s %s",
+	hops = append(hops, cs.Values.Sprintf("%s %s %s",
 		cs.Intf.Sprint(intf.ID),
 		cs.Values.Sprint(intf.IA),
+		cs.SelectedPolicy(policies[len(intfs)/2]),
+	))
+	return fmt.Sprintf("[%s]", strings.Join(hops, cs.Link.Sprintf(">")))
+}
+
+func (cs ColorScheme) Path(path snet.Path) string {
+	if path == nil {
+		return ""
+	}
+	intfs := path.Metadata().Interfaces
+	policies := path.Metadata().FabridInfo
+	if len(intfs) == 0 {
+		return ""
+	}
+	var hops []string
+	intf := intfs[0]
+	hops = append(hops, cs.Values.Sprintf("%s %s %s",
+		cs.Values.Sprint(intf.IA),
+		cs.Policies(policies, 0),
+		cs.Intf.Sprint(intf.ID),
+	))
+	for i := 1; i < len(intfs)-1; i += 2 {
+		inIntf := intfs[i]
+		outIntf := intfs[i+1]
+		hops = append(hops, cs.Values.Sprintf("%s %s %s %s",
+			cs.Intf.Sprint(inIntf.ID),
+			cs.Values.Sprint(inIntf.IA),
+			cs.Policies(policies, (i+1)/2),
+			cs.Intf.Sprint(outIntf.ID),
+		))
+	}
+	intf = intfs[len(intfs)-1]
+	hops = append(hops, cs.Values.Sprintf("%s %s %s",
+		cs.Intf.Sprint(intf.ID),
+		cs.Values.Sprint(intf.IA),
+		cs.Policies(policies, len(intfs)/2),
 	))
 	return fmt.Sprintf("[%s]", strings.Join(hops, cs.Link.Sprintf(">")))
 }
@@ -311,13 +433,20 @@ type ProbeConfig struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
+type FABRIDQuery struct {
+	Query                 string
+	FabridConfig          snetpath.FabridConfig
+	PrintSelectedPolicies bool
+}
 type options struct {
-	interactive bool
-	refresh     bool
-	seq         string
-	colorScheme ColorScheme
-	probeCfg    *ProbeConfig
-	epic        bool
+	interactive             bool
+	refresh                 bool
+	seq                     string
+	colorScheme             ColorScheme
+	probeCfg                *ProbeConfig
+	epic                    bool
+	fetchDetachedFabridMaps bool
+	fabrid                  *FABRIDQuery
 }
 
 type Option func(o *options)
@@ -363,5 +492,16 @@ func WithProbing(cfg *ProbeConfig) Option {
 func WithEPIC(epic bool) Option {
 	return func(o *options) {
 		o.epic = epic
+	}
+}
+
+func WithFABRID(f *FABRIDQuery) Option {
+	return func(o *options) {
+		o.fabrid = f
+	}
+}
+func WithFetchDetachedFabridMaps(value bool) Option {
+	return func(o *options) {
+		o.fetchDetachedFabridMaps = value
 	}
 }

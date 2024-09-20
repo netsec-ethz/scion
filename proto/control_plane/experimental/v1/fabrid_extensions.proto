@@ -1,0 +1,78 @@
+// Copyright 2024 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/pkg/proto/control_plane/experimental";
+
+package proto.control_plane.experimental.v1;
+
+message FABRIDDetachableMaps {
+    // Maps a pair of ingress and egress points (i.e. interfaces, or ip ranges)
+    // to a given local 16-bit policy index. The policy index is used in the
+    // dataplane
+    repeated FABRIDIndexMapEntry supported_indices_map = 1;
+    // The policy index is mapped to a policy identifier using the
+    // index_identifier_map (D-map)
+    map<uint32, FABRIDPolicyIdentifier> index_identifier_map = 2;
+}
+
+message FABRIDPolicyIdentifier {
+    // Flag to specify local policies
+    bool policy_is_local = 1;
+    // The identifier for the policy
+    uint32 policy_identifier = 2;
+}
+
+message FABRIDIndexMapEntry {
+    // The ingress and egress connection point pair that supports a set of
+    // policies
+    FABRIDIngressEgressPair ie_pair = 1;
+    // The indices of the policies that are supported by the ingress and
+    // egress pair.
+    repeated uint32 supported_policy_indices = 2;
+}
+
+enum FABRIDConnectionType {
+    // Unspecified connection type
+    FABRID_CONNECTION_TYPE_UNSPECIFIED = 0;
+    // IPv4 Range
+    FABRID_CONNECTION_TYPE_IPV4_RANGE = 1;
+    // IPv6 Range
+    FABRID_CONNECTION_TYPE_IPV6_RANGE = 2;
+    // AS egress or ingress interface
+    FABRID_CONNECTION_TYPE_INTERFACE = 3;
+    // Wildcard, policy from any interface
+    FABRID_CONNECTION_TYPE_WILDCARD = 4;
+}
+message FABRIDIngressEgressPair {
+    // Specifies the IP range or interface traffic is coming from, in order to satisfy
+    // a given policy.
+    FABRIDConnectionPoint ingress = 1;
+    // Specifies the destination of traffic which satisfies the policy.
+    FABRIDConnectionPoint egress = 2;
+}
+
+message FABRIDConnectionPoint {
+    // The type of the ingress/egress point, which can either be an
+    // interface, or an IP Range.
+    FABRIDConnectionType type = 1;
+    // When the type is IPv4 or IPv6 range, specify the IP and subnet mask for the range here.
+    bytes ip_address = 2;
+    // IP prefix length, as in CIDR notation.
+    uint32 ip_prefix = 3;
+    // The interface for the interface type.
+    uint64 interface = 4;
+
+}

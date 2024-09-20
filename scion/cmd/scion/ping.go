@@ -70,22 +70,24 @@ type PingUpdate struct {
 func newPing(pather CommandPather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
 	var flags struct {
-		count       uint16
-		features    []string
-		interactive bool
-		interval    time.Duration
-		logLevel    string
-		maxMTU      bool
-		noColor     bool
-		refresh     bool
-		healthyOnly bool
-		sequence    string
-		size        uint
-		pktSize     uint
-		timeout     time.Duration
-		tracer      string
-		epic        bool
-		format      string
+		count         uint16
+		features      []string
+		interactive   bool
+		interval      time.Duration
+		logLevel      string
+		maxMTU        bool
+		noColor       bool
+		refresh       bool
+		healthyOnly   bool
+		sequence      string
+		size          uint
+		pktSize       uint
+		timeout       time.Duration
+		tracer        string
+		epic          bool
+		format        string
+		fabridQuery   string
+		fetchDetached bool
 	}
 
 	var cmd = &cobra.Command{
@@ -168,16 +170,43 @@ On other errors, ping will exit with code 2.
 					LocalIP: localIP,
 				}))
 			}
-			path, err := path.Choose(traceCtx, sd, remote.IA, opts...)
+			if flags.fabridQuery != "" {
+				cfg := snetpath.FabridConfig{
+					LocalIA:         info.IA,
+					LocalAddr:       localIP.String(),
+					DestinationIA:   remote.IA,
+					DestinationAddr: remote.Host.IP.String(),
+				}
+				if localIP == nil {
+					daemonIPString, _, err := net.SplitHostPort(daemonAddr)
+					if err != nil {
+						return err
+					}
+					daemonIP, err := net.ResolveIPAddr("ip", daemonIPString)
+					if err != nil {
+						return serrors.New("resolving daemon ip", "daemonIP", daemonIPString)
+					}
+					localIP = daemonIP.IP
+					cfg.LocalAddr = daemonIPString
+				}
+				opts = append(opts, path.WithFABRID(&path.FABRIDQuery{
+					PrintSelectedPolicies: true,
+					Query:                 flags.fabridQuery,
+					FabridConfig:          cfg,
+				}))
+				opts = append(opts, path.WithFetchDetachedFabridMaps(flags.fetchDetached))
+			}
+			pingPath, err := path.Choose(traceCtx, sd, remote.IA, opts...)
+
 			if err != nil {
 				return err
 			}
 
 			// If the EPIC flag is set, use the EPIC-HP path type
 			if flags.epic {
-				switch s := path.Dataplane().(type) {
+				switch s := pingPath.Dataplane().(type) {
 				case snetpath.SCION:
-					epicPath, err := snetpath.NewEPICDataplanePath(s, path.Metadata().EpicAuths)
+					epicPath, err := snetpath.NewEPICDataplanePath(s, pingPath.Metadata().EpicAuths)
 					if err != nil {
 						return err
 					}
@@ -187,10 +216,19 @@ On other errors, ping will exit with code 2.
 				default:
 					return serrors.New("unsupported path type")
 				}
+			} else if flags.fabridQuery != "" {
+				switch s := pingPath.Dataplane().(type) {
+				case *snetpath.FABRID:
+					remote.Path = s
+					s.RegisterDRKeyFetcher(sd.FabridKeys)
+
+				default:
+					return serrors.New("unsupported path type")
+				}
 			} else {
-				remote.Path = path.Dataplane()
+				remote.Path = pingPath.Dataplane()
 			}
-			remote.NextHop = path.UnderlayNextHop()
+			remote.NextHop = pingPath.UnderlayNextHop()
 
 			// Resolve local IP based on underlay next hop
 			if localIP == nil {
@@ -204,7 +242,7 @@ On other errors, ping will exit with code 2.
 				}
 				printf("Resolved local address:\n  %s\n", localIP)
 			}
-			printf("Using path:\n  %s\n\n", path)
+			printf("Using path:\n  %s\n\n", pingPath)
 			span.SetTag("src.host", localIP)
 			local := &snet.UDPAddr{
 				IA:   info.IA,
@@ -225,7 +263,7 @@ On other errors, ping will exit with code 2.
 				pldSize = int(flags.pktSize - uint(overhead))
 			}
 			if flags.maxMTU {
-				mtu := int(path.Metadata().MTU)
+				mtu := int(pingPath.Metadata().MTU)
 				pldSize, err = calcMaxPldSize(local, remote, mtu)
 				if err != nil {
 					return err
@@ -244,18 +282,18 @@ On other errors, ping will exit with code 2.
 				count = math.MaxUint16
 			}
 
-			seq, err := pathpol.GetSequence(path)
+			seq, err := pathpol.GetSequence(pingPath)
 			if err != nil {
 				return serrors.New("get sequence from used path")
 			}
 			res := Result{
 				ScionPacketSize: pktSize,
 				Path: Path{
-					Fingerprint: snet.Fingerprint(path).String(),
-					Hops:        getHops(path),
+					Fingerprint: snet.Fingerprint(pingPath).String(),
+					Hops:        getHops(pingPath),
 					Sequence:    seq,
 					LocalIP:     localIP,
-					NextHop:     path.UnderlayNextHop().String(),
+					NextHop:     pingPath.UnderlayNextHop().String(),
 				},
 				PayloadSize: pldSize,
 			}
@@ -336,6 +374,8 @@ On other errors, ping will exit with code 2.
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", time.Second, "timeout per packet")
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
+	cmd.Flags().StringVar(&flags.fabridQuery, "fabridquery", "", "the query for policies that the "+
+		"path must adhere to")
 	cmd.Flags().BoolVar(&flags.healthyOnly, "healthy-only", false, "only use healthy paths")
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 	cmd.Flags().DurationVar(&flags.interval, "interval", time.Second, "time between packets")
@@ -357,6 +397,9 @@ SCMP echo header and payload are equal to the MTU of the path. This flag overrid
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")
+	cmd.Flags().BoolVar(&flags.fetchDetached, "fetch-detached", true,
+		"Fetch FABRID maps for hops where they have been detached. "+
+			"This increases the overhead of path finding.")
 	cmd.Flags().StringVar(&flags.format, "format", "human",
 		"Specify the output format (human|json|yaml)")
 	return cmd

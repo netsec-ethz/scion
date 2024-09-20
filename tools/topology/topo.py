@@ -145,6 +145,8 @@ class TopoGenerator(object):
         self._register_br_entries(topo_id, as_conf)
         if self.args.sig:
             self._register_sig(topo_id, as_conf)
+        if self.args.endhosts:
+            self._register_endhost(topo_id, as_conf)
         self._register_sciond(topo_id, as_conf)
 
     def _register_srv_entries(self, topo_id, as_conf):
@@ -178,6 +180,10 @@ class TopoGenerator(object):
     def _register_sig(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         self._reg_addr(topo_id, "sig" + topo_id.file_fmt(), addr_type)
+
+    def _register_endhost(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        self._reg_addr(topo_id, "endhost_" + topo_id.file_fmt(), addr_type)
 
     def _register_sciond(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))

@@ -1,0 +1,10 @@
+connections:
+    - ingress:
+          type: interface
+          interface: 2
+      egress:
+          type: interface
+          interface: 1
+      mpls_label: 2
+local: false
+global_identifier: 1102

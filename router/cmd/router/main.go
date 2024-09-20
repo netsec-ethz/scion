@@ -26,6 +26,7 @@ import (
 	"github.com/go-chi/cors"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app"
@@ -61,6 +62,7 @@ func realMain(ctx context.Context) error {
 		DataPlane: router.DataPlane{
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
+			DRKeyProvider:                  &control.DRKeyProvider{},
 		},
 		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:      globalCfg.Router.SendBufferSize,
@@ -126,6 +128,32 @@ func realMain(ctx context.Context) error {
 		defer log.HandlePanic()
 		return globalCfg.Metrics.ServePrometheus(errCtx)
 	})
+	dp.DataPlane.DRKeyProvider.Init()
+	controlServiceAddr, err := controlConfig.Topo.Anycast(addr.SvcCS)
+	if err != nil {
+		return err
+	}
+	fetcher, err := control.NewFetcher(controlConfig.BR.InternalAddr.Addr().String(),
+		controlServiceAddr.String(), dp)
+	if err != nil {
+		return err
+	}
+	if len(globalCfg.Router.DRKey) != 0 {
+		go func() {
+			defer log.HandlePanic()
+			fetcher.StartSecretUpdater(globalCfg.Router.DRKey)
+		}()
+	}
+	if globalCfg.Router.Fabrid {
+		go func() {
+			defer log.HandlePanic()
+			interfaces := make([]uint16, len(controlConfig.BR.IFIDs))
+			for i, iface := range controlConfig.BR.IFIDs {
+				interfaces[i] = uint16(iface)
+			}
+			fetcher.StartFabridPolicyFetcher()
+		}()
+	}
 	g.Go(func() error {
 		defer log.HandlePanic()
 		runConfig := &router.RunConfig{

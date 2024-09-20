@@ -7,6 +7,7 @@ go_proto_library(
     proto = "//proto/daemon/v1:daemon",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/proto/control_plane/experimental:go_default_library",
         "//pkg/proto/drkey:go_default_library",
     ],
 )

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/experimental/fabrid"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/slayers"
 )
@@ -41,6 +42,8 @@ type DataplanePath interface {
 	// SetPath sets the path in the SCION header. It assumes that all the fields
 	// except the path and path type are set correctly.
 	SetPath(scion *slayers.SCION) error
+
+	SetExtensions(s *slayers.SCION, p *PacketInfo) error
 }
 
 // Path is an abstract representation of a path. Most applications do not need
@@ -151,13 +154,26 @@ type PathMetadata struct {
 
 	// EpicAuths contains the EPIC authenticators.
 	EpicAuths EpicAuths
+
+	// FabridInfo contains information about the FABRID policies and support for each hop.
+	FabridInfo []FabridInfo
 }
 
 func (pm *PathMetadata) Copy() *PathMetadata {
 	if pm == nil {
 		return nil
 	}
-
+	fabridInfoCopy := make([]FabridInfo, len(pm.FabridInfo))
+	for i := range pm.FabridInfo {
+		fabridInfoCopy[i] = FabridInfo{
+			Enabled:  pm.FabridInfo[i].Enabled,
+			Policies: make([]*fabrid.Policy, len(pm.FabridInfo[i].Policies)),
+			Digest:   make([]byte, len(pm.FabridInfo[i].Digest)),
+			Detached: pm.FabridInfo[i].Detached,
+		}
+		copy(fabridInfoCopy[i].Policies, pm.FabridInfo[i].Policies)
+		copy(fabridInfoCopy[i].Digest, pm.FabridInfo[i].Digest)
+	}
 	return &PathMetadata{
 		Interfaces:      append(pm.Interfaces[:0:0], pm.Interfaces...),
 		MTU:             pm.MTU,
@@ -169,6 +185,7 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 		LinkType:        append(pm.LinkType[:0:0], pm.LinkType...),
 		InternalHops:    append(pm.InternalHops[:0:0], pm.InternalHops...),
 		Notes:           append(pm.Notes[:0:0], pm.Notes...),
+		FabridInfo:      fabridInfoCopy,
 		EpicAuths: EpicAuths{
 			AuthPHVF: append([]byte(nil), pm.EpicAuths.AuthPHVF...),
 			AuthLHVF: append([]byte(nil), pm.EpicAuths.AuthLHVF...),

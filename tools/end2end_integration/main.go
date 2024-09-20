@@ -44,6 +44,7 @@ var (
 	cmd         string
 	features    string
 	epic        bool
+	fabrid      bool
 )
 
 func getCmd() (string, bool) {
@@ -76,10 +77,12 @@ func realMain() int {
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
+		fmt.Sprintf("-fabrid=%t", fabrid),
 	}
 	serverArgs := []string{
 		"-mode", "server",
 		"-local", integration.DstAddrPattern + ":0",
+		fmt.Sprintf("-fabrid=%t", fabrid),
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
@@ -89,9 +92,19 @@ func realMain() int {
 		clientArgs = append(clientArgs, "-sciond", integration.Daemon)
 		serverArgs = append(serverArgs, "-sciond", integration.Daemon)
 	}
-
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
-	pairs, err := getPairs()
+	var in integration.Integration
+	if fabrid {
+		in = integration.NewBinaryEndhostIntegration(name, cmd, clientArgs, serverArgs)
+	} else {
+		in = integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
+	}
+	var pairs []integration.IAPair
+	var err error
+	if fabrid {
+		pairs, err = getPairs(integration.SDAddr)
+	} else {
+		pairs, err = getPairs(integration.CSAddr)
+	}
 	if err != nil {
 		log.Error("Error selecting tests", "err", err)
 		return 1
@@ -119,6 +132,7 @@ func addFlags() {
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
+	flag.BoolVar(&fabrid, "fabrid", false, "Enable FABRID.")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -245,6 +259,9 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				var tester string
 				if *integration.Docker {
 					tester = integration.TesterID(src)
+					if fabrid {
+						tester = integration.EndhostID(src)
+					}
 				}
 				logFile := fmt.Sprintf("%s/client_%s.log",
 					logDir(),
@@ -296,6 +313,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
+			fmt.Sprintf("-fabrid=%t", fabrid),
 		},
 	}
 	if len(features) != 0 {
@@ -319,8 +337,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 // This implies that IFF role1 == role2, then h1:h2 pairs are mirrored with h2:h1 and, unless
 // remote[ISD/AS] is specified, h2:h2 and h1:h1. Not all combinations yield something useful...
 // caveat emptor.
-func getPairs() ([]integration.IAPair, error) {
-	pairs := integration.IAPairs(integration.CSAddr)
+func getPairs(hostAddr integration.HostAddr) ([]integration.IAPair, error) {
+	pairs := integration.IAPairs(hostAddr)
 	if subset == "all" {
 		return pairs, nil
 	}

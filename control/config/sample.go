@@ -72,3 +72,39 @@ const drkeySecretValueHostListSample = `
 # The list of hosts authorized to get a SV per protocol.
 scmp = [ "127.0.0.1", "127.0.0.2"]
 `
+
+const fabridLocalPolicySample = `
+# Bool indicating whether the policy is a global or local policy.
+local: true
+# The identifier that the policy has locally in the AS
+local_identifier: 55
+# A description which other ASes can fetch, describing the policy
+local_description: Fabrid Example Policy
+# A list of connections to which this policy applies
+connections:
+  # Every connection has an ingress and an egress point:
+  - ingress:
+      # The type of the connection point, can be "ipv4", "ipv6" or "interface"
+      type: interface
+      # If the type is set to "interface", specify the specific interface
+      interface: 1
+    egress:
+      # The type of the connection point, can be "ipv4", "ipv6" or "interface"
+      type: ipv6
+      # If the type is set to "ipv4" or "ipv6", specify the IP range using a IP and prefix
+      ip: 2001:0db8:3c4d:0015:0000:0000:1a2f:1a2b
+      # The prefix of the IP mask, has to be smaller than 32 for IPv4, smaller than 128 for
+      # IPv6
+      prefix: 100
+      # If the type is set to "interface", specify the specific interface, e.g.
+      # interface: 1
+    # Every connnection can have a different mpls label they use to enable the policy:
+    mpls_label: 1
+`
+
+const fabridConfigSample = `
+# Whether Fabrid is enabled on this AS
+enabled = true
+# Folder in which the fabrid policies are stored
+path = "gen/ASff00_0_110/fabrid/"
+`

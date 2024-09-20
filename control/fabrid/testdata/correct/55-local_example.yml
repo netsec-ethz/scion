@@ -1,0 +1,13 @@
+connections:
+    - ingress:
+          type: interface
+          interface: 2
+      egress:
+          type: ipv4
+          ip: 192.168.5.1
+          prefix: 24
+      mpls_label: 55
+local: true
+local_identifier: 11055
+local_description: Fabrid Example Policy 2
+

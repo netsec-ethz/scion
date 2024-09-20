@@ -58,3 +58,7 @@ func (p RawReplyPath) SetPath(s *slayers.SCION) error {
 	s.Path, s.PathType = p.Path, p.Path.Type()
 	return nil
 }
+
+func (p RawReplyPath) SetExtensions(s *slayers.SCION, pi *PacketInfo) error {
+	return nil
+}

@@ -36,6 +36,8 @@ from topology.common import (
     SD_CONFIG_NAME,
 )
 
+from topology.endhost import endhost_ip
+
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
 from topology.monitoring import (
@@ -91,8 +93,13 @@ class GoGenerator(object):
             'features': translate_features(self.args.features),
             'api': {
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
-            }
+            },
         }
+        if self.args.fabrid:
+            raw_entry['router'] = {
+                'drkey': ["FABRID"],
+                'fabrid': True,
+            }
         return raw_entry
 
     def generate_control_service(self):
@@ -129,8 +136,70 @@ class GoGenerator(object):
             'api': self._api_entry(infra_elem, CS_PROM_PORT+700),
             'features': translate_features(self.args.features),
         }
+        if self.args.fabrid:
+            fabrid_path = os.path.join(config_dir, 'fabrid-policies')
+            raw_entry['fabrid'] = {
+                'enabled': True,
+                'path': fabrid_path,
+            }
+
+            borderRouterInternalIPs = []
+            for _, v in self.args.topo_dicts[topo_id].get("border_routers", {}).items():
+                borderRouterInternalIPs.append(v['internal_addr'].rsplit(':', 1)[0].strip('[]'))
+            raw_entry['drkey'] = {
+                'level1_db': {
+                    'connection': os.path.join(self.db_dir, '%s.drkey-level1.db' % name),
+                },
+                'secret_value_db': {
+                    'connection': os.path.join(self.db_dir, '%s.drkey-secret.db' % name),
+                },
+                'delegation': {
+                    'FABRID': borderRouterInternalIPs,
+                }
+            }
+
         if ca:
             raw_entry['ca'] = {'mode': 'in-process'}
+        return raw_entry
+
+    def generate_endhost(self):
+        for topo_id, topo in self.args.topo_dicts.items():
+            base = topo_id.base_dir(self.args.output_dir)
+            sciond_conf = self._build_endhost_sciond_conf(topo_id, topo["isd_as"], base)
+            write_file(os.path.join(base, "endhost.toml"), toml.dumps(sciond_conf))
+
+    def _build_endhost_sciond_conf(self, topo_id, ia, base):
+        name = 'endhost_%s' % topo_id.file_fmt()
+        config_dir = '/etc/scion' if self.args.docker else base
+        ip = endhost_ip(self.args.docker, topo_id, self.args.networks)
+        raw_entry = {
+            'general': {
+                'id': name,
+                'config_dir': config_dir,
+            },
+            'log': self._log_entry(name),
+            'trust_db': {
+                'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
+            },
+            'path_db': {
+                'connection': os.path.join(self.db_dir, '%s.path.db' % name),
+            },
+            'sd': {
+                'address': socket_address_str(ip, SD_API_PORT),
+            },
+            'tracing': self._tracing_entry(),
+            'metrics': {
+                'prometheus': socket_address_str(ip, SCIOND_PROM_PORT)
+            },
+            'features': translate_features(self.args.features),
+            'api': {
+                'addr': socket_address_str(ip, SD_API_PORT+700),
+            },
+        }
+        if self.args.fabrid:
+            raw_entry['drkey_level2_db'] = {
+                'connection': os.path.join(self.db_dir, '%s.drkey_level2.db' % name),
+            }
         return raw_entry
 
     def generate_sciond(self):
@@ -165,8 +234,12 @@ class GoGenerator(object):
             'features': translate_features(self.args.features),
             'api': {
                 'addr': socket_address_str(ip, SD_API_PORT+700),
-            }
+            },
         }
+        if self.args.fabrid:
+            raw_entry['drkey_level2_db'] = {
+                'connection': os.path.join(self.db_dir, '%s.drkey_level2.db' % name),
+            }
         return raw_entry
 
     def generate_disp(self):

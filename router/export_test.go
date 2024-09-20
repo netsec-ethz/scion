@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/google/gopacket"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -93,4 +94,9 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 
 func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
 	return s.m
+}
+
+func DecodeLayers(data []byte, base gopacket.DecodingLayer,
+	opts ...gopacket.DecodingLayer) (gopacket.DecodingLayer, error) {
+	return decodeLayers(data, base, opts...)
 }

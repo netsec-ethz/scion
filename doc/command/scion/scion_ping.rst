@@ -88,6 +88,8 @@ Options
 
   -c, --count uint16           total number of packets to send
       --epic                   Enable EPIC for path probing.
+      --fabridquery string     the query for policies that the path must adhere to
+      --fetch-detached         Fetch FABRID maps for hops where they have been detached. This increases the overhead of path finding. (default true)
       --format string          Specify the output format (human|json|yaml) (default "human")
       --healthy-only           only use healthy paths
   -h, --help                   help for ping

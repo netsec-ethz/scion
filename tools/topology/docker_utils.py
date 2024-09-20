@@ -51,9 +51,45 @@ class DockerUtilsGenerator(object):
     def generate(self):
         for topo_id in self.args.topo_dicts:
             self._test_conf(topo_id)
+            if self.args.endhosts:
+                self._endhost_conf(topo_id)
         if self.args.sig:
             self._sig_testing_conf()
         return self.dc_conf
+
+    def _endhost_conf(self, topo_id):
+        cntr_base = '/share'
+        name = 'endhost_%s' % topo_id.file_fmt()
+        entry = {
+            'image': docker_image(self.args, 'endhost'),
+            'privileged': True,
+            'entrypoint': 'sh endhost.sh',
+            'environment': {},
+            'user': self.user,
+            'volumes': [
+                self.output_base + '/logs:' + cntr_base + '/logs:rw',
+                self.output_base + '/gen:' + cntr_base + '/gen:rw',
+                self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw',
+                self.output_base + '/gen-cache:' + cntr_base + '/cache:rw',
+                self.output_base + '/gen/AS' + name.split('-')[1] + ":" + '/etc/scion:ro',
+            ],
+        }
+        net = self.args.networks[name][0]
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
+        ip = str(net[ipv])
+        entry['networks'] = {}
+        entry['networks'][self.args.bridges[net['net']]] = {
+            '%s_address' % ipv: ip
+        }
+        disp_net = self.args.networks[name][0]
+        entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
+        if ipv == 'ipv4':
+            entry['environment']['SCION_DAEMON'] = '%s:30255' % str(disp_net[ipv])
+        else:
+            entry['environment']['SCION_DAEMON'] = '[%s]:30255' % str(disp_net[ipv])
+        self.dc_conf['services'][name] = entry
 
     def _test_conf(self, topo_id):
         cntr_base = '/share'

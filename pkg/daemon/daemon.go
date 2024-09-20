@@ -88,6 +88,8 @@ type Connector interface {
 	DRKeyGetHostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
 	// DRKeyGetHostHostKey requests a Host-Host Key from the daemon.
 	DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
+	// FabridKeys requests FABRID DRKeys for all provided ASes and the path validation key
+	FabridKeys(ctx context.Context, meta drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error)
 	// Close shuts down the connection to the daemon.
 	Close() error
 }
