@@ -8,7 +8,6 @@ go_library(
         "cmd.go",
         "docker.go",
         "done.go",
-        "endhost_integration.go",
         "integration.go",
         "networkalloc.go",
     ],

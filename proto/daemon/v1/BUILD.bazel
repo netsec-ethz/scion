@@ -4,11 +4,9 @@ proto_library(
     name = "daemon",
     srcs = [
         "daemon.proto",
-        "daemon_fabrid.proto",
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//proto/control_plane/experimental/v1:experimental",
         "//proto/drkey/v1:drkey",
         "@com_google_protobuf//:duration_proto",
         "@com_google_protobuf//:empty_proto",

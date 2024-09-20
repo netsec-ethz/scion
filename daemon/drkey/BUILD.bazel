@@ -2,10 +2,7 @@ load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "client_engine.go",
-        "client_engine_fabrid.go",
-    ],
+    srcs = ["client_engine.go"],
     importpath = "github.com/scionproto/scion/daemon/drkey",
     visibility = ["//visibility:public"],
     deps = [

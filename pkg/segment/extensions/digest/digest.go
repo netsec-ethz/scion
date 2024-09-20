@@ -30,36 +30,25 @@ type Digest struct {
 const DigestLength = 16
 
 type Extension struct {
-	// Epic denotes the digest of the EpicDetachedExtension
+	// Epic dentoes the digest of the EpicDetachedExtension
 	Epic Digest
-	// Fabrid denotes the hash of both the supported indices map, as well as the
-	// index to identifier map.
-	Fabrid Digest
 }
 
 func ExtensionFromPB(d *cppb.DigestExtension) *Extension {
 	if d == nil {
 		return nil
 	}
-	var epic Digest
-	var fabrid Digest
 	if d.Epic == nil {
-		epic = Digest{}
-	} else {
-		e := make([]byte, DigestLength)
-		copy(e, d.Epic.Digest)
-		epic = Digest{Digest: e}
+		return &Extension{
+			Epic: Digest{},
+		}
 	}
-	if d.Fabrid == nil {
-		fabrid = Digest{}
-	} else {
-		e := make([]byte, DigestLength)
-		copy(e, d.Fabrid.Digest)
-		fabrid = Digest{Digest: e}
-	}
+	e := make([]byte, DigestLength)
+	copy(e, d.Epic.Digest)
 	return &Extension{
-		Epic:   epic,
-		Fabrid: fabrid,
+		Epic: Digest{
+			Digest: e,
+		},
 	}
 }
 
@@ -69,15 +58,9 @@ func ExtensionToPB(d *Extension) *cppb.DigestExtension {
 	}
 	e := make([]byte, DigestLength)
 	copy(e, d.Epic.Digest)
-
-	f := make([]byte, DigestLength)
-	copy(f, d.Fabrid.Digest)
 	return &cppb.DigestExtension{
 		Epic: &cppb.DigestExtension_Digest{
 			Digest: e,
-		},
-		Fabrid: &cppb.DigestExtension_Digest{
-			Digest: f,
 		},
 	}
 }

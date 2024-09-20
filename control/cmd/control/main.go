@@ -43,8 +43,6 @@ import (
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	drkeygrpc "github.com/scionproto/scion/control/drkey/grpc"
-	"github.com/scionproto/scion/control/fabrid"
-	fabridgrpc "github.com/scionproto/scion/control/fabrid/grpc"
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
@@ -62,7 +60,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
-	"github.com/scionproto/scion/pkg/proto/control_plane/experimental"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -152,16 +149,6 @@ func realMain(ctx context.Context) error {
 
 	revCache := storage.NewRevocationStorage()
 	defer revCache.Close()
-	var fabridMgr *fabrid.FabridManager
-	if globalCfg.Fabrid.Enabled {
-		fabridMgr = fabrid.NewFabridManager(topo.InterfaceIDs(),
-			globalCfg.Fabrid.RemoteCacheValidity.Duration)
-		err = fabridMgr.Load(globalCfg.Fabrid.Path)
-		if err != nil {
-			return serrors.WrapStr("initializing FABRID", err)
-		}
-	}
-
 	pathDB, err := storage.NewPathStorage(globalCfg.PathDB)
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
@@ -347,21 +334,6 @@ func realMain(ctx context.Context) error {
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
 	})
-	// Handle fabrid map and policy requests
-	if globalCfg.Fabrid.Enabled {
-		polFetcher := fabridgrpc.BasicFabridControlPlaneFetcher{
-			Dialer: &libgrpc.QUICDialer{
-				Rewriter: nc.AddressRewriter(),
-				Dialer:   quicStack.Dialer,
-			},
-			Router:     segreq.NewRouter(fetcherCfg),
-			MaxRetries: 20,
-		}
-
-		f := &fabridgrpc.Server{FabridManager: fabridMgr, Fetcher: &polFetcher}
-		experimental.RegisterFABRIDIntraServiceServer(tcpServer, f)
-		experimental.RegisterFABRIDInterServiceServer(quicServer, f)
-	}
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -829,7 +801,6 @@ func realMain(ctx context.Context) error {
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
-		Fabrid:                    fabridMgr,
 	})
 	if err != nil {
 		return serrors.WrapStr("starting periodic tasks", err)

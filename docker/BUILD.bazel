@@ -1,7 +1,6 @@
 load("@rules_debian_packages//debian_packages:defs.bzl", "debian_packages_lockfile")
 load(":scion_app.bzl", "scion_app_base", "scion_app_image")
 load(":tester.bzl", "scion_tester_image")
-load(":endhost.bzl", "scion_endhost_image")
 load(":labels.bzl", "scion_labels")
 
 filegroup(
@@ -18,7 +17,6 @@ filegroup(
 filegroup(
     name = "test",
     srcs = [
-        ":endhost.tar",
         ":tester.tar",
     ],
 )
@@ -96,5 +94,3 @@ debian_packages_lockfile(
 )
 
 scion_tester_image()
-
-scion_endhost_image()

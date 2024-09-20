@@ -22,7 +22,6 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "proto/drkey/v1/drkey.proto";
-import "proto/daemon/v1/daemon_fabrid.proto";
 
 service DaemonService {
     // Return a set of paths to the requested destination.
@@ -45,8 +44,6 @@ service DaemonService {
     rpc DRKeyHostAS (DRKeyHostASRequest) returns (DRKeyHostASResponse) {}
     // DRKeyHostHost returns a key that matches the request.
     rpc DRKeyHostHost (DRKeyHostHostRequest) returns (DRKeyHostHostResponse) {}
-    // FabridKeys returns the DRKeys for FABRID
-    rpc FabridKeys (proto.daemon.v1.FabridKeysRequest) returns (proto.daemon.v1.FabridKeysResponse) {}
 }
 
 message PathsRequest {
@@ -59,9 +56,6 @@ message PathsRequest {
     bool refresh = 3;
     // Request hidden paths instead of standard paths.
     bool hidden = 4;
-    // Choose to have the daemon fetch any detached fabrid maps to fill the policies attribute in
-    // the metadata.
-    bool fetch_fabrid_detached_maps = 5;
 }
 
 message PathsResponse {
@@ -120,11 +114,6 @@ message Path {
     // Entry i describes the carbon intensity between interface i and i+1.
     // Consequently, there are N-1 entries for N interfaces.
     repeated int64 carbon_intensity = 13;
-    // FabridInfo contains the FABRID-specific information for each hop on the path, specifically
-    // whether the AS in the hop supports FABRID, the possible policies, and whether the AS's FABRID
-    // maps were detached during beaconing (requiring manual fetching by the end host to fill the
-    // missing policies list).
-    repeated proto.daemon.v1.FabridInfo fabrid_info = 14;
 }
 
 message EpicAuths {

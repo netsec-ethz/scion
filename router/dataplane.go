@@ -38,14 +38,12 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
-	"github.com/scionproto/scion/pkg/experimental/fabrid/crypto"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/processmetrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/extension"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
@@ -93,27 +91,24 @@ type BatchConn interface {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type DataPlane struct {
-	interfaces               map[uint16]BatchConn
-	external                 map[uint16]BatchConn
-	linkTypes                map[uint16]topology.LinkType
-	neighborIAs              map[uint16]addr.IA
-	peerInterfaces           map[uint16]uint16
-	internal                 BatchConn
-	internalIP               netip.Addr
-	internalNextHops         map[uint16]*net.UDPAddr
-	svc                      *services
-	macFactory               func() hash.Hash
-	bfdSessions              map[uint16]bfdSession
-	localIA                  addr.IA
-	mtx                      sync.Mutex
-	running                  bool
-	Metrics                  *Metrics
-	DRKeyProvider            *control.DRKeyProvider
-	fabridPolicyIPRangeMap   map[uint32][]*control.PolicyIPRange
-	fabridPolicyInterfaceMap map[uint64]uint32
-	forwardingMetrics        map[uint16]interfaceMetrics
-	dispatchedPortStart      uint16
-	dispatchedPortEnd        uint16
+	interfaces          map[uint16]BatchConn
+	external            map[uint16]BatchConn
+	linkTypes           map[uint16]topology.LinkType
+	neighborIAs         map[uint16]addr.IA
+	peerInterfaces      map[uint16]uint16
+	internal            BatchConn
+	internalIP          netip.Addr
+	internalNextHops    map[uint16]*net.UDPAddr
+	svc                 *services
+	macFactory          func() hash.Hash
+	bfdSessions         map[uint16]bfdSession
+	localIA             addr.IA
+	mtx                 sync.Mutex
+	running             bool
+	Metrics             *Metrics
+	forwardingMetrics   map[uint16]interfaceMetrics
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
 
 	ExperimentalSCMPAuthentication bool
 
@@ -600,7 +595,6 @@ type packet struct {
 	trafficType trafficType
 	// The goods
 	rawPacket []byte
-	mplsLabel uint8
 }
 
 type slowPacket struct {
@@ -753,7 +747,6 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		p.rawPacket = result.OutPkt
 		p.dstAddr = result.OutAddr
-		p.mplsLabel = uint8(processor.mplsLabel)
 		p.trafficType = result.TrafficType
 		select {
 		case fwCh <- p:
@@ -1030,11 +1023,10 @@ func readUpTo(c <-chan packet, n int, needsBlocking bool, pkts []packet) int {
 
 func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 	p := &scionPacketProcessor{
-		d:                 d,
-		buffer:            gopacket.NewSerializeBuffer(),
-		mac:               d.macFactory(),
-		macInputBuffer:    make([]byte, max(path.MACBufferSize, libepic.MACBufferSize)),
-		fabridInputBuffer: make([]byte, crypto.FabridMacInputSize),
+		d:              d,
+		buffer:         gopacket.NewSerializeBuffer(),
+		mac:            d.macFactory(),
+		macInputBuffer: make([]byte, max(path.MACBufferSize, libepic.MACBufferSize)),
 	}
 	p.scionLayer.RecyclePaths()
 	return p
@@ -1056,13 +1048,9 @@ func (p *scionPacketProcessor) reset() error {
 	p.mac.Reset()
 	p.cachedMac = nil
 	// Reset hbh layer
-	p.hbhLayer = slayers.HopByHopExtn{}
+	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	// Reset e2e layer
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
-	p.identifier = nil
-	p.fabrid = nil
-	p.mplsLabel = 0
-	p.nextHop = nil
 	return nil
 }
 
@@ -1234,7 +1222,7 @@ type scionPacketProcessor struct {
 
 	// scionLayer is the SCION gopacket layer.
 	scionLayer slayers.SCION
-	hbhLayer   slayers.HopByHopExtn
+	hbhLayer   slayers.HopByHopExtnSkipper
 	e2eLayer   slayers.EndToEndExtnSkipper
 	// last is the last parsed layer, i.e. either &scionLayer, &hbhLayer or &e2eLayer
 	lastLayer gopacket.DecodingLayer
@@ -1258,21 +1246,7 @@ type scionPacketProcessor struct {
 
 	// bfdLayer is reusable buffer for parsing BFD messages
 	bfdLayer layers.BFD
-
-	identifier        *extension.IdentifierOption
-	fabrid            *extension.FabridOption
-	fabridInputBuffer []byte
-	mplsLabel         uint32
-	// IP of the next hop. Only valid for the inbound or AS transit cases
-	nextHop     *net.UDPAddr
-	transitType transitType
 }
-
-const (
-	ingressEgressSameRouter transitType = iota
-	ingressEgressDifferentRouter
-	internalTraffic
-)
 
 type slowPathType int
 
@@ -1861,12 +1835,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if err != nil {
 			return r, err
 		}
-
-		p.transitType = internalTraffic
-		p.nextHop = a
-		if err := p.processHbhOptions(0); err != nil {
-			return processResult{}, err
-		}
 		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttIn}, nil
 	}
 
@@ -1905,10 +1873,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; ok {
-		p.transitType = ingressEgressSameRouter
-		if err := p.processHbhOptions(egressID); err != nil {
-			return processResult{}, err
-		}
 		// Not ASTransit in
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
@@ -1929,11 +1893,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	// ASTransit in: pkt leaving this AS through another BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		p.transitType = ingressEgressDifferentRouter
-		p.nextHop = a
-		if err := p.processHbhOptions(egressID); err != nil {
-			return processResult{}, err
-		}
 		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttInTransit}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
@@ -2613,8 +2572,6 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 	case *slayers.SCION:
 		return v.NextHdr
 	case *slayers.EndToEndExtnSkipper:
-		return v.NextHdr
-	case *slayers.HopByHopExtn:
 		return v.NextHdr
 	case *slayers.HopByHopExtnSkipper:
 		return v.NextHdr

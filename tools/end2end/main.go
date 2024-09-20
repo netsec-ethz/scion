@@ -37,7 +37,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	libfabrid "github.com/scionproto/scion/pkg/experimental/fabrid"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -74,7 +73,6 @@ var (
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool
-	fabrid                 bool
 )
 
 func main() {
@@ -111,7 +109,6 @@ func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
-	flag.BoolVar(&fabrid, "fabrid", false, "Enable FABRID")
 }
 
 func validateFlags() {
@@ -126,10 +123,7 @@ func validateFlags() {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
 		}
 	}
-	if epic && fabrid {
-		integration.LogFatal("FABRID is incompatible with EPIC")
-	}
-	log.Info("Flags", "timeout", timeout, "epic", epic, "fabrid", fabrid, "remote", remote)
+	log.Info("Flags", "timeout", timeout, "epic", epic, "remote", remote)
 }
 
 type server struct{}
@@ -148,44 +142,22 @@ func (s server) run() {
 		PacketConnMetrics: scionPacketConnMetrics,
 		Topology:          sdConn,
 	}
-	if fabrid {
-		conn, err := sn.OpenRaw(context.Background(), integration.Local.Host)
-		if err != nil {
-			integration.LogFatal("Error listening", "err", err)
-		}
-		defer conn.Close()
-		localAddr := conn.LocalAddr().(*net.UDPAddr)
-		if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
-			// Needed for integration test ready signal.
-			fmt.Printf("Port=%d\n", localAddr.Port)
-			fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
-		}
-		log.Info("Listening", "local",
-			fmt.Sprintf("%v:%d", integration.Local.Host.IP, localAddr.Port))
-		// Receive ping message
-		for {
-			if err := s.handlePingFabrid(conn); err != nil {
-				log.Error("Error handling ping", "err", err)
-			}
-		}
-	} else {
-		conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host)
-		if err != nil {
-			integration.LogFatal("Error listening", "err", err)
-		}
-		defer conn.Close()
-		localAddr := conn.LocalAddr().(*snet.UDPAddr)
-		if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
-			// Needed for integration test ready signal.
-			fmt.Printf("Port=%d\n", localAddr.Host.Port)
-			fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
-		}
-		log.Info("Listening", "local", fmt.Sprintf("%v:%d", localAddr.Host.IP, localAddr.Host.Port))
-		// Receive ping message
-		for {
-			if err := s.handlePing(conn); err != nil {
-				log.Error("Error handling ping", "err", err)
-			}
+	conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host)
+	if err != nil {
+		integration.LogFatal("Error listening", "err", err)
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*snet.UDPAddr)
+	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
+		// Needed for integration test ready signal.
+		fmt.Printf("Port=%d\n", localAddr.Host.Port)
+		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
+	}
+	log.Info("Listening", "local", fmt.Sprintf("%v:%d", localAddr.Host.IP, localAddr.Host.Port))
+	// Receive ping message
+	for {
+		if err := s.handlePing(conn); err != nil {
+			log.Error("Error handling ping", "err", err)
 		}
 	}
 }
@@ -396,43 +368,6 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			return nil, err
 		}
 		remote.Path = epicPath
-	} else if fabrid {
-		// If the fabrid flag is set, try to create FABRID dataplane path.
-		if len(path.Metadata().FabridInfo) > 0 {
-			// Check if fabrid info is available, otherwise the source
-			// AS does not support fabrid
-
-			scionPath, ok := path.Dataplane().(snetpath.SCION)
-			if !ok {
-				return nil, serrors.New("provided path must be of type scion")
-			}
-			fabridConfig := &snetpath.FabridConfig{
-				LocalIA:         integration.Local.IA,
-				LocalAddr:       integration.Local.Host.IP.String(),
-				DestinationIA:   remote.IA,
-				DestinationAddr: remote.Host.IP.String(),
-			}
-			hops := path.Metadata().Hops()
-			log.Info("Fabrid path", "path", path, "hops", hops)
-			// Use ZERO policy for all hops with fabrid, to just do path validation
-			policies := make([]*libfabrid.PolicyID, len(hops))
-			zeroPol := libfabrid.PolicyID(0)
-			for i, hop := range hops {
-				if hop.FabridEnabled {
-					policies[i] = &zeroPol
-				}
-			}
-			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hops,
-				policies, fabridConfig)
-			if err != nil {
-				return nil, serrors.New("Error creating FABRID path", "err", err)
-			}
-			remote.Path = fabridPath
-			fabridPath.RegisterDRKeyFetcher(c.sdConn.FabridKeys)
-		} else {
-			log.Info("FABRID flag was set for client in non-FABRID AS. Proceeding without FABRID.")
-			remote.Path = path.Dataplane()
-		}
 	} else {
 		remote.Path = path.Dataplane()
 	}

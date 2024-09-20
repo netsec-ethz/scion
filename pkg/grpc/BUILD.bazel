@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "creds.go",
         "dialer.go",
-        "dialer_drkey.go",
         "interceptor.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/grpc",

@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
@@ -63,8 +62,8 @@ type DaemonServer struct {
 	RevCache    revcache.RevCache
 	ASInspector trust.Inspector
 	DRKeyClient *drkey_daemon.ClientEngine
-	Dialer      libgrpc.Dialer
-	Metrics     Metrics
+
+	Metrics Metrics
 
 	foregroundPathDedupe singleflight.Group
 	backgroundPathDedupe singleflight.Group
@@ -102,13 +101,6 @@ func (s *DaemonServer) paths(ctx context.Context,
 		log.FromCtx(ctx).Debug("Fetching paths", "err", err,
 			"src", srcIA, "dst", dstIA, "refresh", req.Refresh)
 		return nil, err
-	}
-	if req.FetchFabridDetachedMaps {
-		detachedHops := findDetachedHops(paths)
-		if len(detachedHops) > 0 {
-			log.Info("Detached hops found", "hops", len(detachedHops))
-			updateFabridInfo(ctx, s.Dialer, detachedHops)
-		}
 	}
 	reply := &sdpb.PathsResponse{}
 	for _, p := range paths {
@@ -173,10 +165,7 @@ func pathToPB(path snet.Path) *sdpb.Path {
 	if nextHop := path.UnderlayNextHop(); nextHop != nil {
 		nextHopStr = nextHop.String()
 	}
-	fabridInfo := make([]*sdpb.FabridInfo, len(meta.FabridInfo))
-	for i, v := range meta.FabridInfo {
-		fabridInfo[i] = fabridInfoToPB(&v)
-	}
+
 	epicAuths := &sdpb.EpicAuths{
 		AuthPhvf: append([]byte(nil), meta.EpicAuths.AuthPHVF...),
 		AuthLhvf: append([]byte(nil), meta.EpicAuths.AuthLHVF...),
@@ -198,8 +187,8 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		InternalHops:    meta.InternalHops,
 		Notes:           meta.Notes,
 		EpicAuths:       epicAuths,
-		FabridInfo:      fabridInfo,
 	}
+
 }
 
 func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {

@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
-	"github.com/scionproto/scion/pkg/segment/extensions/fabrid"
 )
 
 func TestDecodeEncode(t *testing.T) {
@@ -34,28 +33,9 @@ func TestDecodeEncode(t *testing.T) {
 			AuthHopEntry:    hop,
 			AuthPeerEntries: peers,
 		}
-		fd := &fabrid.Detached{
-			SupportedIndicesMap: fabrid.SupportedIndicesMap{
-				fabrid.ConnectionPair{
-					Ingress: fabrid.ConnectionPoint{
-						Type:   fabrid.IPv4Range,
-						IP:     "192.168.0.0",
-						Prefix: 22,
-					},
-					Egress: fabrid.ConnectionPoint{
-						Type:        fabrid.Interface,
-						InterfaceId: 44,
-					}}: []uint8{1}},
-			IndexIdentiferMap: fabrid.IndexIdentifierMap{
-				1: &fabrid.PolicyIdentifier{
-					IsLocal:    false,
-					Identifier: 22,
-				}},
-		}
 
 		ue := UnsignedExtensions{
-			EpicDetached:   ed,
-			FabridDetached: fd,
+			EpicDetached: ed,
 		}
 		ue2 := UnsignedExtensionsFromPB(
 			UnsignedExtensionsToPB(ue))

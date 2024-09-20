@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	fabrid_utils "github.com/scionproto/scion/pkg/experimental/fabrid/graphutils"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/util"
@@ -314,7 +313,6 @@ type pathSolution struct {
 func (solution *pathSolution) Path() Path {
 	mtu := ^uint16(0)
 	var segments segmentList
-	fabridMaps := make(map[addr.IA]fabrid_utils.FabridMapEntry)
 	var epicPathAuths [][]byte
 	for _, solEdge := range solution.edges {
 		var hops []path.HopField
@@ -381,16 +379,6 @@ func (solution *pathSolution) Path() Path {
 			pathASEntries = append(pathASEntries, asEntry)
 			epicSegAuths = append(epicSegAuths, epicAuth)
 
-			fabridMap, exists := fabridMaps[asEntry.Local]
-			if (!exists || fabridMap.Ts.Before(solEdge.segment.Info.Timestamp)) && asEntry.
-				Extensions.Digests != nil {
-				fabridMaps[asEntry.Local] = fabrid_utils.FabridMapEntry{
-					Map:    asEntry.UnsignedExtensions.FabridDetached,
-					Digest: asEntry.Extensions.Digests.Fabrid.Digest,
-					Ts:     solEdge.segment.Info.Timestamp,
-				}
-			}
-
 			mtu = minUint16(mtu, uint16(asEntry.MTU))
 			if forwardingLinkMtu != 0 {
 				// The first HE in a segment has MTU 0, so we ignore those
@@ -425,7 +413,7 @@ func (solution *pathSolution) Path() Path {
 	interfaces := segments.Interfaces()
 	asEntries := segments.ASEntries()
 	staticInfo := collectMetadata(interfaces, asEntries)
-	fabridInfo := fabrid_utils.CollectFabridPolicies(interfaces, fabridMaps)
+
 	path := Path{
 		SCIONPath: segments.ScionPath(),
 		Metadata: snet.PathMetadata{
@@ -439,7 +427,6 @@ func (solution *pathSolution) Path() Path {
 			LinkType:        staticInfo.LinkType,
 			InternalHops:    staticInfo.InternalHops,
 			Notes:           staticInfo.Notes,
-			FabridInfo:      fabridInfo,
 		},
 		Weight: solution.cost,
 	}

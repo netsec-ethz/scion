@@ -2,12 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 
 proto_library(
     name = "experimental",
-    srcs = [
-        "fabrid.proto",
-        "fabrid_extensions.proto",
-        "seg_detached_extensions.proto",
-        "seg_detached_extensions_fabrid.proto",
-    ],
+    srcs = ["seg_detached_extensions.proto"],
     visibility = ["//visibility:public"],
     deps = [
         "//proto/crypto/v1:crypto",

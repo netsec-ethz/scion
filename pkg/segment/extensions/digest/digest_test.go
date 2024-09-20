@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
-	"github.com/scionproto/scion/pkg/segment/extensions/fabrid"
 )
 
 func TestDecodeEncode(t *testing.T) {
@@ -35,24 +34,6 @@ func TestDecodeEncode(t *testing.T) {
 			AuthHopEntry:    hop,
 			AuthPeerEntries: peers,
 		}
-		fd := &fabrid.Detached{
-			SupportedIndicesMap: fabrid.SupportedIndicesMap{
-				fabrid.ConnectionPair{
-					Ingress: fabrid.ConnectionPoint{
-						Type:   fabrid.IPv4Range,
-						IP:     "192.168.2.100",
-						Prefix: 22,
-					},
-					Egress: fabrid.ConnectionPoint{
-						Type:        fabrid.Interface,
-						InterfaceId: 44,
-					}}: []uint8{1}},
-			IndexIdentiferMap: fabrid.IndexIdentifierMap{
-				1: &fabrid.PolicyIdentifier{
-					IsLocal:    false,
-					Identifier: 22,
-				}},
-		}
 
 		var d digest.Digest
 		input, err := ed.DigestInput()
@@ -61,14 +42,8 @@ func TestDecodeEncode(t *testing.T) {
 		err = d.Validate(input)
 		assert.NoError(t, err)
 
-		var fabridDigest digest.Digest
-		fabridDigest.Set(fd.Hash())
-		err = fabridDigest.Validate(fd.Hash())
-		assert.NoError(t, err)
-
 		dig := &digest.Extension{
-			Epic:   d,
-			Fabrid: fabridDigest,
+			Epic: d,
 		}
 		dig2 := digest.ExtensionFromPB(digest.ExtensionToPB(dig))
 		assert.Equal(t, dig, dig2)

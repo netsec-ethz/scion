@@ -110,11 +110,10 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Paths(ctx, &sdpb.PathsRequest{
-		SourceIsdAs:             uint64(src),
-		DestinationIsdAs:        uint64(dst),
-		Hidden:                  f.Hidden,
-		Refresh:                 f.Refresh,
-		FetchFabridDetachedMaps: f.FetchFabridDetachedMaps,
+		SourceIsdAs:      uint64(src),
+		DestinationIsdAs: uint64(dst),
+		Hidden:           f.Hidden,
+		Refresh:          f.Refresh,
 	})
 	if err != nil {
 		c.metrics.incPaths(err)
@@ -282,11 +281,6 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		linkType[i] = linkTypeFromPB(v)
 	}
 
-	fabridInfo := make([]snet.FabridInfo, len(p.FabridInfo))
-	for i, v := range p.FabridInfo {
-		fabridInfo[i] = fabridInfoFromPB(v)
-	}
-
 	res := path.Path{
 		Src: interfaces[0].IA,
 		Dst: dst,
@@ -305,7 +299,6 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			LinkType:        linkType,
 			InternalHops:    p.InternalHops,
 			Notes:           p.Notes,
-			FabridInfo:      fabridInfo,
 		},
 	}
 

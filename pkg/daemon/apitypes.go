@@ -27,9 +27,8 @@ import (
 )
 
 type PathReqFlags struct {
-	Refresh                 bool
-	Hidden                  bool
-	FetchFabridDetachedMaps bool
+	Refresh bool
+	Hidden  bool
 }
 
 // ASInfo provides information about the local AS.
