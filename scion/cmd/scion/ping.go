@@ -220,8 +220,6 @@ On other errors, ping will exit with code 2.
 				switch s := pingPath.Dataplane().(type) {
 				case *snetpath.FABRID:
 					remote.Path = s
-					s.RegisterDRKeyFetcher(sd.FabridKeys)
-
 				default:
 					return serrors.New("unsupported path type")
 				}

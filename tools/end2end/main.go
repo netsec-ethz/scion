@@ -468,12 +468,11 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 				}
 			}
 			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hops,
-				policies, fabridConfig, 125)
+				policies, fabridConfig, 125, c.sdConn.FabridKeys)
 			if err != nil {
 				return nil, serrors.New("Error creating FABRID path", "err", err)
 			}
 			remote.Path = fabridPath
-			fabridPath.RegisterDRKeyFetcher(c.sdConn.FabridKeys)
 		} else {
 			log.Info("FABRID flag was set for client in non-FABRID AS. Proceeding without FABRID.")
 			remote.Path = path.Dataplane()

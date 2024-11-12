@@ -147,10 +147,6 @@ func realMain(ctx context.Context) error {
 	if globalCfg.Router.Fabrid {
 		go func() {
 			defer log.HandlePanic()
-			interfaces := make([]uint16, len(controlConfig.BR.IFIDs))
-			for i, iface := range controlConfig.BR.IFIDs {
-				interfaces[i] = uint16(iface)
-			}
 			fetcher.StartFabridPolicyFetcher()
 		}()
 	}
@@ -161,6 +157,7 @@ func realMain(ctx context.Context) error {
 			NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
 			BatchSize:             globalCfg.Router.BatchSize,
 		}
+		dp.DataPlane.Fabrid = globalCfg.Router.Fabrid
 		if err := dp.DataPlane.Run(errCtx, runConfig); err != nil {
 			return serrors.WrapStr("running dataplane", err)
 		}

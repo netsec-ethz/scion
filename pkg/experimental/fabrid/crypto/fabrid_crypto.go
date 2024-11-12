@@ -233,8 +233,10 @@ func InitValidators(f *ext.FabridOption, id *ext.IdentifierOption, s *slayers.SC
 			return 0, 0, err
 		}
 		copy(f.PathValidator[:4], pathValBuffer[:4])
+		return pathValBuffer[4], binary.BigEndian.Uint32(pathValBuffer[5:9]), nil
+	} else {
+		return 0, 0, nil
 	}
-	return pathValBuffer[4], binary.BigEndian.Uint32(pathValBuffer[5:9]), nil
 }
 
 func computeFabridControlValidator(fc *ext.FabridControlOption, id *ext.IdentifierOption,

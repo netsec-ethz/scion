@@ -107,7 +107,7 @@ func Choose(
 		if err != nil {
 			return nil, serrors.WrapStr("parsing fabrid query", err)
 		}
-
+		validFabridPaths := make([]snet.Path, 0, len(paths))
 		for _, p := range paths {
 			scionPath, isSCIONPath := p.Dataplane().(snetpath.SCION)
 			if !isSCIONPath {
@@ -123,13 +123,16 @@ func Choose(
 				continue
 			}
 			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, p.Metadata().Hops(),
-				pols.Policies(), &o.fabrid.FabridConfig, 0)
+				pols.Policies(), &o.fabrid.FabridConfig, 0, conn.FabridKeys)
 			if err != nil {
 				return nil, serrors.WrapStr("creating fabrid path from scion path", err)
 			}
 			resPath := snetpath.Path{Src: p.Source(), Dst: p.Destination(),
 				DataplanePath: fabridPath, NextHop: p.UnderlayNextHop(), Meta: *p.Metadata()}
-
+			if o.interactive {
+				validFabridPaths = append(validFabridPaths, resPath)
+				continue
+			}
 			if o.fabrid.PrintSelectedPolicies {
 				cs := DefaultColorScheme(false)
 				fmt.Printf("Using selected FABRID policies:\n  %s\n\n", cs.FabridPath(resPath,
@@ -137,6 +140,24 @@ func Choose(
 			}
 			return resPath, nil
 		}
+		if o.interactive && len(validFabridPaths) != 0 {
+			selectedPath, err := printAndChoose(validFabridPaths, remote, o.colorScheme)
+			if err != nil {
+				return selectedPath, err
+			}
+			if o.fabrid.PrintSelectedPolicies {
+				cs := DefaultColorScheme(false)
+				hopIntfs := selectedPath.Metadata().Hops()
+				ml := fabridquery.MatchList{
+					SelectedPolicies: make([]*fabridquery.Policy, len(hopIntfs)),
+				}
+				_, _ = query.Evaluate(hopIntfs, &ml)
+				fmt.Printf("Using selected FABRID policies:\n  %s\n\n", cs.FabridPath(selectedPath,
+					ml.SelectedPolicies))
+			}
+			return selectedPath, nil
+		}
+
 		return nil, serrors.New(
 			fmt.Sprintf("no fabrid paths available satisfying query '%s'",
 				o.fabrid.Query))
