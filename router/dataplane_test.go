@@ -470,6 +470,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				_ = ret.SetIA(local)
 				_ = ret.SetKey(key)
+				_ = ret.SetHbirdKey(key)
 				return ret
 			},
 		},
@@ -686,6 +687,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				_ = ret.SetIA(local)
 				_ = ret.SetKey(key)
+				_ = ret.SetHbirdKey(key)
 
 				nextHopAddr := xtest.MustParseUDPAddr(t, "127.0.0.2:8888")
 				err = ret.AddNextHop(2, l.Addr, nextHopAddr, nobfd, "")
@@ -915,6 +917,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				_ = ret.SetIA(local)
 				_ = ret.SetKey(key)
+				_ = ret.SetHbirdKey(key)
 
 				nextHopAddr := xtest.MustParseUDPAddr(t, "127.0.0.2:8888")
 				err = ret.AddNextHop(2, l.Addr, nextHopAddr, nobfd, "")

@@ -408,7 +408,7 @@ func (p *scionPacketProcessor) checkReservationBandwidth() (processResult, error
 		panic("tokenbucket map contains value of different type")
 	}
 
-	if tb.Apply(int(p.scionLayer.PayloadLen), time.Now()) {
+	if tb.Apply(int(p.scionLayer.PayloadLen), now) {
 		return processResult{}, nil
 	}
 	// TODO: return scmp packet for reservation overuse

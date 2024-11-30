@@ -95,7 +95,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 					dpath.HopFields[2].HopField)
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
-					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 
 				}
@@ -659,7 +659,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 					dpath.HopFields[2].HopField.Mac = computeMAC(t, key, dpath.InfoFields[0],
 						dpath.HopFields[2].HopField)
 					ret := toMsg(t, spkt, dpath)
-					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 					return ret
 				}
@@ -735,7 +735,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
-					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				}
 				return ret
@@ -3838,7 +3838,7 @@ func prepHbirdMsg(now time.Time) (*slayers.SCION, *hummingbird.Decoded) {
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &hummingbird.Raw{},
-		PayloadLen:   18,
+		PayloadLen:   26, // scionudpLayer + len("actualpayloadbytes")
 	}
 
 	dpath := &hummingbird.Decoded{
@@ -3871,7 +3871,7 @@ func prepHbirdSlayers(src, dst addr.IA) *slayers.SCION {
 		DstIA:        dst,
 		SrcIA:        src,
 		Path:         &hummingbird.Raw{},
-		PayloadLen:   18,
+		PayloadLen:   26, // scionudpLayer + len("actualpayloadbytes")
 	}
 	return spkt
 }
