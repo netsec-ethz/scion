@@ -4,6 +4,7 @@ load("//:scion.bzl", "scion_go_binary")
 go_library(
     name = "go_default_library",
     srcs = [
+        "extras.go",
         "fabrid.go",
         "main.go",
     ],
@@ -15,6 +16,7 @@ go_library(
         "//pkg/drkey:go_default_library",
         "//pkg/experimental/fabrid:go_default_library",
         "//pkg/experimental/fabrid/crypto:go_default_library",
+        "//pkg/hummingbird:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/common:go_default_library",
         "//pkg/private/serrors:go_default_library",

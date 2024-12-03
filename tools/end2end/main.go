@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	libfabrid "github.com/scionproto/scion/pkg/experimental/fabrid"
+	hbird "github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -75,6 +76,7 @@ var (
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool
 	fabrid                 bool
+	hummingbird            bool
 )
 
 func main() {
@@ -112,6 +114,7 @@ func addFlags() {
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
 	flag.BoolVar(&fabrid, "fabrid", false, "Enable FABRID")
+	flag.BoolVar(&hummingbird, "hummingbird", false, "Enable Hummingbird")
 }
 
 func validateFlags() {
@@ -126,10 +129,11 @@ func validateFlags() {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
 		}
 	}
-	if epic && fabrid {
-		integration.LogFatal("FABRID is incompatible with EPIC")
+	log.Info("Flags", "timeout", timeout, "epic", epic, "fabrid", fabrid,
+		"hummingbird", hummingbird, "remote", remote)
+	if bToi(epic)+bToi(fabrid)+bToi(hummingbird) > 1 {
+		integration.LogFatal("Only one of EPIC, FABRID, HUMMINGBIRD flags is allowed")
 	}
-	log.Info("Flags", "timeout", timeout, "epic", epic, "fabrid", fabrid, "remote", remote)
 }
 
 type server struct{}
@@ -425,7 +429,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hops,
 				policies, fabridConfig)
 			if err != nil {
-				return nil, serrors.New("Error creating FABRID path", "err", err)
+				return nil, serrors.WrapStr("Error creating FABRID path", err)
 			}
 			remote.Path = fabridPath
 			fabridPath.RegisterDRKeyFetcher(c.sdConn.FabridKeys)
@@ -433,6 +437,44 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			log.Info("FABRID flag was set for client in non-FABRID AS. Proceeding without FABRID.")
 			remote.Path = path.Dataplane()
 		}
+	} else if hummingbird {
+		// // This works:
+		// // Directly query the scion daemon.
+		// reservations, err := c.sdConn.GetReservations(ctx, integration.Local.IA, remote.IA, 1, true)
+		// if err != nil {
+		// 	return nil, serrors.WrapStr("getting reservations from daemon", err)
+		// }
+		// reservation := reservations[0]
+
+		// This works:
+		// Build with no flyovers.
+		reservation, err := hbird.NewReservation(
+			hbird.WithScionPath(path, nil))
+		if err != nil {
+			return nil, serrors.WrapStr("Error converting path to Hummingbird", err)
+		}
+
+		// // This works:
+		// // Get flyovers and build path.
+		// flyovers, err := c.sdConn.ListFlyovers(ctx)
+		// if err != nil {
+		// 	return nil, serrors.WrapStr("listing flyovers", err)
+		// }
+		// reservation, err := hbird.NewReservation(
+		// 	hbird.WithScionPath(path, hbird.FlyoversToMap(flyovers)))
+		// if err != nil {
+		// 	return nil, serrors.WrapStr("Error converting path to Hummingbird", err)
+		// }
+
+		decoded := reservation.DeriveDataPlanePath(113, time.Now())
+		raw := snetpath.Hummingbird{
+			Raw: make([]byte, decoded.Len()),
+		}
+		err = decoded.SerializeTo(raw.Raw)
+		if err != nil {
+			return nil, serrors.WrapStr("Error assembling hummingbird path", err)
+		}
+		remote.Path = raw
 	} else {
 		remote.Path = path.Dataplane()
 	}

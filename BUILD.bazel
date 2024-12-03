@@ -210,8 +210,6 @@ pkg_tar(
         "//tools/braccept",
         "//tools/buildkite/cmd/buildkite_artifacts",
         "//tools/end2end",
-        "//tools/end2end_hbird",
-        "//tools/end2end_hbird_integration",
         "//tools/end2end_integration",
         "//tools/pktgen/cmd/pktgen",
         "//tools/scion_integration",

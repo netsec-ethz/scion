@@ -28,10 +28,12 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app/feature"
+	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/tools/integration"
 )
 
@@ -45,6 +47,7 @@ var (
 	features    string
 	epic        bool
 	fabrid      bool
+	hummingbird bool
 )
 
 func getCmd() (string, bool) {
@@ -78,11 +81,13 @@ func realMain() int {
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
 		fmt.Sprintf("-fabrid=%t", fabrid),
+		fmt.Sprintf("-hummingbird=%t", hummingbird),
 	}
 	serverArgs := []string{
 		"-mode", "server",
 		"-local", integration.DstAddrPattern + ":0",
 		fmt.Sprintf("-fabrid=%t", fabrid),
+		fmt.Sprintf("-hummingbird=%t", hummingbird),
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
@@ -109,6 +114,12 @@ func realMain() int {
 		log.Error("Error selecting tests", "err", err)
 		return 1
 	}
+	if hummingbird {
+		if err := addMockFlyovers(time.Now(), pairs); err != nil {
+			log.Error("Error adding mock flyovers", "err", err)
+			return 1
+		}
+	}
 	if err := runTests(in, pairs); err != nil {
 		log.Error("Error during tests", "err", err)
 		return 1
@@ -133,6 +144,7 @@ func addFlags() {
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
 	flag.BoolVar(&fabrid, "fabrid", false, "Enable FABRID.")
+	flag.BoolVar(&hummingbird, "hummingbird", false, "Enable HUMMINGBIRD")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -314,6 +326,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
 			fmt.Sprintf("-fabrid=%t", fabrid),
+			fmt.Sprintf("-hummingbird=%t", hummingbird),
 		},
 	}
 	if len(features) != 0 {
@@ -417,4 +430,85 @@ func relFile(file string) string {
 		return file
 	}
 	return rel
+}
+
+// addMockFlyovers creates and stores the necessary flyovers for the given pairs.
+// It uses the scion daemon to add the flyovers to the DB.
+func addMockFlyovers(now time.Time, pairs []integration.IAPair) error {
+	perAS, err := getTopoPerAS(pairs)
+	if err != nil {
+		return nil
+	}
+
+	flyovers, err := createMockFlyovers(perAS, now)
+	if err != nil {
+		return err
+	}
+
+	// Insert each flyover into the DB of each AS. Allow timeout.Duration per AS to do so.
+	wg := sync.WaitGroup{}
+	wg.Add(len(perAS))
+	errCh := make(chan error)
+	for ia, c := range perAS {
+		ia, c := ia, c
+		go func() {
+			defer log.HandlePanic()
+			defer wg.Done()
+			ctx, cancelF := context.WithTimeout(context.Background(), timeout.Duration)
+			defer cancelF()
+			errCh <- insertFlyoversInAS(ctx, ia, c, flyovers)
+		}()
+	}
+	// Collect any possible error and bail on the first non nil one.
+	go func() {
+		defer log.HandlePanic()
+		for errPerAS := range errCh {
+			if err != nil {
+				err = errPerAS
+			}
+		}
+	}()
+	wg.Wait()
+	close(errCh)
+
+	if err != nil {
+		return serrors.WrapStr("at least one AS returned an error while inserting flyovers", err)
+	}
+	return nil
+}
+
+type topoPerAS struct {
+	ASDirName  string
+	Interfaces []common.IFIDType
+}
+
+func getTopoPerAS(pairs []integration.IAPair) (map[addr.IA]topoPerAS, error) {
+	m := make(map[addr.IA]topoPerAS)
+	for _, pair := range pairs {
+		ia := pair.Src.IA
+		if _, ok := m[ia]; ok {
+			continue
+		}
+
+		// Load their topology.
+		path := integration.GenFile(
+			filepath.Join(
+				addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+				"topology.json",
+			),
+		)
+		topo, err := topology.FromJSONFile(path)
+		if err != nil {
+			return nil, serrors.WrapStr("loading topology", err, "ia", ia)
+		}
+
+		// Set the values for this AS.
+		m[ia] = topoPerAS{
+			ASDirName: addr.FormatAS(ia.AS(),
+				addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+			Interfaces: topo.InterfaceIDs(),
+		}
+	}
+
+	return m, nil
 }
