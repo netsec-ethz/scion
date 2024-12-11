@@ -17,43 +17,61 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	libfabrid "github.com/scionproto/scion/pkg/experimental/fabrid"
-	common2 "github.com/scionproto/scion/pkg/experimental/fabrid/common"
-	fabridserver "github.com/scionproto/scion/pkg/experimental/fabrid/server"
-	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/extension"
-	"github.com/scionproto/scion/pkg/slayers/path/scion"
-	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/private/tracing"
-	libint "github.com/scionproto/scion/tools/integration"
-	integration "github.com/scionproto/scion/tools/integration/integrationlib"
 	"net"
 	"net/netip"
 	"os"
 	"time"
 
-	flag "github.com/spf13/pflag"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/drkey/generic"
-	"github.com/scionproto/scion/pkg/drkey/specific"
+	libfabrid "github.com/scionproto/scion/pkg/experimental/fabrid"
+	common2 "github.com/scionproto/scion/pkg/experimental/fabrid/common"
+	fabridserver "github.com/scionproto/scion/pkg/experimental/fabrid/server"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
-	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/extension"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
-	env "github.com/scionproto/scion/private/app/flag"
+	"github.com/scionproto/scion/pkg/snet/metrics"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/tracing"
+	libint "github.com/scionproto/scion/tools/integration"
+	integration "github.com/scionproto/scion/tools/integration/integrationlib"
+)
+
+const (
+	ping = "ping"
+	pong = "pong"
+)
+
+type Ping struct {
+	Server  addr.IA `json:"server"`
+	Message string  `json:"message"`
+	Trace   []byte  `json:"trace"`
+}
+
+type Pong struct {
+	Client  addr.IA `json:"client"`
+	Server  addr.IA `json:"server"`
+	Message string  `json:"message"`
+	Trace   []byte  `json:"trace"`
+}
+
+var (
+	remote                 snet.UDPAddr
+	timeout                = &util.DurWrap{Duration: 10 * time.Second}
+	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
+	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 )
 
 func main() {
@@ -61,286 +79,21 @@ func main() {
 }
 
 func realMain() int {
-	var serverMode bool
-	var serverAddrStr, clientAddrStr string
-	var protocol uint16
-	var fetchSV bool
-	var scionEnv env.SCIONEnvironment
+	var remote, local string
 
-	scionEnv.Register(flag.CommandLine)
-	flag.BoolVar(&serverMode, "server", false, "Demonstrate server-side key derivation."+
-		" (default demonstrate client-side key fetching)")
-	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
-	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
-	flag.Uint16Var(&protocol, "protocol", 1 /* SCMP */, "DRKey protocol identifier.")
-	flag.BoolVar(&fetchSV, "fetch-sv", false,
-		"Fetch protocol specific secret value to derive server-side keys.")
-	flag.Parse()
-	if err := scionEnv.LoadExternalVars(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
-		return 2
-	}
-
-	// NOTE: should parse addresses as snet.SCIONAddress not snet.UDPAddress, but
-	// these parsing functions don't exist yet.
-	serverAddr, err := snet.ParseUDPAddr(serverAddrStr)
+	flag.StringVar(&remote, "remote", "", "")
+	flag.StringVar(&local, "local", "", "")
+	err := integration.Setup()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid --server-addr '%s': %s\n", serverAddrStr, err)
-		return 2
-	}
-	clientAddr, err := snet.ParseUDPAddr(clientAddrStr)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid --client-addr '%s': %s\n", clientAddrStr, err)
-		return 2
-	}
-
-	if !serverMode && fetchSV {
-		fmt.Fprintf(os.Stderr, "Invalid flag --fetch-sv for client-side key derivation\n")
-		return 2
-	}
-
-	ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelF()
-
-	// meta describes the key that both client and server derive
-	meta := drkey.HostHostMeta{
-		ProtoId: drkey.Protocol(protocol),
-		// Validity timestamp; both sides need to use a validity time stamp in the same epoch.
-		// Usually this is coordinated by means of a timestamp in the message.
-		Validity: time.Now(),
-		// SrcIA is the AS on the "fast side" of the DRKey derivation;
-		// the server side in this example.
-		SrcIA: serverAddr.IA,
-		// DstIA is the AS on the "slow side" of the DRKey derivation;
-		// the client side in this example.
-		DstIA:   clientAddr.IA,
-		SrcHost: serverAddr.Host.IP.String(),
-		DstHost: clientAddr.Host.IP.String(),
-	}
-
-	daemon, err := daemon.NewService(scionEnv.Daemon()).Connect(ctx)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error dialing SCION Daemon:", err)
+		log.Error("Parsing common flags failed", "err", err)
 		return 1
 	}
-
-	if serverMode {
-		// Server: get the Secret Value (SV) for the protocol and derive all
-		// subsequent keys in-process
-		server := Server{daemon}
-		var serverKey drkey.HostHostKey
-		var t0, t1, t2 time.Time
-		if fetchSV {
-			// Fetch the Secret Value (SV); in a real application, this is only done at
-			// startup and refreshed for each epoch.
-			t0 = time.Now()
-			sv, err := server.FetchSV(ctx, drkey.SecretValueMeta{
-				ProtoId:  meta.ProtoId,
-				Validity: meta.Validity,
-			})
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error fetching secret value:", err)
-				return 1
-			}
-			t1 = time.Now()
-			serverKey, err = server.DeriveHostHostKeySpecific(sv, meta)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
-				return 1
-			}
-			t2 = time.Now()
-		} else {
-			// Fetch host-AS key (Level 2). This key can be used to derive keys for
-			// all hosts in the destination AS. Depending on the application, it can
-			// be cached and refreshed for each epoch.
-			t0 = time.Now()
-			hostASKey, err := server.FetchHostASKey(ctx, drkey.HostASMeta{
-				ProtoId:  meta.ProtoId,
-				Validity: meta.Validity,
-				SrcIA:    meta.SrcIA,
-				DstIA:    meta.DstIA,
-				SrcHost:  meta.SrcHost,
-			})
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error fetching host-AS key:", err)
-				return 1
-			}
-			t1 = time.Now()
-			serverKey, err = server.DeriveHostHostKeyGeneric(hostASKey, meta)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
-				return 1
-			}
-			t2 = time.Now()
-		}
-		fmt.Printf(
-			"Server: host key = %s, protocol = %s, fetch-sv = %v"+
-				"\n\tduration without cache: %s\n\tduration with cache: %s\n",
-			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, fetchSV, t2.Sub(t0), t2.Sub(t1),
-		)
-	} else {
-		// Client: fetch key from daemon
-		// The daemon will in turn obtain the key from the local CS
-		// The CS will fetch the Lvl1 key from the CS in the SrcIA (the server's AS)
-		// and derive the Host key based on this.
-		client := Client{daemon}
-		var t0, t1 time.Time
-		t0 = time.Now()
-		clientKey, err := client.FetchHostHostKey(ctx, meta)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error fetching key:", err)
-			return 1
-		}
-		t1 = time.Now()
-
-		fmt.Printf(
-			"Client: host key = %s, protocol = %s\n\tduration: %s\n",
-			hex.EncodeToString(clientKey.Key[:]), meta.ProtoId, t1.Sub(t0),
-		)
+	if integration.Mode == integration.ModeServer {
+		server{}.run()
+		return 0
 	}
-	return 0
-}
-
-type Client struct {
-	daemon daemon.Connector
-}
-
-func (c Client) FetchHostHostKey(
-	ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
-
-	// get level 3 key: (slow path)
-	return c.daemon.DRKeyGetHostHostKey(ctx, meta)
-}
-
-type Server struct {
-	daemon daemon.Connector
-}
-
-func (s Server) DeriveHostHostKeySpecific(
-	sv drkey.SecretValue,
-	meta drkey.HostHostMeta,
-) (drkey.HostHostKey, error) {
-
-	var deriver specific.Deriver
-	lvl1, err := deriver.DeriveLevel1(meta.DstIA, sv.Key)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving level 1 key", err)
-	}
-	asHost, err := deriver.DeriveHostAS(meta.SrcHost, lvl1)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-AS key", err)
-	}
-	hosthost, err := deriver.DeriveHostHost(meta.DstHost, asHost)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
-	}
-	return drkey.HostHostKey{
-		ProtoId: sv.ProtoId,
-		Epoch:   sv.Epoch,
-		SrcIA:   meta.SrcIA,
-		DstIA:   meta.DstIA,
-		SrcHost: meta.SrcHost,
-		DstHost: meta.DstHost,
-		Key:     hosthost,
-	}, nil
-}
-
-func (s Server) DeriveHostHostKeyGeneric(
-	hostAS drkey.HostASKey,
-	meta drkey.HostHostMeta,
-) (drkey.HostHostKey, error) {
-
-	deriver := generic.Deriver{
-		Proto: hostAS.ProtoId,
-	}
-	hosthost, err := deriver.DeriveHostHost(meta.DstHost, hostAS.Key)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
-	}
-	return drkey.HostHostKey{
-		ProtoId: hostAS.ProtoId,
-		Epoch:   hostAS.Epoch,
-		SrcIA:   meta.SrcIA,
-		DstIA:   meta.DstIA,
-		SrcHost: meta.SrcHost,
-		DstHost: meta.DstHost,
-		Key:     hosthost,
-	}, nil
-}
-
-// FetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
-// From this SV, all keys for this protocol/epoch can be derived locally.
-// The IP address of the server must be explicitly allowed to abtain this SV
-// from the the control server.
-func (s Server) FetchSV(
-	ctx context.Context,
-	meta drkey.SecretValueMeta,
-) (drkey.SecretValue, error) {
-
-	// Obtain CS address from scion daemon
-	svcs, err := s.daemon.SVCInfo(ctx, nil)
-	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("obtaining control service address", err)
-	}
-	cs := svcs[addr.SvcCS]
-	if len(cs) == 0 {
-		return drkey.SecretValue{}, serrors.New("no control service address found")
-	}
-
-	// Contact CS directly for SV
-	conn, err := grpc.DialContext(ctx, cs[0], grpc.WithInsecure())
-	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("dialing control service", err)
-	}
-	defer conn.Close()
-	client := cppb.NewDRKeyIntraServiceClient(conn)
-
-	rep, err := client.DRKeySecretValue(ctx, &cppb.DRKeySecretValueRequest{
-		ValTime:    timestamppb.New(meta.Validity),
-		ProtocolId: dkpb.Protocol(meta.ProtoId),
-	})
-	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("requesting drkey secret value", err)
-	}
-
-	key, err := getSecretFromReply(meta.ProtoId, rep)
-	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("validating drkey secret value reply", err)
-	}
-
-	return key, nil
-}
-
-func getSecretFromReply(
-	proto drkey.Protocol,
-	rep *cppb.DRKeySecretValueResponse,
-) (drkey.SecretValue, error) {
-
-	if err := rep.EpochBegin.CheckValid(); err != nil {
-		return drkey.SecretValue{}, err
-	}
-	if err := rep.EpochEnd.CheckValid(); err != nil {
-		return drkey.SecretValue{}, err
-	}
-	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
-	}
-	returningKey := drkey.SecretValue{
-		ProtoId: proto,
-		Epoch:   epoch,
-	}
-	copy(returningKey.Key[:], rep.Key)
-	return returningKey, nil
-}
-
-func (s Server) FetchHostASKey(
-	ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error) {
-
-	// get level 2 key: (fast path)
-	return s.daemon.DRKeyGetHostASKey(ctx, meta)
+	c := client{}
+	return c.run()
 }
 
 type server struct {
@@ -348,8 +101,8 @@ type server struct {
 }
 
 func (s server) run() {
-	fmt.Printf("Starting server", "isd_as", integration.Local.IA)
-	defer fmt.Printf("Finished server", "isd_as", integration.Local.IA)
+	fmt.Println("Starting server", "isd_as", integration.Local.IA)
+	defer fmt.Println("Finished server", "isd_as", integration.Local.IA)
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
@@ -372,7 +125,7 @@ func (s server) run() {
 		fmt.Printf("Port=%d\n", localAddr.Port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
-	fmt.Printf("Listening", "local",
+	fmt.Println("Listening", "local",
 		fmt.Sprintf("%v:%d", integration.Local.Host.IP, localAddr.Port))
 	s.fabridServer = fabridserver.NewFabridServer(&integration.Local, integration.SDConn())
 	s.fabridServer.ValidationHandler = func(connection *fabridserver.ClientConnection,
@@ -504,7 +257,7 @@ func (s server) handlePingFabrid(conn snet.PacketConn) error {
 			"data", pld,
 		))
 	}
-	fmt.Printf(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
+	fmt.Printf("Ping received from %s, sending pong.", p.Source)
 	raw, err := json.Marshal(Pong{
 		Client:  p.Source.IA,
 		Server:  integration.Local.IA,
@@ -541,7 +294,7 @@ func (s server) handlePingFabrid(conn snet.PacketConn) error {
 	if err := conn.WriteTo(&p, &ov); err != nil {
 		return withTag(serrors.WrapStr("sending reply", err))
 	}
-	fmt.Printf("Sent pong to", "client", p.Destination)
+	fmt.Println("Sent pong to", "client", p.Destination)
 	return nil
 }
 
@@ -556,8 +309,8 @@ type client struct {
 
 func (c *client) run() int {
 	pair := fmt.Sprintf("%s -> %s", integration.Local.IA, remote.IA)
-	fmt.Printf("Starting", "pair", pair)
-	defer fmt.Printf("Finished", "pair", pair)
+	fmt.Println("Starting", "pair", pair)
+	defer fmt.Println("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
@@ -569,7 +322,7 @@ func (c *client) run() int {
 		PacketConnMetrics: scionPacketConnMetrics,
 		Topology:          c.sdConn,
 	}
-	fmt.Printf("Send", "local",
+	fmt.Println("Send", "local",
 		fmt.Sprintf("%v,[%v] -> %v,[%v]",
 			integration.Local.IA, integration.Local.Host,
 			remote.IA, remote.Host))
@@ -623,14 +376,15 @@ func (c *client) attemptRequest(n int) bool {
 }
 
 func (c *client) fabridPing(ctx context.Context, n int, path snet.Path) (func(), error) {
-	rawPing, err := json.Marshal(Ping{
+	/*rawPing, err := json.Marshal(Ping{
 		Server:  remote.IA,
 		Message: ping,
 		Trace:   tracing.IDFromCtx(ctx),
 	})
 	if err != nil {
 		return nil, serrors.WrapStr("packing ping", err)
-	}
+	}*/
+	var err error
 	log.FromCtx(ctx).Info("Dialing", "remote", remote)
 	c.rawConn, err = c.network.OpenRaw(ctx, integration.Local.Host)
 	if err != nil {
@@ -639,7 +393,7 @@ func (c *client) fabridPing(ctx context.Context, n int, path snet.Path) (func(),
 	if err := c.rawConn.SetWriteDeadline(getDeadline(ctx)); err != nil {
 		return nil, serrors.WrapStr("setting write deadline", err)
 	}
-	fmt.Printf("sending ping", "attempt", n, "remote", remote, "local", c.rawConn.LocalAddr())
+	fmt.Println("sending ping", "attempt", n, "remote", remote, "local", c.rawConn.LocalAddr())
 	localAddr := c.rawConn.LocalAddr().(*net.UDPAddr)
 	hostIP, _ := netip.AddrFromSlice(remote.Host.IP)
 	dst := snet.SCIONAddress{IA: remote.IA, Host: addr.HostIP(hostIP)}
@@ -660,7 +414,7 @@ func (c *client) fabridPing(ctx context.Context, n int, path snet.Path) (func(),
 			},
 		},
 	}
-	fmt.Printf("sending packet", "packet", pkt)
+	fmt.Println("sending packet", "packet", pkt)
 	if err := c.rawConn.WriteTo(pkt, remote.NextHop); err != nil {
 		return nil, err
 	}
@@ -732,7 +486,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			return nil
 		}
 		hops := path.Metadata().Hops()
-		fmt.Printf("Fabrid path", "path", path, "hops", hops)
+		fmt.Println("Fabrid path", "path", path, "hops", hops)
 		// Use ZERO policy for all hops with fabrid, to just do path validation
 		policies := make([]*libfabrid.PolicyID, len(hops))
 		zeroPol := libfabrid.PolicyID(0)
@@ -742,12 +496,11 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			}
 		}
 		fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hops,
-			policies, fabridConfig, 125)
+			policies, fabridConfig, 125, c.sdConn.FabridKeys)
 		if err != nil {
 			return nil, serrors.New("Error creating FABRID path", "err", err)
 		}
 		remote.Path = fabridPath
-		fabridPath.RegisterDRKeyFetcher(c.sdConn.FabridKeys)
 
 	} else {
 		fmt.Printf("FABRID flag was set for client in non-FABRID AS. Proceeding without FABRID.")
@@ -780,7 +533,7 @@ func (c *client) pong(ctx context.Context) error {
 	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
 		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
-	fmt.Printf("Received pong", "server", serverAddr)
+	fmt.Println("Received pong", "server", serverAddr)
 	return nil
 }
 
@@ -848,7 +601,7 @@ func (c *client) fabridPong(ctx context.Context) error {
 	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
 		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
-	fmt.Printf("Received pong", "server", ov)
+	fmt.Println("Received pong", "server", ov)
 	return nil
 }
 
