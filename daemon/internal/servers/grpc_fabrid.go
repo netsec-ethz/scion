@@ -67,6 +67,11 @@ func updateFabridInfo(ctx context.Context, dialer libgrpc.Dialer, detachedHops [
 func findDetachedHops(paths []snet.Path) []tempHopInfo {
 	detachedHops := make([]tempHopInfo, 0)
 	for _, p := range paths {
+		// If the source AS does not support FABRID, the FABRID Info array will be empty.
+		if len(p.Metadata().FabridInfo) == 0 || len(p.Metadata().FabridInfo) != len(p.Metadata().
+			Interfaces)/2+1 {
+			continue
+		}
 		if p.Metadata().FabridInfo[0].Enabled && p.Metadata().FabridInfo[0].Detached {
 			detachedHops = append(detachedHops, tempHopInfo{
 				IA:      p.Metadata().Interfaces[0].IA,

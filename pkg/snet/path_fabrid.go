@@ -50,11 +50,11 @@ type FabridInfo struct {
 
 func (pm *PathMetadata) Hops() []HopInterface {
 	ifaces := pm.Interfaces
-	fabrid := pm.FabridInfo
+	fi := pm.FabridInfo
 	switch {
-	case len(ifaces)%2 != 0 || (len(fabrid) != len(ifaces)/2+1):
+	case len(ifaces)%2 != 0 || (len(fi) != len(ifaces)/2+1):
 		return []HopInterface{}
-	case len(ifaces) == 0 || len(fabrid) == 0:
+	case len(ifaces) == 0 || len(fi) == 0:
 		return []HopInterface{}
 	default:
 		hops := make([]HopInterface, 0, len(ifaces)/2+1)
@@ -62,23 +62,23 @@ func (pm *PathMetadata) Hops() []HopInterface {
 			IA:            ifaces[0].IA,
 			IgIf:          0,
 			EgIf:          ifaces[0].ID,
-			FabridEnabled: fabrid[0].Enabled,
-			Policies:      fabrid[0].Policies})
+			FabridEnabled: fi[0].Enabled,
+			Policies:      fi[0].Policies})
 		for i := 1; i < len(ifaces)-1; i += 2 {
 			hops = append(hops, HopInterface{
 				IA:            ifaces[i].IA,
 				IgIf:          ifaces[i].ID,
 				EgIf:          ifaces[i+1].ID,
-				FabridEnabled: fabrid[(i+1)/2].Enabled,
-				Policies:      fabrid[(i+1)/2].Policies,
+				FabridEnabled: fi[(i+1)/2].Enabled,
+				Policies:      fi[(i+1)/2].Policies,
 			})
 		}
 		hops = append(hops, HopInterface{
 			IA:            ifaces[len(ifaces)-1].IA,
 			IgIf:          ifaces[len(ifaces)-1].ID,
 			EgIf:          0,
-			FabridEnabled: fabrid[len(ifaces)/2].Enabled,
-			Policies:      fabrid[len(ifaces)/2].Policies,
+			FabridEnabled: fi[len(ifaces)/2].Enabled,
+			Policies:      fi[len(ifaces)/2].Policies,
 		})
 		return hops
 	}
