@@ -47,6 +47,7 @@ type RemoteMap struct {
 type FabridManager struct {
 	autoIncrIndex            int
 	asInterfaceIDs           []uint16
+	IA                       addr.IA
 	SupportedIndicesMap      fabrid_ext.SupportedIndicesMap
 	IndexIdentifierMap       fabrid_ext.IndexIdentifierMap
 	IdentifierDescriptionMap map[uint32]string
@@ -56,12 +57,14 @@ type FabridManager struct {
 	RemoteCacheValidity      time.Duration
 }
 
-func NewFabridManager(asInterfaceIDs []uint16, remoteCacheValidity time.Duration) *FabridManager {
+func NewFabridManager(asInterfaceIDs []uint16, remoteCacheValidity time.Duration,
+	ia addr.IA) *FabridManager {
 	fb := &FabridManager{
 		SupportedIndicesMap:      map[fabrid_ext.ConnectionPair][]uint8{},
 		IndexIdentifierMap:       map[uint8]*fabrid_ext.PolicyIdentifier{},
 		IdentifierDescriptionMap: map[uint32]string{},
 		MPLSMap:                  NewMplsMaps(),
+		IA:                       ia,
 		RemotePolicyCache:        map[RemotePolicyIdentifier]RemotePolicyDescription{},
 		RemoteMapsCache:          map[addr.IA]RemoteMap{},
 		RemoteCacheValidity:      remoteCacheValidity,

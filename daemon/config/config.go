@@ -131,6 +131,8 @@ type SDConfig struct {
 	// If HiddenPathGroups begins with http:// or https://, it will be fetched
 	// over the network from the specified URL instead.
 	HiddenPathGroups string `toml:"hidden_path_groups,omitempty"`
+	// FabridGlobalPolicyStore specifies the URL to the mapping of FABRID policies to descriptions.
+	FabridGlobalPolicyStore string `toml:"fabrid_global_policy_store,omitempty"`
 }
 
 func (cfg *SDConfig) InitDefaults() {
@@ -139,6 +141,9 @@ func (cfg *SDConfig) InitDefaults() {
 	}
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
+	}
+	if cfg.FabridGlobalPolicyStore == "" {
+		cfg.FabridGlobalPolicyStore = daemon.DefaultFabridGlobalPolicyStore
 	}
 }
 

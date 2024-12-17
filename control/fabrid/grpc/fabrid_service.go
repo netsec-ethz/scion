@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/control/fabrid"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/proto/control_plane/experimental"
 	fabridext "github.com/scionproto/scion/pkg/segment/extensions/fabrid"
 )
@@ -65,6 +66,16 @@ func (s Server) MPLSMap(ctx context.Context, request *experimental.MPLSMapReques
 func (s Server) RemotePolicyDescription(ctx context.Context,
 	request *experimental.RemotePolicyDescriptionRequest) (
 	*experimental.RemotePolicyDescriptionResponse, error) {
+	// Check if we are the target AS, in this case we do not need to call the remote AS, as it is
+	// local for us.
+	if addr.IA(request.IsdAs).Equal(s.FabridManager.IA) {
+		desc, ok := s.FabridManager.IdentifierDescriptionMap[request.PolicyIdentifier]
+		if ok {
+			return &experimental.RemotePolicyDescriptionResponse{Description: desc}, nil
+		}
+		return &experimental.RemotePolicyDescriptionResponse{},
+			serrors.New("local policy is unknown")
+	}
 	//TODO(jvanbommel): In a future PR we will add a third description map, which maps identifiers
 	// to descriptions, protecting this data by adding it into the digest in the signed AS entry.
 	identifier := fabrid.RemotePolicyIdentifier{

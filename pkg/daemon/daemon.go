@@ -39,6 +39,9 @@ const (
 	DefaultAPIAddress = "127.0.0.1:30255"
 	// DefaultAPIPort contains the default port for a daemon client API socket.
 	DefaultAPIPort = 30255
+	// DefaultFabridGlobalPolicyStore contains the default FABRID path policy store.
+	DefaultFabridGlobalPolicyStore = "https://raw.githubusercontent." +
+		"com/jeltevanbommel/fabrid-policies/refs/heads/main/"
 )
 
 // NewService returns a SCION Daemon API connection factory.
@@ -90,6 +93,9 @@ type Connector interface {
 	DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 	// FabridKeys requests FABRID DRKeys for all provided ASes and the path validation key
 	FabridKeys(ctx context.Context, meta drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error)
+	// PolicyDescription requests the string description for a FABRID policy
+	PolicyDescription(ctx context.Context, isLocal bool, identifier uint32,
+		ia *addr.IA) (string, error)
 	// Close shuts down the connection to the daemon.
 	Close() error
 }

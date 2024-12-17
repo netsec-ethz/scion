@@ -56,15 +56,16 @@ type Topology interface {
 
 // DaemonServer handles gRPC requests to the SCION daemon.
 type DaemonServer struct {
-	IA          addr.IA
-	MTU         uint16
-	Topology    Topology
-	Fetcher     fetcher.Fetcher
-	RevCache    revcache.RevCache
-	ASInspector trust.Inspector
-	DRKeyClient *drkey_daemon.ClientEngine
-	Dialer      libgrpc.Dialer
-	Metrics     Metrics
+	IA                      addr.IA
+	MTU                     uint16
+	Topology                Topology
+	Fetcher                 fetcher.Fetcher
+	RevCache                revcache.RevCache
+	ASInspector             trust.Inspector
+	DRKeyClient             *drkey_daemon.ClientEngine
+	Dialer                  libgrpc.Dialer
+	Metrics                 Metrics
+	FabridGlobalPolicyStore string
 
 	foregroundPathDedupe singleflight.Group
 	backgroundPathDedupe singleflight.Group

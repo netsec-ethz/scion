@@ -25,6 +25,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/daemon/config"
 	"github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/daemon/internal/servers"
@@ -115,6 +116,7 @@ type ServerConfig struct {
 	Topology    servers.Topology
 	DRKeyClient *drkey.ClientEngine
 	Dialer      libgrpc.Dialer
+	Cfg         config.SDConfig
 }
 
 // NewServer constructs a daemon API server.
@@ -125,12 +127,13 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		// TODO(JordiSubira): This will be changed in the future to fetch
 		// the information from the CS instead of feeding the configuration
 		// file into.
-		Topology:    cfg.Topology,
-		Fetcher:     cfg.Fetcher,
-		ASInspector: cfg.Engine.Inspector,
-		RevCache:    cfg.RevCache,
-		DRKeyClient: cfg.DRKeyClient,
-		Dialer:      cfg.Dialer,
+		FabridGlobalPolicyStore: cfg.Cfg.FabridGlobalPolicyStore,
+		Topology:                cfg.Topology,
+		Fetcher:                 cfg.Fetcher,
+		ASInspector:             cfg.Engine.Inspector,
+		RevCache:                cfg.RevCache,
+		DRKeyClient:             cfg.DRKeyClient,
+		Dialer:                  cfg.Dialer,
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{

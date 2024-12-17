@@ -271,6 +271,7 @@ func realMain(ctx context.Context) error {
 			IA:       topo.IA(),
 			MTU:      topo.MTU(),
 			Topology: topo,
+			Cfg:      globalCfg.SD,
 			Fetcher: fetcher.NewFetcher(
 				fetcher.FetcherConfig{
 					IA:         topo.IA(),

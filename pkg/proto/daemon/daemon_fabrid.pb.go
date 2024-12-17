@@ -337,6 +337,116 @@ func (x *FabridKeysResponse) GetHostHostKey() *FabridKeyResponse {
 	return nil
 }
 
+type PolicyDescriptionRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	IsLocal          bool   `protobuf:"varint,1,opt,name=is_local,json=isLocal,proto3" json:"is_local,omitempty"`
+	PolicyIdentifier uint32 `protobuf:"varint,2,opt,name=policy_identifier,json=policyIdentifier,proto3" json:"policy_identifier,omitempty"`
+	IsdAs            uint64 `protobuf:"varint,3,opt,name=isd_as,json=isdAs,proto3" json:"isd_as,omitempty"`
+}
+
+func (x *PolicyDescriptionRequest) Reset() {
+	*x = PolicyDescriptionRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PolicyDescriptionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicyDescriptionRequest) ProtoMessage() {}
+
+func (x *PolicyDescriptionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicyDescriptionRequest.ProtoReflect.Descriptor instead.
+func (*PolicyDescriptionRequest) Descriptor() ([]byte, []int) {
+	return file_proto_daemon_v1_daemon_fabrid_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PolicyDescriptionRequest) GetIsLocal() bool {
+	if x != nil {
+		return x.IsLocal
+	}
+	return false
+}
+
+func (x *PolicyDescriptionRequest) GetPolicyIdentifier() uint32 {
+	if x != nil {
+		return x.PolicyIdentifier
+	}
+	return 0
+}
+
+func (x *PolicyDescriptionRequest) GetIsdAs() uint64 {
+	if x != nil {
+		return x.IsdAs
+	}
+	return 0
+}
+
+type PolicyDescriptionResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Description string `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+}
+
+func (x *PolicyDescriptionResponse) Reset() {
+	*x = PolicyDescriptionResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PolicyDescriptionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicyDescriptionResponse) ProtoMessage() {}
+
+func (x *PolicyDescriptionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicyDescriptionResponse.ProtoReflect.Descriptor instead.
+func (*PolicyDescriptionResponse) Descriptor() ([]byte, []int) {
+	return file_proto_daemon_v1_daemon_fabrid_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PolicyDescriptionResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 var File_proto_daemon_v1_daemon_fabrid_proto protoreflect.FileDescriptor
 
 var file_proto_daemon_v1_daemon_fabrid_proto_rawDesc = []byte{
@@ -399,10 +509,22 @@ var file_proto_daemon_v1_daemon_fabrid_proto_rawDesc = []byte{
 	0x2e, 0x46, 0x61, 0x62, 0x72, 0x69, 0x64, 0x4b, 0x65, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
 	0x73, 0x65, 0x48, 0x00, 0x52, 0x0b, 0x68, 0x6f, 0x73, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x4b, 0x65,
 	0x79, 0x88, 0x01, 0x01, 0x42, 0x10, 0x0a, 0x0e, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x68, 0x6f,
-	0x73, 0x74, 0x5f, 0x6b, 0x65, 0x79, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
-	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
-	0x73, 0x63, 0x69, 0x6f, 0x6e, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
-	0x64, 0x61, 0x65, 0x6d, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x74, 0x5f, 0x6b, 0x65, 0x79, 0x22, 0x79, 0x0a, 0x18, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79,
+	0x44, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x19, 0x0a, 0x08, 0x69, 0x73, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x69, 0x73, 0x4c, 0x6f, 0x63, 0x61, 0x6c, 0x12, 0x2b, 0x0a,
+	0x11, 0x70, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x5f, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69,
+	0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x10, 0x70, 0x6f, 0x6c, 0x69, 0x63, 0x79,
+	0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x65, 0x72, 0x12, 0x15, 0x0a, 0x06, 0x69, 0x73,
+	0x64, 0x5f, 0x61, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x69, 0x73, 0x64, 0x41,
+	0x73, 0x22, 0x3d, 0x0a, 0x19, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x44, 0x65, 0x73, 0x63, 0x72,
+	0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x20,
+	0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e,
+	0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x73,
+	0x63, 0x69, 0x6f, 0x6e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e, 0x2f,
+	0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x64, 0x61, 0x65, 0x6d, 0x6f, 0x6e,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -417,21 +539,23 @@ func file_proto_daemon_v1_daemon_fabrid_proto_rawDescGZIP() []byte {
 	return file_proto_daemon_v1_daemon_fabrid_proto_rawDescData
 }
 
-var file_proto_daemon_v1_daemon_fabrid_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proto_daemon_v1_daemon_fabrid_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_proto_daemon_v1_daemon_fabrid_proto_goTypes = []interface{}{
 	(*FabridInfo)(nil),                          // 0: proto.daemon.v1.FabridInfo
 	(*FabridPolicy)(nil),                        // 1: proto.daemon.v1.FabridPolicy
 	(*FabridKeysRequest)(nil),                   // 2: proto.daemon.v1.FabridKeysRequest
 	(*FabridKeyResponse)(nil),                   // 3: proto.daemon.v1.FabridKeyResponse
 	(*FabridKeysResponse)(nil),                  // 4: proto.daemon.v1.FabridKeysResponse
-	(*experimental.FABRIDPolicyIdentifier)(nil), // 5: proto.control_plane.experimental.v1.FABRIDPolicyIdentifier
-	(*timestamppb.Timestamp)(nil),               // 6: google.protobuf.Timestamp
+	(*PolicyDescriptionRequest)(nil),            // 5: proto.daemon.v1.PolicyDescriptionRequest
+	(*PolicyDescriptionResponse)(nil),           // 6: proto.daemon.v1.PolicyDescriptionResponse
+	(*experimental.FABRIDPolicyIdentifier)(nil), // 7: proto.control_plane.experimental.v1.FABRIDPolicyIdentifier
+	(*timestamppb.Timestamp)(nil),               // 8: google.protobuf.Timestamp
 }
 var file_proto_daemon_v1_daemon_fabrid_proto_depIdxs = []int32{
 	1, // 0: proto.daemon.v1.FabridInfo.policies:type_name -> proto.daemon.v1.FabridPolicy
-	5, // 1: proto.daemon.v1.FabridPolicy.policy_identifier:type_name -> proto.control_plane.experimental.v1.FABRIDPolicyIdentifier
-	6, // 2: proto.daemon.v1.FabridKeyResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	6, // 3: proto.daemon.v1.FabridKeyResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	7, // 1: proto.daemon.v1.FabridPolicy.policy_identifier:type_name -> proto.control_plane.experimental.v1.FABRIDPolicyIdentifier
+	8, // 2: proto.daemon.v1.FabridKeyResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	8, // 3: proto.daemon.v1.FabridKeyResponse.epoch_end:type_name -> google.protobuf.Timestamp
 	3, // 4: proto.daemon.v1.FabridKeysResponse.as_host_keys:type_name -> proto.daemon.v1.FabridKeyResponse
 	3, // 5: proto.daemon.v1.FabridKeysResponse.host_host_key:type_name -> proto.daemon.v1.FabridKeyResponse
 	6, // [6:6] is the sub-list for method output_type
@@ -507,6 +631,30 @@ func file_proto_daemon_v1_daemon_fabrid_proto_init() {
 				return nil
 			}
 		}
+		file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PolicyDescriptionRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PolicyDescriptionResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[2].OneofWrappers = []interface{}{}
 	file_proto_daemon_v1_daemon_fabrid_proto_msgTypes[4].OneofWrappers = []interface{}{}
@@ -516,7 +664,7 @@ func file_proto_daemon_v1_daemon_fabrid_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_proto_daemon_v1_daemon_fabrid_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

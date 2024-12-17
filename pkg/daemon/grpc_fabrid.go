@@ -17,6 +17,7 @@ package daemon
 import (
 	"context"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/experimental/fabrid"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
@@ -90,4 +91,22 @@ func (c grpcConn) FabridKeys(ctx context.Context, meta drkey.FabridKeysMeta,
 		ASHostKeys: asHostKeys,
 		PathKey:    hostHostKey,
 	}, nil
+}
+
+func (c grpcConn) PolicyDescription(ctx context.Context,
+	isLocal bool, identifier uint32, ia *addr.IA) (string, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	request := &sdpb.PolicyDescriptionRequest{
+		IsLocal:          isLocal,
+		PolicyIdentifier: identifier,
+	}
+	if isLocal {
+		request.IsdAs = uint64(*ia)
+	}
+	response, err := client.PolicyDescription(ctx, request)
+	if err != nil {
+		return "", err
+	}
+	return response.Description, nil
 }

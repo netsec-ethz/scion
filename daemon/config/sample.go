@@ -29,4 +29,8 @@ query_interval = "5m"
 
 # The configuration containing hidden path groups. (default "")
 hidden_path_groups =  ""
+
+# The main URL to the mapping of FABRID policies to descriptions. (default https://raw.
+# githubusercontent.com/jeltevanbommel/fabrid-policies/refs/heads/main/)
+fabrid_global_policy_store = ""
 `
