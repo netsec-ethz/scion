@@ -41,7 +41,7 @@ const (
 	DefaultAPIPort = 30255
 	// DefaultFabridGlobalPolicyStore contains the default FABRID path policy store.
 	DefaultFabridGlobalPolicyStore = "https://raw.githubusercontent." +
-		"com/jeltevanbommel/fabrid-policies/refs/heads/main/"
+		"com/netsec-ethz/scionlab-fabrid-policies/refs/heads/master/policies/"
 )
 
 // NewService returns a SCION Daemon API connection factory.

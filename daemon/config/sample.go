@@ -31,6 +31,6 @@ query_interval = "5m"
 hidden_path_groups =  ""
 
 # The main URL to the mapping of FABRID policies to descriptions. (default https://raw.
-# githubusercontent.com/jeltevanbommel/fabrid-policies/refs/heads/main/)
+# githubusercontent.com/netsec-ethz/scionlab-fabrid-policies/refs/heads/master/policies/)
 fabrid_global_policy_store = ""
 `
