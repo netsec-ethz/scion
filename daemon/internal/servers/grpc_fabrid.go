@@ -225,7 +225,7 @@ func (s *DaemonServer) PolicyDescription(ctx context.Context,
 		}
 		description = response.Description
 	} else {
-		globalPolicyURL := fmt.Sprintf(s.FabridGlobalPolicyStore+"/%d.json",
+		globalPolicyURL := fmt.Sprintf("%s/%d.json", s.FabridGlobalPolicyStore,
 			request.PolicyIdentifier)
 
 		// Fetch the global policy from the URL
