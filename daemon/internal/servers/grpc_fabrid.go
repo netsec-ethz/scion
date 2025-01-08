@@ -94,7 +94,6 @@ func (s *DaemonServer) fetchFabridDetachedMaps(ctx context.Context, paths []snet
 // paths.
 func findDetachedHops(meta *snet.PathMetadata) []tempHopInfo {
 	detachedHops := make([]tempHopInfo, 0)
-	log.Info("findDetachedHops")
 	// If the source AS does not support FABRID, the FABRID Info array will be empty.
 	if len(meta.FabridInfo) == 0 || len(meta.FabridInfo) != len(meta.Interfaces)/2+1 {
 		log.Info("source AS does not support FABRID")
