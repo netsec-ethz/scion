@@ -303,7 +303,6 @@ func (s server) handlePingFabrid(conn snet.PacketConn) error {
 
 type client struct {
 	network *snet.SCIONNetwork
-	//conn    *snet.Conn
 	rawConn snet.PacketConn
 	sdConn  daemon.Connector
 
@@ -485,6 +484,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			LocalAddr:       integration.Local.Host.IP.String(),
 			DestinationIA:   remote.IA,
 			DestinationAddr: remote.Host.IP.String(),
+			ValidationRatio: 128,
 		}
 		fabridConfig.ValidationHandler = func(ps *common2.PathState,
 			option *extension.FabridControlOption, b bool) error {
@@ -505,7 +505,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			}
 		}
 		fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hops,
-			policies, fabridConfig, 128, c.sdConn.FabridKeys)
+			policies, fabridConfig, c.sdConn.FabridKeys)
 		if err != nil {
 			return nil, serrors.New("Error creating FABRID path", "err", err)
 		}

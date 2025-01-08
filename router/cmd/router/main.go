@@ -63,6 +63,7 @@ func realMain(ctx context.Context) error {
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
 			DRKeyProvider:                  &control.DRKeyProvider{},
+			Fabrid:                         globalCfg.Router.Fabrid,
 		},
 		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:      globalCfg.Router.SendBufferSize,
@@ -157,7 +158,6 @@ func realMain(ctx context.Context) error {
 			NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
 			BatchSize:             globalCfg.Router.BatchSize,
 		}
-		dp.DataPlane.Fabrid = globalCfg.Router.Fabrid
 		if err := dp.DataPlane.Run(errCtx, runConfig); err != nil {
 			return serrors.WrapStr("running dataplane", err)
 		}

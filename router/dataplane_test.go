@@ -243,7 +243,8 @@ func TestDataPlaneRun(t *testing.T) {
 	}{
 		"fabrid basic": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics, DRKeyProvider: &control.DRKeyProvider{}}
+				ret := &router.DataPlane{Metrics: metrics, DRKeyProvider: &control.DRKeyProvider{},
+					Fabrid: true}
 				ret.DRKeyProvider.Init()
 				key := []byte("testkey_xxxxxxxx")
 				dstIA := xtest.MustParseIA("4-ff00:0:411")
@@ -475,7 +476,8 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"fabrid mpls ingress egress different router": {
 			prepareDP: func(c1 *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics, DRKeyProvider: &control.DRKeyProvider{}}
+				ret := &router.DataPlane{Metrics: metrics, DRKeyProvider: &control.DRKeyProvider{},
+					Fabrid: true}
 				ret.DRKeyProvider.Init()
 				key := []byte("testkey_xxxxxxxx")
 				dstIA := xtest.MustParseIA("4-ff00:0:411")
@@ -697,7 +699,8 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"fabrid mpls internal traffic": {
 			prepareDP: func(c1 *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics, DRKeyProvider: &control.DRKeyProvider{}}
+				ret := &router.DataPlane{Metrics: metrics, DRKeyProvider: &control.DRKeyProvider{},
+					Fabrid: true}
 				ret.DRKeyProvider.Init()
 				key := []byte("testkey_xxxxxxxx")
 				dstIA := xtest.MustParseIA("4-ff00:0:411")

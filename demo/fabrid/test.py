@@ -17,12 +17,9 @@
 import logging
 import os
 import random
-import re
-from subprocess import CalledProcessError
 import time
 import yaml
 import threading
-import sys
 
 from plumbum import local
 from plumbum.path import LocalPath
@@ -66,25 +63,25 @@ class Test(base.TestTopogen):
             rs = ""
             try:
                 rs = self.dc.execute("endhost_%s" % self.server_isd_as.file_fmt(),
-                                    "fabrid-demo", "--mode=server",
-                                    "--local", server_addr_with_port, "--remote", client_addr)
+                                     "fabrid-demo", "--mode=server",
+                                     "--local", server_addr_with_port, "--remote", client_addr)
             except _CalledProcessErrorWithOutput as e:
                 rs = "STDOUT:\n%s\nSTDERR:%s\n" % (e.base.stdout, e.base.stderr)
             print("server output\n", rs)
-        
+
         def start_client_task():
             rc = ""
             try:
                 rc = self.dc.execute("endhost_%s" % self.client_isd_as.file_fmt(),
-                                    "fabrid-demo", "--mode=client",
-                                    "--remote", server_addr_with_port, "--local", client_addr)
+                                     "fabrid-demo", "--mode=client",
+                                     "--remote", server_addr_with_port, "--local", client_addr)
                 self.dc.execute("endhost_%s" % self.server_isd_as.file_fmt(),
-                                    "pkill", "fabrid-demo")
+                                "pkill", "fabrid-demo")
             except Exception as e:
                 print(f"Error in start_client_task: {e}")
                 failure_detected.set()
             print("client output\n", rc)
-        
+
         thread1 = threading.Thread(target=start_server_task)
         thread2 = threading.Thread(target=start_client_task)
 

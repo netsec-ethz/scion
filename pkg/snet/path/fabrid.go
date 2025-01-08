@@ -37,6 +37,7 @@ type FabridConfig struct {
 	DestinationIA     addr.IA
 	DestinationAddr   string
 	ValidationHandler func(*common.PathState, *extension.FabridControlOption, bool) error
+	ValidationRatio   uint8
 }
 
 type FABRID struct {
@@ -60,8 +61,8 @@ type FABRID struct {
 // Initializes a FABRID Dataplane path. The probability of requesting a source validation
 // action is roughly 'validationRatio'/256.
 func NewFABRIDDataplanePath(p SCION, hops []snet.HopInterface, policyIDs []*fabrid.PolicyID,
-	conf *FabridConfig, validationRatio uint8,
-	getFabridKeys func(context.Context, drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error)) (*FABRID, error) {
+	conf *FabridConfig, getFabridKeys func(context.Context, drkey.FabridKeysMeta) (
+		drkey.FabridKeysResponse, error)) (*FABRID, error) {
 
 	numHops := len(hops)
 	var decoded scion.Decoded
@@ -91,7 +92,7 @@ func NewFABRIDDataplanePath(p SCION, hops []snet.HopInterface, policyIDs []*fabr
 		e2eBuffer:        make([]byte, 5*2),
 		Raw:              append([]byte(nil), p.Raw...),
 		policyIDs:        policyIDs,
-		pathState:        common.NewFabridPathState(validationRatio),
+		pathState:        common.NewFabridPathState(conf.ValidationRatio),
 		getFabridKeys:    getFabridKeys,
 	}
 
@@ -103,9 +104,9 @@ func NewFABRIDDataplanePath(p SCION, hops []snet.HopInterface, policyIDs []*fabr
 	}
 	f.baseTimestamp = decoded.InfoFields[0].Timestamp
 	if f.pathKey == nil {
-		log.Debug("You are sending FABRID packets to a host inside an AS that does not support FABRID. " +
-			"Path validation will only be available for the FABRID-enabled on-path routers. Path validation " +
-			"at source won't be possible.")
+		log.Debug("You are sending FABRID packets to a host inside an AS that does not " +
+			"support FABRID. Path validation will only be available for the FABRID-enabled " +
+			"on-path routers. Path validation at source won't be possible.")
 	}
 	return f, nil
 }
@@ -186,79 +187,87 @@ func (f *FABRID) SetExtensions(s *slayers.SCION, p *snet.PacketInfo) error {
 			ActualLength: fabridLength,
 		})
 
+	// If the path key is nil, we assume the destination AS does not support FABRID.
+	// So in that case we won't be able to receive any validation responses.
+	// So validation at source won't be possible.
 	if f.pathKey != nil {
-		// If the path key is nil, we assume the destination AS does not support FABRID.
-		// So in that case we won't be able to receive any validation responses.
-		// So validation at source won't be possible.
-		if valNumber < f.pathState.ValidationRatio {
-			err = f.pathState.StoreValidationResponse(pathValReply,
-				identifierOption.GetRelativeTimestamp(),
-				f.counter)
-			if err != nil {
-				return err
-			}
+		err = f.setControlOptionsExtensions(valNumber, pathValReply, identifierOption, p)
+		if err != nil {
+			return err
 		}
+	}
+	f.counter++
+	f.pathState.Stats.TotalPackets++
+	return nil
+}
 
-		var e2eOpts []*extension.FabridControlOption
-		if f.pathState.UpdateValRatio {
-			valConfigOption := extension.NewFabridControlOption(extension.ValidationConfig)
-			err = valConfigOption.SetValidationRatio(f.pathState.ValidationRatio)
-			if err != nil {
-				return err
-			}
-			e2eOpts = append(e2eOpts, valConfigOption)
-			f.pathState.UpdateValRatio = false
-			log.Debug("FABRID control: outgoing validation config",
-				"valRatio", f.pathState.ValidationRatio)
+func (f *FABRID) setControlOptionsExtensions(valNumber uint8, pathValReply uint32,
+	identifierOption *extension.IdentifierOption, p *snet.PacketInfo) error {
+	var err error
+	if valNumber < f.pathState.ValidationRatio {
+		err = f.pathState.StoreValidationResponse(pathValReply,
+			identifierOption.GetRelativeTimestamp(),
+			f.counter)
+		if err != nil {
+			return err
 		}
-		if f.pathState.RequestStatistics {
-			statisticsRequestOption := &extension.FabridControlOption{
-				Type: extension.StatisticsRequest,
-				Auth: [4]byte{},
-			}
-			err = statisticsRequestOption.SetTimestamp(identifierOption.GetRelativeTimestamp())
-			if err != nil {
-				return err
-			}
-			err = statisticsRequestOption.SetPacketID(identifierOption.PacketID)
-			if err != nil {
-				return err
-			}
-
-			e2eOpts = append(e2eOpts, statisticsRequestOption)
-			f.pathState.RequestStatistics = false
-			log.Debug("FABRID control: sending statistics request")
-		}
-		if len(e2eOpts) > 0 {
-			if p.E2eExtension == nil {
-				p.E2eExtension = &slayers.EndToEndExtn{}
-			}
-			for i, replyOpt := range e2eOpts {
-				err = crypto.InitFabridControlValidator(replyOpt, identifierOption, f.pathKey.Key[:])
-				if err != nil {
-					return err
-				}
-				buffer := f.e2eBuffer[i*5 : (i+1)*5]
-				err = replyOpt.SerializeTo(buffer)
-				if err != nil {
-					return err
-				}
-				fabridReplyOptionLength := extension.BaseFabridControlLen +
-					extension.FabridControlOptionDataLen(replyOpt.Type)
-				p.E2eExtension.Options = append(p.E2eExtension.Options,
-					&slayers.EndToEndOption{
-						OptType:      slayers.OptTypeFabridControl,
-						OptData:      buffer,
-						OptDataLen:   uint8(fabridReplyOptionLength),
-						ActualLength: fabridReplyOptionLength,
-					})
-			}
-		}
-
-		f.counter++
-		f.pathState.Stats.TotalPackets++
 	}
 
+	var e2eOpts []*extension.FabridControlOption
+	if f.pathState.UpdateValRatio {
+		valConfigOption := extension.NewFabridControlOption(extension.ValidationConfig)
+		err = valConfigOption.SetValidationRatio(f.pathState.ValidationRatio)
+		if err != nil {
+			return err
+		}
+		e2eOpts = append(e2eOpts, valConfigOption)
+		f.pathState.UpdateValRatio = false
+		log.Debug("FABRID control: outgoing validation config",
+			"valRatio", f.pathState.ValidationRatio)
+	}
+	if f.pathState.RequestStatistics {
+		statisticsRequestOption := &extension.FabridControlOption{
+			Type: extension.StatisticsRequest,
+			Auth: [4]byte{},
+		}
+		err = statisticsRequestOption.SetTimestamp(identifierOption.GetRelativeTimestamp())
+		if err != nil {
+			return err
+		}
+		err = statisticsRequestOption.SetPacketID(identifierOption.PacketID)
+		if err != nil {
+			return err
+		}
+
+		e2eOpts = append(e2eOpts, statisticsRequestOption)
+		f.pathState.RequestStatistics = false
+		log.Debug("FABRID control: sending statistics request")
+	}
+	if len(e2eOpts) > 0 {
+		if p.E2eExtension == nil {
+			p.E2eExtension = &slayers.EndToEndExtn{}
+		}
+		for i, replyOpt := range e2eOpts {
+			err = crypto.InitFabridControlValidator(replyOpt, identifierOption, f.pathKey.Key[:])
+			if err != nil {
+				return err
+			}
+			buffer := f.e2eBuffer[i*5 : (i+1)*5]
+			err = replyOpt.SerializeTo(buffer)
+			if err != nil {
+				return err
+			}
+			fabridReplyOptionLength := extension.BaseFabridControlLen +
+				extension.FabridControlOptionDataLen(replyOpt.Type)
+			p.E2eExtension.Options = append(p.E2eExtension.Options,
+				&slayers.EndToEndOption{
+					OptType:      slayers.OptTypeFabridControl,
+					OptData:      buffer,
+					OptDataLen:   uint8(fabridReplyOptionLength),
+					ActualLength: fabridReplyOptionLength,
+				})
+		}
+	}
 	return nil
 }
 
