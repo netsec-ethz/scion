@@ -161,11 +161,11 @@ func EncryptPolicyID(f fabrid.PolicyID, id *ext.IdentifierOption,
 // with the path validator in the packet. Returns validation number and reply for path validation.
 // `tmpBuffer` requires at least (numHops*3 rounded up to next multiple of 16) + 16 bytes
 func VerifyPathValidator(f *ext.FabridOption, tmpBuffer []byte,
-	pathKey []byte) (uint8, uint32, bool, error) {
+	pathKey []byte) (uint8, uint32, error) {
 	inputLength := 3 * len(f.HopfieldMetadata)
 	requiredBufferLength := 16 + (inputLength+15)&^15
 	if len(tmpBuffer) < requiredBufferLength {
-		return 0, 0, false, serrors.New("tmpBuffer length is invalid", "expected",
+		return 0, 0, serrors.New("tmpBuffer length is invalid", "expected",
 			requiredBufferLength,
 			"actual", len(tmpBuffer))
 	}
@@ -174,16 +174,16 @@ func VerifyPathValidator(f *ext.FabridOption, tmpBuffer []byte,
 	}
 	err := macBlock(pathKey, tmpBuffer[:16], tmpBuffer[16:16+inputLength], tmpBuffer[16:])
 	if err != nil {
-		return 0, 0, false, err
+		return 0, 0, err
 	}
 	validationNumber := tmpBuffer[20]
 	validationReply := binary.BigEndian.Uint32(tmpBuffer[21:25])
 	if !bytes.Equal(tmpBuffer[16:20], f.PathValidator[:]) {
-		return validationNumber, validationReply, false, serrors.New("Path validator is not valid",
+		return validationNumber, validationReply, serrors.New("Path validator is not valid",
 			"validator", base64.StdEncoding.EncodeToString(f.PathValidator[:]),
 			"computed", base64.StdEncoding.EncodeToString(tmpBuffer[16:20]))
 	}
-	return validationNumber, validationReply, true, nil
+	return validationNumber, validationReply, nil
 }
 
 // InitValidators sets all HVFs of the FABRID option and computes the

@@ -135,12 +135,12 @@ func TestFailedValidation(t *testing.T) {
 						assert.NoError(t, err)
 					}
 				}
-				_, _, _, err = crypto.VerifyPathValidator(f, tmpBuffer, pathKey.Key[:])
+				_, _, err = crypto.VerifyPathValidator(f, tmpBuffer, pathKey.Key[:])
 				assert.NoError(t, err)
 				// until now we are in the success case. But now we modify a HVF to simulate
 				// adversarial actions and make sure that the path validator fails
 				f.HopfieldMetadata[0].HopValidationField = [3]byte{0, 0, 0}
-				_, _, _, err = crypto.VerifyPathValidator(f, tmpBuffer, pathKey.Key[:])
+				_, _, err = crypto.VerifyPathValidator(f, tmpBuffer, pathKey.Key[:])
 				assert.ErrorContains(t, err, "Path validator is not valid")
 			},
 		},
@@ -271,7 +271,7 @@ func TestSuccessfullValidators(t *testing.T) {
 							assert.NoError(t, err)
 						}
 					}
-					_, _, _, err = crypto.VerifyPathValidator(f, tmpBuffer, pathKey.Key[:])
+					_, _, err = crypto.VerifyPathValidator(f, tmpBuffer, pathKey.Key[:])
 					assert.NoError(t, err)
 				}
 			})

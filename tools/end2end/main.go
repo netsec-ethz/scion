@@ -317,8 +317,7 @@ func (c *client) attemptRequest(n int) bool {
 	}
 
 	if fabrid && remote.IA != integration.Local.IA {
-		for i := 0; i < 10; i++ {
-
+		doFabridPing := func() bool {
 			// Send ping
 			close, err := c.fabridPing(ctx, n, path)
 			if err != nil {
@@ -332,6 +331,12 @@ func (c *client) attemptRequest(n int) bool {
 				if path != nil {
 					c.errorPaths[snet.Fingerprint(path)] = struct{}{}
 				}
+				return false
+			}
+			return true
+		}
+		for i := 0; i < 10; i++ {
+			if !doFabridPing() {
 				return false
 			}
 		}

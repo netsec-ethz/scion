@@ -16,7 +16,6 @@ package server
 
 import (
 	"context"
-	crand "crypto/rand"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -49,6 +48,8 @@ type Server struct {
 	ValidationHandler  func(*ClientConnection, *extension.IdentifierOption, bool) error
 }
 
+// NewFabridServer initializes a state registry for FABRID connections from remote endhosts
+// to this endhost (hence called server)
 func NewFabridServer(local *snet.UDPAddr, sdConn daemon.Connector) *Server {
 	server := &Server{
 		Local:       *local,
@@ -80,6 +81,8 @@ func (s *Server) FetchHostHostKey(dstHost snet.SCIONAddress,
 	return hostHostKey.Key, nil
 }
 
+// HandleFabridPacket takes care of the FABRID validation state per remote, extracts the
+// FABRID control options, processes them and adds the result to the validation response
 func (s *Server) HandleFabridPacket(remote snet.SCIONAddress, fabridOption *extension.FabridOption,
 	identifierOption *extension.IdentifierOption,
 	controlOptions []*extension.FabridControlOption) (*slayers.EndToEndExtn, error) {
@@ -102,17 +105,21 @@ func (s *Server) HandleFabridPacket(remote snet.SCIONAddress, fabridOption *exte
 	}
 
 	client.Stats.TotalPackets++
-	validationNumber, validationReply, success, err := crypto.VerifyPathValidator(fabridOption,
+	validationNumber, validationReply, err := crypto.VerifyPathValidator(fabridOption,
 		client.tmpBuffer, client.pathKey[:])
 	if err != nil {
 		return nil, err
 	}
-	err = s.ValidationHandler(client, identifierOption, success)
+	err = s.ValidationHandler(client, identifierOption, err == nil)
 	if err != nil {
+		client.Stats.InvalidPackets++
 		return nil, err
 	}
 
 	var replyOpts []*extension.FabridControlOption
+	// here we iterate over all FABRID control options. This can be a validation config to
+	// set the requested validation ratio or a statistic request which asks for a statistics
+	// response containing the number of total packets and the number of invalid packets
 	for _, controlOption := range controlOptions {
 		err = crypto.VerifyFabridControlValidator(controlOption, identifierOption,
 			client.pathKey[:])
@@ -166,6 +173,8 @@ func (s *Server) HandleFabridPacket(remote snet.SCIONAddress, fabridOption *exte
 		}
 		replyOpts = append(replyOpts, controlReplyOpt)
 	}
+	// if the computed validation number is smaller than the configured validation ratio,
+	// a validation reply e2e option will be added to the validation response.
 	if validationNumber < client.ValidationRatio {
 		log.Debug("Send validation response", "packetID", identifierOption.PacketID,
 			"timestamp", identifierOption.GetRelativeTimestamp())
@@ -179,15 +188,6 @@ func (s *Server) HandleFabridPacket(remote snet.SCIONAddress, fabridOption *exte
 			return nil, err
 		}
 		replyOpts = append(replyOpts, validationReplyOpt)
-		// TODO: Remove testing code
-		randInt := make([]byte, 1)
-		_, err2 := crand.Read(randInt)
-		if err2 != nil {
-			return nil, err2
-		}
-		if randInt[0] < common.SERVER_FLAKINESS {
-			validationReply ^= 0xFFFFFFFF
-		}
 		err = validationReplyOpt.SetPathValidatorReply(validationReply)
 		if err != nil {
 			return nil, err

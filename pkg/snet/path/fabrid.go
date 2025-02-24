@@ -230,15 +230,6 @@ func (f *FABRID) setControlOptionsExtensions(valNumber uint8, pathValReply uint3
 			Type: extension.StatisticsRequest,
 			Auth: [4]byte{},
 		}
-		err = statisticsRequestOption.SetTimestamp(identifierOption.GetRelativeTimestamp())
-		if err != nil {
-			return err
-		}
-		err = statisticsRequestOption.SetPacketID(identifierOption.PacketID)
-		if err != nil {
-			return err
-		}
-
 		e2eOpts = append(e2eOpts, statisticsRequestOption)
 		f.pathState.RequestStatistics = false
 		log.Debug("FABRID control: sending statistics request")

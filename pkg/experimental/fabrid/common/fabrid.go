@@ -20,10 +20,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/extension"
 )
 
-// Testing options for failing validation
-const CLIENT_FLAKINESS = 0
-const SERVER_FLAKINESS = 0
-
 type Statistics struct {
 	TotalPackets   uint32
 	InvalidPackets uint32
