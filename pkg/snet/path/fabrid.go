@@ -46,7 +46,6 @@ type FABRID struct {
 	pathKey          *drkey.FabridKey
 	getFabridKeys    func(context.Context, drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error)
 	conf             *FabridConfig
-	counter          uint32
 	baseTimestamp    uint32
 	tmpBuffer        []byte
 	identifierBuffer []byte
@@ -141,7 +140,7 @@ func (f *FABRID) SetExtensions(s *slayers.SCION, p *snet.PacketInfo) error {
 	identifierOption := &extension.IdentifierOption{
 		Timestamp:     now,
 		BaseTimestamp: f.baseTimestamp,
-		PacketID:      f.counter,
+		PacketID:      f.pathState.Stats.TotalPackets,
 	}
 	fabridOption := &extension.FabridOption{
 		HopfieldMetadata: make([]*extension.FabridHopfieldMetadata, f.numHops),
@@ -196,7 +195,6 @@ func (f *FABRID) SetExtensions(s *slayers.SCION, p *snet.PacketInfo) error {
 			return err
 		}
 	}
-	f.counter++
 	f.pathState.Stats.TotalPackets++
 	return nil
 }
@@ -207,7 +205,7 @@ func (f *FABRID) setControlOptionsExtensions(valNumber uint8, pathValReply uint3
 	if valNumber < f.pathState.ValidationRatio {
 		err = f.pathState.StoreValidationResponse(pathValReply,
 			identifierOption.GetRelativeTimestamp(),
-			f.counter)
+			f.pathState.Stats.TotalPackets)
 		if err != nil {
 			return err
 		}
