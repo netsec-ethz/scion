@@ -24,80 +24,111 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/experimental/fabrid"
 	fabrid_utils "github.com/scionproto/scion/pkg/experimental/fabrid/graphutils"
-	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/proto/control_plane/experimental"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	fabrid_ext "github.com/scionproto/scion/pkg/segment/extensions/fabrid"
 	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
 )
 
 type tempHopInfo struct {
 	IA      addr.IA
-	Meta    *snet.PathMetadata
+	Digest  []byte
 	fiIdx   int
 	Ingress uint16
 	Egress  uint16
 }
 
-// updateFabridInfo updates the FABRID info that is contained in the path Metadata for detached
-// hops, by fetching the corresponding FABRID maps from the corresponding AS.
-func updateFabridInfo(ctx context.Context, dialer libgrpc.Dialer, detachedHops []tempHopInfo) {
-	conn, err := dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
-	if err != nil {
-		log.FromCtx(ctx).Debug("Dialing CS failed", "err", err)
-	}
-	defer conn.Close()
-	client := experimental.NewFABRIDIntraServiceClient(conn)
-	fabridMaps := make(map[addr.IA]fabrid_utils.FabridMapEntry)
-	for _, detachedHop := range detachedHops {
-		if _, ok := fabridMaps[detachedHop.IA]; !ok {
-			fabridMaps[detachedHop.IA] = fetchMaps(ctx, detachedHop.IA, client,
-				detachedHop.Meta.FabridInfo[detachedHop.fiIdx].Digest)
+// fetchFabridDetachedMaps uses findDetachedHops to find the detached hops in a path, for a given
+// list of paths. The detached map is then fetched with fetchMaps and the path in the list of paths
+// is updated. Parameter client may be nil.
+func (s *DaemonServer) fetchFabridDetachedMaps(ctx context.Context, paths []snet.Path,
+	client experimental.FABRIDIntraServiceClient) {
+	fetchedMaps := make(map[addr.IA]fabrid_utils.FabridMapEntry)
+	// Check for each path whether they have hops that have a detached map
+	for i := 0; i < len(paths); i++ {
+		pMeta := paths[i].Metadata()
+		hops := findDetachedHops(pMeta)
+		if len(hops) == 0 {
+			continue
 		}
-		detachedHop.Meta.FabridInfo[detachedHop.fiIdx] = *fabrid_utils.
-			GetFabridInfoForIntfs(detachedHop.IA, detachedHop.Ingress, detachedHop.Egress,
-				fabridMaps, true)
+		// There are detached hops, which means we need to update the path's metadata,
+		// create a copy.
+		newPath := snetpath.Path{
+			Src:           paths[i].Source(),
+			Dst:           paths[i].Destination(),
+			DataplanePath: paths[i].Dataplane(),
+			NextHop:       paths[i].UnderlayNextHop(),
+			Meta:          *paths[i].Metadata(),
+		}
+		// We need to fetch the detached hops, check if there is already a connection to the CS.
+		if client == nil {
+			conn, err := s.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
+			if err != nil {
+				log.FromCtx(ctx).Debug("Dialing CS failed", "err", err)
+				continue
+			}
+			defer conn.Close()
+			client = experimental.NewFABRIDIntraServiceClient(conn)
+		}
+		// Fetch the FABRID maps for this AS and update the metadata
+		for _, h := range hops {
+			// Only fetch if not previously fetched
+			if _, exist := fetchedMaps[h.IA]; !exist {
+				fetchedMaps[h.IA] = fetchMaps(ctx, h.IA, client, h.Digest)
+			}
+			// With the fetched map get an updated FABRID Info for this detached hop.
+			newFi := *fabrid_utils.GetFabridInfoForIntfs(h.IA, h.Ingress, h.Egress, fetchedMaps,
+				true)
+			// Update the metadata
+			newPath.Meta.FabridInfo[h.fiIdx] = newFi
+		}
+		// Update the path
+		paths[i] = newPath
 	}
 }
 
 // findDetachedHops finds the hops where the FABRID maps have been detached in a given list of
 // paths.
-func findDetachedHops(paths []snet.Path) []tempHopInfo {
+func findDetachedHops(meta *snet.PathMetadata) []tempHopInfo {
 	detachedHops := make([]tempHopInfo, 0)
-	for _, p := range paths {
-		if p.Metadata().FabridInfo[0].Enabled && p.Metadata().FabridInfo[0].Detached {
+	// If the source AS does not support FABRID, the FABRID Info array will be empty.
+	if len(meta.FabridInfo) == 0 || len(meta.FabridInfo) != len(meta.Interfaces)/2+1 {
+		log.Info("source AS does not support FABRID")
+		return detachedHops
+	}
+	if meta.FabridInfo[0].Enabled && meta.FabridInfo[0].Detached {
+		detachedHops = append(detachedHops, tempHopInfo{
+			IA:      meta.Interfaces[0].IA,
+			Digest:  meta.FabridInfo[0].Digest,
+			fiIdx:   0,
+			Ingress: 0,
+			Egress:  uint16(meta.Interfaces[0].ID),
+		})
+	}
+	for i := 1; i < len(meta.Interfaces)-1; i += 2 {
+		if meta.FabridInfo[(i+1)/2].Enabled &&
+			meta.FabridInfo[(i+1)/2].Detached {
 			detachedHops = append(detachedHops, tempHopInfo{
-				IA:      p.Metadata().Interfaces[0].IA,
-				Meta:    p.Metadata(),
-				fiIdx:   0,
-				Ingress: 0,
-				Egress:  uint16(p.Metadata().Interfaces[0].ID),
+				IA:      meta.Interfaces[i].IA,
+				Digest:  meta.FabridInfo[(i+1)/2].Digest,
+				fiIdx:   (i + 1) / 2,
+				Ingress: uint16(meta.Interfaces[i].ID),
+				Egress:  uint16(meta.Interfaces[i+1].ID),
 			})
 		}
-		for i := 1; i < len(p.Metadata().Interfaces)-1; i += 2 {
-			if p.Metadata().FabridInfo[(i+1)/2].Enabled &&
-				p.Metadata().FabridInfo[(i+1)/2].Detached {
-				detachedHops = append(detachedHops, tempHopInfo{
-					IA:      p.Metadata().Interfaces[i].IA,
-					Meta:    p.Metadata(),
-					fiIdx:   (i + 1) / 2,
-					Ingress: uint16(p.Metadata().Interfaces[i].ID),
-					Egress:  uint16(p.Metadata().Interfaces[i+1].ID),
-				})
-			}
-		}
-		if p.Metadata().FabridInfo[len(p.Metadata().Interfaces)/2].Enabled &&
-			p.Metadata().FabridInfo[len(p.Metadata().Interfaces)/2].Detached {
-			detachedHops = append(detachedHops, tempHopInfo{
-				IA:      p.Metadata().Interfaces[len(p.Metadata().Interfaces)-1].IA,
-				Meta:    p.Metadata(),
-				fiIdx:   len(p.Metadata().Interfaces) / 2,
-				Ingress: uint16(p.Metadata().Interfaces[len(p.Metadata().Interfaces)-1].ID),
-				Egress:  0,
-			})
-		}
+	}
+	if meta.FabridInfo[len(meta.Interfaces)/2].Enabled &&
+		meta.FabridInfo[len(meta.Interfaces)/2].Detached {
+		detachedHops = append(detachedHops, tempHopInfo{
+			IA:      meta.Interfaces[len(meta.Interfaces)-1].IA,
+			Digest:  meta.FabridInfo[len(meta.Interfaces)/2].Digest,
+			fiIdx:   len(meta.Interfaces) / 2,
+			Ingress: uint16(meta.Interfaces[len(meta.Interfaces)-1].ID),
+			Egress:  0,
+		})
 	}
 	return detachedHops
 }
