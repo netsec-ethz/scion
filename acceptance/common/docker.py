@@ -52,7 +52,7 @@ class Compose(object):
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         except subprocess.CalledProcessError as e:
             raise _CalledProcessErrorWithOutput(e) from None
-        return "STDOUT:\n%s\nSTDERR:%s\n" % (res.stdout, res.stderr)
+        return res.stdout
 
     def collect_logs(self, out_dir: str = "logs/docker"):
         """Collects the logs from the services into the given directory"""
