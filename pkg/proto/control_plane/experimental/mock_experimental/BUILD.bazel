@@ -1,0 +1,22 @@
+load("//tools/lint:go.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["FABRIDIntraServiceClient"],
+    library = "//pkg/proto/control_plane/experimental:go_default_library",
+    package = "mock_experimental",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["mock.go"],
+    importpath = "github.com/scionproto/scion/pkg/proto/control_plane/experimental/mock_experimental",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/control_plane/experimental:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)

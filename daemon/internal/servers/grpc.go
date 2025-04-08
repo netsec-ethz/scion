@@ -105,11 +105,7 @@ func (s *DaemonServer) paths(ctx context.Context,
 		return nil, err
 	}
 	if req.FetchFabridDetachedMaps {
-		detachedHops := findDetachedHops(paths)
-		if len(detachedHops) > 0 {
-			log.Info("Detached hops found", "hops", len(detachedHops))
-			updateFabridInfo(ctx, s.Dialer, detachedHops)
-		}
+		s.fetchFabridDetachedMaps(ctx, paths, nil)
 	}
 	reply := &sdpb.PathsResponse{}
 	for _, p := range paths {
