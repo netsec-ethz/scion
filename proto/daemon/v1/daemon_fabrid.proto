@@ -65,3 +65,17 @@ message FabridKeysResponse {
     // The FABRID path key
     optional FabridKeyResponse host_host_key = 2;
 }
+
+message PolicyDescriptionRequest {
+    // Whether the policy is local or global
+    bool is_local = 1;
+    // The identifier for the policy
+    uint32 policy_identifier = 2;
+    // Remote ISD-AS if the policy identifier is local
+    uint64 isd_as = 3;
+}
+
+message PolicyDescriptionResponse {
+    // The string description of the policy.
+    string description = 1;
+}

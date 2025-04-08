@@ -132,6 +132,35 @@ func TestRemotePolicyDescription(t *testing.T) {
 		})
 	}
 }
+
+func TestRemotePolicyDescription_LocalIAPolicy(t *testing.T) {
+	ia := xtest.MustParseIA("1-ff00:00:100")
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	IaLocalPolicies := map[uint32]string{
+		1: "Test Policy",
+		2: "Test Policy 2",
+	}
+	fetcher := mock_grpc.NewMockFabridControlPlaneFetcher(ctrl)
+	manager := &fabrid.FabridManager{
+		RemoteMapsCache:          make(map[addr.IA]fabrid.RemoteMap),
+		IdentifierDescriptionMap: IaLocalPolicies,
+		IA:                       ia,
+	}
+	server := Server{Fetcher: fetcher, FabridManager: manager}
+
+	fetcher.EXPECT().GetRemotePolicy(gomock.Any(), ia, gomock.Any()).Times(0)
+
+	request := &experimental.RemotePolicyDescriptionRequest{
+		PolicyIdentifier: 1,
+		IsdAs:            uint64(ia),
+	}
+	response, err := server.RemotePolicyDescription(ctx, request)
+
+	assert.Nil(t, err)
+	assert.Equal(t, response.Description, IaLocalPolicies[1])
+}
 func TestRemoteMaps_ExistingCacheEntry(t *testing.T) {
 	ia := xtest.MustParseIA("1-ff00:00:100")
 	ctx := context.Background()

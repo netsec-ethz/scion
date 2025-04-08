@@ -47,6 +47,11 @@ service DaemonService {
     rpc DRKeyHostHost (DRKeyHostHostRequest) returns (DRKeyHostHostResponse) {}
     // FabridKeys returns the DRKeys for FABRID
     rpc FabridKeys (proto.daemon.v1.FabridKeysRequest) returns (proto.daemon.v1.FabridKeysResponse) {}
+    // PolicyDescription is used by a host inside the AS to request a policy description.
+    // Global policies are fetched from GitHub, non-global policies are handled by the
+    // control service.
+    rpc PolicyDescription(PolicyDescriptionRequest) returns
+        (PolicyDescriptionResponse) {}
 }
 
 message PathsRequest {

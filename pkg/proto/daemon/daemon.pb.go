@@ -1805,7 +1805,7 @@ var file_proto_daemon_v1_daemon_proto_rawDesc = []byte{
 	0x49, 0x52, 0x45, 0x43, 0x54, 0x10, 0x01, 0x12, 0x17, 0x0a, 0x13, 0x4c, 0x49, 0x4e, 0x4b, 0x5f,
 	0x54, 0x59, 0x50, 0x45, 0x5f, 0x4d, 0x55, 0x4c, 0x54, 0x49, 0x5f, 0x48, 0x4f, 0x50, 0x10, 0x02,
 	0x12, 0x16, 0x0a, 0x12, 0x4c, 0x49, 0x4e, 0x4b, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x4f, 0x50,
-	0x45, 0x4e, 0x5f, 0x4e, 0x45, 0x54, 0x10, 0x03, 0x32, 0xf8, 0x06, 0x0a, 0x0d, 0x44, 0x61, 0x65,
+	0x45, 0x4e, 0x5f, 0x4e, 0x45, 0x54, 0x10, 0x03, 0x32, 0xe6, 0x07, 0x0a, 0x0d, 0x44, 0x61, 0x65,
 	0x6d, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x48, 0x0a, 0x05, 0x50, 0x61,
 	0x74, 0x68, 0x73, 0x12, 0x1d, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x64, 0x61, 0x65, 0x6d,
 	0x6f, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x61, 0x74, 0x68, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
@@ -1861,10 +1861,17 @@ var file_proto_daemon_v1_daemon_proto_rawDesc = []byte{
 	0x64, 0x4b, 0x65, 0x79, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x64, 0x61, 0x65, 0x6d, 0x6f, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x46,
 	0x61, 0x62, 0x72, 0x69, 0x64, 0x4b, 0x65, 0x79, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x00, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
-	0x6d, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x73, 0x63, 0x69,
-	0x6f, 0x6e, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x64, 0x61, 0x65,
-	0x6d, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x22, 0x00, 0x12, 0x6c, 0x0a, 0x11, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x44, 0x65, 0x73,
+	0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x29, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x64, 0x61, 0x65, 0x6d, 0x6f, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x6f, 0x6c, 0x69, 0x63,
+	0x79, 0x44, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x2a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x64, 0x61, 0x65, 0x6d,
+	0x6f, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x44, 0x65, 0x73, 0x63,
+	0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x00, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
+	0x73, 0x63, 0x69, 0x6f, 0x6e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e,
+	0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x64, 0x61, 0x65, 0x6d, 0x6f,
+	0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1916,7 +1923,9 @@ var file_proto_daemon_v1_daemon_proto_goTypes = []interface{}{
 	(drkey.Protocol)(0),                 // 31: proto.drkey.v1.Protocol
 	(*emptypb.Empty)(nil),               // 32: google.protobuf.Empty
 	(*FabridKeysRequest)(nil),           // 33: proto.daemon.v1.FabridKeysRequest
-	(*FabridKeysResponse)(nil),          // 34: proto.daemon.v1.FabridKeysResponse
+	(*PolicyDescriptionRequest)(nil),    // 34: proto.daemon.v1.PolicyDescriptionRequest
+	(*FabridKeysResponse)(nil),          // 35: proto.daemon.v1.FabridKeysResponse
+	(*PolicyDescriptionResponse)(nil),   // 36: proto.daemon.v1.PolicyDescriptionResponse
 }
 var file_proto_daemon_v1_daemon_proto_depIdxs = []int32{
 	3,  // 0: proto.daemon.v1.PathsResponse.paths:type_name -> proto.daemon.v1.Path
@@ -1956,18 +1965,20 @@ var file_proto_daemon_v1_daemon_proto_depIdxs = []int32{
 	20, // 34: proto.daemon.v1.DaemonService.DRKeyHostAS:input_type -> proto.daemon.v1.DRKeyHostASRequest
 	24, // 35: proto.daemon.v1.DaemonService.DRKeyHostHost:input_type -> proto.daemon.v1.DRKeyHostHostRequest
 	33, // 36: proto.daemon.v1.DaemonService.FabridKeys:input_type -> proto.daemon.v1.FabridKeysRequest
-	2,  // 37: proto.daemon.v1.DaemonService.Paths:output_type -> proto.daemon.v1.PathsResponse
-	8,  // 38: proto.daemon.v1.DaemonService.AS:output_type -> proto.daemon.v1.ASResponse
-	10, // 39: proto.daemon.v1.DaemonService.Interfaces:output_type -> proto.daemon.v1.InterfacesResponse
-	13, // 40: proto.daemon.v1.DaemonService.Services:output_type -> proto.daemon.v1.ServicesResponse
-	18, // 41: proto.daemon.v1.DaemonService.NotifyInterfaceDown:output_type -> proto.daemon.v1.NotifyInterfaceDownResponse
-	19, // 42: proto.daemon.v1.DaemonService.PortRange:output_type -> proto.daemon.v1.PortRangeResponse
-	23, // 43: proto.daemon.v1.DaemonService.DRKeyASHost:output_type -> proto.daemon.v1.DRKeyASHostResponse
-	21, // 44: proto.daemon.v1.DaemonService.DRKeyHostAS:output_type -> proto.daemon.v1.DRKeyHostASResponse
-	25, // 45: proto.daemon.v1.DaemonService.DRKeyHostHost:output_type -> proto.daemon.v1.DRKeyHostHostResponse
-	34, // 46: proto.daemon.v1.DaemonService.FabridKeys:output_type -> proto.daemon.v1.FabridKeysResponse
-	37, // [37:47] is the sub-list for method output_type
-	27, // [27:37] is the sub-list for method input_type
+	34, // 37: proto.daemon.v1.DaemonService.PolicyDescription:input_type -> proto.daemon.v1.PolicyDescriptionRequest
+	2,  // 38: proto.daemon.v1.DaemonService.Paths:output_type -> proto.daemon.v1.PathsResponse
+	8,  // 39: proto.daemon.v1.DaemonService.AS:output_type -> proto.daemon.v1.ASResponse
+	10, // 40: proto.daemon.v1.DaemonService.Interfaces:output_type -> proto.daemon.v1.InterfacesResponse
+	13, // 41: proto.daemon.v1.DaemonService.Services:output_type -> proto.daemon.v1.ServicesResponse
+	18, // 42: proto.daemon.v1.DaemonService.NotifyInterfaceDown:output_type -> proto.daemon.v1.NotifyInterfaceDownResponse
+	19, // 43: proto.daemon.v1.DaemonService.PortRange:output_type -> proto.daemon.v1.PortRangeResponse
+	23, // 44: proto.daemon.v1.DaemonService.DRKeyASHost:output_type -> proto.daemon.v1.DRKeyASHostResponse
+	21, // 45: proto.daemon.v1.DaemonService.DRKeyHostAS:output_type -> proto.daemon.v1.DRKeyHostASResponse
+	25, // 46: proto.daemon.v1.DaemonService.DRKeyHostHost:output_type -> proto.daemon.v1.DRKeyHostHostResponse
+	35, // 47: proto.daemon.v1.DaemonService.FabridKeys:output_type -> proto.daemon.v1.FabridKeysResponse
+	36, // 48: proto.daemon.v1.DaemonService.PolicyDescription:output_type -> proto.daemon.v1.PolicyDescriptionResponse
+	38, // [38:49] is the sub-list for method output_type
+	27, // [27:38] is the sub-list for method input_type
 	27, // [27:27] is the sub-list for extension type_name
 	27, // [27:27] is the sub-list for extension extendee
 	0,  // [0:27] is the sub-list for field type_name
@@ -2324,6 +2335,7 @@ type DaemonServiceClient interface {
 	DRKeyHostAS(ctx context.Context, in *DRKeyHostASRequest, opts ...grpc.CallOption) (*DRKeyHostASResponse, error)
 	DRKeyHostHost(ctx context.Context, in *DRKeyHostHostRequest, opts ...grpc.CallOption) (*DRKeyHostHostResponse, error)
 	FabridKeys(ctx context.Context, in *FabridKeysRequest, opts ...grpc.CallOption) (*FabridKeysResponse, error)
+	PolicyDescription(ctx context.Context, in *PolicyDescriptionRequest, opts ...grpc.CallOption) (*PolicyDescriptionResponse, error)
 }
 
 type daemonServiceClient struct {
@@ -2424,6 +2436,15 @@ func (c *daemonServiceClient) FabridKeys(ctx context.Context, in *FabridKeysRequ
 	return out, nil
 }
 
+func (c *daemonServiceClient) PolicyDescription(ctx context.Context, in *PolicyDescriptionRequest, opts ...grpc.CallOption) (*PolicyDescriptionResponse, error) {
+	out := new(PolicyDescriptionResponse)
+	err := c.cc.Invoke(ctx, "/proto.daemon.v1.DaemonService/PolicyDescription", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DaemonServiceServer is the server API for DaemonService service.
 type DaemonServiceServer interface {
 	Paths(context.Context, *PathsRequest) (*PathsResponse, error)
@@ -2436,6 +2457,7 @@ type DaemonServiceServer interface {
 	DRKeyHostAS(context.Context, *DRKeyHostASRequest) (*DRKeyHostASResponse, error)
 	DRKeyHostHost(context.Context, *DRKeyHostHostRequest) (*DRKeyHostHostResponse, error)
 	FabridKeys(context.Context, *FabridKeysRequest) (*FabridKeysResponse, error)
+	PolicyDescription(context.Context, *PolicyDescriptionRequest) (*PolicyDescriptionResponse, error)
 }
 
 // UnimplementedDaemonServiceServer can be embedded to have forward compatible implementations.
@@ -2471,6 +2493,9 @@ func (*UnimplementedDaemonServiceServer) DRKeyHostHost(context.Context, *DRKeyHo
 }
 func (*UnimplementedDaemonServiceServer) FabridKeys(context.Context, *FabridKeysRequest) (*FabridKeysResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FabridKeys not implemented")
+}
+func (*UnimplementedDaemonServiceServer) PolicyDescription(context.Context, *PolicyDescriptionRequest) (*PolicyDescriptionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PolicyDescription not implemented")
 }
 
 func RegisterDaemonServiceServer(s *grpc.Server, srv DaemonServiceServer) {
@@ -2657,6 +2682,24 @@ func _DaemonService_FabridKeys_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DaemonService_PolicyDescription_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PolicyDescriptionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DaemonServiceServer).PolicyDescription(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.daemon.v1.DaemonService/PolicyDescription",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DaemonServiceServer).PolicyDescription(ctx, req.(*PolicyDescriptionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _DaemonService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.daemon.v1.DaemonService",
 	HandlerType: (*DaemonServiceServer)(nil),
@@ -2700,6 +2743,10 @@ var _DaemonService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FabridKeys",
 			Handler:    _DaemonService_FabridKeys_Handler,
+		},
+		{
+			MethodName: "PolicyDescription",
+			Handler:    _DaemonService_PolicyDescription_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

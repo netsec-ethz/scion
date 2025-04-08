@@ -6,6 +6,7 @@ go_library(
     srcs = [
         "address.go",
         "common.go",
+        "fabrid.go",
         "gendocs.go",
         "main.go",
         "observability.go",

@@ -16,6 +16,10 @@ package servers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
@@ -223,4 +227,77 @@ func (s *DaemonServer) FabridKeys(ctx context.Context, req *sdpb.FabridKeysReque
 		AsHostKeys:  fabridKeys,
 		HostHostKey: hostHostKey,
 	}, nil
+}
+
+func (s *DaemonServer) PolicyDescription(ctx context.Context,
+	request *sdpb.PolicyDescriptionRequest) (
+	*sdpb.PolicyDescriptionResponse, error) {
+
+	var description string
+	if request.IsLocal {
+		conn, err := s.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
+		if err != nil {
+			log.FromCtx(ctx).Debug("Dialing CS failed", "err", err)
+		}
+		defer conn.Close()
+		client := experimental.NewFABRIDIntraServiceClient(conn)
+		response, err := client.RemotePolicyDescription(ctx,
+			&experimental.RemotePolicyDescriptionRequest{
+				PolicyIdentifier: request.PolicyIdentifier,
+				IsdAs:            request.IsdAs,
+			})
+		if err != nil {
+			return &sdpb.PolicyDescriptionResponse{}, err
+		}
+		description = response.Description
+	} else {
+		globalPolicyURL := fmt.Sprintf("%s/%d.json", s.FabridGlobalPolicyStore,
+			request.PolicyIdentifier)
+
+		// Fetch the global policy from the URL
+		policy, err := FetchGlobalPolicy(globalPolicyURL)
+		if err != nil {
+			return nil, serrors.WrapStr("fetching global policy", err)
+		}
+		// Grab the description from the fetched policy
+		if policy != nil {
+			description = policy.Description
+		}
+	}
+	return &sdpb.PolicyDescriptionResponse{Description: description}, nil
+}
+
+// GlobalPolicy holds a mapping of uint32 identifiers to their string descriptions
+type GlobalPolicy struct {
+	Description string `json:"description"`
+}
+
+// FetchGlobalPolicy fetches and parses the global policy from the given URL
+func FetchGlobalPolicy(url string) (*GlobalPolicy, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, serrors.WrapStr("failed to fetch global policy", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, serrors.New("global policy not found")
+		}
+		return nil, serrors.New("failed to fetch global policy", "StatusCode", resp.StatusCode)
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, serrors.WrapStr("failed to read response body", err)
+	}
+
+	// Unmarshal the JSON data into a map
+	var policy GlobalPolicy
+	if err = json.Unmarshal(body, &policy); err != nil {
+		return nil, serrors.WrapStr("failed to unmarshal policy JSON", err)
+	}
+
+	return &policy, nil
 }
