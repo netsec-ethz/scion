@@ -164,6 +164,10 @@ func (p *scionPacketProcessor) processHbhOptions(egressIF uint16) error {
 				return err
 			}
 		case slayers.OptTypeFabrid:
+			if !p.d.Fabrid {
+				//FABRID is disabled. Do nothing here.
+				return nil
+			}
 			if p.fabrid != nil {
 				return serrors.New("FABRID HBH option provided multiple times")
 			}

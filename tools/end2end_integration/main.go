@@ -80,6 +80,7 @@ func realMain() int {
 		fmt.Sprintf("-fabrid=%t", fabrid),
 	}
 	serverArgs := []string{
+		"-log.console", "debug",
 		"-mode", "server",
 		"-local", integration.DstAddrPattern + ":0",
 		fmt.Sprintf("-fabrid=%t", fabrid),

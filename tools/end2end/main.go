@@ -38,10 +38,13 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	libfabrid "github.com/scionproto/scion/pkg/experimental/fabrid"
+	common2 "github.com/scionproto/scion/pkg/experimental/fabrid/common"
+	fabridserver "github.com/scionproto/scion/pkg/experimental/fabrid/server"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/slayers/extension"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/metrics"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -132,7 +135,9 @@ func validateFlags() {
 	log.Info("Flags", "timeout", timeout, "epic", epic, "fabrid", fabrid, "remote", remote)
 }
 
-type server struct{}
+type server struct {
+	fabridServer *fabridserver.Server
+}
 
 func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
@@ -162,6 +167,15 @@ func (s server) run() {
 		}
 		log.Info("Listening", "local",
 			fmt.Sprintf("%v:%d", integration.Local.Host.IP, localAddr.Port))
+		s.fabridServer = fabridserver.NewFabridServer(&integration.Local, integration.SDConn())
+		s.fabridServer.ValidationHandler = func(connection *fabridserver.ClientConnection,
+			option *extension.IdentifierOption, b bool) error {
+			log.Debug("Validation handler", "connection", connection, "success", b)
+			if !b {
+				return serrors.New("Failed validation")
+			}
+			return nil
+		}
 		// Receive ping message
 		for {
 			if err := s.handlePingFabrid(conn); err != nil {
@@ -249,6 +263,7 @@ func (s server) handlePing(conn *snet.Conn) error {
 type client struct {
 	network *snet.SCIONNetwork
 	conn    *snet.Conn
+	rawConn snet.PacketConn
 	sdConn  daemon.Connector
 
 	errorPaths map[snet.PathFingerprint]struct{}
@@ -301,20 +316,47 @@ func (c *client) attemptRequest(n int) bool {
 		return err
 	}
 
-	// Send ping
-	close, err := c.ping(ctx, n, path)
-	if err != nil {
-		logger.Error("Could not send packet", "err", withTag(err))
-		return false
-	}
-	defer close()
-	// Receive pong
-	if err := c.pong(ctx); err != nil {
-		logger.Error("Error receiving pong", "err", withTag(err))
-		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+	if fabrid && remote.IA != integration.Local.IA {
+		doFabridPing := func() bool {
+			// Send ping
+			close, err := c.fabridPing(ctx, n, path)
+			if err != nil {
+				logger.Error("Could not send packet", "err", withTag(err))
+				return false
+			}
+			defer close()
+			// Receive FABRID pong
+			if err := c.fabridPong(ctx); err != nil {
+				logger.Error("Error receiving pong", "err", withTag(err))
+				if path != nil {
+					c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+				}
+				return false
+			}
+			return true
 		}
-		return false
+		for i := 0; i < 10; i++ {
+			if !doFabridPing() {
+				return false
+			}
+		}
+	} else {
+		// Send ping
+		close, err := c.ping(ctx, n, path)
+		if err != nil {
+			logger.Error("Could not send packet", "err", withTag(err))
+			return false
+		}
+		defer close()
+
+		// Receive pong
+		if err := c.pong(ctx); err != nil {
+			logger.Error("Error receiving pong", "err", withTag(err))
+			if path != nil {
+				c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+			}
+			return false
+		}
 	}
 	return true
 }
@@ -411,6 +453,15 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 				LocalAddr:       integration.Local.Host.IP.String(),
 				DestinationIA:   remote.IA,
 				DestinationAddr: remote.Host.IP.String(),
+				ValidationRatio: 125,
+			}
+			fabridConfig.ValidationHandler = func(ps *common2.PathState,
+				option *extension.FabridControlOption, b bool) error {
+				log.Debug("Validation handler", "pathState", ps, "success", b)
+				if !b {
+					return serrors.New("Failed validation")
+				}
+				return nil
 			}
 			hops := path.Metadata().Hops()
 			log.Info("Fabrid path", "path", path, "hops", hops)
@@ -423,12 +474,11 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 				}
 			}
 			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hops,
-				policies, fabridConfig)
+				policies, fabridConfig, c.sdConn.FabridKeys)
 			if err != nil {
 				return nil, serrors.New("Error creating FABRID path", "err", err)
 			}
 			remote.Path = fabridPath
-			fabridPath.RegisterDRKeyFetcher(c.sdConn.FabridKeys)
 		} else {
 			log.Info("FABRID flag was set for client in non-FABRID AS. Proceeding without FABRID.")
 			remote.Path = path.Dataplane()

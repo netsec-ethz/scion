@@ -102,12 +102,13 @@ func Choose(
 		}
 		paths = epicPaths
 	}
+	var fabridQuery fabridquery.Expressions
 	if o.fabrid != nil {
-		query, err := fabridquery.ParseFabridQuery(o.fabrid.Query)
+		fabridQuery, err = fabridquery.ParseFabridQuery(o.fabrid.Query)
 		if err != nil {
 			return nil, serrors.WrapStr("parsing fabrid query", err)
 		}
-
+		validFabridPaths := make([]snet.Path, 0, len(paths))
 		for _, p := range paths {
 			scionPath, isSCIONPath := p.Dataplane().(snetpath.SCION)
 			if !isSCIONPath {
@@ -117,29 +118,21 @@ func Choose(
 			ml := fabridquery.MatchList{
 				SelectedPolicies: make([]*fabridquery.Policy, len(hopIntfs)),
 			}
-			_, pols := query.Evaluate(hopIntfs, &ml)
+			_, pols := fabridQuery.Evaluate(hopIntfs, &ml)
 
 			if !pols.Accepted() {
 				continue
 			}
 			fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, p.Metadata().Hops(),
-				pols.Policies(), &o.fabrid.FabridConfig)
+				pols.Policies(), &o.fabrid.FabridConfig, conn.FabridKeys)
 			if err != nil {
 				return nil, serrors.WrapStr("creating fabrid path from scion path", err)
 			}
 			resPath := snetpath.Path{Src: p.Source(), Dst: p.Destination(),
 				DataplanePath: fabridPath, NextHop: p.UnderlayNextHop(), Meta: *p.Metadata()}
-
-			if o.fabrid.PrintSelectedPolicies {
-				cs := DefaultColorScheme(false)
-				fmt.Printf("Using selected FABRID policies:\n  %s\n\n", cs.FabridPath(resPath,
-					ml.SelectedPolicies))
-			}
-			return resPath, nil
+			validFabridPaths = append(validFabridPaths, resPath)
 		}
-		return nil, serrors.New(
-			fmt.Sprintf("no fabrid paths available satisfying query '%s'",
-				o.fabrid.Query))
+		paths = validFabridPaths
 	}
 	if o.probeCfg != nil {
 		paths, err = filterUnhealthy(ctx, paths, remote, conn, o.probeCfg, o.epic)
@@ -158,6 +151,18 @@ func Choose(
 		}
 	} else {
 		selectedPath = paths[rand.Intn(len(paths))]
+	}
+	if o.fabrid != nil {
+		if o.fabrid.PrintSelectedPolicies {
+			cs := DefaultColorScheme(false)
+			hopIntfs := selectedPath.Metadata().Hops()
+			ml := fabridquery.MatchList{
+				SelectedPolicies: make([]*fabridquery.Policy, len(hopIntfs)),
+			}
+			_, _ = fabridQuery.Evaluate(hopIntfs, &ml)
+			fmt.Printf("Using selected FABRID policies:\n  %s\n\n", cs.FabridPath(selectedPath,
+				ml.SelectedPolicies))
+		}
 	}
 	return selectedPath, nil
 }

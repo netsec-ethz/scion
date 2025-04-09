@@ -1,0 +1,13 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["fabrid.go"],
+    importpath = "github.com/scionproto/scion/pkg/experimental/fabrid/common",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/slayers/extension:go_default_library",
+    ],
+)

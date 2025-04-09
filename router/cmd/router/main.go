@@ -63,6 +63,7 @@ func realMain(ctx context.Context) error {
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
 			DRKeyProvider:                  &control.DRKeyProvider{},
+			Fabrid:                         globalCfg.Router.Fabrid,
 		},
 		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:      globalCfg.Router.SendBufferSize,
@@ -147,10 +148,6 @@ func realMain(ctx context.Context) error {
 	if globalCfg.Router.Fabrid {
 		go func() {
 			defer log.HandlePanic()
-			interfaces := make([]uint16, len(controlConfig.BR.IFIDs))
-			for i, iface := range controlConfig.BR.IFIDs {
-				interfaces[i] = uint16(iface)
-			}
 			fetcher.StartFabridPolicyFetcher()
 		}()
 	}

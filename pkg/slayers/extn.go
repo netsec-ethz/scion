@@ -36,6 +36,7 @@ const (
 	OptTypeAuthenticator
 	OptTypeIdentifier
 	OptTypeFabrid
+	OptTypeFabridControl
 )
 
 type tlvOption struct {

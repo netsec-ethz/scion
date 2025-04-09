@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "fabrid.go",
+        "fabrid_control.go",
         "identifier.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/slayers/extension",
@@ -17,6 +18,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "fabrid_control_test.go",
         "fabrid_test.go",
         "identifier_test.go",
     ],

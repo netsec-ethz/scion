@@ -11,6 +11,7 @@ def topogen_test(
         src,
         topo,
         gateway = False,
+        fabrid = False,
         debug = False,
         args = [],
         deps = [],
@@ -56,6 +57,10 @@ def topogen_test(
     ]
     if gateway:
         common_args.append("--setup-params='--sig'")
+
+    if fabrid:
+        common_args.append("--setup-params='--fabrid'")
+        common_args.append("--setup-params='--endhost'")
 
     common_data = [
         "//scion-pki/cmd/scion-pki",

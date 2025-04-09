@@ -116,6 +116,7 @@ type DataPlane struct {
 	dispatchedPortEnd        uint16
 
 	ExperimentalSCMPAuthentication bool
+	Fabrid                         bool
 
 	// The pool that stores all the packet buffers as described in the design document. See
 	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
