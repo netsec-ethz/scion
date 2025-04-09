@@ -132,6 +132,9 @@ func Choose(
 				DataplanePath: fabridPath, NextHop: p.UnderlayNextHop(), Meta: *p.Metadata()}
 			validFabridPaths = append(validFabridPaths, resPath)
 		}
+		if len(validFabridPaths) == 0 {
+			return nil, serrors.New("no fabrid path available satisfying this query")
+		}
 		paths = validFabridPaths
 	}
 	if o.probeCfg != nil {
