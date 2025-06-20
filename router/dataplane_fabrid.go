@@ -93,18 +93,26 @@ func (p *scionPacketProcessor) processFabrid(egressIF uint16) error {
 func (d *DataPlane) getFabridMplsLabelForInterface(ingressID uint32, policyIndex uint32,
 	egressID uint32) (uint32, error) {
 
-	policyMapKey := uint64(ingressID)<<24 + uint64(egressID)<<8 + uint64(policyIndex)
-	mplsLabel, found := d.fabridPolicyInterfaceMap[policyMapKey]
-	if !found {
-		//lookup default (instead of using the ingressID as part of the key, use a 1 bit as MSB):
-		policyMapKey = 1<<63 + uint64(egressID)<<8 + uint64(policyIndex)
-		mplsLabel, found = d.fabridPolicyInterfaceMap[policyMapKey]
-		if !found {
-			return 0, serrors.New("Provided policyID is invalid",
-				"ingress", ingressID, "index", policyIndex, "egress", egressID)
-		}
+	key1 := uint64(ingressID)<<24 + uint64(egressID)<<8 + uint64(policyIndex)
+	key2 := 1<<63 + uint64(egressID)<<8 + uint64(policyIndex)
+	key3 := uint64(ingressID)<<24 + uint64(policyIndex)
+	key4 := 1<<63 + uint64(policyIndex)
+
+	if mplsLabel1, found1 := d.fabridPolicyInterfaceMap[key1]; found1 {
+		//a policy for that specific (ingress, egress, policyIndex) combination was found
+		return mplsLabel1, nil
+	} else if mplsLabel2, found2 := d.fabridPolicyInterfaceMap[key2]; found2 {
+		//a policy for (*, egress, policyIndex) was found
+		return mplsLabel2, nil
+	} else if mplsLabel3, found3 := d.fabridPolicyInterfaceMap[key3]; found3 {
+		//a policy for (ingress, *, policyIndex) was found
+		return mplsLabel3, nil
+	} else if mplsLabel4, found4 := d.fabridPolicyInterfaceMap[key4]; found4 {
+		// a policy for (*, *, policyIndex) was found
+		return mplsLabel4, nil
 	}
-	return mplsLabel, nil
+	return 0, serrors.New("Provided policyID is invalid",
+		"ingress", ingressID, "index", policyIndex, "egress", egressID)
 }
 
 func (d *DataPlane) getFabridMplsLabel(ingressID uint32, policyIndex uint32,
