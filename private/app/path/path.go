@@ -333,7 +333,7 @@ func (cs ColorScheme) KeyValues(kv ...string) []string {
 	return entries
 }
 func (cs ColorScheme) Policies(policies []snet.FabridInfo, idx int) string {
-	if len(policies) < idx {
+	if len(policies) <= idx {
 		return ""
 	}
 	if policies[idx].Enabled && len(policies[idx].Policies) == 0 {
