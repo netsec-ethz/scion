@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/metrics"
 )
@@ -73,7 +74,7 @@ func main() {
 	}
 
 	// Get paths.
-	paths, err := daemonConn.Paths(ctx, remote.IA, localIA, daemon.PathReqFlags{})
+	paths, err := daemonConn.Paths(ctx, remote.IA, localIA, daemontypes.PathReqFlags{})
 	panicOnError(err)
 	if len(paths) == 0 {
 		panic("no paths")

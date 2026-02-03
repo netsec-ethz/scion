@@ -5,10 +5,6 @@ load("//acceptance/common:topogen.bzl", "topogen_test")
 topogen_test(
     name = "test",
     src = "test.py",
-    deps = [
-        requirement("prometheus-client"),
-        requirement("requests"),
-    ],
     args = [
         "--executable=sender:$(location //demo/router_priority/sender)",
     ],
@@ -17,4 +13,8 @@ topogen_test(
         "//demo/router_priority/sender",
     ],
     topo = "//topology:tiny.topo",
+    deps = [
+        requirement("prometheus-client"),
+        requirement("requests"),
+    ],
 )
