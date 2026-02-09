@@ -1,0 +1,20 @@
+load("@scion_python_deps//:requirements.bzl", "requirement")
+load("//:scion.bzl", "scion_go_binary")
+load("//acceptance/common:topogen.bzl", "topogen_test")
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+        "--executable=sender:$(location //acceptance/router_priority/sender)",
+    ],
+    data = [
+        "tc_setup.sh",
+        "//acceptance/router_priority/sender",
+    ],
+    topo = "//topology:tiny.topo",
+    deps = [
+        requirement("prometheus-client"),
+        requirement("requests"),
+    ],
+)
