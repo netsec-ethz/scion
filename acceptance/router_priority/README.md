@@ -80,7 +80,7 @@ without any kind of flow control.
 The regular `scion ping` does not work here, as it paces itself if responses are not received.
 
 
-## How to run the demo test
+## How to run the test independently
 
 1. [Set up the development environment](https://docs.scion.org/en/latest/build/setup.html)
-2. `bazel test --test_output=streamed --cache_test_results=no //demo/router_priority:test`
+2. `bazel test --test_output=streamed --cache_test_results=no //acceptance/router_priority:test`

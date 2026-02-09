@@ -6,11 +6,11 @@ topogen_test(
     name = "test",
     src = "test.py",
     args = [
-        "--executable=sender:$(location //demo/router_priority/sender)",
+        "--executable=sender:$(location //acceptance/router_priority/sender)",
     ],
     data = [
         "tc_setup.sh",
-        "//demo/router_priority/sender",
+        "//acceptance/router_priority/sender",
     ],
     topo = "//topology:tiny.topo",
     deps = [

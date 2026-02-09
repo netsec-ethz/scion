@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library")
 go_library(
     name = "go_default_library",
     srcs = ["main.go"],
-    importpath = "github.com/scionproto/scion/demo/router_priority/sender",
+    importpath = "github.com/scionproto/scion/acceptance/router_priority/sender",
     visibility = ["//visibility:private"],
     deps = [
         "//pkg/daemon:go_default_library",

@@ -79,7 +79,7 @@ class Test(base.TestTopogen):
             "cap_add": ["NET_ADMIN"],
             "volumes": [{
                 "type": "bind",
-                "source": os.path.realpath("demo/router_priority/tc_setup.sh"),
+                "source": os.path.realpath("acceptance/router_priority/tc_setup.sh"),
                 "target": "/share/tc_setup.sh",
             }],
             "entrypoint": ["/bin/bash", "-exc",
